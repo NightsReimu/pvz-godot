@@ -6,8 +6,8 @@ const WORLDS := [
 	{
 		"key": "day",
 		"title": "白天庭院",
-		"subtitle": "Adventure 1-1 ~ 1-16",
-		"description": "从单行开局到保龄球、传送带与白天 Boss，节奏偏经典原版。",
+		"subtitle": "Adventure 1-1 ~ 1-18",
+		"description": "从单行开局到保龄球、传送带与白天 Boss，最右侧还藏着血月支线 1-17 与寒湖支线 1-18。",
 		"accent": Color(0.95, 0.76, 0.22),
 		"accent_dark": Color(0.64, 0.42, 0.08),
 		"panel": Color(0.98, 0.93, 0.78),
@@ -28,8 +28,8 @@ const WORLDS := [
 	{
 		"key": "pool",
 		"title": "泳池时代",
-		"subtitle": "Adventure 3-1 ~ 3-8",
-		"description": "六行泳池、中央水路、冰道与游泳系僵尸同时展开，节奏更偏原版泳池中段。",
+		"subtitle": "Adventure 3-1 ~ 3-10",
+		"description": "六行泳池、中央水路、冰道与游泳系僵尸同时展开，末段还会进入两张高压传送带关卡。",
 		"accent": Color(0.18, 0.66, 0.9),
 		"accent_dark": Color(0.08, 0.28, 0.5),
 		"panel": Color(0.84, 0.96, 1.0),

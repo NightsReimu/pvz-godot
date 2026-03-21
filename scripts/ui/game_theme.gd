@@ -12,19 +12,58 @@ static func ease_out(value: float) -> float:
 	return 1.0 - pow(1.0 - t, 3.0)
 
 
+static func progress_fill_rect(rect: Rect2, ratio: float) -> Rect2:
+	return Rect2(rect.position, Vector2(rect.size.x * clampf(ratio, 0.0, 1.0), rect.size.y))
+
+
+static func scroll_knob_rect(track_rect: Rect2, view_length: float, content_length: float, scroll: float, min_length: float = 46.0) -> Rect2:
+	if content_length <= 0.0 or view_length <= 0.0 or content_length <= view_length:
+		return track_rect
+	var max_scroll = maxf(content_length - view_length, 0.001)
+	var knob_length = maxf(min_length, track_rect.size.y * (view_length / content_length))
+	var ratio = clampf(scroll / max_scroll, 0.0, 1.0)
+	return Rect2(
+		Vector2(track_rect.position.x, track_rect.position.y + (track_rect.size.y - knob_length) * ratio),
+		Vector2(track_rect.size.x, knob_length)
+	)
+
+
 static func draw_panel_shell(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, shadow_alpha: float = 0.22, accent_alpha: float = 0.16) -> void:
-	var shadow_rect = rect.grow(8.0)
-	shadow_rect.position += Vector2(0.0, 12.0)
-	canvas.draw_rect(shadow_rect, Color(0.0, 0.0, 0.0, shadow_alpha), true)
+	var outer_glow = rect.grow(6.0)
+	canvas.draw_rect(outer_glow, Color(border_color.r, border_color.g, border_color.b, accent_alpha * 0.22), true)
+	var shadow_rect = rect.grow(10.0)
+	shadow_rect.position += Vector2(0.0, 14.0)
+	canvas.draw_rect(shadow_rect, Color(0.0, 0.0, 0.0, shadow_alpha * 0.72), true)
+	canvas.draw_rect(Rect2(rect.position + Vector2(4.0, 6.0), rect.size), Color(0.0, 0.0, 0.0, shadow_alpha * 0.18), true)
 	canvas.draw_rect(rect, fill_color, true)
-	canvas.draw_rect(Rect2(rect.position, Vector2(rect.size.x, maxf(10.0, rect.size.y * 0.18))), fill_color.lerp(Color.WHITE, 0.28), true)
+	canvas.draw_rect(
+		Rect2(rect.position + Vector2(2.0, 2.0), Vector2(maxf(0.0, rect.size.x - 4.0), maxf(10.0, rect.size.y * 0.16))),
+		fill_color.lerp(Color.WHITE, 0.34),
+		true
+	)
+	canvas.draw_rect(
+		Rect2(rect.position + Vector2(4.0, rect.size.y * 0.26), Vector2(maxf(0.0, rect.size.x - 8.0), maxf(8.0, rect.size.y * 0.18))),
+		fill_color.lerp(Color.WHITE, 0.12),
+		true
+	)
 	canvas.draw_rect(
 		Rect2(rect.position + Vector2(0.0, rect.size.y * 0.7), Vector2(rect.size.x, rect.size.y * 0.3)),
 		fill_color.darkened(0.12),
 		true
 	)
+	var stripe_step = maxf(48.0, rect.size.x * 0.12)
+	var stripe_count = int(ceil((rect.size.x + rect.size.y) / stripe_step))
+	for stripe_index in range(stripe_count + 1):
+		var stripe_x = rect.position.x - rect.size.y * 0.24 + float(stripe_index) * stripe_step
+		canvas.draw_line(
+			Vector2(stripe_x, rect.position.y + rect.size.y - 4.0),
+			Vector2(stripe_x + rect.size.y * 0.3, rect.position.y + 4.0),
+			Color(1.0, 1.0, 1.0, accent_alpha * 0.14),
+			2.0
+		)
 	canvas.draw_rect(Rect2(rect.position + Vector2(0.0, 14.0), Vector2(rect.size.x, 2.0)), Color(1.0, 1.0, 1.0, accent_alpha), true)
-	canvas.draw_line(rect.position + Vector2(18.0, rect.size.y - 14.0), rect.position + Vector2(rect.size.x - 18.0, 14.0), Color(1.0, 1.0, 1.0, 0.06), 3.0)
+	canvas.draw_line(rect.position + Vector2(16.0, rect.size.y - 16.0), rect.position + Vector2(rect.size.x - 18.0, 14.0), Color(1.0, 1.0, 1.0, accent_alpha * 0.42), 3.0)
+	canvas.draw_rect(rect.grow(-3.0), Color(1.0, 1.0, 1.0, accent_alpha * 0.18), false, 1.0)
 	canvas.draw_line(rect.position + Vector2(0.0, rect.size.y - 1.0), rect.position + Vector2(rect.size.x, rect.size.y - 1.0), border_color.darkened(0.18), 3.0)
 	canvas.draw_rect(rect, border_color, false, 2.0)
 
@@ -42,6 +81,8 @@ static func draw_scroll_mask(canvas: CanvasItem, content_rect: Rect2, view_rect:
 	var content_end_y = content_rect.position.y + content_rect.size.y
 	if content_end_y > bottom_y:
 		canvas.draw_rect(Rect2(Vector2(content_rect.position.x, bottom_y), Vector2(content_rect.size.x, content_end_y - bottom_y)), fill_color, true)
+	canvas.draw_rect(Rect2(view_rect.position, Vector2(view_rect.size.x, 12.0)), Color(1.0, 1.0, 1.0, 0.05), true)
+	canvas.draw_rect(Rect2(view_rect.position + Vector2(0.0, view_rect.size.y - 12.0), Vector2(view_rect.size.x, 12.0)), Color(0.0, 0.0, 0.0, 0.08), true)
 	canvas.draw_rect(view_rect.grow(1.0), border_color, false, 2.0)
 
 
