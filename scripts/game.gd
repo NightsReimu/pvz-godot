@@ -849,7 +849,7 @@ func _enter_seed_selection(level_index: int) -> void:
 	selected_tool = ""
 	active_cards = []
 	active_rows = _build_active_rows(int(current_level.get("row_count", ROWS)))
-	selection_pool_cards = current_level["available_plants"].duplicate()
+	selection_pool_cards = _available_seed_cards_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
 	var required_count = _required_seed_count(current_level)
@@ -5160,7 +5160,7 @@ func _requires_seed_selection(level: Dictionary) -> bool:
 	var mode_name = String(level.get("mode", ""))
 	if mode_name == "conveyor" or mode_name == "bowling" or mode_name == "whack":
 		return false
-	return level["available_plants"].size() > MAX_SEED_SLOTS
+	return _available_seed_cards_for_level(level).size() > MAX_SEED_SLOTS
 
 
 func _required_seed_count(level: Dictionary) -> int:
@@ -5168,18 +5168,55 @@ func _required_seed_count(level: Dictionary) -> int:
 	if mode_name == "conveyor" or mode_name == "bowling":
 		return 0
 	if mode_name == "whack":
-		return level["available_plants"].size()
-	return min(level["available_plants"].size(), MAX_SEED_SLOTS)
+		return _available_seed_cards_for_level(level).size()
+	return min(_available_seed_cards_for_level(level).size(), MAX_SEED_SLOTS)
 
 
 func _default_level_cards(level: Dictionary) -> Array:
 	var cards: Array = []
 	var required_count = _required_seed_count(level)
-	for kind in level["available_plants"]:
+	for kind in _available_seed_cards_for_level(level):
 		if cards.size() >= required_count:
 			break
 		cards.append(kind)
 	return cards
+
+
+func _available_seed_cards_for_level(level: Dictionary) -> Array:
+	var mode_name = String(level.get("mode", ""))
+	if mode_name == "conveyor" or mode_name == "bowling" or mode_name == "whack":
+		return level.get("available_plants", []).duplicate()
+	return _player_plant_collection()
+
+
+func _player_plant_collection() -> Array:
+	var unlocked_kinds: Array = []
+	var seen := {}
+	if Defs.PLANTS.has("peashooter"):
+		seen["peashooter"] = true
+		unlocked_kinds.append("peashooter")
+	var progression_limit = clampi(unlocked_levels - 1, 0, Defs.LEVELS.size())
+	for i in range(Defs.LEVELS.size()):
+		var counted_complete = i < progression_limit
+		if i < completed_levels.size() and bool(completed_levels[i]):
+			counted_complete = true
+		if not counted_complete:
+			continue
+		var unlock_kind = String(Defs.LEVELS[i].get("unlock_plant", ""))
+		if unlock_kind == "" or seen.has(unlock_kind) or not Defs.PLANTS.has(unlock_kind):
+			continue
+		seen[unlock_kind] = true
+		unlocked_kinds.append(unlock_kind)
+	var ordered: Array = []
+	for kind in Defs.PLANT_ORDER:
+		var plant_kind = String(kind)
+		if seen.has(plant_kind):
+			ordered.append(plant_kind)
+	for kind in unlocked_kinds:
+		var plant_kind = String(kind)
+		if not ordered.has(plant_kind):
+			ordered.append(plant_kind)
+	return ordered
 
 
 func _selection_zombie_kinds() -> Array:
@@ -9455,6 +9492,23 @@ func _completed_level_ids() -> Array:
 	return result
 
 
+func _count_completed_levels() -> int:
+	var completed_count := 0
+	for completed in completed_levels:
+		if bool(completed):
+			completed_count += 1
+	return completed_count
+
+
+func _sparse_progress_backfill_count() -> int:
+	var reached_level_count = max(unlocked_levels, selected_level_index + 1)
+	return min(max(reached_level_count, 0), completed_levels.size())
+
+
+func _should_backfill_sparse_progress(completed_count: int) -> bool:
+	return unlocked_levels >= max(12, Defs.LEVELS.size() - 2) and completed_count <= max(4, int(floor(float(unlocked_levels) * 0.2)))
+
+
 func _apply_loaded_save_data(save_data: Dictionary) -> bool:
 	var save_version = int(save_data.get("version", 1))
 	unlocked_levels = clampi(int(save_data.get("unlocked_levels", 1)), 1, Defs.LEVELS.size())
@@ -9479,20 +9533,14 @@ func _apply_loaded_save_data(save_data: Dictionary) -> bool:
 			saved_completed = []
 		for i in range(completed_levels.size()):
 			completed_levels[i] = bool(saved_completed[i]) if i < saved_completed.size() else false
-		var completed_count := 0
-		for completed in completed_levels:
-			if bool(completed):
-				completed_count += 1
-		var suspicious_sparse_legacy = save_version <= 1 and unlocked_levels >= max(12, Defs.LEVELS.size() - 2) and completed_count <= max(4, int(floor(float(unlocked_levels) * 0.2)))
-		if suspicious_sparse_legacy:
-			var backfill_count = min(unlocked_levels - 1, completed_levels.size())
-			if selected_level_index == unlocked_levels - 1:
-				backfill_count = min(unlocked_levels, completed_levels.size())
-			for i in range(backfill_count):
-				completed_levels[i] = true
+		if save_version <= 1:
 			migrated = true
-		elif save_version <= 1:
-			migrated = true
+
+	var completed_count = _count_completed_levels()
+	if _should_backfill_sparse_progress(completed_count):
+		for i in range(_sparse_progress_backfill_count()):
+			completed_levels[i] = true
+		migrated = true
 
 	for i in range(completed_levels.size()):
 		if bool(completed_levels[i]):
