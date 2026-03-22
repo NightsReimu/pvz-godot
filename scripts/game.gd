@@ -8757,94 +8757,139 @@ func _draw_threepeater(center: Vector2, size_scale: float, flash: float, alpha: 
 
 
 func _draw_boomerang_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var body_color = Color(0.46, 0.82, 0.36, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.18, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(-4.0 * size_scale, -4.0 * size_scale), 18.0 * size_scale, body_color)
-	draw_circle(center + Vector2(12.0 * size_scale, -10.0 * size_scale), 10.0 * size_scale, Color(0.74, 0.94, 0.48, alpha))
-	draw_arc(center + Vector2(18.0 * size_scale, -10.0 * size_scale), 12.0 * size_scale, -1.1, 1.1, 16, Color(0.96, 0.74, 0.22, alpha), 3.0 * size_scale)
-	draw_arc(center + Vector2(-10.0 * size_scale, -18.0 * size_scale), 10.0 * size_scale, 1.9, 4.2, 16, Color(0.96, 0.74, 0.22, alpha * 0.9), 2.0 * size_scale)
-	draw_circle(center + Vector2(-7.0 * size_scale, -6.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(center + Vector2(2.0 * size_scale, -8.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	var body_color = Color(0.56, 0.84, 0.26, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
+	var arm_color = Color(0.72, 0.9, 0.38, alpha)
+	var boom_color = Color(0.96, 0.68, 0.18, alpha)
+	var spin = sin(level_time * 6.0) * 2.0
+	draw_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 6.0 * size_scale)
+	draw_line(center + Vector2(-8.0 * size_scale, 22.0 * size_scale), center + Vector2(-22.0 * size_scale, 12.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 4.0 * size_scale)
+	draw_line(center + Vector2(-8.0 * size_scale, 24.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 4.0 * size_scale)
+	draw_circle(center + Vector2(-12.0 * size_scale, -2.0 * size_scale), 17.0 * size_scale, body_color)
+	draw_circle(center + Vector2(-24.0 * size_scale, -4.0 * size_scale), 12.0 * size_scale, body_color.darkened(0.04))
+	draw_circle(center + Vector2(-2.0 * size_scale, -6.0 * size_scale), 12.0 * size_scale, arm_color)
+	draw_circle(center + Vector2(-30.0 * size_scale, -8.0 * size_scale), 8.0 * size_scale, Color(0.72, 0.9, 0.3, alpha))
+	draw_line(center + Vector2(-4.0 * size_scale, -8.0 * size_scale), center + Vector2(20.0 * size_scale, -18.0 * size_scale), Color(0.34, 0.6, 0.18, alpha), 4.0 * size_scale)
+	draw_arc(center + Vector2(26.0 * size_scale, (-18.0 + spin) * size_scale), 12.0 * size_scale, -1.25, 0.95, 18, boom_color, 3.2 * size_scale)
+	draw_arc(center + Vector2(24.0 * size_scale, (-18.0 + spin) * size_scale), 7.0 * size_scale, -1.15, 0.82, 14, Color(0.5, 0.28, 0.08, alpha), 1.4 * size_scale)
+	draw_arc(center + Vector2(-26.0 * size_scale, -28.0 * size_scale), 10.0 * size_scale, 1.8, 4.3, 16, boom_color.darkened(0.08), 2.4 * size_scale)
+	draw_circle(center + Vector2(-20.0 * size_scale, -10.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(-11.0 * size_scale, -12.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
 
 func _draw_sakura_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var petal_color = Color(1.0, 0.72, 0.84, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	var body_color = Color(0.48, 0.76, 0.38, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 16.0 * size_scale, body_color)
-	for index in range(5):
-		var angle = -0.6 + float(index) * 0.52
-		var petal_center = center + Vector2(cos(angle), sin(angle)) * 17.0 * size_scale + Vector2(8.0 * size_scale, -8.0 * size_scale)
-		draw_polygon(
-			PackedVector2Array([
-				petal_center + Vector2(0.0, -8.0 * size_scale),
-				petal_center + Vector2(7.0 * size_scale, 0.0),
-				petal_center + Vector2(0.0, 8.0 * size_scale),
-				petal_center + Vector2(-7.0 * size_scale, 0.0),
-			]),
-			PackedColorArray([petal_color, petal_color, Color(0.98, 0.58, 0.76, alpha), petal_color])
-		)
-	draw_circle(center + Vector2(8.0 * size_scale, -8.0 * size_scale), 6.0 * size_scale, Color(0.96, 0.84, 0.42, alpha))
-	draw_circle(center + Vector2(-5.0 * size_scale, -6.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(center + Vector2(4.0 * size_scale, -8.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	var bark = Color(0.48, 0.3, 0.18, alpha)
+	var canopy = Color(0.98, 0.76, 0.86, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var blossom_core = Color(0.98, 0.56, 0.72, alpha)
+	var drift = sin(level_time * 2.4 + center.x * 0.02) * 2.0
+	draw_line(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), bark, 6.0 * size_scale)
+	draw_line(center + Vector2(-8.0 * size_scale, 6.0 * size_scale), center + Vector2(10.0 * size_scale, -10.0 * size_scale), bark, 4.0 * size_scale)
+	draw_line(center + Vector2(-6.0 * size_scale, -2.0 * size_scale), center + Vector2(-22.0 * size_scale, -18.0 * size_scale), bark, 3.2 * size_scale)
+	for blossom in [
+		Vector2(-24.0, -20.0),
+		Vector2(-8.0, -24.0 + drift),
+		Vector2(10.0, -14.0),
+		Vector2(20.0, -22.0 - drift * 0.6),
+		Vector2(4.0, -2.0 + drift * 0.4)
+	]:
+		var petal_center = center + blossom * size_scale
+		for index in range(4):
+			var angle = PI * 0.25 + float(index) * PI * 0.5
+			var offset = Vector2(cos(angle), sin(angle)) * 6.0 * size_scale
+			draw_circle(petal_center + offset, 6.0 * size_scale, canopy)
+		draw_circle(petal_center, 4.0 * size_scale, blossom_core)
+	draw_circle(center + Vector2(-16.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(-8.0 * size_scale, -12.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	for petal_index in range(3):
+		var fall_center = center + Vector2((10.0 + petal_index * 10.0) * size_scale, (-2.0 + petal_index * 8.0 + sin(level_time * 3.0 + petal_index) * 3.0) * size_scale)
+		draw_circle(fall_center, 3.0 * size_scale, canopy * Color(1.0, 1.0, 1.0, 0.78))
 
 
 func _draw_lotus_lancer(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var body_color = Color(0.44, 0.8, 0.48, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.54, 0.18, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -2.0 * size_scale), 15.0 * size_scale, body_color)
+	var lotus_green = Color(0.28, 0.72, 0.46, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
+	var lotus_purple = Color(0.7, 0.54, 0.88, alpha)
+	var lance_blue = Color(0.78, 0.94, 1.0, alpha)
+	var wave = sin(level_time * 3.1 + center.x * 0.01) * 2.0
+	draw_circle(center + Vector2(-8.0 * size_scale, 18.0 * size_scale), 16.0 * size_scale, Color(0.18, 0.62, 0.38, alpha))
+	draw_circle(center + Vector2(8.0 * size_scale, 18.0 * size_scale), 14.0 * size_scale, Color(0.22, 0.68, 0.42, alpha))
 	draw_polygon(
 		PackedVector2Array([
-			center + Vector2(20.0 * size_scale, -18.0 * size_scale),
-			center + Vector2(6.0 * size_scale, -6.0 * size_scale),
-			center + Vector2(20.0 * size_scale, 6.0 * size_scale),
-			center + Vector2(32.0 * size_scale, -6.0 * size_scale),
+			center + Vector2(6.0 * size_scale, 10.0 * size_scale),
+			center + Vector2(24.0 * size_scale, 18.0 * size_scale),
+			center + Vector2(2.0 * size_scale, 28.0 * size_scale),
 		]),
-		PackedColorArray([
-			Color(0.78, 0.96, 1.0, alpha),
-			Color(0.52, 0.9, 1.0, alpha),
-			Color(0.52, 0.9, 1.0, alpha),
-			Color(0.92, 1.0, 1.0, alpha),
-		])
+		PackedColorArray([Color(0.12, 0.54, 0.32, alpha), Color(0.16, 0.62, 0.38, alpha), Color(0.12, 0.54, 0.32, alpha)])
 	)
-	draw_circle(center + Vector2(-4.0 * size_scale, -4.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(center + Vector2(5.0 * size_scale, -6.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-2.0 * size_scale, -20.0 * size_scale), Color(0.24, 0.58, 0.3, alpha), 5.0 * size_scale)
+	for petal in [
+		Vector2(-16.0, -6.0 + wave),
+		Vector2(-4.0, -18.0),
+		Vector2(8.0, -8.0 - wave * 0.5),
+		Vector2(-2.0, -2.0)
+	]:
+		draw_circle(center + petal * size_scale, 10.0 * size_scale, lotus_purple)
+	draw_circle(center + Vector2(-2.0 * size_scale, -8.0 * size_scale), 7.0 * size_scale, Color(0.98, 0.88, 0.46, alpha))
+	draw_line(center + Vector2(10.0 * size_scale, -10.0 * size_scale), center + Vector2(34.0 * size_scale, -20.0 * size_scale), lance_blue, 3.0 * size_scale)
+	draw_line(center + Vector2(34.0 * size_scale, -20.0 * size_scale), center + Vector2(54.0 * size_scale, -20.0 * size_scale), Color(0.92, 0.98, 1.0, alpha), 2.2 * size_scale)
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(54.0 * size_scale, -20.0 * size_scale),
+			center + Vector2(68.0 * size_scale, -26.0 * size_scale),
+			center + Vector2(62.0 * size_scale, -20.0 * size_scale),
+			center + Vector2(68.0 * size_scale, -14.0 * size_scale),
+		]),
+		PackedColorArray([lance_blue, Color(0.94, 1.0, 1.0, alpha), lance_blue, lance_blue])
+	)
+	draw_circle(center + Vector2(-10.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(-2.0 * size_scale, -12.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_arc(center + Vector2(-4.0 * size_scale, 18.0 * size_scale), 24.0 * size_scale, 3.5, 5.8, 18, Color(0.74, 0.96, 1.0, alpha * 0.28), 1.2 * size_scale)
 
 
 func _draw_mirror_reed(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var body_color = Color(0.48, 0.72, 0.42, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.26, 0.54, 0.18, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 15.0 * size_scale, body_color)
-	draw_circle(center + Vector2(14.0 * size_scale, -12.0 * size_scale), 12.0 * size_scale, Color(0.84, 0.94, 1.0, alpha * 0.88))
-	draw_circle(center + Vector2(14.0 * size_scale, -12.0 * size_scale), 8.0 * size_scale, Color(0.62, 0.78, 0.98, alpha * 0.88))
-	draw_line(center + Vector2(14.0 * size_scale, -24.0 * size_scale), center + Vector2(14.0 * size_scale, 0.0), Color(1.0, 1.0, 1.0, alpha * 0.36), 2.0 * size_scale)
-	draw_line(center + Vector2(2.0 * size_scale, -12.0 * size_scale), center + Vector2(26.0 * size_scale, -12.0 * size_scale), Color(1.0, 1.0, 1.0, alpha * 0.36), 2.0 * size_scale)
-	draw_circle(center + Vector2(-5.0 * size_scale, -6.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(center + Vector2(3.0 * size_scale, -8.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	var reed_green = Color(0.46, 0.7, 0.34, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
+	var frame_color = Color(0.88, 0.78, 0.42, alpha)
+	var mirror_color = Color(0.76, 0.9, 1.0, alpha * 0.92)
+	var gleam = 4.0 * sin(level_time * 2.6)
+	draw_line(center + Vector2(-10.0 * size_scale, 12.0 * size_scale), center + Vector2(-12.0 * size_scale, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 4.0 * size_scale)
+	draw_line(center + Vector2(2.0 * size_scale, 14.0 * size_scale), center + Vector2(4.0 * size_scale, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 4.0 * size_scale)
+	draw_line(center + Vector2(-4.0 * size_scale, 8.0 * size_scale), center + Vector2(12.0 * size_scale, -20.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 3.4 * size_scale)
+	draw_rect(Rect2(center + Vector2(8.0 * size_scale, -30.0 * size_scale), Vector2(28.0 * size_scale, 34.0 * size_scale)), frame_color, true)
+	draw_rect(Rect2(center + Vector2(11.0 * size_scale, -27.0 * size_scale), Vector2(22.0 * size_scale, 28.0 * size_scale)), mirror_color, true)
+	draw_line(center + Vector2((14.0 + gleam) * size_scale, -24.0 * size_scale), center + Vector2((30.0 + gleam) * size_scale, -8.0 * size_scale), Color(1.0, 1.0, 1.0, alpha * 0.7), 2.0 * size_scale)
+	draw_circle(center + Vector2(-10.0 * size_scale, 0.0), 10.0 * size_scale, reed_green)
+	draw_circle(center + Vector2(0.0, -10.0 * size_scale), 9.0 * size_scale, Color(0.64, 0.86, 0.5, alpha))
+	draw_circle(center + Vector2(-14.0 * size_scale, -2.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(-6.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_arc(center + Vector2(22.0 * size_scale, -12.0 * size_scale), 18.0 * size_scale, -0.9, 0.9, 18, Color(0.92, 1.0, 1.0, alpha * 0.32), 1.6 * size_scale)
 
 
 func _draw_frost_fan(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var body_color = Color(0.52, 0.82, 0.54, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.2, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(-2.0 * size_scale, -2.0 * size_scale), 15.0 * size_scale, body_color)
+	var fan_white = Color(0.9, 0.98, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var fan_blue = Color(0.62, 0.84, 1.0, alpha)
+	var handle = Color(0.4, 0.66, 0.34, alpha)
+	var gust = sin(level_time * 4.2 + center.x * 0.01) * 2.4
+	draw_line(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), center + Vector2(-12.0 * size_scale, 34.0 * size_scale), handle, 5.0 * size_scale)
+	draw_circle(center + Vector2(-14.0 * size_scale, -2.0 * size_scale), 11.0 * size_scale, Color(0.54, 0.82, 0.44, alpha))
+	draw_circle(center + Vector2(-8.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(-16.0 * size_scale, -2.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	var fan_origin = center + Vector2(-2.0 * size_scale, 8.0 * size_scale)
+	for rib in range(5):
+		var angle = -1.45 + float(rib) * 0.42
+		var tip = fan_origin + Vector2(cos(angle), sin(angle)) * (32.0 + gust + rib * 2.0) * size_scale
+		draw_line(fan_origin, tip, Color(0.68, 0.86, 1.0, alpha * 0.9), 2.0 * size_scale)
 	draw_polygon(
 		PackedVector2Array([
-			center + Vector2(8.0 * size_scale, -24.0 * size_scale),
-			center + Vector2(34.0 * size_scale, -8.0 * size_scale),
-			center + Vector2(24.0 * size_scale, 18.0 * size_scale),
-			center + Vector2(2.0 * size_scale, 6.0 * size_scale),
+			fan_origin + Vector2(-6.0 * size_scale, -34.0 * size_scale),
+			fan_origin + Vector2(26.0 * size_scale, -22.0 * size_scale),
+			fan_origin + Vector2(34.0 * size_scale, 2.0 * size_scale),
+			fan_origin + Vector2(-2.0 * size_scale, 12.0 * size_scale),
 		]),
-		PackedColorArray([
-			Color(0.88, 0.98, 1.0, alpha),
-			Color(0.72, 0.92, 1.0, alpha),
-			Color(0.66, 0.86, 1.0, alpha),
-			Color(0.88, 0.98, 1.0, alpha),
-		])
+		PackedColorArray([fan_white, fan_blue, fan_blue.darkened(0.08), fan_white])
 	)
-	draw_line(center + Vector2(10.0 * size_scale, 0.0), center + Vector2(26.0 * size_scale, -12.0 * size_scale), Color(0.58, 0.8, 0.96, alpha * 0.8), 2.0 * size_scale)
-	draw_line(center + Vector2(12.0 * size_scale, 6.0 * size_scale), center + Vector2(24.0 * size_scale, 10.0 * size_scale), Color(0.58, 0.8, 0.96, alpha * 0.7), 2.0 * size_scale)
-	draw_circle(center + Vector2(-6.0 * size_scale, -5.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(center + Vector2(2.0 * size_scale, -7.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_arc(fan_origin + Vector2(10.0 * size_scale, -10.0 * size_scale), 26.0 * size_scale, -1.45, 0.2, 24, Color(1.0, 1.0, 1.0, alpha * 0.42), 1.8 * size_scale)
+	for snow in range(3):
+		var flake = center + Vector2((18.0 + snow * 10.0) * size_scale, (-20.0 + snow * 8.0 + sin(level_time * 2.4 + snow) * 4.0) * size_scale)
+		draw_line(flake + Vector2(-3.0 * size_scale, 0.0), flake + Vector2(3.0 * size_scale, 0.0), Color(0.92, 0.98, 1.0, alpha * 0.8), 1.2 * size_scale)
+		draw_line(flake + Vector2(0.0, -3.0 * size_scale), flake + Vector2(0.0, 3.0 * size_scale), Color(0.92, 0.98, 1.0, alpha * 0.8), 1.2 * size_scale)
 
 
 func _draw_tangle_kelp(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
