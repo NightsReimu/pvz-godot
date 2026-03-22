@@ -23,6 +23,10 @@ func _run() -> void:
 	failed = not _test_cirno_freeze_clears_existing_water_support_cards() or failed
 	failed = not _test_cirno_freeze_animates_smoothly() or failed
 	failed = not _test_1_18_assets_and_bgm_are_present() or failed
+	failed = not _test_daiyousei_defeat_does_not_end_remaining_stage_flow() or failed
+	failed = not _test_cirno_event_supports_do_not_duplicate_the_boss() or failed
+	failed = not _test_1_18_prewarms_boss_assets_before_spawn() or failed
+	failed = not _test_cirno_shared_frame_cache_reloads_when_stale() or failed
 	quit(1 if failed else 0)
 
 
@@ -45,6 +49,9 @@ func _make_game() -> Control:
 	game.current_level = {"id": "1-test", "terrain": "day", "events": []}
 	game.active_rows = [0, 1, 2, 3, 4]
 	game.water_rows = []
+	game.completed_levels.resize(Defs.LEVELS.size())
+	for i in range(game.completed_levels.size()):
+		game.completed_levels[i] = false
 	game.grid = []
 	game.support_grid = []
 	for _row in range(6):
@@ -422,4 +429,101 @@ func _test_1_18_assets_and_bgm_are_present() -> bool:
 	if boss_stream is AudioStreamMP3:
 		passed = _assert_true(bool(boss_stream.loop), "Cirno boss BGM should loop") and passed
 	_free_game(game)
+	return passed
+
+
+func _test_daiyousei_defeat_does_not_end_remaining_stage_flow() -> bool:
+	var game = _make_game()
+	var level_index = _begin_level(game, "1-18")
+	if not _assert_true(level_index != -1, "expected 1-18 to exist before checking midboss defeat flow"):
+		_free_game(game)
+		return false
+	var level_events = game.current_level.get("events", [])
+	game.next_event_index = max(1, int(floor(float(level_events.size()) * 0.5)))
+	game.frozen_branch_midboss_spawned = true
+	game.frozen_branch_progress_locked = true
+	game.battle_state = game.BATTLE_PLAYING
+	game._spawn_zombie_at("daiyousei_boss", 2, game.BOARD_ORIGIN.x + game.board_size.x - 24.0, true)
+	game._spawn_zombie_at("normal", 2, game.BOARD_ORIGIN.x + game.board_size.x - 88.0)
+	for i in range(game.zombies.size()):
+		var zombie = game.zombies[i]
+		if String(zombie.get("kind", "")) == "daiyousei_boss":
+			zombie["health"] = 0.0
+			game.zombies[i] = zombie
+			break
+	game._cleanup_dead_zombies()
+	for i in range(game.zombies.size()):
+		var zombie = game.zombies[i]
+		if String(zombie.get("kind", "")) == "normal":
+			zombie["health"] = 0.0
+			game.zombies[i] = zombie
+			break
+	game._cleanup_dead_zombies()
+	game._check_end_state()
+	var passed = _assert_true(game.next_event_index < level_events.size(), "defeating Daiyousei should not skip the remaining 1-18 event queue") \
+		and _assert_true(game.battle_state == game.BATTLE_PLAYING, "clearing residual zombies after Daiyousei should not auto-win while the rest of 1-18 remains")
+	_free_game(game)
+	return passed
+
+
+func _test_cirno_event_supports_do_not_duplicate_the_boss() -> bool:
+	var level_index = _find_level_index("1-18")
+	if not _assert_true(level_index != -1, "expected 1-18 to exist before checking Cirno support spawns"):
+		return false
+	var game = _make_game()
+	var level = Defs.LEVELS[level_index]
+	var cirno_event_index := -1
+	for i in range(level.get("events", []).size()):
+		if String(level["events"][i].get("kind", "")) == "cirno_boss":
+			cirno_event_index = i
+			break
+	var passed = _assert_true(cirno_event_index != -1, "expected 1-18 to define a Cirno boss event")
+	if passed:
+		game.current_level = level
+		passed = _assert_true(
+			String(game.call("_support_spawn_kind", "cirno_boss", cirno_event_index, 0)) != "cirno_boss",
+			"Cirno boss events should not enqueue a duplicate Cirno as a support spawn"
+		) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_1_18_prewarms_boss_assets_before_spawn() -> bool:
+	var game = _make_game()
+	var level_index = _begin_level(game, "1-18")
+	if not _assert_true(level_index != -1, "expected 1-18 to exist before checking boss prewarm"):
+		_free_game(game)
+		return false
+	var passed = _assert_true(bool(game.cirno_frames_loaded), "1-18 should preload Cirno sprite frames before the boss appears") \
+		and _assert_true(bool(game.daiyousei_frames_loaded), "1-18 should preload Daiyousei sprite frames before the midboss appears") \
+		and _assert_true(game.audio_stream_cache.has("res://audio/cirno_intro.mp3"), "1-18 should preload the intro BGM to avoid a boss-entry hitch") \
+		and _assert_true(game.audio_stream_cache.has("res://audio/cirno_boss.mp3"), "1-18 should preload the boss BGM to avoid a boss-entry hitch")
+	_free_game(game)
+	return passed
+
+
+func _test_cirno_shared_frame_cache_reloads_when_stale() -> bool:
+	var previous_loaded = GameScript.shared_cirno_frames_loaded
+	var previous_frames = GameScript.shared_cirno_frames
+	var previous_face_left = GameScript.shared_cirno_frames_face_left
+	var stale_frames: Array = []
+	for frame_index in range(8):
+		var image := Image.create(2, 1, false, Image.FORMAT_RGBA8)
+		image.fill(Color(0.0, 0.0, 0.0, 0.0))
+		image.set_pixel(0, 0, Color(1.0, 0.0, 0.0, 1.0))
+		image.set_pixel(1, 0, Color(0.0, 0.0, 1.0, 1.0))
+		stale_frames.append(ImageTexture.create_from_image(image))
+	GameScript.shared_cirno_frames_loaded = true
+	GameScript.shared_cirno_frames = stale_frames
+	GameScript.shared_cirno_frames_face_left = false
+	var game = _make_game()
+	game.cirno_frames = []
+	game.cirno_frames_loaded = false
+	game.call("_ensure_cirno_frames_loaded")
+	var passed = _assert_true(game.cirno_frames.size() == 8, "Cirno should still load a full boss frame set when the shared cache is stale") \
+		and _assert_true(game.cirno_frames[0] != stale_frames[0], "Cirno should rebuild a stale shared boss frame cache instead of reusing right-facing textures")
+	_free_game(game)
+	GameScript.shared_cirno_frames_loaded = previous_loaded
+	GameScript.shared_cirno_frames = previous_frames
+	GameScript.shared_cirno_frames_face_left = previous_face_left
 	return passed

@@ -27,6 +27,7 @@ func _run() -> void:
 	failed = not _test_rumia_skill_effects_use_animated_shapes() or failed
 	failed = not _test_rumia_idle_animation_stays_stable_without_skill_or_movement() or failed
 	failed = not _test_legacy_save_data_migrates_sparse_progress_using_level_ids() or failed
+	failed = not _test_touhou_boss_sprites_are_configured_to_face_left() or failed
 	quit(1 if failed else 0)
 
 
@@ -429,5 +430,17 @@ func _test_legacy_save_data_migrates_sparse_progress_using_level_ids() -> bool:
 		passed = _assert_true(bool(game.completed_levels[index_2_10]), "legacy sparse saves should backfill prerequisite completion from endgame unlocked progress") and passed
 		passed = _assert_true(bool(game.call("_is_level_unlocked", index_1_17)), "legacy sparse saves should keep 1-17 unlocked after migration") and passed
 		passed = _assert_true(bool(game.call("_is_level_unlocked", index_1_18)), "legacy sparse saves should keep 1-18 unlocked after migration") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_touhou_boss_sprites_are_configured_to_face_left() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_boss_frames_face_left"), "expected _boss_frames_face_left helper to exist for Touhou boss orientation rules"):
+		_free_game(game)
+		return false
+	var passed = _assert_true(bool(game.call("_boss_frames_face_left", "rumia_boss")), "Rumia frames should be loaded facing left") \
+		and _assert_true(bool(game.call("_boss_frames_face_left", "daiyousei_boss")), "Daiyousei frames should be loaded facing left") \
+		and _assert_true(bool(game.call("_boss_frames_face_left", "cirno_boss")), "Cirno frames should be loaded facing left")
 	_free_game(game)
 	return passed

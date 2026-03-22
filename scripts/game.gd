@@ -69,6 +69,17 @@ const RUMIA_FRAME_COUNT := 8
 const CIRNO_FRAME_COUNT := 8
 const DAIYOUSEI_FRAME_COUNT := 8
 
+static var shared_audio_stream_cache := {}
+static var shared_rumia_frames: Array = []
+static var shared_rumia_frames_loaded := false
+static var shared_rumia_frames_face_left = null
+static var shared_cirno_frames: Array = []
+static var shared_cirno_frames_loaded := false
+static var shared_cirno_frames_face_left = null
+static var shared_daiyousei_frames: Array = []
+static var shared_daiyousei_frames_loaded := false
+static var shared_daiyousei_frames_face_left = null
+
 const ZOMBIE_ALMANAC_ORDER := [
 	"normal",
 	"flag",
@@ -191,12 +202,16 @@ var overlay_panel_style: StyleBoxFlat
 var overlay_button_style: StyleBoxFlat
 var music_player: AudioStreamPlayer
 var current_bgm_path := ""
+var audio_stream_cache := {}
 var rumia_frames: Array = []
 var rumia_frames_loaded := false
+var rumia_frames_face_left = null
 var cirno_frames: Array = []
 var cirno_frames_loaded := false
+var cirno_frames_face_left = null
 var daiyousei_frames: Array = []
 var daiyousei_frames_loaded := false
+var daiyousei_frames_face_left = null
 var frozen_branch_midboss_spawned := false
 var frozen_branch_midboss_cleared := false
 var frozen_branch_progress_locked := false
@@ -593,6 +608,11 @@ func _build_audio_player() -> void:
 func _load_audio_stream(path: String) -> AudioStream:
 	if path == "":
 		return null
+	if audio_stream_cache.has(path):
+		return audio_stream_cache[path]
+	if shared_audio_stream_cache.has(path):
+		audio_stream_cache[path] = shared_audio_stream_cache[path]
+		return audio_stream_cache[path]
 	var absolute_path = ProjectSettings.globalize_path(path)
 	if not FileAccess.file_exists(absolute_path):
 		return null
@@ -605,8 +625,16 @@ func _load_audio_stream(path: String) -> AudioStream:
 		stream.data = data
 		stream.loop = true
 		stream.loop_offset = 0.0
+		shared_audio_stream_cache[path] = stream
+		audio_stream_cache[path] = stream
 		return stream
 	return null
+
+
+func _prewarm_audio_stream(path: String) -> void:
+	if path == "":
+		return
+	_load_audio_stream(path)
 
 
 func _play_bgm(path: String) -> void:
@@ -696,12 +724,21 @@ func _init_campaign() -> void:
 		completed_levels[i] = false
 	unlocked_levels = 1
 	coins_total = 0
-	if _load_game():
+	var load_state = _load_game_status()
+	if bool(load_state.get("loaded", false)):
 		_show_toast("已读取本地存档")
-	_mark_save_dirty(true)
+	_finalize_campaign_init(bool(load_state.get("loaded", false)), bool(load_state.get("had_file", false)))
 	world_select_index = WorldDataLib.index_of(current_world_key)
 	world_select_scroll = float(world_select_index)
 	_enter_world_select_mode(false)
+
+
+func _finalize_campaign_init(load_succeeded: bool, had_existing_save: bool) -> void:
+	save_dirty = false
+	autosave_timer = 0.0
+	if load_succeeded or had_existing_save:
+		return
+	_mark_save_dirty(true)
 
 
 func _enter_world_select_mode(animated: bool = true) -> void:
@@ -957,6 +994,7 @@ func _begin_level(level_index: int, chosen_cards: Array) -> void:
 	_setup_level_graves()
 	pending_grave_wave_spawns = graves.size()
 	expected_spawn_units = _estimated_total_spawn_count()
+	_prewarm_level_boss_assets()
 
 	_mark_save_dirty(true)
 	_show_banner(String(current_level["title"]), 2.2)
@@ -967,6 +1005,29 @@ func _begin_level(level_index: int, chosen_cards: Array) -> void:
 	else:
 		_stop_bgm()
 	queue_redraw()
+
+
+func _prewarm_level_boss_assets() -> void:
+	if current_level.is_empty():
+		return
+	_prewarm_audio_stream(String(current_level.get("boss_intro_bgm", "")))
+	_prewarm_audio_stream(String(current_level.get("boss_bgm", "")))
+	var boss_kinds := {}
+	var midboss_kind = String(current_level.get("mid_boss_kind", ""))
+	if _is_hovering_boss_kind(midboss_kind):
+		boss_kinds[midboss_kind] = true
+	for event in current_level.get("events", []):
+		var kind = String(event.get("kind", ""))
+		if _is_hovering_boss_kind(kind):
+			boss_kinds[kind] = true
+	for kind in boss_kinds.keys():
+		match String(kind):
+			"rumia_boss":
+				_ensure_rumia_frames_loaded()
+			"daiyousei_boss":
+				_ensure_daiyousei_frames_loaded()
+			"cirno_boss":
+				_ensure_cirno_frames_loaded()
 
 
 func _handle_selection_click(mouse_pos: Vector2) -> void:
@@ -1224,6 +1285,8 @@ func _grave_wave_kind_for_cell(row: int, col: int) -> String:
 
 func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool = false) -> void:
 	var base = Defs.ZOMBIES[kind]
+	if _is_hovering_boss_kind(kind) and not _find_alive_enemy_boss(kind).is_empty():
+		return
 	var row = row_override if row_override >= 0 else _choose_spawn_row_for_kind(kind)
 	if row < 0:
 		return
@@ -2099,8 +2162,7 @@ func _update_threepeater(plant: Dictionary, delta: float, row: int, col: int) ->
 		var storm_rows = _threepeater_rows(row)
 		while float(plant["plant_food_interval"]) <= 0.0:
 			for lane in storm_rows:
-				var spawn_offset = float(lane - row) * 12.0
-				_spawn_projectile(lane, _cell_center(row, col) + Vector2(32.0, -10.0 + spawn_offset), Color(0.38, 0.88, 0.32), 20.0, 0.0)
+				_spawn_projectile(lane, _threepeater_projectile_spawn_position(col, int(lane)), Color(0.38, 0.88, 0.32), 20.0, 0.0)
 			plant["plant_food_interval"] += 0.1
 			plant["flash"] = maxf(float(plant["flash"]), 0.16)
 			_trigger_plant_action(plant, 0.16)
@@ -2119,10 +2181,13 @@ func _update_threepeater(plant: Dictionary, delta: float, row: int, col: int) ->
 		return
 	var damage = float(Defs.PLANTS["threepeater"]["damage"])
 	for lane in lanes:
-		var spawn_offset = float(lane - row) * 12.0
-		_spawn_projectile(int(lane), _cell_center(row, col) + Vector2(32.0, -10.0 + spawn_offset), Color(0.38, 0.88, 0.32), damage, 0.0)
+		_spawn_projectile(int(lane), _threepeater_projectile_spawn_position(col, int(lane)), Color(0.38, 0.88, 0.32), damage, 0.0)
 	plant["shot_cooldown"] = float(Defs.PLANTS["threepeater"]["shoot_interval"])
 	_trigger_plant_action(plant, 0.22)
+
+
+func _threepeater_projectile_spawn_position(col: int, lane: int) -> Vector2:
+	return _cell_center(lane, col) + Vector2(32.0, -10.0)
 
 
 func _find_squash_target(row: int, center_x: float, range_limit: float) -> int:
@@ -3356,7 +3421,7 @@ func _cleanup_dead_zombies() -> void:
 		if float(zombie["health"]) > 0.0:
 			continue
 		total_kills += 1
-		if _is_boss_zombie(zombie):
+		if _is_stage_ending_boss(zombie):
 			batch_spawn_queue = []
 			batch_spawn_remaining = 0
 			next_event_index = current_level["events"].size()
@@ -3493,6 +3558,14 @@ func _is_boss_kind(kind: String) -> bool:
 
 func _is_boss_zombie(zombie: Dictionary) -> bool:
 	return _is_boss_kind(String(zombie.get("kind", "")))
+
+
+func _is_stage_ending_boss(zombie: Dictionary) -> bool:
+	var kind = String(zombie.get("kind", ""))
+	if not _is_boss_kind(kind):
+		return false
+	var midboss_kind = String(current_level.get("mid_boss_kind", ""))
+	return kind != midboss_kind
 
 
 func _is_enemy_zombie(zombie: Dictionary) -> bool:
@@ -5708,6 +5781,14 @@ func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) 
 			if extra_index == 0:
 				return "conehead"
 			return "buckethead" if progress >= 0.7 else "screen_door"
+		"daiyousei_boss":
+			if extra_index == 0:
+				return "lifebuoy_normal" if progress >= 0.5 else "conehead"
+			return "screen_door" if progress >= 0.7 else "normal"
+		"cirno_boss":
+			if extra_index == 0:
+				return "lifebuoy_cone" if progress >= 0.5 else "snorkel"
+			return "dark_football" if progress >= 0.78 else "screen_door"
 		"buckethead":
 			return "conehead" if extra_index == 0 else "normal"
 		"pole_vault":
@@ -8222,6 +8303,10 @@ func _prepare_boss_frame_image(image: Image, face_left: bool = false) -> Image:
 	return cropped
 
 
+func _boss_frames_face_left(kind: String) -> bool:
+	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss"
+
+
 func _load_boss_frame_set(folder: String, frame_count: int, face_left: bool = false) -> Array:
 	var frames: Array = []
 	for frame_index in range(frame_count):
@@ -8234,25 +8319,59 @@ func _load_boss_frame_set(folder: String, frame_count: int, face_left: bool = fa
 	return frames
 
 
+func _boss_frame_cache_matches(frames: Array, expected_count: int, expected_face_left: bool, cached_face_left) -> bool:
+	return frames.size() == expected_count and cached_face_left != null and bool(cached_face_left) == expected_face_left
+
+
 func _ensure_rumia_frames_loaded() -> void:
-	if rumia_frames_loaded:
+	var expected_face_left = _boss_frames_face_left("rumia_boss")
+	if rumia_frames_loaded and _boss_frame_cache_matches(rumia_frames, RUMIA_FRAME_COUNT, expected_face_left, rumia_frames_face_left):
+		return
+	if shared_rumia_frames_loaded and _boss_frame_cache_matches(shared_rumia_frames, RUMIA_FRAME_COUNT, expected_face_left, shared_rumia_frames_face_left):
+		rumia_frames_loaded = true
+		rumia_frames = shared_rumia_frames
+		rumia_frames_face_left = shared_rumia_frames_face_left
 		return
 	rumia_frames_loaded = true
-	rumia_frames = _load_boss_frame_set("res://art/rumia", RUMIA_FRAME_COUNT, false)
+	rumia_frames = _load_boss_frame_set("res://art/rumia", RUMIA_FRAME_COUNT, expected_face_left)
+	rumia_frames_face_left = expected_face_left
+	shared_rumia_frames_loaded = true
+	shared_rumia_frames = rumia_frames
+	shared_rumia_frames_face_left = expected_face_left
 
 
 func _ensure_daiyousei_frames_loaded() -> void:
-	if daiyousei_frames_loaded:
+	var expected_face_left = _boss_frames_face_left("daiyousei_boss")
+	if daiyousei_frames_loaded and _boss_frame_cache_matches(daiyousei_frames, DAIYOUSEI_FRAME_COUNT, expected_face_left, daiyousei_frames_face_left):
+		return
+	if shared_daiyousei_frames_loaded and _boss_frame_cache_matches(shared_daiyousei_frames, DAIYOUSEI_FRAME_COUNT, expected_face_left, shared_daiyousei_frames_face_left):
+		daiyousei_frames_loaded = true
+		daiyousei_frames = shared_daiyousei_frames
+		daiyousei_frames_face_left = shared_daiyousei_frames_face_left
 		return
 	daiyousei_frames_loaded = true
-	daiyousei_frames = _load_boss_frame_set("res://art/daiyousei", DAIYOUSEI_FRAME_COUNT, true)
+	daiyousei_frames = _load_boss_frame_set("res://art/daiyousei", DAIYOUSEI_FRAME_COUNT, expected_face_left)
+	daiyousei_frames_face_left = expected_face_left
+	shared_daiyousei_frames_loaded = true
+	shared_daiyousei_frames = daiyousei_frames
+	shared_daiyousei_frames_face_left = expected_face_left
 
 
 func _ensure_cirno_frames_loaded() -> void:
-	if cirno_frames_loaded:
+	var expected_face_left = _boss_frames_face_left("cirno_boss")
+	if cirno_frames_loaded and _boss_frame_cache_matches(cirno_frames, CIRNO_FRAME_COUNT, expected_face_left, cirno_frames_face_left):
+		return
+	if shared_cirno_frames_loaded and _boss_frame_cache_matches(shared_cirno_frames, CIRNO_FRAME_COUNT, expected_face_left, shared_cirno_frames_face_left):
+		cirno_frames_loaded = true
+		cirno_frames = shared_cirno_frames
+		cirno_frames_face_left = shared_cirno_frames_face_left
 		return
 	cirno_frames_loaded = true
-	cirno_frames = _load_boss_frame_set("res://art/cirno", CIRNO_FRAME_COUNT, true)
+	cirno_frames = _load_boss_frame_set("res://art/cirno", CIRNO_FRAME_COUNT, expected_face_left)
+	cirno_frames_face_left = expected_face_left
+	shared_cirno_frames_loaded = true
+	shared_cirno_frames = cirno_frames
+	shared_cirno_frames_face_left = expected_face_left
 
 
 func _rumia_draw_scale(phase: int) -> float:
@@ -9509,6 +9628,10 @@ func _should_backfill_sparse_progress(completed_count: int) -> bool:
 	return unlocked_levels >= max(12, Defs.LEVELS.size() - 2) and completed_count <= max(4, int(floor(float(unlocked_levels) * 0.2)))
 
 
+func _should_recover_inconsistent_blank_save(save_version: int, completed_count: int) -> bool:
+	return save_version >= 2 and completed_count == 0 and unlocked_levels <= 1 and selected_level_index >= 12
+
+
 func _apply_loaded_save_data(save_data: Dictionary) -> bool:
 	var save_version = int(save_data.get("version", 1))
 	unlocked_levels = clampi(int(save_data.get("unlocked_levels", 1)), 1, Defs.LEVELS.size())
@@ -9537,6 +9660,12 @@ func _apply_loaded_save_data(save_data: Dictionary) -> bool:
 			migrated = true
 
 	var completed_count = _count_completed_levels()
+	if _should_recover_inconsistent_blank_save(save_version, completed_count):
+		unlocked_levels = max(unlocked_levels, min(selected_level_index + 1, Defs.LEVELS.size()))
+		for i in range(_sparse_progress_backfill_count()):
+			completed_levels[i] = true
+		completed_count = _count_completed_levels()
+		migrated = true
 	if _should_backfill_sparse_progress(completed_count):
 		for i in range(_sparse_progress_backfill_count()):
 			completed_levels[i] = true
@@ -9550,19 +9679,40 @@ func _apply_loaded_save_data(save_data: Dictionary) -> bool:
 
 
 func _load_game() -> bool:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return false
+	return bool(_load_game_status().get("loaded", false))
+
+
+func _load_game_status() -> Dictionary:
+	var had_file = FileAccess.file_exists(SAVE_PATH)
+	if not had_file:
+		return {
+			"loaded": false,
+			"had_file": false,
+			"migrated": false,
+		}
 
 	var save_file = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if save_file == null:
-		return false
+		return {
+			"loaded": false,
+			"had_file": true,
+			"migrated": false,
+		}
 
 	var parsed = JSON.parse_string(save_file.get_as_text())
 	if typeof(parsed) != TYPE_DICTIONARY:
-		return false
+		return {
+			"loaded": false,
+			"had_file": true,
+			"migrated": false,
+		}
 
 	var save_data: Dictionary = parsed
 	var migrated = _apply_loaded_save_data(save_data)
 	if migrated:
 		_save_game()
-	return true
+	return {
+		"loaded": true,
+		"had_file": true,
+		"migrated": migrated,
+	}

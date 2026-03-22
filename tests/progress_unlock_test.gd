@@ -13,6 +13,8 @@ func _run() -> void:
 	failed = not _test_replaying_old_level_uses_current_progress_plant_pool() or failed
 	failed = not _test_special_modes_keep_their_curated_plant_pools() or failed
 	failed = not _test_sparse_v2_save_data_backfills_near_end_progress() or failed
+	failed = not _test_inconsistent_blank_save_data_recovers_from_last_level_index() or failed
+	failed = not _test_loaded_campaign_init_does_not_force_immediate_autosave() or failed
 	quit(1 if failed else 0)
 
 
@@ -144,5 +146,53 @@ func _test_sparse_v2_save_data_backfills_near_end_progress() -> bool:
 	passed = _assert_true(bool(game.completed_levels[index_1_17]), "repaired near-end saves should restore the 1-17 prerequisite chain") and passed
 	passed = _assert_true(bool(game.call("_is_level_unlocked", index_1_17)), "repaired near-end saves should keep 1-17 unlocked") and passed
 	passed = _assert_true(bool(game.call("_is_level_unlocked", index_1_18)), "repaired near-end saves should keep 1-18 unlocked") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_inconsistent_blank_save_data_recovers_from_last_level_index() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_apply_loaded_save_data"), "expected _apply_loaded_save_data helper to exist for blank save recovery"):
+		_free_game(game)
+		return false
+	var index_1_17 = _find_level_index("1-17")
+	var index_1_18 = _find_level_index("1-18")
+	var passed = _assert_true(index_1_17 != -1 and index_1_18 != -1, "expected late special levels to exist for blank save recovery checks")
+	if not passed:
+		_free_game(game)
+		return false
+	var blank_completed: Array = []
+	blank_completed.resize(Defs.LEVELS.size())
+	for i in range(blank_completed.size()):
+		blank_completed[i] = false
+	var save_data = {
+		"version": 2,
+		"unlocked_levels": 1,
+		"completed_levels": blank_completed,
+		"completed_level_ids": [],
+		"last_level_index": Defs.LEVELS.size() - 1,
+		"current_world_key": "day",
+	}
+	var migrated = bool(game.call("_apply_loaded_save_data", save_data))
+	passed = _assert_true(migrated, "a blank v2 save with a late last_level_index should be treated as corrupted progress and repaired") and passed
+	passed = _assert_true(bool(game.completed_levels[index_1_17]), "blank corrupted saves should restore late prerequisite progress") and passed
+	passed = _assert_true(bool(game.call("_is_level_unlocked", index_1_18)), "blank corrupted saves should keep the final special level unlocked") and passed
+	passed = _assert_true(game.unlocked_levels >= Defs.LEVELS.size() - 1, "blank corrupted saves should recover the unlocked level count from the last played level") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_loaded_campaign_init_does_not_force_immediate_autosave() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_finalize_campaign_init"), "expected _finalize_campaign_init helper to exist for save init behavior"):
+		_free_game(game)
+		return false
+	game.save_dirty = false
+	game.autosave_timer = 0.0
+	game.call("_finalize_campaign_init", true, false)
+	var passed = _assert_true(not bool(game.save_dirty), "successfully loading a save should not immediately mark the campaign dirty again") \
+		and _assert_true(is_zero_approx(float(game.autosave_timer)), "successfully loading a save should not schedule an autosave writeback")
+	game.call("_finalize_campaign_init", false, false)
+	passed = _assert_true(bool(game.save_dirty), "starting from no save should still mark the campaign dirty for the first save write") and passed
 	_free_game(game)
 	return passed

@@ -17,6 +17,7 @@ func _run() -> void:
 	failed = not _test_prism_grass_effect_reaches_configured_range() or failed
 	failed = not _test_wind_orchid_effect_reaches_lane_end() or failed
 	failed = not _test_pepper_mortar_plant_food_effect_matches_damage_radius() or failed
+	failed = not _test_threepeater_projectiles_follow_three_distinct_lanes() or failed
 	quit(1 if failed else 0)
 
 
@@ -155,5 +156,29 @@ func _test_pepper_mortar_plant_food_effect_matches_damage_radius() -> bool:
 		return false
 	var effect = Dictionary(game.effects[game.effects.size() - 2])
 	var passed = _assert_float_eq(float(effect.get("radius", 0.0)), 210.0, "pepper_mortar plant food effect radius should match its damage radius")
+	_free_game(game)
+	return passed
+
+
+func _test_threepeater_projectiles_follow_three_distinct_lanes() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var plant = game._create_plant("threepeater", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	for lane in [1, 2, 3]:
+		game._spawn_zombie_at("normal", lane, game.BOARD_ORIGIN.x + game.board_size.x - 40.0)
+	game._update_threepeater(plant, 0.1, row, col)
+	if not _assert_true(game.projectiles.size() == 3, "threepeater should spawn one projectile per covered lane"):
+		_free_game(game)
+		return false
+	var passed := true
+	for projectile in game.projectiles:
+		var lane = int(projectile.get("row", -1))
+		var projectile_pos = Vector2(projectile.get("position", Vector2.ZERO))
+		var expected_y = game._cell_center(lane, col).y - 10.0
+		passed = _assert_true(lane >= 1 and lane <= 3, "threepeater projectile should target one of the three covered lanes") and passed
+		passed = _assert_float_eq(projectile_pos.y, expected_y, "threepeater projectile visual should originate on its own lane instead of stacking on the center lane") and passed
 	_free_game(game)
 	return passed
