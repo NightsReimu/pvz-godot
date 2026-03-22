@@ -20,7 +20,9 @@ func _run() -> void:
 	failed = not _test_threepeater_projectiles_follow_three_distinct_lanes() or failed
 	failed = not _test_jalapeno_effect_is_a_full_lane_blast() or failed
 	failed = not _test_torchwood_fire_pea_splashes_nearby_zombies() or failed
+	failed = not _test_boomerang_shooter_fires_for_any_zombie_ahead() or failed
 	failed = not _test_boomerang_shooter_hits_three_targets_then_returns() or failed
+	failed = not _test_sakura_shooter_fires_for_any_zombie_ahead() or failed
 	failed = not _test_sakura_shooter_petals_split_on_hit() or failed
 	failed = not _test_lotus_lancer_pierces_an_entire_lane() or failed
 	failed = not _test_mirror_reed_reveals_hidden_shouyue() or failed
@@ -234,6 +236,22 @@ func _test_torchwood_fire_pea_splashes_nearby_zombies() -> bool:
 	return passed
 
 
+func _test_boomerang_shooter_fires_for_any_zombie_ahead() -> bool:
+	if not _assert_true(Defs.PLANTS.has("boomerang_shooter"), "expected boomerang_shooter plant definition to exist"):
+		return false
+	var game = _make_game()
+	var row := 2
+	var col := 1
+	var plant = game._create_plant("boomerang_shooter", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, game.BOARD_ORIGIN.x + game.board_size.x - 18.0)
+	game._update_boomerang_shooter(plant, 0.1, row, col)
+	var passed = _assert_true(not game.projectiles.is_empty(), "boomerang_shooter should fire when any zombie exists anywhere ahead in its lane")
+	_free_game(game)
+	return passed
+
+
 func _test_boomerang_shooter_hits_three_targets_then_returns() -> bool:
 	if not _assert_true(Defs.PLANTS.has("boomerang_shooter"), "expected boomerang_shooter plant definition to exist"):
 		return false
@@ -255,6 +273,22 @@ func _test_boomerang_shooter_hits_three_targets_then_returns() -> bool:
 	for zombie_index in range(3):
 		passed = _assert_true(float(game.zombies[zombie_index]["health"]) <= before[zombie_index] - 35.0, "boomerang_shooter should hit each of the first three zombies twice") and passed
 	passed = _assert_true(is_equal_approx(float(game.zombies[3]["health"]), before[3]), "boomerang_shooter should ignore the fourth zombie on a single throw") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_sakura_shooter_fires_for_any_zombie_ahead() -> bool:
+	if not _assert_true(Defs.PLANTS.has("sakura_shooter"), "expected sakura_shooter plant definition to exist"):
+		return false
+	var game = _make_game()
+	var row := 2
+	var col := 1
+	var plant = game._create_plant("sakura_shooter", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, game.BOARD_ORIGIN.x + game.board_size.x - 18.0)
+	game._update_sakura_shooter(plant, 0.1, row, col)
+	var passed = _assert_true(not game.projectiles.is_empty(), "sakura_shooter should fire when any zombie exists anywhere ahead in its lane")
 	_free_game(game)
 	return passed
 

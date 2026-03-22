@@ -13,6 +13,7 @@ func _run() -> void:
 	failed = not _test_replaying_old_level_uses_current_progress_plant_pool() or failed
 	failed = not _test_seed_selection_starts_empty_for_manual_pick() or failed
 	failed = not _test_special_modes_keep_their_curated_plant_pools() or failed
+	failed = not _test_branch_progress_does_not_unlock_future_pool_levels() or failed
 	failed = not _test_sparse_v2_save_data_backfills_near_end_progress() or failed
 	failed = not _test_inconsistent_blank_save_data_recovers_from_last_level_index() or failed
 	failed = not _test_loaded_campaign_init_does_not_force_immediate_autosave() or failed
@@ -86,6 +87,18 @@ func _mark_all_levels_completed(game: Control) -> void:
 	game.unlocked_levels = Defs.LEVELS.size()
 
 
+func _completed_ids_for_user_progress() -> Array:
+	var result: Array = []
+	for level in Defs.LEVELS:
+		var level_id = String(level.get("id", ""))
+		if level_id.begins_with("1-") or level_id.begins_with("2-"):
+			result.append(level_id)
+			continue
+		if level_id.begins_with("3-") and int(level_id.get_slice("-", 1)) <= 10:
+			result.append(level_id)
+	return result
+
+
 func _test_replaying_old_level_uses_current_progress_plant_pool() -> bool:
 	var level_index = _find_level_index("1-1")
 	if not _assert_true(level_index != -1, "expected 1-1 to exist for replay plant pool checks"):
@@ -125,6 +138,35 @@ func _test_special_modes_keep_their_curated_plant_pools() -> bool:
 	var default_cards: Array = game.call("_default_level_cards", level)
 	var passed = _assert_true(not bool(game.call("_requires_seed_selection", level)), "special modes should still skip normal seed selection") \
 		and _assert_true(default_cards == ["grave_buster", "potato_mine", "cherry_bomb"], "whack levels should keep their curated plant pool instead of using the save-wide pool")
+	_free_game(game)
+	return passed
+
+
+func _test_branch_progress_does_not_unlock_future_pool_levels() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_apply_loaded_save_data"), "expected _apply_loaded_save_data helper to exist for branch progress checks"):
+		_free_game(game)
+		return false
+	var index_1_18 = _find_level_index("1-18")
+	var index_3_11 = _find_level_index("3-11")
+	var index_3_12 = _find_level_index("3-12")
+	var passed = _assert_true(index_1_18 != -1 and index_3_11 != -1 and index_3_12 != -1, "expected 1-18, 3-11 and 3-12 to exist for branch progress checks")
+	if not passed:
+		_free_game(game)
+		return false
+	var migrated = bool(game.call("_apply_loaded_save_data", {
+		"version": 2,
+		"unlocked_levels": Defs.LEVELS.size(),
+		"completed_level_ids": _completed_ids_for_user_progress(),
+		"last_level_index": index_1_18,
+		"current_world_key": "pool",
+	}))
+	var collection: Array = game.call("_player_plant_collection")
+	passed = _assert_true(not migrated, "well-formed user progress should not trigger save migration") and passed
+	passed = _assert_true(bool(game.call("_is_level_unlocked", index_3_11)), "completing 3-10 should unlock 3-11") and passed
+	passed = _assert_true(not bool(game.call("_is_level_unlocked", index_3_12)), "completing 1-18 should not accidentally unlock 3-12") and passed
+	passed = _assert_true(collection.has("moon_lotus"), "night-introduced moon_lotus should remain available in the persistent plant collection") and passed
+	passed = _assert_true(not collection.has("boomerang_shooter"), "3-11 reward plants should stay locked until 3-11 is cleared") and passed
 	_free_game(game)
 	return passed
 

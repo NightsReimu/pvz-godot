@@ -2325,8 +2325,7 @@ func _update_boomerang_shooter(plant: Dictionary, delta: float, row: int, col: i
 	plant["shot_cooldown"] -= cadence_delta
 	if float(plant["shot_cooldown"]) > 0.0:
 		return
-	var range_limit = float(Defs.PLANTS["boomerang_shooter"]["range"])
-	if not _has_zombie_ahead(row, center.x, range_limit):
+	if not _has_zombie_ahead(row, center.x):
 		return
 	_spawn_boomerang_projectile(row, center + Vector2(34.0, -10.0), center.x + 8.0, float(Defs.PLANTS["boomerang_shooter"]["damage"]), int(Defs.PLANTS["boomerang_shooter"]["max_targets"]))
 	plant["shot_cooldown"] = float(Defs.PLANTS["boomerang_shooter"]["shoot_interval"])
@@ -2348,8 +2347,7 @@ func _update_sakura_shooter(plant: Dictionary, delta: float, row: int, col: int)
 	plant["shot_cooldown"] -= cadence_delta
 	if float(plant["shot_cooldown"]) > 0.0:
 		return
-	var range_limit = float(Defs.PLANTS["sakura_shooter"]["range"])
-	if not _has_zombie_ahead(row, center.x, range_limit):
+	if not _has_zombie_ahead(row, center.x):
 		return
 	_spawn_sakura_projectile(row, center + Vector2(34.0, -10.0), float(Defs.PLANTS["sakura_shooter"]["damage"]))
 	plant["shot_cooldown"] = float(Defs.PLANTS["sakura_shooter"]["shoot_interval"])
@@ -5885,32 +5883,42 @@ func _available_seed_cards_for_level(level: Dictionary) -> Array:
 	return _player_plant_collection()
 
 
+func _level_uses_persistent_plant_pool(level: Dictionary) -> bool:
+	var mode_name = String(level.get("mode", ""))
+	return mode_name != "conveyor" and mode_name != "bowling" and mode_name != "whack"
+
+
+func _is_branch_level(level: Dictionary) -> bool:
+	return level.has("unlock_requirements")
+
+
+func _previous_mainline_level_index(level_index: int) -> int:
+	for i in range(level_index - 1, -1, -1):
+		if not _is_branch_level(Defs.LEVELS[i]):
+			return i
+	return -1
+
+
 func _player_plant_collection() -> Array:
-	var unlocked_kinds: Array = []
 	var seen := {}
-	if Defs.PLANTS.has("peashooter"):
-		seen["peashooter"] = true
-		unlocked_kinds.append("peashooter")
-	var progression_limit = clampi(unlocked_levels - 1, 0, Defs.LEVELS.size())
 	for i in range(Defs.LEVELS.size()):
-		var counted_complete = i < progression_limit
+		var level = Defs.LEVELS[i]
+		if _level_uses_persistent_plant_pool(level) and _is_level_unlocked(i):
+			for kind_variant in level.get("available_plants", []):
+				var plant_kind = String(kind_variant)
+				if plant_kind == "" or seen.has(plant_kind) or not Defs.PLANTS.has(plant_kind):
+					continue
+				seen[plant_kind] = true
 		if i < completed_levels.size() and bool(completed_levels[i]):
-			counted_complete = true
-		if not counted_complete:
-			continue
-		var unlock_kind = String(Defs.LEVELS[i].get("unlock_plant", ""))
-		if unlock_kind == "" or seen.has(unlock_kind) or not Defs.PLANTS.has(unlock_kind):
-			continue
-		seen[unlock_kind] = true
-		unlocked_kinds.append(unlock_kind)
+			var unlock_kind = String(level.get("unlock_plant", ""))
+			if unlock_kind != "" and not seen.has(unlock_kind) and Defs.PLANTS.has(unlock_kind):
+				seen[unlock_kind] = true
+	if Defs.PLANTS.has("peashooter") and not seen.has("peashooter"):
+		seen["peashooter"] = true
 	var ordered: Array = []
 	for kind in Defs.PLANT_ORDER:
 		var plant_kind = String(kind)
 		if seen.has(plant_kind):
-			ordered.append(plant_kind)
-	for kind in unlocked_kinds:
-		var plant_kind = String(kind)
-		if not ordered.has(plant_kind):
 			ordered.append(plant_kind)
 	return ordered
 
@@ -5973,9 +5981,16 @@ func _is_level_unlocked(level_index: int) -> bool:
 	if level_index < 0 or level_index >= Defs.LEVELS.size():
 		return false
 	var level = Defs.LEVELS[level_index]
+	if level_index < completed_levels.size() and bool(completed_levels[level_index]):
+		return true
 	if not _level_unlock_requirements_met(level):
 		return false
-	return level_index < unlocked_levels or level.has("unlock_requirements")
+	if _is_branch_level(level):
+		return true
+	var previous_index = _previous_mainline_level_index(level_index)
+	if previous_index == -1:
+		return true
+	return previous_index < completed_levels.size() and bool(completed_levels[previous_index])
 
 
 func _visible_unlocked_count(world_key: String) -> int:
@@ -5988,7 +6003,7 @@ func _visible_unlocked_count(world_key: String) -> int:
 
 func _is_world_unlocked(world_key: String) -> bool:
 	var start_index = _world_start_index(world_key)
-	return start_index != -1 and unlocked_levels > start_index
+	return start_index != -1 and _is_level_unlocked(start_index)
 
 
 func _visible_almanac_plants() -> Array:
