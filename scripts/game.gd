@@ -1382,9 +1382,19 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		"rumia_reinforcement_timer": 0.0,
 		"boat_phase": 0,
 		"boat_stride_timer": 0.35 if kind == "dragon_boat" else 0.0,
+		"boat_move_from_x": spawn_x,
+		"boat_move_to_x": spawn_x,
+		"boat_move_t": 1.0,
+		"boat_move_duration": 0.0,
 		"shield_regens_left": 1 if kind == "basketball" else 0,
 		"shield_regen_timer": -1.0,
 		"snipe_cooldown": 1.6 if kind == "shouyue" else 0.0,
+		"snipe_charge_timer": 0.0,
+		"snipe_charge_duration": 0.16,
+		"snipe_charge_active": false,
+		"snipe_focus_timer": 0.0,
+		"snipe_target_row": -1,
+		"snipe_target_col": -1,
 		"revealed_timer": 0.0,
 		"ninja_dashed": false,
 			"nezha_dived": false,
@@ -3594,25 +3604,7 @@ func _update_zombies(delta: float) -> void:
 			continue
 
 		if String(zombie["kind"]) == "dragon_boat":
-			zombie["boat_stride_timer"] = maxf(0.0, float(zombie.get("boat_stride_timer", 0.0)) - delta)
-			if float(zombie.get("special_pause_timer", 0.0)) <= 0.0 and float(zombie["boat_stride_timer"]) <= 0.0:
-				var boat_phase = int(zombie.get("boat_phase", 0))
-				if boat_phase == 2:
-					zombie["x"] += CELL_SIZE.x
-				else:
-					zombie["x"] -= CELL_SIZE.x
-				zombie["boat_phase"] = (boat_phase + 1) % 3
-				zombie["boat_stride_timer"] = 0.48
-				var crush_cell = _find_crushable_cell(int(zombie["row"]), float(zombie["x"]))
-				if crush_cell.y != -1:
-					_crush_cell(crush_cell.x, crush_cell.y)
-				effects.append({
-					"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + 18.0),
-					"radius": 48.0,
-					"time": 0.22,
-					"duration": 0.22,
-					"color": Color(0.82, 0.94, 1.0, 0.24),
-				})
+			zombie = _update_dragon_boat_motion(zombie, delta)
 			var boat_mower = mowers[int(zombie["row"])]
 			if float(zombie["x"]) <= BOARD_ORIGIN.x - 24.0:
 				if bool(boat_mower["armed"]):
@@ -3628,26 +3620,25 @@ func _update_zombies(delta: float) -> void:
 		if String(zombie["kind"]) == "shouyue":
 			zombie["snipe_cooldown"] = maxf(0.0, float(zombie.get("snipe_cooldown", 0.0)) - delta)
 			var snipe_target = _find_front_plant_target(int(zombie["row"]), float(zombie["x"]))
+			if bool(zombie.get("snipe_charge_active", false)) and snipe_target.y == -1:
+				zombie["snipe_charge_active"] = false
+				zombie["snipe_charge_timer"] = 0.0
+				zombie["snipe_focus_timer"] = 0.0
+				zombie["snipe_target_row"] = -1
+				zombie["snipe_target_col"] = -1
 			if snipe_target.y != -1:
-				if float(zombie.get("special_pause_timer", 0.0)) <= 0.0 and float(zombie["snipe_cooldown"]) <= 0.0:
-					var target_plant = _targetable_plant_at(snipe_target.x, snipe_target.y)
-					if target_plant != null:
-						target_plant["health"] -= float(Defs.ZOMBIES["shouyue"]["snipe_damage"])
-						target_plant["flash"] = maxf(float(target_plant.get("flash", 0.0)), 0.24)
-						_set_targetable_plant(snipe_target.x, snipe_target.y, target_plant)
-						var target_center = _cell_center(snipe_target.x, snipe_target.y)
-						effects.append({
-							"shape": "fairy_lance",
-							"position": Vector2(float(zombie["x"]) - 6.0, _row_center_y(int(zombie["row"])) - 12.0),
-							"target": target_center + Vector2(0.0, -8.0),
-							"radius": 14.0,
-							"time": 0.18,
-							"duration": 0.18,
-							"color": Color(0.7, 0.96, 1.0, 0.42),
-						})
-					zombie["snipe_cooldown"] = 3.4
-					zombie["special_pause_timer"] = 0.36
-					zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
+				if not bool(zombie.get("snipe_charge_active", false)) and float(zombie.get("special_pause_timer", 0.0)) <= 0.0 and float(zombie["snipe_cooldown"]) <= 0.0:
+					zombie = _begin_shouyue_charge(zombie, snipe_target)
+				if bool(zombie.get("snipe_charge_active", false)):
+					zombie["snipe_target_row"] = snipe_target.x
+					zombie["snipe_target_col"] = snipe_target.y
+					zombie["snipe_focus_timer"] = maxf(0.0, float(zombie.get("snipe_focus_timer", 0.0)) - delta)
+					if float(zombie["snipe_focus_timer"]) <= 0.0:
+						_spawn_shouyue_focus_effect(zombie, snipe_target)
+						zombie["snipe_focus_timer"] = 0.06
+					zombie["snipe_charge_timer"] = maxf(0.0, float(zombie.get("snipe_charge_timer", 0.0)) - delta)
+					if float(zombie["snipe_charge_timer"]) <= 0.0:
+						zombie = _fire_shouyue_snipe(zombie, snipe_target)
 				zombies[i] = zombie
 				continue
 
@@ -4153,12 +4144,12 @@ func _find_plant_cell_by_kind(row: int, kind: String, zombie_x: float, radius: f
 	return Vector2i(-1, -1)
 
 
-func _find_crushable_cell(row: int, zombie_x: float) -> Vector2i:
+func _find_crushable_cell(row: int, zombie_x: float, radius: float = 42.0) -> Vector2i:
 	for col in range(COLS - 1, -1, -1):
 		var plant_variant = _targetable_plant_at(row, col)
 		if plant_variant == null:
 			continue
-		if absf(_cell_center(row, col).x - zombie_x) <= 42.0:
+		if absf(_cell_center(row, col).x - zombie_x) <= radius:
 			return Vector2i(row, col)
 	return Vector2i(-1, -1)
 
@@ -4319,6 +4310,55 @@ func _find_front_plant_target(row: int, zombie_x: float) -> Vector2i:
 		if _cell_center(row, col).x < zombie_x - 6.0:
 			return Vector2i(row, col)
 	return Vector2i(-1, -1)
+
+
+func _spawn_shouyue_focus_effect(zombie: Dictionary, target: Vector2i) -> void:
+	var target_center = _cell_center(target.x, target.y) + Vector2(0.0, -10.0)
+	effects.append({
+		"shape": "sniper_focus",
+		"position": Vector2(float(zombie["x"]) - 4.0, _row_center_y(int(zombie["row"])) - 22.0),
+		"target": target_center,
+		"time": 0.16,
+		"duration": 0.16,
+		"color": Color(0.92, 0.98, 1.0, 0.34),
+		"anim_speed": 8.2,
+	})
+
+
+func _begin_shouyue_charge(zombie: Dictionary, target: Vector2i) -> Dictionary:
+	zombie["snipe_charge_active"] = true
+	zombie["snipe_target_row"] = target.x
+	zombie["snipe_target_col"] = target.y
+	zombie["snipe_charge_timer"] = float(zombie.get("snipe_charge_duration", 0.16))
+	zombie["snipe_focus_timer"] = 0.0
+	return zombie
+
+
+func _fire_shouyue_snipe(zombie: Dictionary, target: Vector2i) -> Dictionary:
+	var target_plant = _targetable_plant_at(target.x, target.y)
+	if target_plant != null:
+		target_plant["health"] -= float(Defs.ZOMBIES["shouyue"]["snipe_damage"])
+		target_plant["flash"] = maxf(float(target_plant.get("flash", 0.0)), 0.24)
+		_set_targetable_plant(target.x, target.y, target_plant)
+		var target_center = _cell_center(target.x, target.y) + Vector2(0.0, -8.0)
+		effects.append({
+			"shape": "sniper_beam",
+			"position": Vector2(float(zombie["x"]) - 6.0, _row_center_y(int(zombie["row"])) - 18.0),
+			"target": target_center,
+			"time": 0.72,
+			"duration": 0.72,
+			"color": Color(0.72, 0.96, 1.0, 0.56),
+			"anim_speed": 11.0,
+		})
+	zombie["snipe_cooldown"] = 3.4
+	zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.24)
+	zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
+	zombie["snipe_charge_active"] = false
+	zombie["snipe_charge_timer"] = 0.0
+	zombie["snipe_focus_timer"] = 0.0
+	zombie["snipe_target_row"] = -1
+	zombie["snipe_target_col"] = -1
+	return zombie
 
 
 func _spawn_farmer_weed(row: int, target_col: int) -> bool:
@@ -5285,6 +5325,48 @@ func _current_zombie_speed(zombie: Dictionary) -> float:
 	if float(zombie.get("rooted_timer", 0.0)) > 0.0:
 		speed *= 0.24
 	return speed
+
+
+func _begin_dragon_boat_stroke(zombie: Dictionary) -> Dictionary:
+	var boat_phase = int(zombie.get("boat_phase", 0))
+	var direction = 1.0 if boat_phase == 2 else -1.0
+	var distance = CELL_SIZE.x
+	zombie["boat_move_from_x"] = float(zombie["x"])
+	zombie["boat_move_to_x"] = float(zombie["x"]) + direction * distance
+	zombie["boat_move_t"] = 0.0
+	zombie["boat_move_duration"] = 0.58 if boat_phase == 2 else 0.64
+	zombie["boat_phase"] = (boat_phase + 1) % 3
+	zombie["boat_stride_timer"] = 0.0
+	return zombie
+
+
+func _update_dragon_boat_motion(zombie: Dictionary, delta: float) -> Dictionary:
+	var move_t = float(zombie.get("boat_move_t", 1.0))
+	if move_t >= 1.0:
+		zombie["boat_stride_timer"] = maxf(0.0, float(zombie.get("boat_stride_timer", 0.0)) - delta)
+		if float(zombie.get("special_pause_timer", 0.0)) <= 0.0 and float(zombie["boat_stride_timer"]) <= 0.0:
+			zombie = _begin_dragon_boat_stroke(zombie)
+			move_t = 0.0
+		else:
+			return zombie
+	var duration = maxf(float(zombie.get("boat_move_duration", 0.0)), 0.01)
+	move_t = minf(1.0, move_t + delta / duration)
+	var eased = smoothstep(0.0, 1.0, move_t)
+	zombie["boat_move_t"] = move_t
+	zombie["x"] = lerpf(float(zombie.get("boat_move_from_x", zombie["x"])), float(zombie.get("boat_move_to_x", zombie["x"])), eased)
+	var crush_cell = _find_crushable_cell(int(zombie["row"]), float(zombie["x"]), 86.0)
+	if crush_cell.y != -1:
+		_crush_cell(crush_cell.x, crush_cell.y)
+	if move_t >= 1.0:
+		zombie["boat_stride_timer"] = 0.32
+		effects.append({
+			"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + 18.0),
+			"radius": 48.0,
+			"time": 0.22,
+			"duration": 0.22,
+			"color": Color(0.82, 0.94, 1.0, 0.24),
+		})
+	return zombie
 
 
 func _explode_cherry(row: int, col: int, mega: bool = false) -> void:
@@ -8166,6 +8248,41 @@ func _draw_effects() -> void:
 				draw_circle(spark_center, width * (0.06 + (1.0 - spark_ratio) * 0.03), Color(1.0, 0.56, 0.62, effect_color.a * 0.54))
 			draw_circle(origin + Vector2(beam_length, 0.0), width * 0.3, Color(1.0, 0.28, 0.34, effect_color.a * 0.92))
 			continue
+		if shape == "sniper_focus":
+			var focus_origin = Vector2(effect["position"])
+			var focus_target = Vector2(effect.get("target", focus_origin))
+			var focus_dir = focus_target - focus_origin
+			var focus_length = maxf(focus_dir.length(), 1.0)
+			var focus_normal = Vector2(-focus_dir.y, focus_dir.x).normalized()
+			var focus_dir_n = focus_dir / focus_length
+			for band_index in range(4):
+				var offset_scale = (1.0 - ratio) * (18.0 + band_index * 6.0)
+				var band_start = focus_origin + focus_normal * offset_scale
+				var band_end = focus_target - focus_dir_n * (12.0 + band_index * 4.0)
+				draw_line(band_start, band_end, Color(0.82, 0.96, 1.0, effect_color.a * (0.34 + band_index * 0.08)), 1.8 + band_index * 0.35)
+				draw_line(focus_origin - focus_normal * offset_scale, band_end, Color(0.82, 0.96, 1.0, effect_color.a * (0.28 + band_index * 0.06)), 1.4 + band_index * 0.3)
+			draw_circle(focus_target, 12.0 + (1.0 - ratio) * 8.0, Color(0.92, 1.0, 1.0, effect_color.a * 0.16))
+			draw_circle(focus_target, 4.0 + sin(level_time * anim_speed) * 1.0, Color(0.92, 1.0, 1.0, effect_color.a * 0.82))
+			continue
+		if shape == "sniper_beam":
+			var beam_origin = Vector2(effect["position"])
+			var beam_target = Vector2(effect.get("target", beam_origin + Vector2.RIGHT * 120.0))
+			var beam_dir = beam_target - beam_origin
+			var beam_length = maxf(beam_dir.length(), 1.0)
+			var beam_normal = Vector2(-beam_dir.y, beam_dir.x).normalized()
+			var beam_dir_n = beam_dir / beam_length
+			for band_index in range(3):
+				var beam_width = (7.0 - band_index * 1.8) * (0.78 + ratio * 0.22)
+				var jitter = sin(level_time * anim_speed + band_index * 1.6) * 1.6
+				var band_offset = beam_normal * jitter
+				draw_line(beam_origin + band_offset, beam_target + band_offset, Color(0.66, 0.94, 1.0, effect_color.a * (0.3 + band_index * 0.18)), beam_width)
+			for spark_index in range(5):
+				var spark_ratio = float(spark_index + 1) / 5.0
+				var spark_center = beam_origin + beam_dir_n * beam_length * spark_ratio + beam_normal * sin(level_time * anim_speed * 1.2 + spark_ratio * 6.0) * 5.0
+				draw_circle(spark_center, 2.6 + (1.0 - spark_ratio) * 2.0, Color(0.92, 1.0, 1.0, effect_color.a * 0.72))
+			draw_circle(beam_origin, 7.0, Color(0.88, 0.98, 1.0, effect_color.a * 0.5))
+			draw_circle(beam_target, 12.0, Color(0.9, 1.0, 1.0, effect_color.a * 0.78))
+			continue
 		if shape == "fairy_ring":
 			var ring_center = Vector2(effect["position"])
 			var ring_radius = float(effect.get("radius", 120.0)) * (0.78 + (1.0 - ratio) * 0.28)
@@ -9408,17 +9525,23 @@ func _draw_cirno_boss(center: Vector2, zombie: Dictionary) -> void:
 
 func _draw_dragon_boat_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
-	var bob = sin(level_time * 4.4 + float(zombie.get("anim_phase", 0.0))) * 3.0
+	var move_ratio = clampf(float(zombie.get("boat_move_t", 1.0)), 0.0, 1.0)
+	var stroke_curve = sin(move_ratio * PI)
+	var stroke_dir = 1.0 if int(zombie.get("boat_phase", 0)) == 0 else -1.0
+	var bob = sin(level_time * 3.2 + float(zombie.get("anim_phase", 0.0))) * 1.8 + stroke_curve * 3.4
 	var boat = center + Vector2(0.0, 12.0 + bob)
+	var boat_tilt = stroke_dir * stroke_curve * 0.12
+	var oar_swing = stroke_dir * stroke_curve * 18.0
 	draw_circle(boat + Vector2(0.0, 28.0), 26.0, Color(0.0, 0.18, 0.28, 0.12))
+	draw_set_transform(boat, boat_tilt, Vector2.ONE)
 	draw_polygon(
 		PackedVector2Array([
-			boat + Vector2(-54.0, 6.0),
-			boat + Vector2(-18.0, -12.0),
-			boat + Vector2(44.0, -8.0),
-			boat + Vector2(62.0, 4.0),
-			boat + Vector2(40.0, 16.0),
-			boat + Vector2(-42.0, 18.0),
+			Vector2(-54.0, 6.0),
+			Vector2(-18.0, -12.0),
+			Vector2(44.0, -8.0),
+			Vector2(62.0, 4.0),
+			Vector2(40.0, 16.0),
+			Vector2(-42.0, 18.0),
 		]),
 		PackedColorArray([
 			Color(0.54, 0.2, 0.08),
@@ -9430,12 +9553,16 @@ func _draw_dragon_boat_zombie(center: Vector2, zombie: Dictionary) -> void:
 		])
 	)
 	for seat in range(3):
-		var rider = boat + Vector2(-26.0 + float(seat) * 22.0, -18.0 + sin(level_time * 5.2 + float(seat)) * 1.8)
+		var rider = Vector2(-26.0 + float(seat) * 22.0, -18.0 + sin(level_time * 4.2 + float(seat) * 0.6) * 1.2 + stroke_curve * (1.8 - seat * 0.35))
 		draw_circle(rider, 11.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
 		draw_rect(Rect2(rider + Vector2(-10.0, 8.0), Vector2(20.0, 18.0)), Color(0.34, 0.46, 0.72), true)
-		draw_line(rider + Vector2(10.0, 6.0), rider + Vector2(22.0, 24.0), Color(0.62, 0.44, 0.18), 2.0)
-	draw_line(boat + Vector2(36.0, -10.0), boat + Vector2(60.0, -32.0), Color(0.96, 0.76, 0.22), 3.0)
-	draw_line(boat + Vector2(60.0, -32.0), boat + Vector2(76.0, -26.0), Color(0.96, 0.34, 0.18), 3.0)
+		var paddle_base = rider + Vector2(10.0, 6.0)
+		draw_line(paddle_base, paddle_base + Vector2(10.0 + oar_swing * 0.3, 18.0 - stroke_curve * 8.0), Color(0.62, 0.44, 0.18), 2.0)
+	draw_line(Vector2(36.0, -10.0), Vector2(60.0, -32.0), Color(0.96, 0.76, 0.22), 3.0)
+	draw_line(Vector2(60.0, -32.0), Vector2(76.0, -26.0), Color(0.96, 0.34, 0.18), 3.0)
+	draw_line(Vector2(-14.0, -8.0), Vector2(-32.0 - oar_swing * 0.28, 22.0 - stroke_curve * 6.0), Color(0.68, 0.48, 0.18), 3.0)
+	draw_line(Vector2(8.0, -12.0), Vector2(-10.0 - oar_swing * 0.22, 18.0 - stroke_curve * 7.0), Color(0.68, 0.48, 0.18), 3.0)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _draw_qinghua_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -9472,18 +9599,25 @@ func _draw_qinghua_zombie(center: Vector2, zombie: Dictionary) -> void:
 func _draw_shouyue_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var hidden_alpha = 0.42 if _is_hidden_from_lane_attacks(zombie) else 0.92
 	var flash = float(zombie.get("flash", 0.0))
-	var torso = center + Vector2(0.0, -2.0 - absf(sin(level_time * 2.2 + float(zombie.get("anim_phase", 0.0)))) * 1.8)
+	var aim_active = bool(zombie.get("snipe_charge_active", false))
+	var aim_ratio = 0.0
+	var charge_duration = maxf(float(zombie.get("snipe_charge_duration", 0.16)), 0.01)
+	if aim_active:
+		aim_ratio = 1.0 - clampf(float(zombie.get("snipe_charge_timer", 0.0)) / charge_duration, 0.0, 1.0)
+	var torso = center + Vector2(-aim_ratio * 5.0, -2.0 - absf(sin(level_time * 2.2 + float(zombie.get("anim_phase", 0.0)))) * (1.2 if aim_active else 1.8))
 	var alpha = hidden_alpha - flash * 0.12
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
+	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - aim_ratio * 3.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
 	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
 	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), Color(0.16, 0.26, 0.32, alpha), true)
 	draw_circle(torso + Vector2(0.0, -30.0), 16.0, Color(0.72, 0.8, 0.72, alpha))
-	draw_line(torso + Vector2(10.0, -6.0), torso + Vector2(34.0, -18.0), Color(0.22, 0.22, 0.24, alpha), 4.0)
-	draw_line(torso + Vector2(34.0, -18.0), torso + Vector2(48.0, -18.0), Color(0.76, 0.88, 0.98, alpha), 2.0)
+	draw_line(torso + Vector2(10.0, -6.0), torso + Vector2(34.0 + aim_ratio * 10.0, -18.0 - aim_ratio * 4.0), Color(0.22, 0.22, 0.24, alpha), 4.0)
+	draw_line(torso + Vector2(34.0 + aim_ratio * 10.0, -18.0 - aim_ratio * 4.0), torso + Vector2(48.0 + aim_ratio * 16.0, -18.0 - aim_ratio * 6.0), Color(0.76, 0.88, 0.98, alpha), 2.0 + aim_ratio * 0.8)
 	draw_circle(torso + Vector2(-5.0, -31.0), 2.0, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(torso + Vector2(5.0, -31.0), 2.0, Color(0.08, 0.08, 0.08, alpha))
 	if float(zombie.get("revealed_timer", 0.0)) > 0.0:
 		draw_circle(torso + Vector2(0.0, -20.0), 26.0, Color(0.62, 0.9, 1.0, 0.12))
+	if aim_active:
+		draw_circle(torso + Vector2(24.0, -20.0), 9.0 + aim_ratio * 4.0, Color(0.82, 0.96, 1.0, 0.12 + aim_ratio * 0.08))
 
 
 func _draw_ice_block_zombie(center: Vector2, zombie: Dictionary) -> void:

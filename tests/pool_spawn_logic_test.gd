@@ -16,8 +16,11 @@ func _run() -> void:
 	failed = not _test_custom_pool_zombie_spawn_rules() or failed
 	failed = not _test_qinghua_shards_block_planting_after_shield_break() or failed
 	failed = not _test_shouyue_stays_hidden_until_revealed() or failed
+	failed = not _test_shouyue_aims_before_firing() or failed
+	failed = not _test_shouyue_fires_sniper_beam_after_charge() or failed
 	failed = not _test_shouyue_snipes_the_front_plant() or failed
 	failed = not _test_ice_block_leaves_ice_tile_after_skill_cycle() or failed
+	failed = not _test_dragon_boat_glides_instead_of_teleporting() or failed
 	failed = not _test_dragon_boat_crushes_plants_in_water_lane() or failed
 	quit(1 if failed else 0)
 
@@ -33,6 +36,13 @@ func _assert_array_eq(actual: Array, expected: Array, message: String) -> bool:
 	if actual == expected:
 		return true
 	push_error("%s | actual=%s expected=%s" % [message, actual, expected])
+	return false
+
+
+func _has_effect_shape(game: Control, shape_name: String) -> bool:
+	for effect_variant in game.effects:
+		if String(effect_variant.get("shape", "")) == shape_name:
+			return true
 	return false
 
 
@@ -145,6 +155,40 @@ func _test_shouyue_stays_hidden_until_revealed() -> bool:
 	return passed
 
 
+func _test_shouyue_aims_before_firing() -> bool:
+	var game = _make_game()
+	game.grid[2][5] = game._create_plant("wallnut", 2, 5)
+	game._spawn_zombie_at("shouyue", 2, game._cell_center(2, 7).x)
+	var zombie = game.zombies[0]
+	zombie["snipe_cooldown"] = 0.0
+	game.zombies[0] = zombie
+	var start_x = float(game.zombies[0]["x"])
+	var front_before = float(game.grid[2][5]["health"])
+	game._update_zombies(0.1)
+	var passed = _assert_true(is_equal_approx(float(game.zombies[0]["x"]), start_x), "shouyue should stop moving as soon as it starts aiming at a plant in its lane") \
+		and _assert_true(is_equal_approx(float(game.grid[2][5]["health"]), front_before), "shouyue should spend a short charge time aiming before the sniper shot lands") \
+		and _assert_true(_has_effect_shape(game, "sniper_focus"), "shouyue aiming should create a converging laser focus effect")
+	game.free()
+	return passed
+
+
+func _test_shouyue_fires_sniper_beam_after_charge() -> bool:
+	var game = _make_game()
+	game.grid[2][5] = game._create_plant("wallnut", 2, 5)
+	game._spawn_zombie_at("shouyue", 2, game._cell_center(2, 7).x)
+	var zombie = game.zombies[0]
+	zombie["snipe_cooldown"] = 0.0
+	game.zombies[0] = zombie
+	var front_before = float(game.grid[2][5]["health"])
+	for _step in range(8):
+		game._update_zombies(0.1)
+		game._update_effects(0.1)
+	var passed = _assert_true(float(game.grid[2][5]["health"]) < front_before, "shouyue should still land the sniper shot after charging") \
+		and _assert_true(_has_effect_shape(game, "sniper_beam"), "shouyue shot should emit a visible sniper beam effect")
+	game.free()
+	return passed
+
+
 func _test_shouyue_snipes_the_front_plant() -> bool:
 	var game = _make_game()
 	game.grid[2][1] = game._create_plant("peashooter", 2, 1)
@@ -173,6 +217,21 @@ func _test_ice_block_leaves_ice_tile_after_skill_cycle() -> bool:
 	game._update_zombies(0.2)
 	var ice_col = game._zombie_cell_col(float(game.zombies[0]["x"]))
 	var passed = _assert_true(game._has_ice_tile(2, ice_col), "ice_block should leave an ice tile under itself when its skill triggers")
+	game.free()
+	return passed
+
+
+func _test_dragon_boat_glides_instead_of_teleporting() -> bool:
+	var game = _make_game()
+	game._spawn_zombie_at("dragon_boat", 2, game._cell_center(2, 7).x)
+	var zombie = game.zombies[0]
+	zombie["boat_stride_timer"] = 0.0
+	game.zombies[0] = zombie
+	var start_x = float(game.zombies[0]["x"])
+	game._update_zombies(0.2)
+	var current_x = float(game.zombies[0]["x"])
+	var passed = _assert_true(current_x < start_x, "dragon_boat should still start advancing when a stroke begins") \
+		and _assert_true(current_x > start_x - game.CELL_SIZE.x * 0.8, "dragon_boat should glide through a stroke instead of teleporting a full tile in one frame")
 	game.free()
 	return passed
 
