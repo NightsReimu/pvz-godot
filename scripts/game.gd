@@ -1176,6 +1176,7 @@ func _begin_next_batch() -> void:
 	for i in range(batch_size):
 		var event_index = next_event_index + i
 		var event = events[event_index]
+		var event_row = int(event.get("row", -1))
 		if wave_markers.has(event_index):
 			var is_final = event_index == int(wave_markers[wave_markers.size() - 1])
 			_show_banner("最后一波！" if is_final else "一大波僵尸正在逼近！", 2.2)
@@ -1183,15 +1184,16 @@ func _begin_next_batch() -> void:
 				_queue_final_grave_wave_spawns()
 		batch_spawn_queue.append({
 			"kind": String(event["kind"]),
-			"row": int(event.get("row", -1)),
+			"row": event_row,
 			"delay_scale": 1.0,
 			"progress_event": true,
 		})
 		var extra_count = _extra_spawn_count_for_event(event_index, event)
 		for extra_index in range(extra_count):
+			var support_kind = _support_spawn_kind(String(event["kind"]), event_index, extra_index)
 			batch_spawn_queue.append({
-				"kind": _support_spawn_kind(String(event["kind"]), event_index, extra_index),
-				"row": int(event.get("row", -1)),
+				"kind": support_kind,
+				"row": _support_spawn_row_for_event(event_row, support_kind),
 				"delay_scale": 0.8 if extra_index == 0 else 0.68,
 				"progress_event": false,
 			})
@@ -6441,6 +6443,22 @@ func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) 
 			return "conehead" if progress >= 0.45 else "normal"
 		_:
 			return main_kind if progress >= 0.6 and extra_index == 0 else "normal"
+
+
+func _support_spawn_row_for_event(event_row: int, kind: String) -> int:
+	if event_row < 0:
+		return -1
+	var candidates = _eligible_spawn_rows_for_kind(kind)
+	if candidates.is_empty():
+		return -1
+	var alternate_rows: Array = []
+	for row in candidates:
+		var row_i = int(row)
+		if row_i != event_row:
+			alternate_rows.append(row_i)
+	if alternate_rows.is_empty():
+		return event_row if candidates.has(event_row) else -1
+	return int(alternate_rows[rng.randi_range(0, alternate_rows.size() - 1)])
 
 
 func _build_active_rows(row_count: int) -> Array:

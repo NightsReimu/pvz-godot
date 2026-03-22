@@ -11,6 +11,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_spawn_row_partition() or failed
+	failed = not _test_fixed_row_events_still_spread_support_spawns() or failed
 	failed = not _test_lifebuoy_variants_exist() or failed
 	failed = not _test_custom_pool_zombie_spawn_rules() or failed
 	failed = not _test_qinghua_shards_block_planting_after_shield_break() or failed
@@ -71,6 +72,28 @@ func _test_spawn_row_partition() -> bool:
 	var water_rows: Array = game._eligible_spawn_rows_for_kind("lifebuoy_normal")
 	var passed = _assert_array_eq(land_rows, [0, 1, 4, 5], "land zombies should stay on land rows") \
 		and _assert_array_eq(water_rows, [2, 3], "lifebuoy zombies should stay on water rows")
+	game.free()
+	return passed
+
+
+func _test_fixed_row_events_still_spread_support_spawns() -> bool:
+	var game = _make_game()
+	game.current_level = {
+		"id": "3-test",
+		"terrain": "pool",
+		"row_count": 6,
+		"events": [
+			{"time": 6.0, "kind": "conehead", "row": 2, "wave": true},
+		],
+	}
+	game.call("_begin_next_batch")
+	var support_kept_same_row := true
+	for i in range(1, game.batch_spawn_queue.size()):
+		if int(game.batch_spawn_queue[i].get("row", -1)) != 2:
+			support_kept_same_row = false
+			break
+	var passed = _assert_true(game.batch_spawn_queue.size() > 1, "fixed-row event should enqueue support spawns for spread checks") \
+		and _assert_true(not support_kept_same_row, "support spawns should not all inherit a fixed event row, or each wave collapses into one lane")
 	game.free()
 	return passed
 
