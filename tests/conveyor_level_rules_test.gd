@@ -13,6 +13,7 @@ func _run() -> void:
 	failed = not _test_pool_conveyor_levels_3_9_and_3_10_exist_with_expected_wave_counts() or failed
 	failed = not _test_pool_conveyor_levels_bias_toward_lily_pads() or failed
 	failed = not _test_3_10_uses_all_seen_non_boss_zombies() or failed
+	failed = not _test_pool_expansion_levels_3_11_to_3_18_exist() or failed
 	quit(1 if failed else 0)
 
 
@@ -141,3 +142,38 @@ func _test_3_10_uses_all_seen_non_boss_zombies() -> bool:
 		missing.is_empty(),
 		"3-10 should include every non-boss zombie seen so far, missing: %s" % ", ".join(missing)
 	)
+
+
+func _test_pool_expansion_levels_3_11_to_3_18_exist() -> bool:
+	var expected_unlocks := {
+		"3-11": "boomerang_shooter",
+		"3-12": "sakura_shooter",
+		"3-13": "lotus_lancer",
+		"3-14": "mirror_reed",
+		"3-16": "frost_fan",
+	}
+	var passed := true
+	for number in range(11, 19):
+		var level_id = "3-%d" % number
+		var level = _find_level(level_id)
+		passed = _assert_true(not level.is_empty(), "expected %s to exist in the pool expansion" % level_id) and passed
+		if level.is_empty():
+			continue
+		passed = _assert_true(String(level.get("terrain", "")) == "pool", "%s should remain in the pool world" % level_id) and passed
+		if expected_unlocks.has(level_id):
+			var unlock_kind = String(expected_unlocks[level_id])
+			passed = _assert_true(String(level.get("unlock_plant", "")) == unlock_kind, "%s should unlock %s" % [level_id, unlock_kind]) and passed
+			passed = _assert_true(Defs.PLANTS.has(unlock_kind), "%s unlock plant %s should exist" % [level_id, unlock_kind]) and passed
+	if not passed:
+		return false
+
+	var level_3_15 = _find_level("3-15")
+	var level_3_18 = _find_level("3-18")
+	passed = _assert_true(String(level_3_15.get("mode", "")) == "whack", "3-15 should be the special whack-style minigame stage") and passed
+	passed = _assert_true(level_3_15.has("grave_layout") and level_3_15.get("grave_layout", []).size() >= 12, "3-15 should configure a dense grave layout for the minigame") and passed
+	passed = _assert_true(bool(level_3_18.get("boss_level", false)), "3-18 should be marked as a boss level") and passed
+	passed = _assert_true(String(level_3_18.get("mode", "")) == "conveyor", "3-18 should be a conveyor boss stage") and passed
+	var event_kinds = _event_kinds(level_3_18)
+	for kind in ["dragon_boat", "qinghua", "shouyue", "ice_block", "dragon_dance", "pool_boss"]:
+		passed = _assert_true(event_kinds.has(kind), "3-18 should feature %s in its event roster" % kind) and passed
+	return passed

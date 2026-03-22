@@ -103,11 +103,17 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"zomboni",
 	"bobsled_team",
 	"dolphin_rider",
+	"dragon_boat",
+	"qinghua",
+	"shouyue",
+	"ice_block",
+	"dragon_dance",
 	"farmer",
 	"spear",
 	"kungfu",
 	"day_boss",
 	"night_boss",
+	"pool_boss",
 	"rumia_boss",
 	"daiyousei_boss",
 	"cirno_boss",
@@ -173,6 +179,7 @@ var grid: Array = []
 var support_grid: Array = []
 var cell_terrain_mask: Array = []
 var zombies: Array = []
+var next_zombie_uid := 1
 var projectiles: Array = []
 var suns: Array = []
 var coins: Array = []
@@ -181,6 +188,7 @@ var rollers: Array = []
 var weeds: Array = []
 var spears: Array = []
 var graves: Array = []
+var porcelain_shards: Array = []
 var water_rows: Array = []
 var ice_tiles: Array = []
 var mowers: Array = []
@@ -954,6 +962,7 @@ func _begin_level(level_index: int, chosen_cards: Array) -> void:
 		support_grid.append(support_row)
 
 	zombies = []
+	next_zombie_uid = 1
 	projectiles = []
 	suns = []
 	coins = []
@@ -962,6 +971,7 @@ func _begin_level(level_index: int, chosen_cards: Array) -> void:
 	weeds = []
 	spears = []
 	graves = []
+	porcelain_shards = []
 	ice_tiles = []
 	cell_terrain_mask = []
 	effects = []
@@ -1285,7 +1295,7 @@ func _grave_wave_kind_for_cell(row: int, col: int) -> String:
 
 func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool = false) -> void:
 	var base = Defs.ZOMBIES[kind]
-	if _is_hovering_boss_kind(kind) and not _find_alive_enemy_boss(kind).is_empty():
+	if _is_boss_kind(kind) and not _find_alive_enemy_boss(kind).is_empty():
 		return
 	var row = row_override if row_override >= 0 else _choose_spawn_row_for_kind(kind)
 	if row < 0:
@@ -1326,6 +1336,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 	if reserve_progress:
 		expected_spawn_units += 1
 	zombies.append({
+			"uid": next_zombie_uid,
 			"kind": kind,
 			"row": row,
 			"x": spawn_x,
@@ -1372,12 +1383,17 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		"rumia_move_from_y": 0.0,
 		"rumia_move_to_y": 0.0,
 		"rumia_reinforcement_timer": 0.0,
+		"boat_phase": 0,
+		"boat_stride_timer": 0.35 if kind == "dragon_boat" else 0.0,
 		"shield_regens_left": 1 if kind == "basketball" else 0,
 		"shield_regen_timer": -1.0,
+		"snipe_cooldown": 1.6 if kind == "shouyue" else 0.0,
+		"revealed_timer": 0.0,
 		"ninja_dashed": false,
 			"nezha_dived": false,
 			"nezha_target_col": -1,
 			"burn_timer": 0.0,
+			"ice_drop_cooldown": 3.8 if kind == "ice_block" else 0.0,
 			"submerged": kind == "snorkel",
 			"spawned_bobsled": false,
 			"on_ice": false,
@@ -1387,6 +1403,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			"whack_hits_left": _whack_hits_for_kind(kind) if _is_whack_level() else 0,
 		"whacked": false,
 		})
+	next_zombie_uid += 1
 	if kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
@@ -1409,6 +1426,12 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("琪露诺出现了！", 2.4)
+	elif kind == "pool_boss":
+		var boss_index = zombies.size() - 1
+		var boss_unit = zombies[boss_index]
+		boss_unit["rumia_reinforcement_timer"] = 4.9
+		zombies[boss_index] = boss_unit
+		_show_banner("玄潮尸王出现了！", 2.3)
 	total_spawned_units += 1
 
 
@@ -1418,7 +1441,12 @@ func _is_water_zombie_kind(kind: String) -> bool:
 		or kind == "lifebuoy_cone" \
 		or kind == "lifebuoy_bucket" \
 		or kind == "snorkel" \
-		or kind == "dolphin_rider"
+		or kind == "dolphin_rider" \
+		or kind == "dragon_boat"
+
+
+func _is_dual_terrain_zombie_kind(kind: String) -> bool:
+	return kind == "qinghua" or kind == "ice_block" or kind == "shouyue"
 
 
 func _is_row_valid_for_spawn_kind(kind: String, row: int) -> bool:
@@ -1427,6 +1455,8 @@ func _is_row_valid_for_spawn_kind(kind: String, row: int) -> bool:
 	if not _is_pool_level():
 		return true
 	if kind == "bobsled_team":
+		return true
+	if _is_dual_terrain_zombie_kind(kind):
 		return true
 	if _is_water_zombie_kind(kind):
 		return _is_water_row(row)
@@ -1510,6 +1540,40 @@ func _ice_index_at(row: int, col: int) -> int:
 		if int(tile["row"]) == row and int(tile["col"]) == col:
 			return i
 	return -1
+
+
+func _porcelain_shard_index_at(row: int, col: int) -> int:
+	for i in range(porcelain_shards.size()):
+		var shard = porcelain_shards[i]
+		if int(shard["row"]) == row and int(shard["col"]) == col:
+			return i
+	return -1
+
+
+func _has_porcelain_shard(row: int, col: int) -> bool:
+	return _porcelain_shard_index_at(row, col) != -1
+
+
+func _add_porcelain_shard(row: int, col: int, duration: float = 20.0) -> void:
+	if row < 0 or row >= ROWS or col < 0 or col >= COLS:
+		return
+	var shard_index = _porcelain_shard_index_at(row, col)
+	if shard_index != -1:
+		porcelain_shards[shard_index]["time"] = maxf(float(porcelain_shards[shard_index].get("time", 0.0)), duration)
+		return
+	porcelain_shards.append({
+		"row": row,
+		"col": col,
+		"time": duration,
+		"duration": duration,
+	})
+	effects.append({
+		"position": _cell_center(row, col) + Vector2(0.0, 10.0),
+		"radius": 34.0,
+		"time": 0.32,
+		"duration": 0.32,
+		"color": Color(0.72, 0.9, 1.0, 0.28),
+	})
 
 
 func _has_ice_tile(row: int, col: int) -> bool:
@@ -1611,6 +1675,8 @@ func _placement_error(kind: String, row: int, col: int) -> String:
 		return ""
 	if grave_index != -1:
 		return "这里有坟墓，先用坟墓吞噬者处理"
+	if _has_porcelain_shard(row, col):
+		return "青花瓷碎片还没清理干净"
 	if _has_ice_tile(row, col):
 		return "冰道上不能种植"
 	if kind == "lily_pad":
@@ -1838,6 +1904,16 @@ func _create_plant(kind: String, row: int, col: int) -> Dictionary:
 			plant["shot_cooldown"] = 0.45
 		"threepeater":
 			plant["shot_cooldown"] = 0.5
+		"boomerang_shooter":
+			plant["shot_cooldown"] = 0.55
+		"sakura_shooter":
+			plant["shot_cooldown"] = 0.58
+		"lotus_lancer":
+			plant["shot_cooldown"] = 0.62
+		"mirror_reed":
+			plant["support_timer"] = 0.7
+		"frost_fan":
+			plant["shot_cooldown"] = 0.65
 		"cherry_bomb":
 			plant["fuse_timer"] = float(data["fuse"])
 		"jalapeno":
@@ -1940,6 +2016,16 @@ func _update_plants(delta: float) -> void:
 					_update_repeater(plant, delta, row, col)
 				"threepeater":
 					_update_threepeater(plant, delta, row, col)
+				"boomerang_shooter":
+					_update_boomerang_shooter(plant, delta, row, col)
+				"sakura_shooter":
+					_update_sakura_shooter(plant, delta, row, col)
+				"lotus_lancer":
+					_update_lotus_lancer(plant, delta, row, col)
+				"mirror_reed":
+					_update_mirror_reed(plant, delta, row, col)
+				"frost_fan":
+					_update_frost_fan(plant, delta, row, col)
 				"cherry_bomb":
 					plant["fuse_timer"] -= delta
 					if float(plant["fuse_timer"]) <= 0.0:
@@ -2188,6 +2274,222 @@ func _update_threepeater(plant: Dictionary, delta: float, row: int, col: int) ->
 
 func _threepeater_projectile_spawn_position(col: int, lane: int) -> Vector2:
 	return _cell_center(lane, col) + Vector2(32.0, -10.0)
+
+
+func _spawn_boomerang_projectile(row: int, spawn_position: Vector2, anchor_x: float, damage: float, max_targets: int) -> void:
+	projectiles.append({
+		"kind": "boomerang",
+		"row": row,
+		"position": spawn_position,
+		"speed": 420.0,
+		"velocity_y": 0.0,
+		"damage": damage,
+		"slow_duration": 0.0,
+		"color": Color(0.96, 0.72, 0.28),
+		"radius": 11.0,
+		"reflected": false,
+		"fire": false,
+		"outbound": true,
+		"anchor_x": anchor_x,
+		"max_hits": max_targets,
+		"hit_uids": [],
+		"return_hits": [],
+		"return_markers": [],
+	})
+
+
+func _spawn_sakura_projectile(row: int, spawn_position: Vector2, damage: float, velocity_y: float = 0.0) -> void:
+	projectiles.append({
+		"kind": "sakura_petal",
+		"row": row,
+		"position": spawn_position,
+		"speed": 340.0,
+		"velocity_y": velocity_y,
+		"damage": damage,
+		"slow_duration": 0.0,
+		"color": Color(1.0, 0.68, 0.82),
+		"radius": 8.0,
+		"reflected": false,
+		"fire": false,
+		"free_aim": absf(velocity_y) > 0.01,
+		"split_speed": float(Defs.PLANTS["sakura_shooter"]["split_speed"]),
+	})
+
+
+func _update_boomerang_shooter(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = _plant_cadence_delta(delta, row, col)
+	var center = _cell_center(row, col)
+	if String(plant.get("plant_food_mode", "")) == "boomerang_storm" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
+		plant["plant_food_interval"] -= cadence_delta
+		while float(plant["plant_food_interval"]) <= 0.0:
+			_spawn_boomerang_projectile(row, center + Vector2(34.0, -10.0), center.x + 8.0, float(Defs.PLANTS["boomerang_shooter"]["damage"]) * 1.2, int(Defs.PLANTS["boomerang_shooter"]["max_targets"]) + 1)
+			plant["plant_food_interval"] += 0.18
+			plant["flash"] = maxf(float(plant["flash"]), 0.18)
+			_trigger_plant_action(plant, 0.16)
+		return
+	plant["shot_cooldown"] -= cadence_delta
+	if float(plant["shot_cooldown"]) > 0.0:
+		return
+	var range_limit = float(Defs.PLANTS["boomerang_shooter"]["range"])
+	if not _has_zombie_ahead(row, center.x, range_limit):
+		return
+	_spawn_boomerang_projectile(row, center + Vector2(34.0, -10.0), center.x + 8.0, float(Defs.PLANTS["boomerang_shooter"]["damage"]), int(Defs.PLANTS["boomerang_shooter"]["max_targets"]))
+	plant["shot_cooldown"] = float(Defs.PLANTS["boomerang_shooter"]["shoot_interval"])
+	_trigger_plant_action(plant, 0.22)
+
+
+func _update_sakura_shooter(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = _plant_cadence_delta(delta, row, col)
+	var center = _cell_center(row, col)
+	if String(plant.get("plant_food_mode", "")) == "sakura_storm" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
+		plant["plant_food_interval"] -= cadence_delta
+		while float(plant["plant_food_interval"]) <= 0.0:
+			for velocity_y in [-150.0, 0.0, 150.0]:
+				_spawn_sakura_projectile(row, center + Vector2(34.0, -10.0 + velocity_y * 0.03), float(Defs.PLANTS["sakura_shooter"]["damage"]) * 1.15, velocity_y)
+			plant["plant_food_interval"] += 0.16
+			plant["flash"] = maxf(float(plant["flash"]), 0.18)
+			_trigger_plant_action(plant, 0.16)
+		return
+	plant["shot_cooldown"] -= cadence_delta
+	if float(plant["shot_cooldown"]) > 0.0:
+		return
+	var range_limit = float(Defs.PLANTS["sakura_shooter"]["range"])
+	if not _has_zombie_ahead(row, center.x, range_limit):
+		return
+	_spawn_sakura_projectile(row, center + Vector2(34.0, -10.0), float(Defs.PLANTS["sakura_shooter"]["damage"]))
+	plant["shot_cooldown"] = float(Defs.PLANTS["sakura_shooter"]["shoot_interval"])
+	_trigger_plant_action(plant, 0.22)
+
+
+func _update_lotus_lancer(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = _plant_cadence_delta(delta, row, col)
+	var center = _cell_center(row, col)
+	var range_limit = float(Defs.PLANTS["lotus_lancer"]["range"])
+	if String(plant.get("plant_food_mode", "")) == "lancer_burst" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
+		plant["plant_food_interval"] -= cadence_delta
+		while float(plant["plant_food_interval"]) <= 0.0:
+			for lane in _threepeater_rows(row):
+				_damage_zombies_in_row_segment(int(lane), center.x + 18.0, center.x + range_limit, float(Defs.PLANTS["lotus_lancer"]["damage"]) * 1.4)
+				effects.append({
+					"shape": "lane_spray",
+					"position": _cell_center(int(lane), col) + Vector2(18.0, -12.0),
+					"length": range_limit,
+					"width": 28.0,
+					"radius": range_limit,
+					"time": 0.22,
+					"duration": 0.22,
+					"color": Color(0.68, 0.96, 1.0, 0.28),
+				})
+			plant["plant_food_interval"] += 0.24
+			plant["flash"] = maxf(float(plant["flash"]), 0.16)
+			_trigger_plant_action(plant, 0.16)
+		return
+	plant["shot_cooldown"] -= cadence_delta
+	if float(plant["shot_cooldown"]) > 0.0:
+		return
+	if not _has_zombie_ahead(row, center.x, range_limit):
+		return
+	_damage_zombies_in_row_segment(row, center.x + 18.0, center.x + range_limit, float(Defs.PLANTS["lotus_lancer"]["damage"]))
+	effects.append({
+		"shape": "lane_spray",
+		"position": center + Vector2(18.0, -12.0),
+		"length": range_limit,
+		"width": 24.0,
+		"radius": range_limit,
+		"time": 0.2,
+		"duration": 0.2,
+		"color": Color(0.62, 0.92, 1.0, 0.24),
+	})
+	plant["shot_cooldown"] = float(Defs.PLANTS["lotus_lancer"]["shoot_interval"])
+	_trigger_plant_action(plant, 0.22)
+
+
+func _update_mirror_reed(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = _plant_cadence_delta(delta, row, col)
+	var center = _cell_center(row, col)
+	plant["support_timer"] -= cadence_delta
+	if float(plant["support_timer"]) > 0.0:
+		return
+	var reveal_radius = float(Defs.PLANTS["mirror_reed"]["reveal_radius"])
+	var damage_radius = maxf(float(Defs.PLANTS["mirror_reed"]["radius"]), reveal_radius * 0.9)
+	var damage = float(Defs.PLANTS["mirror_reed"]["damage"])
+	if String(plant.get("plant_food_mode", "")) == "mirror_burst" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
+		reveal_radius += 120.0
+		damage_radius += 90.0
+		damage *= 1.8
+		plant["plant_food_mode"] = ""
+		plant["plant_food_timer"] = 0.0
+	var did_hit = _damage_zombies_in_circle(center, damage_radius, damage)
+	for i in range(zombies.size()):
+		var zombie = zombies[i]
+		if String(zombie.get("kind", "")) != "shouyue" or not _is_enemy_zombie(zombie):
+			continue
+		var zombie_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		if zombie_center.distance_to(center) > reveal_radius:
+			continue
+		zombie["revealed_timer"] = maxf(float(zombie.get("revealed_timer", 0.0)), 3.8)
+		zombies[i] = zombie
+	effects.append({
+		"position": center,
+		"radius": reveal_radius,
+		"time": 0.28,
+		"duration": 0.28,
+		"color": Color(0.76, 0.92, 1.0, 0.22 if did_hit else 0.16),
+	})
+	plant["support_timer"] = float(Defs.PLANTS["mirror_reed"]["pulse_interval"])
+	plant["flash"] = maxf(float(plant["flash"]), 0.12)
+	_trigger_plant_action(plant, 0.18)
+
+
+func _update_frost_fan(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = _plant_cadence_delta(delta, row, col)
+	var center = _cell_center(row, col)
+	var range_limit = float(Defs.PLANTS["frost_fan"]["range"])
+	var slow_duration = float(Defs.PLANTS["frost_fan"]["slow_duration"])
+	var lanes = _threepeater_rows(row)
+	if String(plant.get("plant_food_mode", "")) == "frost_gale" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
+		plant["plant_food_interval"] -= cadence_delta
+		while float(plant["plant_food_interval"]) <= 0.0:
+			for lane in active_rows:
+				_damage_zombies_in_row_segment(int(lane), center.x + 12.0, center.x + range_limit, float(Defs.PLANTS["frost_fan"]["damage"]) * 1.35, slow_duration + 4.0)
+				effects.append({
+					"shape": "lane_spray",
+					"position": _cell_center(int(lane), col) + Vector2(18.0, -10.0),
+					"length": range_limit,
+					"width": 34.0,
+					"radius": range_limit,
+					"time": 0.22,
+					"duration": 0.22,
+					"color": Color(0.82, 0.98, 1.0, 0.26),
+				})
+			plant["plant_food_interval"] += 0.24
+			plant["flash"] = maxf(float(plant["flash"]), 0.18)
+			_trigger_plant_action(plant, 0.16)
+		return
+	plant["shot_cooldown"] -= cadence_delta
+	if float(plant["shot_cooldown"]) > 0.0:
+		return
+	var has_target := false
+	for lane in lanes:
+		if _has_zombie_ahead(int(lane), center.x, range_limit):
+			has_target = true
+			break
+	if not has_target:
+		return
+	for lane in lanes:
+		_damage_zombies_in_row_segment(int(lane), center.x + 16.0, center.x + range_limit, float(Defs.PLANTS["frost_fan"]["damage"]), slow_duration)
+		effects.append({
+			"shape": "lane_spray",
+			"position": _cell_center(int(lane), col) + Vector2(18.0, -10.0),
+			"length": range_limit,
+			"width": 30.0,
+			"radius": range_limit,
+			"time": 0.2,
+			"duration": 0.2,
+			"color": Color(0.8, 0.98, 1.0, 0.22),
+		})
+	plant["shot_cooldown"] = float(Defs.PLANTS["frost_fan"]["shoot_interval"])
+	_trigger_plant_action(plant, 0.22)
 
 
 func _find_squash_target(row: int, center_x: float, range_limit: float) -> int:
@@ -2794,7 +3096,108 @@ func _spawn_fire_projectile(row: int, spawn_position: Vector2, damage: float, sp
 		projectiles[projectiles.size() - 1]["fire"] = true
 
 
+func _find_zombie_index_by_uid(uid: int) -> int:
+	for i in range(zombies.size()):
+		if int(zombies[i].get("uid", -1)) == uid:
+			return i
+	return -1
+
+
+func _apply_fire_projectile_splash(row: int, center_x: float, damage: float, skip_index: int) -> void:
+	var splash_radius = 48.0
+	for i in range(zombies.size()):
+		if i == skip_index:
+			continue
+		var zombie = zombies[i]
+		if int(zombie["row"]) != row or not _is_enemy_zombie(zombie):
+			continue
+		if absf(float(zombie["x"]) - center_x) > splash_radius:
+			continue
+		zombie = _apply_zombie_damage(zombie, damage, 0.1)
+		zombies[i] = zombie
+	effects.append({
+		"position": Vector2(center_x, _row_center_y(row)),
+		"radius": splash_radius,
+		"time": 0.2,
+		"duration": 0.2,
+		"color": Color(1.0, 0.52, 0.18, 0.24),
+	})
+
+
+func _spawn_sakura_split_projectiles(projectile: Dictionary, impact_position: Vector2) -> void:
+	var child_damage = maxf(6.0, float(projectile.get("damage", 0.0)) * 0.78)
+	var split_speed = float(projectile.get("split_speed", float(Defs.PLANTS["sakura_shooter"]["split_speed"])))
+	for velocity_y in [-split_speed, split_speed]:
+		projectiles.append({
+			"kind": "sakura_petal",
+			"row": int(projectile["row"]),
+			"position": impact_position + Vector2(12.0, velocity_y * 0.012),
+			"speed": split_speed,
+			"velocity_y": velocity_y,
+			"damage": child_damage,
+			"slow_duration": 0.0,
+			"color": Color(1.0, 0.72, 0.86),
+			"radius": 7.0,
+			"reflected": false,
+			"fire": false,
+			"free_aim": true,
+			"split_speed": split_speed,
+		})
+
+
+func _update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictionary:
+	var projectile_pos = Vector2(projectile["position"])
+	projectile_pos.x += float(projectile["speed"]) * delta
+	projectile["position"] = projectile_pos
+	var hit_uids: Array = projectile.get("hit_uids", [])
+	var return_hits: Array = projectile.get("return_hits", [])
+	var return_markers: Array = projectile.get("return_markers", [])
+	if bool(projectile.get("outbound", true)):
+		var target_index = _find_projectile_target(projectile)
+		if target_index != -1:
+			var zombie = zombies[target_index]
+			var uid = int(zombie.get("uid", -1))
+			if not hit_uids.has(uid):
+				zombie = _apply_zombie_damage(zombie, float(projectile["damage"]), 0.12)
+				zombies[target_index] = zombie
+				hit_uids.append(uid)
+				return_markers.append({
+					"uid": uid,
+					"x": float(zombie["x"]),
+				})
+				projectile["hit_uids"] = hit_uids
+				projectile["return_markers"] = return_markers
+				if hit_uids.size() >= int(projectile.get("max_hits", 3)):
+					projectile["outbound"] = false
+					projectile["speed"] = -absf(float(projectile["speed"])) * 0.92
+			else:
+				projectile_pos.x += 18.0
+				projectile["position"] = projectile_pos
+		if projectile_pos.x >= BOARD_ORIGIN.x + board_size.x + 40.0:
+			projectile["outbound"] = false
+			projectile["speed"] = -absf(float(projectile["speed"])) * 0.92
+	else:
+		for marker_variant in return_markers:
+			var marker = Dictionary(marker_variant)
+			var uid = int(marker.get("uid", -1))
+			if return_hits.has(uid):
+				continue
+			if projectile_pos.x > float(marker.get("x", projectile_pos.x)):
+				continue
+			var zombie_index = _find_zombie_index_by_uid(uid)
+			if zombie_index != -1:
+				var zombie = zombies[zombie_index]
+				if _is_enemy_zombie(zombie):
+					zombie = _apply_zombie_damage(zombie, float(projectile["damage"]), 0.12)
+					zombies[zombie_index] = zombie
+			return_hits.append(uid)
+		projectile["return_hits"] = return_hits
+	return projectile
+
+
 func _apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
+	if String(projectile.get("kind", "")) != "" and String(projectile.get("kind", "")) != "pea":
+		return projectile
 	if bool(projectile.get("fire", false)) or bool(projectile.get("reflected", false)) or float(projectile.get("speed", 0.0)) <= 0.0:
 		return projectile
 	var row = int(projectile["row"])
@@ -2819,8 +3222,14 @@ func _update_projectiles(delta: float) -> void:
 	for i in range(projectiles.size() - 1, -1, -1):
 		var projectile = projectiles[i]
 		var projectile_pos = Vector2(projectile["position"])
-		projectile_pos.x += float(projectile["speed"]) * delta
-		projectile["position"] = projectile_pos
+		var projectile_kind = String(projectile.get("kind", "pea"))
+		if projectile_kind == "boomerang":
+			projectile = _update_boomerang_projectile(projectile, delta)
+			projectile_pos = Vector2(projectile["position"])
+		else:
+			projectile_pos.x += float(projectile["speed"]) * delta
+			projectile_pos.y += float(projectile.get("velocity_y", 0.0)) * delta
+			projectile["position"] = projectile_pos
 		projectile = _apply_torchwood_to_projectile(projectile)
 
 		if bool(projectile.get("reflected", false)):
@@ -2857,10 +3266,27 @@ func _update_projectiles(delta: float) -> void:
 
 			zombie = _apply_zombie_damage(zombie, float(projectile["damage"]), 0.12, float(projectile["slow_duration"]))
 			zombies[hit_index] = zombie
+			if projectile_kind == "sakura_petal":
+				_spawn_sakura_split_projectiles(projectile, Vector2(float(zombie["x"]) + 8.0, projectile_pos.y))
+			elif bool(projectile.get("fire", false)):
+				_apply_fire_projectile_splash(int(projectile["row"]), float(zombie["x"]), float(projectile["damage"]) * 0.55, hit_index)
 			projectiles.remove_at(i)
 			continue
 
+		if projectile_kind == "boomerang":
+			if not bool(projectile.get("outbound", true)) and float(projectile_pos.x) <= float(projectile.get("anchor_x", BOARD_ORIGIN.x)):
+				projectiles.remove_at(i)
+				continue
+			if bool(projectile.get("outbound", true)) and projectile_pos.x > BOARD_ORIGIN.x + board_size.x + 120.0:
+				projectiles.remove_at(i)
+				continue
+			projectiles[i] = projectile
+			continue
+
 		if projectile_pos.x > BOARD_ORIGIN.x + board_size.x + 120.0:
+			projectiles.remove_at(i)
+			continue
+		if projectile_pos.y < BOARD_ORIGIN.y - 120.0 or projectile_pos.y > BOARD_ORIGIN.y + board_size.y + 120.0:
 			projectiles.remove_at(i)
 			continue
 
@@ -2921,6 +3347,7 @@ func _update_zombies(delta: float) -> void:
 		zombie["bite_timer"] = maxf(0.0, float(zombie.get("bite_timer", 0.0)) - delta)
 		zombie["impact_timer"] = maxf(0.0, float(zombie.get("impact_timer", 0.0)) - delta)
 		zombie["special_pause_timer"] = maxf(0.0, float(zombie.get("special_pause_timer", 0.0)) - delta)
+		zombie["revealed_timer"] = maxf(0.0, float(zombie.get("revealed_timer", 0.0)) - delta)
 		zombie["jump_offset"] = 0.0
 		if float(zombie.get("reflect_timer", 0.0)) > 0.0:
 			zombie["reflect_timer"] = maxf(0.0, float(zombie["reflect_timer"]) - delta)
@@ -2973,6 +3400,20 @@ func _update_zombies(delta: float) -> void:
 					})
 				zombie["sleep_cooldown"] = 4.4
 
+		if String(zombie["kind"]) == "ice_block":
+			zombie["ice_drop_cooldown"] = maxf(0.0, float(zombie.get("ice_drop_cooldown", 0.0)) - delta)
+			if float(zombie["ice_drop_cooldown"]) <= 0.0 and float(zombie.get("special_pause_timer", 0.0)) <= 0.0:
+				_set_ice_tile(int(zombie["row"]), _zombie_cell_col(float(zombie["x"])))
+				zombie["ice_drop_cooldown"] = 6.6
+				zombie["special_pause_timer"] = 0.2
+				effects.append({
+					"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + 14.0),
+					"radius": 52.0,
+					"time": 0.26,
+					"duration": 0.26,
+					"color": Color(0.72, 0.94, 1.0, 0.24),
+				})
+
 		if String(zombie["kind"]) == "ninja" and not bool(zombie.get("ninja_dashed", false)) and float(zombie["health"]) <= float(zombie["max_health"]) * 0.5:
 			var target_row = _choose_adjacent_active_row(int(zombie["row"]))
 			zombie["ninja_dashed"] = true
@@ -3009,7 +3450,7 @@ func _update_zombies(delta: float) -> void:
 				zombie["boss_pause_timer"] = 1.5
 			if _is_hovering_boss_kind(String(zombie["kind"])):
 				zombie = _update_hovering_boss(zombie, delta)
-				zombie = _update_boss_reinforcements(zombie, delta)
+			zombie = _update_boss_reinforcements(zombie, delta)
 			zombie["boss_skill_timer"] = maxf(0.0, float(zombie["boss_skill_timer"]) - delta)
 			zombie["boss_pause_timer"] = maxf(0.0, float(zombie["boss_pause_timer"]) - delta)
 			if float(zombie["boss_skill_timer"]) <= 0.0:
@@ -3156,6 +3597,64 @@ func _update_zombies(delta: float) -> void:
 			zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
 			zombies[i] = zombie
 			continue
+
+		if String(zombie["kind"]) == "dragon_boat":
+			zombie["boat_stride_timer"] = maxf(0.0, float(zombie.get("boat_stride_timer", 0.0)) - delta)
+			if float(zombie.get("special_pause_timer", 0.0)) <= 0.0 and float(zombie["boat_stride_timer"]) <= 0.0:
+				var boat_phase = int(zombie.get("boat_phase", 0))
+				if boat_phase == 2:
+					zombie["x"] += CELL_SIZE.x
+				else:
+					zombie["x"] -= CELL_SIZE.x
+				zombie["boat_phase"] = (boat_phase + 1) % 3
+				zombie["boat_stride_timer"] = 0.48
+				var crush_cell = _find_crushable_cell(int(zombie["row"]), float(zombie["x"]))
+				if crush_cell.y != -1:
+					_crush_cell(crush_cell.x, crush_cell.y)
+				effects.append({
+					"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + 18.0),
+					"radius": 48.0,
+					"time": 0.22,
+					"duration": 0.22,
+					"color": Color(0.82, 0.94, 1.0, 0.24),
+				})
+			var boat_mower = mowers[int(zombie["row"])]
+			if float(zombie["x"]) <= BOARD_ORIGIN.x - 24.0:
+				if bool(boat_mower["armed"]):
+					boat_mower["armed"] = false
+					boat_mower["active"] = true
+					mowers[int(zombie["row"])] = boat_mower
+				elif not bool(boat_mower["active"]):
+					_lose_level()
+					return
+			zombies[i] = zombie
+			continue
+
+		if String(zombie["kind"]) == "shouyue":
+			zombie["snipe_cooldown"] = maxf(0.0, float(zombie.get("snipe_cooldown", 0.0)) - delta)
+			var snipe_target = _find_front_plant_target(int(zombie["row"]), float(zombie["x"]))
+			if snipe_target.y != -1:
+				if float(zombie.get("special_pause_timer", 0.0)) <= 0.0 and float(zombie["snipe_cooldown"]) <= 0.0:
+					var target_plant = _targetable_plant_at(snipe_target.x, snipe_target.y)
+					if target_plant != null:
+						target_plant["health"] -= float(Defs.ZOMBIES["shouyue"]["snipe_damage"])
+						target_plant["flash"] = maxf(float(target_plant.get("flash", 0.0)), 0.24)
+						_set_targetable_plant(snipe_target.x, snipe_target.y, target_plant)
+						var target_center = _cell_center(snipe_target.x, snipe_target.y)
+						effects.append({
+							"shape": "fairy_lance",
+							"position": Vector2(float(zombie["x"]) - 6.0, _row_center_y(int(zombie["row"])) - 12.0),
+							"target": target_center + Vector2(0.0, -8.0),
+							"radius": 14.0,
+							"time": 0.18,
+							"duration": 0.18,
+							"color": Color(0.7, 0.96, 1.0, 0.42),
+						})
+					zombie["snipe_cooldown"] = 3.4
+					zombie["special_pause_timer"] = 0.36
+					zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
+				zombies[i] = zombie
+				continue
 
 		var target = _find_bite_target(int(zombie["row"]), float(zombie["x"]))
 		if target.y != -1:
@@ -3388,6 +3887,13 @@ func _update_plant_food_pickups(delta: float) -> void:
 
 
 func _update_effects(delta: float) -> void:
+	for i in range(porcelain_shards.size() - 1, -1, -1):
+		var shard = porcelain_shards[i]
+		shard["time"] = maxf(0.0, float(shard.get("time", 0.0)) - delta)
+		if float(shard["time"]) <= 0.0:
+			porcelain_shards.remove_at(i)
+			continue
+		porcelain_shards[i] = shard
 	for i in range(effects.size() - 1, -1, -1):
 		var effect = effects[i]
 		effect["time"] -= delta
@@ -3545,7 +4051,34 @@ func _has_zombie_ahead(row: int, plant_x: float, range_limit: float = 10000.0) -
 
 
 func _is_hidden_from_lane_attacks(zombie: Dictionary) -> bool:
-	return String(zombie.get("kind", "")) == "snorkel" and bool(zombie.get("submerged", false))
+	var kind = String(zombie.get("kind", ""))
+	if kind == "snorkel":
+		return bool(zombie.get("submerged", false))
+	if kind != "shouyue":
+		return false
+	if float(zombie.get("revealed_timer", 0.0)) > 0.0:
+		return false
+	if bool(zombie.get("hypnotized", false)):
+		return false
+	var row = int(zombie.get("row", -1))
+	var zombie_x = float(zombie.get("x", 0.0))
+	for col in range(COLS):
+		var plant = _targetable_plant_at(row, col)
+		if plant == null:
+			continue
+		if _cell_center(row, col).x < zombie_x - 6.0:
+			return false
+	for other_row in range(ROWS):
+		for col in range(COLS):
+			var plant = _targetable_plant_at(other_row, col)
+			if plant == null:
+				continue
+			var plant_kind = String(plant.get("kind", ""))
+			if plant_kind != "lantern_bloom" and plant_kind != "dream_drum":
+				continue
+			if _cell_center(other_row, col).distance_to(Vector2(zombie_x, _row_center_y(row))) <= CELL_SIZE.x * 3.6:
+				return false
+	return true
 
 
 func _is_hypnotized_zombie(zombie: Dictionary) -> bool:
@@ -3783,6 +4316,16 @@ func _find_bite_target(row: int, zombie_x: float) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+func _find_front_plant_target(row: int, zombie_x: float) -> Vector2i:
+	for col in range(COLS - 1, -1, -1):
+		var plant_variant = _targetable_plant_at(row, col)
+		if plant_variant == null:
+			continue
+		if _cell_center(row, col).x < zombie_x - 6.0:
+			return Vector2i(row, col)
+	return Vector2i(-1, -1)
+
+
 func _spawn_farmer_weed(row: int, target_col: int) -> bool:
 	if target_col < 0 or target_col >= COLS or not _is_row_active(row):
 		return false
@@ -3858,6 +4401,8 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 					"duration": 0.28,
 					"color": Color(1.0, 0.28, 0.22, 0.28),
 				})
+			elif kind == "qinghua":
+				_add_porcelain_shard(int(zombie["row"]), _zombie_cell_col(float(zombie["x"])), 20.0)
 		else:
 			zombie["shield_health"] = shield_health - remaining_damage
 			remaining_damage = 0.0
@@ -4087,6 +4632,13 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["lifebuoy_bucket", "dark_football", "basketball", "snorkel"],
 			]
 			tint = Color(0.72, 0.94, 1.0, 0.24)
+		"pool_boss":
+			pools = [
+				["lifebuoy_normal", "qinghua", "ice_block"],
+				["dragon_boat", "lifebuoy_cone", "shouyue", "qinghua"],
+				["dragon_boat", "dragon_dance", "lifebuoy_bucket", "shouyue", "ice_block"],
+			]
+			tint = Color(0.54, 0.84, 1.0, 0.24)
 		_:
 			return
 	var pool: Array = pools[min(phase, pools.size() - 1)]
@@ -4116,6 +4668,8 @@ func _update_boss_reinforcements(zombie: Dictionary, delta: float) -> Dictionary
 			default_interval = maxf(3.1, 4.7 - float(phase) * 0.42)
 		"rumia_boss":
 			default_interval = maxf(3.4, 5.3 - float(phase) * 0.6)
+		"pool_boss":
+			default_interval = maxf(3.0, 4.9 - float(phase) * 0.45)
 		_:
 			return zombie
 	zombie["rumia_reinforcement_timer"] = float(zombie.get("rumia_reinforcement_timer", default_interval)) - delta
@@ -4434,6 +4988,37 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		return _trigger_cirno_boss_skill(zombie)
 	if String(zombie["kind"]) == "night_boss":
 		return _trigger_night_boss_skill(zombie)
+	if String(zombie["kind"]) == "pool_boss":
+		var phase = int(zombie.get("boss_phase", 0))
+		effects.append({
+			"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"]))),
+			"radius": 146.0 + phase * 12.0,
+			"time": 0.42,
+			"duration": 0.42,
+			"color": Color(0.26, 0.62, 0.92, 0.34),
+		})
+		match int(zombie.get("boss_skill_cycle", 0)):
+			0:
+				var summon_pool = ["dragon_boat", "qinghua", "shouyue", "ice_block", "dragon_dance"]
+				for summon_index in range(3 + phase):
+					var summon_kind = String(summon_pool[min(summon_index, summon_pool.size() - 1)]) if summon_index < summon_pool.size() else String(summon_pool[rng.randi_range(0, summon_pool.size() - 1)])
+					_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
+				_show_banner("玄潮尸王掀起了尸潮！", 1.5)
+			1:
+				for lane in active_rows:
+					_damage_front_plant_in_row(int(lane), 180.0 + phase * 38.0)
+					if _is_water_row(int(lane)):
+						_set_ice_tile(int(lane), clampi(rng.randi_range(3, COLS - 1), 0, COLS - 1))
+				_show_banner("玄潮尸王掀起了激浪！", 1.35)
+			_:
+				for lane in water_rows:
+					var water_row = int(lane)
+					_set_ice_tile(water_row, clampi(rng.randi_range(2, COLS - 2), 0, COLS - 1))
+					_add_porcelain_shard(water_row, clampi(rng.randi_range(3, COLS - 2), 0, COLS - 1), 10.0 + phase * 2.0)
+				for summon_kind in ["dragon_boat", "dragon_dance"]:
+					_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
+				_show_banner("玄潮尸王封锁了前场格位！", 1.45)
+		return zombie
 	effects.append({
 		"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"]))),
 		"radius": 120.0,
@@ -4532,6 +5117,22 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		return _trigger_cirno_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "night_boss":
 		return _trigger_night_boss_phase_shift(zombie, phase)
+	if String(zombie["kind"]) == "pool_boss":
+		_show_banner("玄潮尸王进入第 %d 阶段！" % (phase + 1), 2.0)
+		effects.append({
+			"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"]))),
+			"radius": 200.0 + phase * 22.0,
+			"time": 0.56,
+			"duration": 0.56,
+			"color": Color(0.18, 0.58, 0.94, 0.42),
+		})
+		for lane in water_rows:
+			_set_ice_tile(int(lane), clampi(rng.randi_range(2, COLS - 2), 0, COLS - 1))
+		for summon_kind in ["dragon_boat", "dragon_dance", "qinghua"]:
+			_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
+		for lane in active_rows:
+			_damage_front_plant_in_row(int(lane), 100.0 + phase * 26.0)
+		return zombie
 	_show_banner("Boss 进入第 %d 阶段！" % (phase + 1), 2.0)
 	effects.append({
 		"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"]))),
@@ -4753,8 +5354,11 @@ func _trigger_jalapeno(row: int, col: int, boosted: bool = false) -> void:
 		_damage_obstacles_in_radius(int(lane), lane_center_x, board_size.x, damage)
 		_clear_ice_row(int(lane))
 		effects.append({
-			"position": Vector2(lane_center_x, _row_center_y(int(lane))),
-			"radius": board_size.x * 0.52,
+			"shape": "lane_spray",
+			"position": Vector2(BOARD_ORIGIN.x, _row_center_y(int(lane))),
+			"length": board_size.x,
+			"width": CELL_SIZE.y * 0.72,
+			"radius": board_size.x,
 			"time": 0.34,
 			"duration": 0.34,
 			"color": Color(1.0, 0.44, 0.14, 0.56),
@@ -4812,11 +5416,20 @@ func _trigger_doom_shroom(row: int, col: int, boosted: bool = false) -> void:
 func _find_projectile_target(projectile: Dictionary) -> int:
 	var best_index = -1
 	var best_distance = 999999.0
-	var projectile_pos = projectile["position"]
+	var projectile_pos = Vector2(projectile["position"])
 	var projectile_radius = float(projectile.get("radius", 8.0))
+	var free_aim = bool(projectile.get("free_aim", false))
+	var ignored_uids: Array = projectile.get("hit_uids", [])
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != int(projectile["row"]) or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
+		if _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
+			continue
+		if free_aim:
+			if absf(_row_center_y(int(zombie["row"])) - projectile_pos.y) > 24.0:
+				continue
+		elif int(zombie["row"]) != int(projectile["row"]):
+			continue
+		if ignored_uids.has(int(zombie.get("uid", -1))):
 			continue
 		var distance = float(zombie["x"]) - projectile_pos.x
 		if distance < -20.0 or distance > 20.0 + projectile_radius:
@@ -4924,6 +5537,21 @@ func _damage_zombies_in_radius(row: int, center_x: float, radius: float, damage:
 			continue
 		zombie = _apply_zombie_damage(zombie, damage, 0.16)
 		zombies[i] = zombie
+
+
+func _damage_zombies_in_row_segment(row: int, min_x: float, max_x: float, damage: float, slow_duration: float = 0.0) -> bool:
+	var hit := false
+	for i in range(zombies.size()):
+		var zombie = zombies[i]
+		if int(zombie["row"]) != row or not _is_enemy_zombie(zombie) or _is_hidden_from_lane_attacks(zombie):
+			continue
+		var zombie_x = float(zombie["x"])
+		if zombie_x < min_x or zombie_x > max_x:
+			continue
+		zombie = _apply_zombie_damage(zombie, damage, 0.18, slow_duration)
+		zombies[i] = zombie
+		hit = true
+	return hit
 
 
 func _damage_zombies_in_circle(center: Vector2, radius: float, damage: float) -> bool:
@@ -7221,6 +7849,16 @@ func _draw_plants() -> void:
 					_draw_repeater(Vector2.ZERO, 1.0, flash)
 				"threepeater":
 					_draw_threepeater(Vector2.ZERO, 1.0, flash)
+				"boomerang_shooter":
+					_draw_boomerang_shooter(Vector2.ZERO, 1.0, flash)
+				"sakura_shooter":
+					_draw_sakura_shooter(Vector2.ZERO, 1.0, flash)
+				"lotus_lancer":
+					_draw_lotus_lancer(Vector2.ZERO, 1.0, flash)
+				"mirror_reed":
+					_draw_mirror_reed(Vector2.ZERO, 1.0, flash)
+				"frost_fan":
+					_draw_frost_fan(Vector2.ZERO, 1.0, flash)
 				"amber_shooter":
 					_draw_amber_shooter(Vector2.ZERO, 1.0, flash)
 				"vine_lasher":
@@ -7300,9 +7938,38 @@ func _draw_projectiles() -> void:
 	for projectile in projectiles:
 		var projectile_pos = Vector2(projectile["position"])
 		var projectile_color = Color(projectile["color"])
+		var projectile_kind = String(projectile.get("kind", "pea"))
 		var pulse = 1.0 + 0.12 * sin(level_time * 14.0 + projectile_pos.x * 0.04)
 		var projectile_radius = float(projectile.get("radius", 8.0)) * pulse
 		var trail_dir = 1.0 if float(projectile.get("speed", 0.0)) >= 0.0 else -1.0
+		if projectile_kind == "boomerang":
+			for trail_index in range(3):
+				var trail_ratio = float(trail_index + 1) / 3.0
+				var trail_center = projectile_pos + Vector2(-trail_dir * trail_ratio * 12.0, 0.0)
+				draw_arc(trail_center, projectile_radius * (0.92 - trail_ratio * 0.12), -1.2, 1.2, 14, Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.22 - trail_ratio * 0.04), 2.0)
+			draw_arc(projectile_pos, projectile_radius, -1.35, 1.35, 18, projectile_color, 3.0)
+			draw_circle(projectile_pos + Vector2(2.0 * trail_dir, -1.0), projectile_radius * 0.22, Color(1.0, 0.96, 0.8, 0.58))
+			continue
+		if projectile_kind == "sakura_petal":
+			for trail_index in range(3):
+				var trail_ratio = float(trail_index + 1) / 3.0
+				draw_circle(projectile_pos + Vector2(-trail_dir * trail_ratio * 9.0, -float(projectile.get("velocity_y", 0.0)) * 0.014 * trail_ratio), projectile_radius * (0.72 - trail_ratio * 0.12), Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.18 - trail_ratio * 0.03))
+			draw_polygon(
+				PackedVector2Array([
+					projectile_pos + Vector2(0.0, -projectile_radius),
+					projectile_pos + Vector2(projectile_radius * 0.9, 0.0),
+					projectile_pos + Vector2(0.0, projectile_radius),
+					projectile_pos + Vector2(-projectile_radius * 0.9, 0.0),
+				]),
+				PackedColorArray([
+					Color(1.0, 0.88, 0.94, 0.88),
+					projectile_color,
+					Color(0.98, 0.72, 0.84, 0.92),
+					projectile_color,
+				])
+			)
+			draw_circle(projectile_pos + Vector2(-1.0, -1.0), projectile_radius * 0.24, Color(1.0, 1.0, 1.0, 0.46))
+			continue
 		for trail_index in range(3):
 			var trail_ratio = float(trail_index + 1) / 3.0
 			draw_circle(projectile_pos + Vector2(-trail_dir * trail_ratio * 10.0, 0.0), projectile_radius * (0.76 - trail_ratio * 0.14), Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.2 - trail_ratio * 0.04))
@@ -7643,6 +8310,16 @@ func _draw_card_icon(kind: String, center: Vector2) -> void:
 			_draw_repeater(center + Vector2(0.0, 4.0), 0.52, 0.0)
 		"threepeater":
 			_draw_threepeater(center + Vector2(0.0, 6.0), 0.48, 0.0)
+		"boomerang_shooter":
+			_draw_boomerang_shooter(center + Vector2(0.0, 6.0), 0.5, 0.0)
+		"sakura_shooter":
+			_draw_sakura_shooter(center + Vector2(0.0, 6.0), 0.5, 0.0)
+		"lotus_lancer":
+			_draw_lotus_lancer(center + Vector2(0.0, 6.0), 0.5, 0.0)
+		"mirror_reed":
+			_draw_mirror_reed(center + Vector2(0.0, 6.0), 0.5, 0.0)
+		"frost_fan":
+			_draw_frost_fan(center + Vector2(0.0, 6.0), 0.5, 0.0)
 		"amber_shooter":
 			_draw_amber_shooter(center + Vector2(0.0, 4.0), 0.52, 0.0)
 		"vine_lasher":
@@ -7725,6 +8402,16 @@ func _draw_plant_preview(kind: String, center: Vector2) -> void:
 			_draw_repeater(center, 1.0, 0.0, 0.42)
 		"threepeater":
 			_draw_threepeater(center, 1.0, 0.0, 0.42)
+		"boomerang_shooter":
+			_draw_boomerang_shooter(center, 1.0, 0.0, 0.42)
+		"sakura_shooter":
+			_draw_sakura_shooter(center, 1.0, 0.0, 0.42)
+		"lotus_lancer":
+			_draw_lotus_lancer(center, 1.0, 0.0, 0.42)
+		"mirror_reed":
+			_draw_mirror_reed(center, 1.0, 0.0, 0.42)
+		"frost_fan":
+			_draw_frost_fan(center, 1.0, 0.0, 0.42)
 		"amber_shooter":
 			_draw_amber_shooter(center, 1.0, 0.0, 0.42)
 		"vine_lasher":
@@ -8072,6 +8759,97 @@ func _draw_threepeater(center: Vector2, size_scale: float, flash: float, alpha: 
 	_draw_peashooter(center + Vector2(-2.0 * size_scale, -20.0 * size_scale), size_scale * 0.62, flash, alpha)
 	_draw_peashooter(center + Vector2(-10.0 * size_scale, 0.0), size_scale * 0.68, flash, alpha)
 	_draw_peashooter(center + Vector2(-2.0 * size_scale, 20.0 * size_scale), size_scale * 0.62, flash, alpha)
+
+
+func _draw_boomerang_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var body_color = Color(0.46, 0.82, 0.36, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
+	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.18, alpha), 6.0 * size_scale)
+	draw_circle(center + Vector2(-4.0 * size_scale, -4.0 * size_scale), 18.0 * size_scale, body_color)
+	draw_circle(center + Vector2(12.0 * size_scale, -10.0 * size_scale), 10.0 * size_scale, Color(0.74, 0.94, 0.48, alpha))
+	draw_arc(center + Vector2(18.0 * size_scale, -10.0 * size_scale), 12.0 * size_scale, -1.1, 1.1, 16, Color(0.96, 0.74, 0.22, alpha), 3.0 * size_scale)
+	draw_arc(center + Vector2(-10.0 * size_scale, -18.0 * size_scale), 10.0 * size_scale, 1.9, 4.2, 16, Color(0.96, 0.74, 0.22, alpha * 0.9), 2.0 * size_scale)
+	draw_circle(center + Vector2(-7.0 * size_scale, -6.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(2.0 * size_scale, -8.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+
+
+func _draw_sakura_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var petal_color = Color(1.0, 0.72, 0.84, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
+	var body_color = Color(0.48, 0.76, 0.38, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
+	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 6.0 * size_scale)
+	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 16.0 * size_scale, body_color)
+	for index in range(5):
+		var angle = -0.6 + float(index) * 0.52
+		var petal_center = center + Vector2(cos(angle), sin(angle)) * 17.0 * size_scale + Vector2(8.0 * size_scale, -8.0 * size_scale)
+		draw_polygon(
+			PackedVector2Array([
+				petal_center + Vector2(0.0, -8.0 * size_scale),
+				petal_center + Vector2(7.0 * size_scale, 0.0),
+				petal_center + Vector2(0.0, 8.0 * size_scale),
+				petal_center + Vector2(-7.0 * size_scale, 0.0),
+			]),
+			PackedColorArray([petal_color, petal_color, Color(0.98, 0.58, 0.76, alpha), petal_color])
+		)
+	draw_circle(center + Vector2(8.0 * size_scale, -8.0 * size_scale), 6.0 * size_scale, Color(0.96, 0.84, 0.42, alpha))
+	draw_circle(center + Vector2(-5.0 * size_scale, -6.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(4.0 * size_scale, -8.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+
+
+func _draw_lotus_lancer(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var body_color = Color(0.44, 0.8, 0.48, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
+	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.54, 0.18, alpha), 6.0 * size_scale)
+	draw_circle(center + Vector2(0.0, -2.0 * size_scale), 15.0 * size_scale, body_color)
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(20.0 * size_scale, -18.0 * size_scale),
+			center + Vector2(6.0 * size_scale, -6.0 * size_scale),
+			center + Vector2(20.0 * size_scale, 6.0 * size_scale),
+			center + Vector2(32.0 * size_scale, -6.0 * size_scale),
+		]),
+		PackedColorArray([
+			Color(0.78, 0.96, 1.0, alpha),
+			Color(0.52, 0.9, 1.0, alpha),
+			Color(0.52, 0.9, 1.0, alpha),
+			Color(0.92, 1.0, 1.0, alpha),
+		])
+	)
+	draw_circle(center + Vector2(-4.0 * size_scale, -4.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(5.0 * size_scale, -6.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+
+
+func _draw_mirror_reed(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var body_color = Color(0.48, 0.72, 0.42, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
+	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.26, 0.54, 0.18, alpha), 6.0 * size_scale)
+	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 15.0 * size_scale, body_color)
+	draw_circle(center + Vector2(14.0 * size_scale, -12.0 * size_scale), 12.0 * size_scale, Color(0.84, 0.94, 1.0, alpha * 0.88))
+	draw_circle(center + Vector2(14.0 * size_scale, -12.0 * size_scale), 8.0 * size_scale, Color(0.62, 0.78, 0.98, alpha * 0.88))
+	draw_line(center + Vector2(14.0 * size_scale, -24.0 * size_scale), center + Vector2(14.0 * size_scale, 0.0), Color(1.0, 1.0, 1.0, alpha * 0.36), 2.0 * size_scale)
+	draw_line(center + Vector2(2.0 * size_scale, -12.0 * size_scale), center + Vector2(26.0 * size_scale, -12.0 * size_scale), Color(1.0, 1.0, 1.0, alpha * 0.36), 2.0 * size_scale)
+	draw_circle(center + Vector2(-5.0 * size_scale, -6.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(3.0 * size_scale, -8.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+
+
+func _draw_frost_fan(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var body_color = Color(0.52, 0.82, 0.54, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.2, alpha), 6.0 * size_scale)
+	draw_circle(center + Vector2(-2.0 * size_scale, -2.0 * size_scale), 15.0 * size_scale, body_color)
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(8.0 * size_scale, -24.0 * size_scale),
+			center + Vector2(34.0 * size_scale, -8.0 * size_scale),
+			center + Vector2(24.0 * size_scale, 18.0 * size_scale),
+			center + Vector2(2.0 * size_scale, 6.0 * size_scale),
+		]),
+		PackedColorArray([
+			Color(0.88, 0.98, 1.0, alpha),
+			Color(0.72, 0.92, 1.0, alpha),
+			Color(0.66, 0.86, 1.0, alpha),
+			Color(0.88, 0.98, 1.0, alpha),
+		])
+	)
+	draw_line(center + Vector2(10.0 * size_scale, 0.0), center + Vector2(26.0 * size_scale, -12.0 * size_scale), Color(0.58, 0.8, 0.96, alpha * 0.8), 2.0 * size_scale)
+	draw_line(center + Vector2(12.0 * size_scale, 6.0 * size_scale), center + Vector2(24.0 * size_scale, 10.0 * size_scale), Color(0.58, 0.8, 0.96, alpha * 0.7), 2.0 * size_scale)
+	draw_circle(center + Vector2(-6.0 * size_scale, -5.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(2.0 * size_scale, -7.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
 
 func _draw_tangle_kelp(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -8555,6 +9333,136 @@ func _draw_cirno_boss(center: Vector2, zombie: Dictionary) -> void:
 		)
 
 
+func _draw_dragon_boat_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var flash = float(zombie.get("flash", 0.0))
+	var bob = sin(level_time * 4.4 + float(zombie.get("anim_phase", 0.0))) * 3.0
+	var boat = center + Vector2(0.0, 12.0 + bob)
+	draw_circle(boat + Vector2(0.0, 28.0), 26.0, Color(0.0, 0.18, 0.28, 0.12))
+	draw_polygon(
+		PackedVector2Array([
+			boat + Vector2(-54.0, 6.0),
+			boat + Vector2(-18.0, -12.0),
+			boat + Vector2(44.0, -8.0),
+			boat + Vector2(62.0, 4.0),
+			boat + Vector2(40.0, 16.0),
+			boat + Vector2(-42.0, 18.0),
+		]),
+		PackedColorArray([
+			Color(0.54, 0.2, 0.08),
+			Color(0.68, 0.28, 0.12),
+			Color(0.74, 0.34, 0.14),
+			Color(0.64, 0.24, 0.1),
+			Color(0.58, 0.2, 0.08),
+			Color(0.52, 0.18, 0.08),
+		])
+	)
+	for seat in range(3):
+		var rider = boat + Vector2(-26.0 + float(seat) * 22.0, -18.0 + sin(level_time * 5.2 + float(seat)) * 1.8)
+		draw_circle(rider, 11.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
+		draw_rect(Rect2(rider + Vector2(-10.0, 8.0), Vector2(20.0, 18.0)), Color(0.34, 0.46, 0.72), true)
+		draw_line(rider + Vector2(10.0, 6.0), rider + Vector2(22.0, 24.0), Color(0.62, 0.44, 0.18), 2.0)
+	draw_line(boat + Vector2(36.0, -10.0), boat + Vector2(60.0, -32.0), Color(0.96, 0.76, 0.22), 3.0)
+	draw_line(boat + Vector2(60.0, -32.0), boat + Vector2(76.0, -26.0), Color(0.96, 0.34, 0.18), 3.0)
+
+
+func _draw_qinghua_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var flash = float(zombie.get("flash", 0.0))
+	var slow_tint = 0.55 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
+	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0).lerp(Color(0.64, 0.84, 1.0), slow_tint)
+	var torso = center + Vector2(0.0, -absf(sin(level_time * 2.6 + float(zombie.get("anim_phase", 0.0)))) * 2.2)
+	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	draw_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), Color(0.24, 0.4, 0.62), true)
+	draw_circle(torso + Vector2(0.0, -28.0), 17.0, skin)
+	draw_circle(torso + Vector2(-6.0, -30.0), 2.2, Color.BLACK)
+	draw_circle(torso + Vector2(6.0, -30.0), 2.2, Color.BLACK)
+	if float(zombie.get("shield_health", 0.0)) > 0.0:
+		draw_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 40.0)), Color(0.94, 0.98, 1.0, 0.94), true)
+		draw_arc(torso + Vector2(22.0, 2.0), 20.0, -1.0, 1.0, 18, Color(0.2, 0.42, 0.86), 3.0)
+		for line in range(3):
+			draw_line(torso + Vector2(12.0, -10.0 + line * 10.0), torso + Vector2(32.0, -10.0 + line * 10.0), Color(0.22, 0.42, 0.78), 1.2)
+		draw_circle(torso + Vector2(22.0, 2.0), 4.0, Color(0.24, 0.56, 0.9, 0.66))
+	else:
+		for shard in range(4):
+			var shard_center = torso + Vector2(10.0 + float(shard) * 6.0, 18.0 + sin(level_time * 4.0 + float(shard)) * 2.0)
+			draw_polygon(
+				PackedVector2Array([
+					shard_center + Vector2(0.0, -4.0),
+					shard_center + Vector2(3.0, 0.0),
+					shard_center + Vector2(0.0, 4.0),
+					shard_center + Vector2(-3.0, 0.0),
+				]),
+				PackedColorArray([Color(0.86, 0.94, 1.0, 0.82), Color(0.62, 0.82, 1.0, 0.72), Color(0.86, 0.94, 1.0, 0.82), Color(0.62, 0.82, 1.0, 0.72)])
+			)
+
+
+func _draw_shouyue_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var hidden_alpha = 0.42 if _is_hidden_from_lane_attacks(zombie) else 0.92
+	var flash = float(zombie.get("flash", 0.0))
+	var torso = center + Vector2(0.0, -2.0 - absf(sin(level_time * 2.2 + float(zombie.get("anim_phase", 0.0)))) * 1.8)
+	var alpha = hidden_alpha - flash * 0.12
+	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
+	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
+	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), Color(0.16, 0.26, 0.32, alpha), true)
+	draw_circle(torso + Vector2(0.0, -30.0), 16.0, Color(0.72, 0.8, 0.72, alpha))
+	draw_line(torso + Vector2(10.0, -6.0), torso + Vector2(34.0, -18.0), Color(0.22, 0.22, 0.24, alpha), 4.0)
+	draw_line(torso + Vector2(34.0, -18.0), torso + Vector2(48.0, -18.0), Color(0.76, 0.88, 0.98, alpha), 2.0)
+	draw_circle(torso + Vector2(-5.0, -31.0), 2.0, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(torso + Vector2(5.0, -31.0), 2.0, Color(0.08, 0.08, 0.08, alpha))
+	if float(zombie.get("revealed_timer", 0.0)) > 0.0:
+		draw_circle(torso + Vector2(0.0, -20.0), 26.0, Color(0.62, 0.9, 1.0, 0.12))
+
+
+func _draw_ice_block_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var flash = float(zombie.get("flash", 0.0))
+	var torso = center + Vector2(0.0, -2.0 - absf(sin(level_time * 2.4 + float(zombie.get("anim_phase", 0.0)))) * 2.0)
+	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), Color(0.22, 0.42, 0.6), true)
+	draw_circle(torso + Vector2(0.0, -30.0), 16.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
+	var ice_alpha = 0.86 if float(zombie.get("shield_health", 0.0)) > 0.0 else 0.28
+	draw_rect(Rect2(torso + Vector2(8.0, -36.0), Vector2(28.0, 28.0)), Color(0.76, 0.96, 1.0, ice_alpha), true)
+	draw_line(torso + Vector2(12.0, -28.0), torso + Vector2(30.0, -18.0), Color(1.0, 1.0, 1.0, ice_alpha * 0.6), 2.0)
+	draw_line(torso + Vector2(14.0, -12.0), torso + Vector2(28.0, -30.0), Color(0.64, 0.9, 1.0, ice_alpha * 0.6), 2.0)
+
+
+func _draw_dragon_dance_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var flash = float(zombie.get("flash", 0.0))
+	var phase = level_time * 4.0 + float(zombie.get("anim_phase", 0.0))
+	var torso = center + Vector2(0.0, -absf(sin(phase * 0.5)) * 2.0)
+	for segment in range(4):
+		var segment_center = torso + Vector2(-18.0 + float(segment) * 16.0, -10.0 + sin(phase + float(segment) * 0.7) * 5.0)
+		draw_circle(segment_center, 11.0 - float(segment), Color(0.92, 0.12, 0.08, 0.9))
+		draw_circle(segment_center, 6.0 - float(segment) * 0.4, Color(0.98, 0.74, 0.16, 0.82))
+	draw_rect(Rect2(torso + Vector2(-12.0, 4.0), Vector2(26.0, 28.0)), Color(0.54, 0.12, 0.08).lerp(Color(1.0, 1.0, 1.0), flash * 1.6), true)
+	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	draw_circle(torso + Vector2(18.0, -16.0), 12.0, Color(0.98, 0.28, 0.12))
+	draw_circle(torso + Vector2(22.0, -18.0), 2.4, Color.BLACK)
+
+
+func _draw_pool_boss(center: Vector2, zombie: Dictionary) -> void:
+	var flash = float(zombie.get("flash", 0.0))
+	var phase = int(zombie.get("boss_phase", 0))
+	var bob = sin(level_time * 2.2 + float(zombie.get("anim_phase", 0.0))) * 4.0
+	var torso = center + Vector2(0.0, -8.0 + bob)
+	draw_circle(torso + Vector2(0.0, 64.0), 28.0, Color(0.02, 0.14, 0.22, 0.16))
+	draw_rect(Rect2(torso + Vector2(-34.0, -12.0), Vector2(68.0, 76.0)), Color(0.12, 0.3, 0.44).lerp(Color(1.0, 1.0, 1.0), flash * 1.4), true)
+	draw_circle(torso + Vector2(0.0, -34.0), 24.0, Color(0.74, 0.82, 0.7))
+	draw_rect(Rect2(torso + Vector2(-30.0, -56.0), Vector2(60.0, 18.0)), Color(0.18, 0.44, 0.62), true)
+	draw_line(torso + Vector2(-18.0, 18.0), torso + Vector2(-34.0, 54.0), Color(0.2, 0.2, 0.22), 6.0)
+	draw_line(torso + Vector2(18.0, 18.0), torso + Vector2(34.0, 54.0), Color(0.2, 0.2, 0.22), 6.0)
+	draw_line(torso + Vector2(20.0, -10.0), torso + Vector2(52.0, -26.0), Color(0.74, 0.82, 0.9), 5.0)
+	draw_line(torso + Vector2(52.0, -26.0), torso + Vector2(68.0, -8.0), Color(0.74, 0.82, 0.9), 4.0)
+	draw_line(torso + Vector2(52.0, -26.0), torso + Vector2(68.0, -42.0), Color(0.74, 0.82, 0.9), 4.0)
+	draw_line(torso + Vector2(52.0, -26.0), torso + Vector2(78.0, -26.0), Color(0.74, 0.82, 0.9), 4.0)
+	for wave in range(3 + phase):
+		var orbit = level_time * 1.7 + float(wave) * TAU / float(3 + phase)
+		var orb_center = torso + Vector2(cos(orbit) * 38.0, 14.0 + sin(orbit) * 12.0)
+		draw_circle(orb_center, 5.0, Color(0.72, 0.94, 1.0, 0.78))
+		draw_circle(orb_center, 10.0, Color(0.12, 0.42, 0.64, 0.18))
+
+
 func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie["flash"])
 	var slow_tint = 0.55 if float(zombie["slow_timer"]) > 0.0 else 0.0
@@ -8567,6 +9475,24 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "cirno_boss":
 		_draw_cirno_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "dragon_boat":
+		_draw_dragon_boat_zombie(center, zombie)
+		return
+	if kind == "qinghua":
+		_draw_qinghua_zombie(center, zombie)
+		return
+	if kind == "shouyue":
+		_draw_shouyue_zombie(center, zombie)
+		return
+	if kind == "ice_block":
+		_draw_ice_block_zombie(center, zombie)
+		return
+	if kind == "dragon_dance":
+		_draw_dragon_dance_zombie(center, zombie)
+		return
+	if kind == "pool_boss":
+		_draw_pool_boss(center + Vector2(0.0, -6.0), zombie)
 		return
 	var base_speed = float(zombie.get("base_speed", Defs.ZOMBIES[kind].get("speed", 18.0)))
 	if float(zombie.get("slow_timer", 0.0)) > 0.0:
@@ -8990,6 +9916,12 @@ func _plant_almanac_stats(kind: String) -> Array:
 			stats.append("伤害：1600 重压")
 		"threepeater":
 			stats.append("攻击：三路齐射")
+		"lotus_lancer":
+			stats.append("攻击：整路贯穿水矛")
+		"mirror_reed":
+			stats.append("定位：反隐与范围脉冲")
+		"frost_fan":
+			stats.append("攻击：三路霜风减速")
 		"tangle_kelp":
 			stats.append("定位：水路拖拽")
 		"jalapeno":
@@ -9037,6 +9969,8 @@ func _zombie_almanac_stats(kind: String) -> Array:
 			stats.append("特性：必须借冰道高速冲锋")
 		"dolphin_rider":
 			stats.append("特性：首次遇植物会跃过")
+		"pool_boss":
+			stats.append("特性：泳池终章 Boss，持续召援并压迫水陆两线")
 		"rumia_boss":
 			stats.append("特性：右侧悬停、换行施法、不可魅惑")
 	return stats
@@ -9168,6 +10102,34 @@ func _activate_plant_food(row: int, col: int) -> bool:
 				return false
 			plant["plant_food_mode"] = "tri_storm"
 			plant["plant_food_timer"] = 2.8
+			plant["plant_food_interval"] = 0.01
+		"boomerang_shooter":
+			if String(plant["plant_food_mode"]) == "boomerang_storm" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "boomerang_storm"
+			plant["plant_food_timer"] = 2.1
+			plant["plant_food_interval"] = 0.01
+		"sakura_shooter":
+			if String(plant["plant_food_mode"]) == "sakura_storm" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "sakura_storm"
+			plant["plant_food_timer"] = 2.0
+			plant["plant_food_interval"] = 0.01
+		"lotus_lancer":
+			if String(plant["plant_food_mode"]) == "lancer_burst" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "lancer_burst"
+			plant["plant_food_timer"] = 1.4
+			plant["plant_food_interval"] = 0.01
+		"mirror_reed":
+			plant["plant_food_mode"] = "mirror_burst"
+			plant["plant_food_timer"] = 0.35
+			plant["support_timer"] = 0.0
+		"frost_fan":
+			if String(plant["plant_food_mode"]) == "frost_gale" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "frost_gale"
+			plant["plant_food_timer"] = 1.6
 			plant["plant_food_interval"] = 0.01
 		"vine_lasher":
 			plant["plant_food_mode"] = "lash_frenzy"

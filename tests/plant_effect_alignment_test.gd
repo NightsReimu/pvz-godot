@@ -18,6 +18,13 @@ func _run() -> void:
 	failed = not _test_wind_orchid_effect_reaches_lane_end() or failed
 	failed = not _test_pepper_mortar_plant_food_effect_matches_damage_radius() or failed
 	failed = not _test_threepeater_projectiles_follow_three_distinct_lanes() or failed
+	failed = not _test_jalapeno_effect_is_a_full_lane_blast() or failed
+	failed = not _test_torchwood_fire_pea_splashes_nearby_zombies() or failed
+	failed = not _test_boomerang_shooter_hits_three_targets_then_returns() or failed
+	failed = not _test_sakura_shooter_petals_split_on_hit() or failed
+	failed = not _test_lotus_lancer_pierces_an_entire_lane() or failed
+	failed = not _test_mirror_reed_reveals_hidden_shouyue() or failed
+	failed = not _test_frost_fan_spreads_slow_across_three_lanes() or failed
 	quit(1 if failed else 0)
 
 
@@ -180,5 +187,167 @@ func _test_threepeater_projectiles_follow_three_distinct_lanes() -> bool:
 		var expected_y = game._cell_center(lane, col).y - 10.0
 		passed = _assert_true(lane >= 1 and lane <= 3, "threepeater projectile should target one of the three covered lanes") and passed
 		passed = _assert_float_eq(projectile_pos.y, expected_y, "threepeater projectile visual should originate on its own lane instead of stacking on the center lane") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_jalapeno_effect_is_a_full_lane_blast() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	game._trigger_jalapeno(row, col)
+	if not _assert_true(not game.effects.is_empty(), "jalapeno should emit an effect when it detonates"):
+		_free_game(game)
+		return false
+	var lane_effect := {}
+	for effect_variant in game.effects:
+		var effect = Dictionary(effect_variant)
+		if String(effect.get("shape", "")) == "lane_spray":
+			lane_effect = effect
+			break
+	var passed = _assert_true(not lane_effect.is_empty(), "jalapeno should draw a directional lane blast instead of only a circle pulse") \
+		and _assert_float_gte(float(lane_effect.get("length", 0.0)), game.board_size.x - 12.0, "jalapeno lane blast effect should cover the full board width")
+	_free_game(game)
+	return passed
+
+
+func _test_torchwood_fire_pea_splashes_nearby_zombies() -> bool:
+	var game = _make_game()
+	var row := 2
+	var pea_row: Array = []
+	for _col in range(TEST_COLS):
+		pea_row.append(null)
+	game.grid[row][0] = game._create_plant("peashooter", row, 0)
+	game.grid[row][1] = game._create_plant("torchwood", row, 1)
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 3).x)
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 3).x + 28.0)
+	var front_health = float(game.zombies[0]["health"])
+	var splash_health = float(game.zombies[1]["health"])
+	game._spawn_projectile(row, game._cell_center(row, 0) + Vector2(32.0, -10.0), Color(0.36, 0.86, 0.3), 20.0, 0.0, 520.0, 8.0)
+	for _step in range(12):
+		game._update_projectiles(0.08)
+		if game.projectiles.is_empty():
+			break
+	var passed = _assert_true(float(game.zombies[0]["health"]) < front_health, "torchwood fire pea should still damage its primary target") \
+		and _assert_true(float(game.zombies[1]["health"]) < splash_health, "torchwood fire pea should splash nearby zombies on impact")
+	_free_game(game)
+	return passed
+
+
+func _test_boomerang_shooter_hits_three_targets_then_returns() -> bool:
+	if not _assert_true(Defs.PLANTS.has("boomerang_shooter"), "expected boomerang_shooter plant definition to exist"):
+		return false
+	var game = _make_game()
+	var row := 2
+	var col := 1
+	var plant = game._create_plant("boomerang_shooter", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	for offset in [0.0, 36.0, 72.0, 108.0]:
+		game._spawn_zombie_at("normal", row, game._cell_center(row, 5).x + offset)
+	var before: Array = []
+	for zombie in game.zombies:
+		before.append(float(zombie["health"]))
+	game._update_plants(0.1)
+	for _step in range(60):
+		game._update_projectiles(0.08)
+	var passed := true
+	for zombie_index in range(3):
+		passed = _assert_true(float(game.zombies[zombie_index]["health"]) <= before[zombie_index] - 35.0, "boomerang_shooter should hit each of the first three zombies twice") and passed
+	passed = _assert_true(is_equal_approx(float(game.zombies[3]["health"]), before[3]), "boomerang_shooter should ignore the fourth zombie on a single throw") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_sakura_shooter_petals_split_on_hit() -> bool:
+	if not _assert_true(Defs.PLANTS.has("sakura_shooter"), "expected sakura_shooter plant definition to exist"):
+		return false
+	var game = _make_game()
+	var row := 2
+	var col := 1
+	var plant = game._create_plant("sakura_shooter", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 4).x)
+	game._update_plants(0.1)
+	var had_split := false
+	for _step in range(32):
+		game._update_projectiles(0.08)
+		for projectile in game.projectiles:
+			if String(projectile.get("kind", "")) == "sakura_petal" and absf(float(projectile.get("velocity_y", 0.0))) > 0.1:
+				had_split = true
+				break
+		if had_split:
+			break
+	var passed = _assert_true(had_split, "sakura_shooter should split into diagonal child petals after hitting a zombie")
+	_free_game(game)
+	return passed
+
+
+func _test_lotus_lancer_pierces_an_entire_lane() -> bool:
+	if not _assert_true(Defs.PLANTS.has("lotus_lancer"), "expected lotus_lancer plant definition to exist"):
+		return false
+	var game = _make_game()
+	var row := 2
+	var col := 1
+	var plant = game._create_plant("lotus_lancer", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	for target_col in [4, 5, 6]:
+		game._spawn_zombie_at("normal", row, game._cell_center(row, target_col).x)
+	var before: Array = []
+	for zombie in game.zombies:
+		before.append(float(zombie["health"]))
+	game._update_plants(0.1)
+	var passed := true
+	for zombie_index in range(game.zombies.size()):
+		passed = _assert_true(float(game.zombies[zombie_index]["health"]) < before[zombie_index], "lotus_lancer should pierce through every zombie in its lane") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_mirror_reed_reveals_hidden_shouyue() -> bool:
+	if not _assert_true(Defs.PLANTS.has("mirror_reed"), "expected mirror_reed plant definition to exist"):
+		return false
+	var game = _make_game()
+	game.current_level = {"id": "3-test", "terrain": "pool", "events": []}
+	game.water_rows = [2, 3]
+	var row := 1
+	var col := 3
+	var plant = game._create_plant("mirror_reed", row, col)
+	plant["support_timer"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("shouyue", 2, game._cell_center(2, 6).x)
+	var hidden_before = bool(game._is_hidden_from_lane_attacks(game.zombies[0]))
+	var health_before = float(game.zombies[0]["health"])
+	game._update_plants(0.1)
+	var hidden_after = bool(game._is_hidden_from_lane_attacks(game.zombies[0]))
+	var health_after = float(game.zombies[0]["health"])
+	var passed = _assert_true(hidden_before, "shouyue should begin hidden before mirror_reed pulses") \
+		and _assert_true(not hidden_after, "mirror_reed pulse should reveal nearby hidden zombies") \
+		and _assert_true(health_after < health_before, "mirror_reed pulse should damage the revealed shouyue")
+	_free_game(game)
+	return passed
+
+
+func _test_frost_fan_spreads_slow_across_three_lanes() -> bool:
+	if not _assert_true(Defs.PLANTS.has("frost_fan"), "expected frost_fan plant definition to exist"):
+		return false
+	var game = _make_game()
+	var row := 2
+	var col := 1
+	var plant = game._create_plant("frost_fan", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	for lane in [1, 2, 3]:
+		game._spawn_zombie_at("normal", lane, game._cell_center(lane, 5).x)
+	var before: Array = []
+	for zombie in game.zombies:
+		before.append(float(zombie["health"]))
+	game._update_plants(0.1)
+	var passed := true
+	for zombie_index in range(3):
+		passed = _assert_true(float(game.zombies[zombie_index]["health"]) < before[zombie_index], "frost_fan should damage each covered lane") and passed
+		passed = _assert_true(float(game.zombies[zombie_index].get("slow_timer", 0.0)) > 0.0, "frost_fan should slow each covered lane") and passed
 	_free_game(game)
 	return passed
