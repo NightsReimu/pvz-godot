@@ -21,6 +21,8 @@ func _run() -> void:
 	failed = not _test_shouyue_snipes_the_front_plant() or failed
 	failed = not _test_ice_block_leaves_ice_tile_after_skill_cycle() or failed
 	failed = not _test_dragon_boat_glides_instead_of_teleporting() or failed
+	failed = not _test_dragon_boat_stroke_stays_slow_through_point_eight_seconds() or failed
+	failed = not _test_dragon_boat_visual_state_stays_local_to_draw_center() or failed
 	failed = not _test_dragon_boat_crushes_plants_in_water_lane() or failed
 	quit(1 if failed else 0)
 
@@ -232,6 +234,39 @@ func _test_dragon_boat_glides_instead_of_teleporting() -> bool:
 	var current_x = float(game.zombies[0]["x"])
 	var passed = _assert_true(current_x < start_x, "dragon_boat should still start advancing when a stroke begins") \
 		and _assert_true(current_x > start_x - game.CELL_SIZE.x * 0.8, "dragon_boat should glide through a stroke instead of teleporting a full tile in one frame")
+	game.free()
+	return passed
+
+
+func _test_dragon_boat_stroke_stays_slow_through_point_eight_seconds() -> bool:
+	var game = _make_game()
+	game._spawn_zombie_at("dragon_boat", 2, game._cell_center(2, 7).x)
+	var zombie = game.zombies[0]
+	zombie["boat_stride_timer"] = 0.0
+	game.zombies[0] = zombie
+	var start_x = float(game.zombies[0]["x"])
+	game._update_zombies(0.8)
+	var current_x = float(game.zombies[0]["x"])
+	var passed = _assert_true(current_x < start_x, "dragon_boat should still advance during a long paddle pull") \
+		and _assert_true(current_x > start_x - game.CELL_SIZE.x * 0.9, "dragon_boat should still be mid-stroke after 0.8 seconds instead of already completing a whole tile")
+	game.free()
+	return passed
+
+
+func _test_dragon_boat_visual_state_stays_local_to_draw_center() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_dragon_boat_visual_state"), "expected dragon_boat visual helper to exist for animation anchoring"):
+		game.free()
+		return false
+	game._spawn_zombie_at("dragon_boat", 2, game._cell_center(2, 7).x)
+	var visual_state: Dictionary = game.call("_dragon_boat_visual_state", Vector2.ZERO, game.zombies[0])
+	var hull: PackedVector2Array = visual_state.get("hull", PackedVector2Array())
+	var passed = _assert_true(hull.size() >= 6, "dragon_boat visual helper should return a full hull polygon")
+	if passed:
+		var max_offset := 0.0
+		for point in hull:
+			max_offset = maxf(max_offset, point.length())
+		passed = _assert_true(max_offset < 96.0, "dragon_boat hull points should stay local to the zombie draw center instead of jumping to canvas coordinates")
 	game.free()
 	return passed
 

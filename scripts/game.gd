@@ -1381,7 +1381,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		"rumia_move_to_y": 0.0,
 		"rumia_reinforcement_timer": 0.0,
 		"boat_phase": 0,
-		"boat_stride_timer": 0.35 if kind == "dragon_boat" else 0.0,
+		"boat_stride_timer": 0.46 if kind == "dragon_boat" else 0.0,
 		"boat_move_from_x": spawn_x,
 		"boat_move_to_x": spawn_x,
 		"boat_move_t": 1.0,
@@ -5334,7 +5334,7 @@ func _begin_dragon_boat_stroke(zombie: Dictionary) -> Dictionary:
 	zombie["boat_move_from_x"] = float(zombie["x"])
 	zombie["boat_move_to_x"] = float(zombie["x"]) + direction * distance
 	zombie["boat_move_t"] = 0.0
-	zombie["boat_move_duration"] = 0.58 if boat_phase == 2 else 0.64
+	zombie["boat_move_duration"] = 1.02 if boat_phase == 2 else 1.18
 	zombie["boat_phase"] = (boat_phase + 1) % 3
 	zombie["boat_stride_timer"] = 0.0
 	return zombie
@@ -5354,11 +5354,11 @@ func _update_dragon_boat_motion(zombie: Dictionary, delta: float) -> Dictionary:
 	var eased = smoothstep(0.0, 1.0, move_t)
 	zombie["boat_move_t"] = move_t
 	zombie["x"] = lerpf(float(zombie.get("boat_move_from_x", zombie["x"])), float(zombie.get("boat_move_to_x", zombie["x"])), eased)
-	var crush_cell = _find_crushable_cell(int(zombie["row"]), float(zombie["x"]), 86.0)
+	var crush_cell = _find_crushable_cell(int(zombie["row"]), float(zombie["x"]), 94.0)
 	if crush_cell.y != -1:
 		_crush_cell(crush_cell.x, crush_cell.y)
 	if move_t >= 1.0:
-		zombie["boat_stride_timer"] = 0.32
+		zombie["boat_stride_timer"] = 0.46
 		effects.append({
 			"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + 18.0),
 			"radius": 48.0,
@@ -5367,6 +5367,56 @@ func _update_dragon_boat_motion(zombie: Dictionary, delta: float) -> Dictionary:
 			"color": Color(0.82, 0.94, 1.0, 0.24),
 		})
 	return zombie
+
+
+func _dragon_boat_visual_state(center: Vector2, zombie: Dictionary) -> Dictionary:
+	var flash = float(zombie.get("flash", 0.0))
+	var move_ratio = clampf(float(zombie.get("boat_move_t", 1.0)), 0.0, 1.0)
+	var stroke_curve = sin(move_ratio * PI)
+	var stroke_dir = 1.0 if int(zombie.get("boat_phase", 0)) == 0 else -1.0
+	var bob = sin(level_time * 3.2 + float(zombie.get("anim_phase", 0.0))) * 1.8 + stroke_curve * 3.4
+	var boat = center + Vector2(0.0, 12.0 + bob)
+	var bow_lift = stroke_curve * 5.5
+	var stern_lift = stroke_curve * 2.4
+	var oar_swing = stroke_dir * stroke_curve * 18.0
+	var hull = PackedVector2Array([
+		boat + Vector2(-54.0, 8.0 + stern_lift),
+		boat + Vector2(-18.0, -12.0 + stern_lift * 0.3),
+		boat + Vector2(44.0, -10.0 - bow_lift * 0.9),
+		boat + Vector2(62.0, 4.0 - bow_lift * 0.45),
+		boat + Vector2(40.0, 17.0 + bow_lift * 0.24),
+		boat + Vector2(-42.0, 19.0 + stern_lift * 0.42),
+	])
+	var riders: Array = []
+	for seat in range(3):
+		var rider_center = boat + Vector2(
+			-26.0 + float(seat) * 22.0,
+			-18.0 + sin(level_time * 4.2 + float(seat) * 0.6) * 1.2 + stroke_curve * (1.8 - seat * 0.35)
+		)
+		var paddle_base = rider_center + Vector2(10.0, 6.0)
+		riders.append({
+			"center": rider_center,
+			"body_rect": Rect2(rider_center + Vector2(-10.0, 8.0), Vector2(20.0, 18.0)),
+			"paddle_from": paddle_base,
+			"paddle_to": paddle_base + Vector2(10.0 + oar_swing * 0.3, 18.0 - stroke_curve * 8.0),
+		})
+	return {
+		"flash": flash,
+		"stroke_curve": stroke_curve,
+		"stroke_dir": stroke_dir,
+		"boat": boat,
+		"shadow_center": boat + Vector2(0.0, 28.0),
+		"hull": hull,
+		"riders": riders,
+		"flag_a_from": boat + Vector2(36.0, -10.0 - bow_lift * 0.15),
+		"flag_a_to": boat + Vector2(60.0, -32.0 - bow_lift * 0.22),
+		"flag_b_from": boat + Vector2(60.0, -32.0 - bow_lift * 0.22),
+		"flag_b_to": boat + Vector2(76.0, -26.0 - bow_lift * 0.1),
+		"oar_left_from": boat + Vector2(-14.0, -8.0 + stern_lift * 0.2),
+		"oar_left_to": boat + Vector2(-32.0 - oar_swing * 0.28, 22.0 - stroke_curve * 6.0),
+		"oar_mid_from": boat + Vector2(8.0, -12.0),
+		"oar_mid_to": boat + Vector2(-10.0 - oar_swing * 0.22, 18.0 - stroke_curve * 7.0),
+	}
 
 
 func _explode_cherry(row: int, col: int, mega: bool = false) -> void:
@@ -9524,25 +9574,11 @@ func _draw_cirno_boss(center: Vector2, zombie: Dictionary) -> void:
 
 
 func _draw_dragon_boat_zombie(center: Vector2, zombie: Dictionary) -> void:
-	var flash = float(zombie.get("flash", 0.0))
-	var move_ratio = clampf(float(zombie.get("boat_move_t", 1.0)), 0.0, 1.0)
-	var stroke_curve = sin(move_ratio * PI)
-	var stroke_dir = 1.0 if int(zombie.get("boat_phase", 0)) == 0 else -1.0
-	var bob = sin(level_time * 3.2 + float(zombie.get("anim_phase", 0.0))) * 1.8 + stroke_curve * 3.4
-	var boat = center + Vector2(0.0, 12.0 + bob)
-	var boat_tilt = stroke_dir * stroke_curve * 0.12
-	var oar_swing = stroke_dir * stroke_curve * 18.0
-	draw_circle(boat + Vector2(0.0, 28.0), 26.0, Color(0.0, 0.18, 0.28, 0.12))
-	draw_set_transform(boat, boat_tilt, Vector2.ONE)
+	var state = _dragon_boat_visual_state(center, zombie)
+	var flash = float(state["flash"])
+	draw_circle(Vector2(state["shadow_center"]), 26.0, Color(0.0, 0.18, 0.28, 0.12))
 	draw_polygon(
-		PackedVector2Array([
-			Vector2(-54.0, 6.0),
-			Vector2(-18.0, -12.0),
-			Vector2(44.0, -8.0),
-			Vector2(62.0, 4.0),
-			Vector2(40.0, 16.0),
-			Vector2(-42.0, 18.0),
-		]),
+		PackedVector2Array(state["hull"]),
 		PackedColorArray([
 			Color(0.54, 0.2, 0.08),
 			Color(0.68, 0.28, 0.12),
@@ -9552,17 +9588,15 @@ func _draw_dragon_boat_zombie(center: Vector2, zombie: Dictionary) -> void:
 			Color(0.52, 0.18, 0.08),
 		])
 	)
-	for seat in range(3):
-		var rider = Vector2(-26.0 + float(seat) * 22.0, -18.0 + sin(level_time * 4.2 + float(seat) * 0.6) * 1.2 + stroke_curve * (1.8 - seat * 0.35))
-		draw_circle(rider, 11.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
-		draw_rect(Rect2(rider + Vector2(-10.0, 8.0), Vector2(20.0, 18.0)), Color(0.34, 0.46, 0.72), true)
-		var paddle_base = rider + Vector2(10.0, 6.0)
-		draw_line(paddle_base, paddle_base + Vector2(10.0 + oar_swing * 0.3, 18.0 - stroke_curve * 8.0), Color(0.62, 0.44, 0.18), 2.0)
-	draw_line(Vector2(36.0, -10.0), Vector2(60.0, -32.0), Color(0.96, 0.76, 0.22), 3.0)
-	draw_line(Vector2(60.0, -32.0), Vector2(76.0, -26.0), Color(0.96, 0.34, 0.18), 3.0)
-	draw_line(Vector2(-14.0, -8.0), Vector2(-32.0 - oar_swing * 0.28, 22.0 - stroke_curve * 6.0), Color(0.68, 0.48, 0.18), 3.0)
-	draw_line(Vector2(8.0, -12.0), Vector2(-10.0 - oar_swing * 0.22, 18.0 - stroke_curve * 7.0), Color(0.68, 0.48, 0.18), 3.0)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	for rider_variant in state["riders"]:
+		var rider: Dictionary = rider_variant
+		draw_circle(Vector2(rider["center"]), 11.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
+		draw_rect(Rect2(rider["body_rect"]), Color(0.34, 0.46, 0.72), true)
+		draw_line(Vector2(rider["paddle_from"]), Vector2(rider["paddle_to"]), Color(0.62, 0.44, 0.18), 2.0)
+	draw_line(Vector2(state["flag_a_from"]), Vector2(state["flag_a_to"]), Color(0.96, 0.76, 0.22), 3.0)
+	draw_line(Vector2(state["flag_b_from"]), Vector2(state["flag_b_to"]), Color(0.96, 0.34, 0.18), 3.0)
+	draw_line(Vector2(state["oar_left_from"]), Vector2(state["oar_left_to"]), Color(0.68, 0.48, 0.18), 3.0)
+	draw_line(Vector2(state["oar_mid_from"]), Vector2(state["oar_mid_to"]), Color(0.68, 0.48, 0.18), 3.0)
 
 
 func _draw_qinghua_zombie(center: Vector2, zombie: Dictionary) -> void:
