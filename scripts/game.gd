@@ -897,11 +897,6 @@ func _enter_seed_selection(level_index: int) -> void:
 	selection_pool_cards = _available_seed_cards_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
-	var required_count = _required_seed_count(current_level)
-	for kind in selection_pool_cards:
-		if selection_cards.size() >= required_count:
-			break
-		selection_cards.append(kind)
 	queue_redraw()
 
 

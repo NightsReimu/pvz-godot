@@ -11,6 +11,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_replaying_old_level_uses_current_progress_plant_pool() or failed
+	failed = not _test_seed_selection_starts_empty_for_manual_pick() or failed
 	failed = not _test_special_modes_keep_their_curated_plant_pools() or failed
 	failed = not _test_sparse_v2_save_data_backfills_near_end_progress() or failed
 	failed = not _test_inconsistent_blank_save_data_recovers_from_last_level_index() or failed
@@ -98,6 +99,18 @@ func _test_replaying_old_level_uses_current_progress_plant_pool() -> bool:
 		and _assert_true(game.selection_pool_cards.has("tallnut"), "replaying old levels should include late-game unlocked plants in the selection pool") \
 		and _assert_true(game.selection_pool_cards.has("dream_drum"), "replaying old levels should include all currently obtained plants") \
 		and _assert_true(not game.selection_pool_cards.has("wallnut_bowling"), "replayed standard levels should not leak special-only plants into the persistent collection")
+	_free_game(game)
+	return passed
+
+
+func _test_seed_selection_starts_empty_for_manual_pick() -> bool:
+	var level_index = _find_level_index("1-1")
+	if not _assert_true(level_index != -1, "expected 1-1 to exist for manual selection checks"):
+		return false
+	var game = _make_game()
+	_mark_all_levels_completed(game)
+	game.call("_enter_seed_selection", level_index)
+	var passed = _assert_true(game.selection_cards.is_empty(), "seed selection should start with no preselected plants so the player can choose manually")
 	_free_game(game)
 	return passed
 
