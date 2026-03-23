@@ -12,6 +12,9 @@ func _run() -> void:
 	failed = not _test_prism_grass_applies_slow() or failed
 	failed = not _test_hypnotized_dancing_summons_hypnotized_backup() or failed
 	failed = not _test_hypnotized_nether_sleeps_enemy_zombies() or failed
+	failed = not _test_magnet_shroom_strips_fog_zombie_equipment() or failed
+	failed = not _test_pogo_zombie_stops_at_tallnut() or failed
+	failed = not _test_jack_in_the_box_explodes_nearby_plants() or failed
 	quit(1 if failed else 0)
 
 
@@ -119,5 +122,54 @@ func _test_hypnotized_nether_sleeps_enemy_zombies() -> bool:
 	var enemy_zombie = game.zombies[1]
 	var passed = _assert_true(float(enemy_zombie.get("special_pause_timer", 0.0)) > 0.0, "hypnotized nether should put enemy zombies to sleep") \
 		and _assert_true(float(updated_plant.get("sleep_timer", 0.0)) <= 0.0, "hypnotized nether should not put allied plants to sleep")
+	_free_game(game)
+	return passed
+
+
+func _test_magnet_shroom_strips_fog_zombie_equipment() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var plant = game._create_plant("magnet_shroom", row, col)
+	plant["support_timer"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("digger_zombie", row, game._cell_center(row, 5).x)
+	game._spawn_zombie_at("pogo_zombie", row, game._cell_center(row, 6).x)
+	game._update_plants(0.12)
+	var digger = game.zombies[0]
+	var pogo = game.zombies[1]
+	var passed = _assert_true(not bool(digger.get("digger_tunneling", true)), "magnet_shroom should pull the digger gear off a digger zombie") \
+		and _assert_true(not bool(pogo.get("pogo_active", true)), "magnet_shroom should remove the pogo stick and disable repeated jumps")
+	_free_game(game)
+	return passed
+
+
+func _test_pogo_zombie_stops_at_tallnut() -> bool:
+	var game = _make_game()
+	var row := 2
+	var tallnut_col := 3
+	game.grid[row][tallnut_col] = game._create_plant("tallnut", row, tallnut_col)
+	game._spawn_zombie_at("pogo_zombie", row, game._cell_center(row, tallnut_col).x + 50.0)
+	var pogo = game.zombies[0]
+	pogo["special_pause_timer"] = 0.0
+	game.zombies[0] = pogo
+	game._update_zombies(0.12)
+	var updated = game.zombies[0]
+	var passed = _assert_true(not bool(updated.get("pogo_active", true)), "tallnut should stop a pogo zombie instead of letting it keep bouncing")
+	_free_game(game)
+	return passed
+
+
+func _test_jack_in_the_box_explodes_nearby_plants() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 3
+	game.grid[row][col] = game._create_plant("wallnut", row, col)
+	game._spawn_zombie_at("jack_in_the_box_zombie", row, game._cell_center(row, col).x + 18.0)
+	var jack = game.zombies[0]
+	jack["jack_timer"] = 0.05
+	game.zombies[0] = jack
+	game._update_zombies(0.12)
+	var passed = _assert_true(float(game.grid[row][col].get("health", 1.0)) <= 0.0, "jack_in_the_box explosion should destroy nearby plants")
 	_free_game(game)
 	return passed

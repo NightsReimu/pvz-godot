@@ -24,6 +24,8 @@ func _run() -> void:
 	failed = not _test_boomerang_shooter_hits_three_targets_then_returns() or failed
 	failed = not _test_sakura_shooter_fires_for_any_zombie_ahead() or failed
 	failed = not _test_sakura_shooter_petals_split_on_hit() or failed
+	failed = not _test_split_pea_fires_forward_and_backward() or failed
+	failed = not _test_starfruit_spawns_five_distinct_vectors() or failed
 	failed = not _test_lotus_lancer_pierces_an_entire_lane() or failed
 	failed = not _test_mirror_reed_reveals_hidden_shouyue() or failed
 	failed = not _test_frost_fan_spreads_slow_across_three_lanes() or failed
@@ -289,6 +291,52 @@ func _test_sakura_shooter_fires_for_any_zombie_ahead() -> bool:
 	game._spawn_zombie_at("normal", row, game.BOARD_ORIGIN.x + game.board_size.x - 18.0)
 	game._update_sakura_shooter(plant, 0.1, row, col)
 	var passed = _assert_true(not game.projectiles.is_empty(), "sakura_shooter should fire when any zombie exists anywhere ahead in its lane")
+	_free_game(game)
+	return passed
+
+
+func _test_split_pea_fires_forward_and_backward() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 3
+	var center = game._cell_center(row, col)
+	var plant = game._create_plant("split_pea", row, col)
+	plant["shot_cooldown"] = 0.0
+	plant["attack_timer"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, center.x + 180.0)
+	game._spawn_zombie_at("normal", row, center.x - 180.0)
+	game._update_plants(0.12)
+	var forward_count := 0
+	var backward_count := 0
+	for projectile in game.projectiles:
+		if float(projectile.get("speed", 0.0)) > 0.0:
+			forward_count += 1
+		elif float(projectile.get("speed", 0.0)) < 0.0:
+			backward_count += 1
+	var passed = _assert_true(forward_count > 0, "split_pea should fire forward when zombies are ahead") \
+		and _assert_true(backward_count > 0, "split_pea should also fire backward when zombies are behind it")
+	_free_game(game)
+	return passed
+
+
+func _test_starfruit_spawns_five_distinct_vectors() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 3
+	var plant = game._create_plant("starfruit", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 7).x)
+	game._update_plants(0.12)
+	if not _assert_true(game.projectiles.size() == 5, "starfruit should launch five projectiles per volley"):
+		_free_game(game)
+		return false
+	var velocity_signatures := {}
+	for projectile in game.projectiles:
+		var signature = "%d:%d" % [signi(int(round(float(projectile.get("speed", 0.0))))), signi(int(round(float(projectile.get("velocity_y", 0.0)))))]
+		velocity_signatures[signature] = true
+	var passed = _assert_true(velocity_signatures.size() == 5, "starfruit volley should contain five distinct travel vectors")
 	_free_game(game)
 	return passed
 

@@ -36,6 +36,17 @@ const WORLDS := [
 		"panel_dark": Color(0.38, 0.68, 0.88),
 		"plants": ["lily_pad", "threepeater", "tangle_kelp", "torchwood", "tallnut"],
 	},
+	{
+		"key": "fog",
+		"title": "浓雾后院",
+		"subtitle": "Adventure 4-1 ~ 4-10",
+		"description": "后院泳池被雾带吞没，路灯花、三叶草与防空体系会成为推进核心，后段还会进入砸罐子与暴风雨夜。",
+		"accent": Color(0.64, 0.86, 0.88),
+		"accent_dark": Color(0.14, 0.24, 0.3),
+		"panel": Color(0.84, 0.92, 0.9),
+		"panel_dark": Color(0.26, 0.42, 0.46),
+		"plants": ["sea_shroom", "plantern", "cactus", "blover", "starfruit"],
+	},
 ]
 
 
