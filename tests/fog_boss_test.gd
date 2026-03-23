@@ -14,6 +14,7 @@ func _run() -> void:
 	failed = not _test_fog_boss_cannot_duplicate_spawn() or failed
 	failed = not _test_fog_boss_skill_cycle_summons_fog_roster() or failed
 	failed = not _test_fog_boss_can_create_bog_pool_pressure() or failed
+	failed = not _test_fog_boss_uses_layered_screen_effects() or failed
 	failed = not _test_fog_boss_reinforcement_timer_spawns_right_side_pressure() or failed
 	failed = not _test_fog_boss_health_bar_uses_five_segments_at_bottom() or failed
 	quit(1 if failed else 0)
@@ -150,11 +151,32 @@ func _test_fog_boss_can_create_bog_pool_pressure() -> bool:
 	game.zombies[0] = boss
 	game.zombies[0] = game._trigger_boss_skill(boss)
 	var found_bog := false
+	var bog_count := 0
 	for effect in game.effects:
 		if String(effect.get("shape", "")) == "bog_pool":
 			found_bog = true
-			break
-	var passed = _assert_true(found_bog, "fog_boss should be able to create bog_pool pressure zones")
+			bog_count += 1
+	var passed = _assert_true(found_bog, "fog_boss should be able to create bog_pool pressure zones") \
+		and _assert_true(bog_count >= 4, "fog_boss bog skill should create multiple bog pools instead of a single puddle")
+	_free_game(game)
+	return passed
+
+
+func _test_fog_boss_uses_layered_screen_effects() -> bool:
+	var game = _make_game()
+	game._spawn_zombie("fog_boss", 2)
+	var boss = game.zombies[0]
+	boss["boss_skill_cycle"] = 2
+	game.zombies[0] = boss
+	game.zombies[0] = game._trigger_boss_skill(boss)
+	var shape_counts := {}
+	for effect in game.effects:
+		var shape = String(effect.get("shape", "circle"))
+		shape_counts[shape] = int(shape_counts.get(shape, 0)) + 1
+	var passed = _assert_true(game.effects.size() >= 5, "fog_boss burst skill should stack several screen effects instead of a single flash") \
+		and _assert_true(int(shape_counts.get("circle", 0)) >= 1, "fog_boss burst skill should keep a large central shockwave") \
+		and _assert_true(int(shape_counts.get("lane_spray", 0)) >= 2, "fog_boss burst skill should add sweeping lane pressure visuals") \
+		and _assert_true(int(shape_counts.get("mist_cloud", 0)) >= 2, "fog_boss burst skill should add fog cloud overlays")
 	_free_game(game)
 	return passed
 

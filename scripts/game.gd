@@ -6121,6 +6121,24 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		})
 		match int(zombie.get("boss_skill_cycle", 0)):
 			0:
+				effects.append({
+					"shape": "mist_cloud",
+					"position": center + Vector2(-32.0, -18.0),
+					"radius": 92.0 + phase * 10.0,
+					"time": 0.7,
+					"duration": 0.7,
+					"anim_speed": 5.4,
+					"color": Color(0.74, 0.98, 0.92, 0.24),
+				})
+				effects.append({
+					"shape": "mist_cloud",
+					"position": center + Vector2(36.0, 26.0),
+					"radius": 84.0 + phase * 10.0,
+					"time": 0.66,
+					"duration": 0.66,
+					"anim_speed": 5.0,
+					"color": Color(0.58, 0.92, 0.82, 0.2),
+				})
 				var summon_pool = ["balloon_zombie", "digger_zombie", "pogo_zombie", "jack_in_the_box_zombie", "squash_zombie", "excavator_zombie", "barrel_screen_zombie", "tornado_zombie", "wolf_knight_zombie", "screen_door", "football"]
 				for summon_index in range(3 + phase):
 					var summon_kind = String(summon_pool[rng.randi_range(0, summon_pool.size() - 1)])
@@ -6130,9 +6148,60 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 				for lane in active_rows:
 					_damage_front_plant_in_row(int(lane), 150.0 + phase * 28.0)
 					var bog_col = clampi(rng.randi_range(3, COLS - 2), 0, COLS - 1)
-					_spawn_bog_pool(_cell_center(int(lane), bog_col), 52.0 + phase * 8.0, 7.0 + phase * 1.4)
+					var bog_center = _cell_center(int(lane), bog_col)
+					_spawn_bog_pool(bog_center, 56.0 + phase * 10.0, 7.6 + phase * 1.5)
+					effects.append({
+						"shape": "mist_cloud",
+						"position": bog_center + Vector2(rng.randf_range(-18.0, 18.0), -18.0),
+						"radius": 46.0 + phase * 8.0,
+						"time": 0.52,
+						"duration": 0.52,
+						"anim_speed": 4.8,
+						"color": Color(0.74, 0.98, 0.88, 0.16),
+					})
+					if int(lane) % 2 == 0:
+						effects.append({
+							"shape": "lane_spray",
+							"position": Vector2(BOARD_ORIGIN.x + CELL_SIZE.x * 2.0, _row_center_y(int(lane)) - 8.0),
+							"length": board_size.x - CELL_SIZE.x * 1.5,
+							"width": CELL_SIZE.y * 0.5,
+							"radius": board_size.x,
+							"time": 0.28,
+							"duration": 0.28,
+							"color": Color(0.62, 0.9, 0.78, 0.18),
+						})
 				_show_banner("雾岚尸王把前线拖进盐沼！", 1.45)
 			_:
+				effects.append({
+					"shape": "mist_cloud",
+					"position": center + Vector2(-64.0, -26.0),
+					"radius": 110.0 + phase * 14.0,
+					"time": 0.7,
+					"duration": 0.7,
+					"anim_speed": 5.6,
+					"color": Color(0.82, 1.0, 0.94, 0.22),
+				})
+				effects.append({
+					"shape": "mist_cloud",
+					"position": center + Vector2(28.0, 30.0),
+					"radius": 98.0 + phase * 12.0,
+					"time": 0.68,
+					"duration": 0.68,
+					"anim_speed": 5.2,
+					"color": Color(0.64, 0.94, 0.84, 0.18),
+				})
+				for lane in active_rows:
+					if int(lane) == int(zombie["row"]) or rng.randf() < 0.55:
+						effects.append({
+							"shape": "lane_spray",
+							"position": Vector2(BOARD_ORIGIN.x + CELL_SIZE.x * 1.4, _row_center_y(int(lane)) - 10.0),
+							"length": board_size.x - CELL_SIZE.x * 0.8,
+							"width": CELL_SIZE.y * 0.56,
+							"radius": board_size.x,
+							"time": 0.3,
+							"duration": 0.3,
+							"color": Color(0.76, 0.98, 0.9, 0.18),
+						})
 				for _i in range(2 + phase):
 					var strike_kind = "tornado_zombie" if rng.randf() < 0.5 else "wolf_knight_zombie"
 					_spawn_zombie(strike_kind, _choose_spawn_row_for_kind(strike_kind), true)
@@ -6269,6 +6338,15 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 			var bog_col = clampi(rng.randi_range(2, COLS - 2), 0, COLS - 1)
 			_spawn_bog_pool(_cell_center(int(lane), bog_col), 58.0 + phase * 10.0, 8.0 + phase * 1.6)
 			_damage_front_plant_in_row(int(lane), 92.0 + phase * 24.0)
+			effects.append({
+				"shape": "mist_cloud",
+				"position": _cell_center(int(lane), bog_col) + Vector2(rng.randf_range(-14.0, 14.0), -20.0),
+				"radius": 50.0 + phase * 8.0,
+				"time": 0.54,
+				"duration": 0.54,
+				"anim_speed": 4.6,
+				"color": Color(0.76, 0.98, 0.9, 0.16),
+			})
 		for summon_kind in ["tornado_zombie", "barrel_screen_zombie", "wolf_knight_zombie"]:
 			_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
 		return zombie
@@ -11648,27 +11726,58 @@ func _draw_pool_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_fog_boss(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
 	var phase = int(zombie.get("boss_phase", 0))
-	var bob = sin(level_time * 1.8 + float(zombie.get("anim_phase", 0.0))) * 3.0
+	var bob = sin(level_time * 1.8 + float(zombie.get("anim_phase", 0.0))) * 3.6
 	var torso = center + Vector2(0.0, -10.0 + bob)
-	draw_circle(torso + Vector2(0.0, 66.0), 30.0, Color(0.04, 0.12, 0.1, 0.18))
-	draw_rect(Rect2(torso + Vector2(-36.0, -12.0), Vector2(72.0, 84.0)), Color(0.18, 0.44, 0.36).lerp(Color(1.0, 1.0, 1.0), flash * 1.35), true)
-	draw_circle(torso + Vector2(0.0, -36.0), 25.0, Color(0.78, 0.86, 0.74))
-	draw_rect(Rect2(torso + Vector2(-28.0, -58.0), Vector2(56.0, 18.0)), Color(0.1, 0.28, 0.22), true)
-	draw_line(torso + Vector2(-16.0, 20.0), torso + Vector2(-34.0, 58.0), Color(0.18, 0.2, 0.18), 6.0)
-	draw_line(torso + Vector2(16.0, 20.0), torso + Vector2(34.0, 58.0), Color(0.18, 0.2, 0.18), 6.0)
-	draw_line(torso + Vector2(24.0, -8.0), torso + Vector2(58.0, -22.0), Color(0.78, 0.94, 0.88), 5.0)
-	draw_line(torso + Vector2(58.0, -22.0), torso + Vector2(72.0, -6.0), Color(0.78, 0.94, 0.88), 4.0)
-	draw_line(torso + Vector2(58.0, -22.0), torso + Vector2(74.0, -38.0), Color(0.78, 0.94, 0.88), 4.0)
-	for orbit_index in range(4 + phase):
-		var orbit = level_time * (1.4 + float(phase) * 0.15) + float(orbit_index) * TAU / float(4 + phase)
-		var orb_center = torso + Vector2(cos(orbit) * 42.0, 10.0 + sin(orbit) * 16.0)
-		draw_circle(orb_center, 5.0 + float(phase) * 0.3, Color(0.82, 1.0, 0.9, 0.78))
-		draw_circle(orb_center, 11.0, Color(0.2, 0.56, 0.46, 0.16))
-	for mist_index in range(3 + phase):
+	var body_color = Color(0.18, 0.44, 0.36).lerp(Color(1.0, 1.0, 1.0), flash * 1.35)
+	draw_circle(torso + Vector2(0.0, 68.0), 36.0, Color(0.04, 0.12, 0.1, 0.18))
+	draw_circle(torso + Vector2(0.0, 70.0), 58.0 + phase * 6.0, Color(0.62, 0.96, 0.84, 0.05))
+	draw_rect(Rect2(torso + Vector2(-38.0, -16.0), Vector2(76.0, 88.0)), body_color, true)
+	draw_polygon(
+		PackedVector2Array([
+			torso + Vector2(-52.0, 2.0),
+			torso + Vector2(-82.0, 64.0),
+			torso + Vector2(-16.0, 72.0),
+			torso + Vector2(0.0, 20.0),
+		]),
+		PackedColorArray([
+			Color(0.14, 0.34, 0.28, 0.9),
+			Color(0.08, 0.22, 0.18, 0.84),
+			Color(0.26, 0.56, 0.46, 0.76),
+			Color(0.18, 0.44, 0.36, 0.88),
+		])
+	)
+	draw_polygon(
+		PackedVector2Array([
+			torso + Vector2(52.0, 2.0),
+			torso + Vector2(82.0, 64.0),
+			torso + Vector2(16.0, 72.0),
+			torso + Vector2(0.0, 20.0),
+		]),
+		PackedColorArray([
+			Color(0.14, 0.34, 0.28, 0.9),
+			Color(0.08, 0.22, 0.18, 0.84),
+			Color(0.26, 0.56, 0.46, 0.76),
+			Color(0.18, 0.44, 0.36, 0.88),
+		])
+	)
+	draw_circle(torso + Vector2(0.0, -38.0), 26.0, Color(0.78, 0.86, 0.74))
+	draw_rect(Rect2(torso + Vector2(-30.0, -60.0), Vector2(60.0, 18.0)), Color(0.08, 0.24, 0.2), true)
+	draw_line(torso + Vector2(-18.0, 22.0), torso + Vector2(-38.0, 60.0), Color(0.18, 0.2, 0.18), 6.0)
+	draw_line(torso + Vector2(18.0, 22.0), torso + Vector2(38.0, 60.0), Color(0.18, 0.2, 0.18), 6.0)
+	draw_line(torso + Vector2(26.0, -8.0), torso + Vector2(62.0, -24.0), Color(0.78, 0.94, 0.88), 5.0)
+	draw_line(torso + Vector2(62.0, -24.0), torso + Vector2(76.0, -8.0), Color(0.78, 0.94, 0.88), 4.0)
+	draw_line(torso + Vector2(62.0, -24.0), torso + Vector2(78.0, -40.0), Color(0.78, 0.94, 0.88), 4.0)
+	for orbit_index in range(5 + phase):
+		var orbit = level_time * (1.45 + float(phase) * 0.16) + float(orbit_index) * TAU / float(5 + phase)
+		var orb_center = torso + Vector2(cos(orbit) * (44.0 + phase * 3.0), 10.0 + sin(orbit) * (18.0 + phase * 1.6))
+		draw_circle(orb_center, 5.4 + float(phase) * 0.34, Color(0.82, 1.0, 0.9, 0.8))
+		draw_circle(orb_center, 12.0, Color(0.2, 0.56, 0.46, 0.18))
+	for mist_index in range(4 + phase):
 		var drift = level_time * (16.0 + float(mist_index) * 3.0) + float(mist_index) * 0.9
-		var mist_center = torso + Vector2(-56.0 + fmod(drift * 0.6, 116.0), 18.0 + sin(drift) * 10.0)
-		draw_circle(mist_center, 16.0, Color(0.78, 0.98, 0.9, 0.08))
-		draw_circle(mist_center + Vector2(10.0, -4.0), 10.0, Color(0.62, 0.9, 0.82, 0.08))
+		var mist_center = torso + Vector2(-64.0 + fmod(drift * 0.62, 132.0), 20.0 + sin(drift) * 11.0)
+		draw_circle(mist_center, 18.0, Color(0.78, 0.98, 0.9, 0.1))
+		draw_circle(mist_center + Vector2(12.0, -5.0), 11.0, Color(0.62, 0.9, 0.82, 0.1))
+		draw_circle(mist_center + Vector2(-10.0, 4.0), 8.0, Color(0.62, 0.9, 0.82, 0.08))
 
 
 func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
