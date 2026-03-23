@@ -29,6 +29,8 @@ func _run() -> void:
 	failed = not _test_lotus_lancer_pierces_an_entire_lane() or failed
 	failed = not _test_mirror_reed_reveals_hidden_shouyue() or failed
 	failed = not _test_frost_fan_spreads_slow_across_three_lanes() or failed
+	failed = not _test_mist_orchid_fires_for_any_zombie_ahead() or failed
+	failed = not _test_storm_reed_hits_midfield_intruders() or failed
 	quit(1 if failed else 0)
 
 
@@ -431,5 +433,41 @@ func _test_frost_fan_spreads_slow_across_three_lanes() -> bool:
 	for zombie_index in range(3):
 		passed = _assert_true(float(game.zombies[zombie_index]["health"]) < before[zombie_index], "frost_fan should damage each covered lane") and passed
 		passed = _assert_true(float(game.zombies[zombie_index].get("slow_timer", 0.0)) > 0.0, "frost_fan should slow each covered lane") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_mist_orchid_fires_for_any_zombie_ahead() -> bool:
+	if not _assert_true(Defs.PLANTS.has("mist_orchid"), "expected mist_orchid plant definition to exist"):
+		return false
+	var game = _make_game()
+	game.current_level = {"id": "4-test", "terrain": "fog", "events": []}
+	var row := 2
+	var col := 2
+	var plant = game._create_plant("mist_orchid", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 7).x)
+	game._update_plants(0.12)
+	var passed = _assert_true(not game.projectiles.is_empty(), "mist_orchid should fire when a zombie exists ahead in its lane")
+	_free_game(game)
+	return passed
+
+
+func _test_storm_reed_hits_midfield_intruders() -> bool:
+	if not _assert_true(Defs.PLANTS.has("storm_reed"), "expected storm_reed plant definition to exist"):
+		return false
+	var game = _make_game()
+	game.current_level = {"id": "4-test", "terrain": "fog", "events": []}
+	var row := 2
+	var col := 1
+	var plant = game._create_plant("storm_reed", row, col)
+	plant["support_timer"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("tornado_zombie", row, game._cell_center(row, 6).x)
+	var before = float(game.zombies[0]["health"])
+	game._update_plants(0.12)
+	var passed = _assert_true(float(game.zombies[0]["health"]) < before, "storm_reed should immediately strike zombies that enter the right-side trigger zone") \
+		and _assert_true(not game.effects.is_empty(), "storm_reed should emit a visible strike effect when it fires")
 	_free_game(game)
 	return passed

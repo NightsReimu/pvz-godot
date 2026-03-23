@@ -15,6 +15,9 @@ func _run() -> void:
 	failed = not _test_magnet_shroom_strips_fog_zombie_equipment() or failed
 	failed = not _test_pogo_zombie_stops_at_tallnut() or failed
 	failed = not _test_jack_in_the_box_explodes_nearby_plants() or failed
+	failed = not _test_anchor_fern_roots_nearby_plants_against_push() or failed
+	failed = not _test_excavator_zombie_pushes_a_plant_chain_left() or failed
+	failed = not _test_tornado_zombie_finishes_entry_and_slows_down() or failed
 	quit(1 if failed else 0)
 
 
@@ -171,5 +174,61 @@ func _test_jack_in_the_box_explodes_nearby_plants() -> bool:
 	game.zombies[0] = jack
 	game._update_zombies(0.12)
 	var passed = _assert_true(float(game.grid[row][col].get("health", 1.0)) <= 0.0, "jack_in_the_box explosion should destroy nearby plants")
+	_free_game(game)
+	return passed
+
+
+func _test_anchor_fern_roots_nearby_plants_against_push() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 3
+	if not _assert_true(game.has_method("_update_anchor_fern"), "expected anchor fern update helper to exist"):
+		_free_game(game)
+		return false
+	game.grid[row][col - 1] = game._create_plant("peashooter", row, col - 1)
+	var plant = game._create_plant("anchor_fern", row, col)
+	plant["support_timer"] = 0.0
+	game.grid[row][col] = plant
+	game._update_anchor_fern(plant, 0.12, row, col)
+	var ally = game.grid[row][col - 1]
+	var passed = _assert_true(float(ally.get("rooted_timer", 0.0)) > 0.0, "anchor_fern should grant a rooted timer to adjacent allies")
+	_free_game(game)
+	return passed
+
+
+func _test_excavator_zombie_pushes_a_plant_chain_left() -> bool:
+	var game = _make_game()
+	var row := 2
+	game.grid[row][1] = game._create_plant("peashooter", row, 1)
+	game.grid[row][2] = game._create_plant("wallnut", row, 2)
+	game.grid[row][3] = game._create_plant("sunflower", row, 3)
+	game._spawn_zombie_at("excavator_zombie", row, game._cell_center(row, 3).x + 22.0)
+	var excavator = game.zombies[0]
+	excavator["special_pause_timer"] = 0.0
+	game.zombies[0] = excavator
+	game._update_zombies(0.18)
+	var passed = _assert_true(game.grid[row][0] != null and String(game.grid[row][0].get("kind", "")) == "peashooter", "excavator push should move the leftmost plant into column 0") \
+		and _assert_true(game.grid[row][1] != null and String(game.grid[row][1].get("kind", "")) == "wallnut", "excavator push should shift the middle plant left by one tile") \
+		and _assert_true(game.grid[row][2] != null and String(game.grid[row][2].get("kind", "")) == "sunflower", "excavator push should move the contacted plant into the previous tile")
+	_free_game(game)
+	return passed
+
+
+func _test_tornado_zombie_finishes_entry_and_slows_down() -> bool:
+	var game = _make_game()
+	game.current_level = {"id": "4-test", "terrain": "fog", "events": []}
+	var row := 2
+	game._spawn_zombie("tornado_zombie", row)
+	var tornado = game.zombies[0]
+	var spawn_x = float(tornado["x"])
+	game._update_zombies(0.2)
+	tornado = game.zombies[0]
+	var entered_midfield = float(tornado["x"]) < spawn_x - 40.0
+	for _step in range(12):
+		game._update_zombies(0.12)
+	tornado = game.zombies[0]
+	var passed = _assert_true(entered_midfield, "tornado_zombie should rapidly relocate inward during its entry phase") \
+		and _assert_true(not bool(tornado.get("tornado_entry", true)), "tornado_zombie should finish its whirlwind entry state") \
+		and _assert_true(float(tornado.get("base_speed", 0.0)) <= 18.0, "tornado_zombie should slow down to a normal walking pace after entry")
 	_free_game(game)
 	return passed
