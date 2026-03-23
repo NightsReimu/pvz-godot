@@ -6584,6 +6584,18 @@ func _visible_level_indices(world_key: String = current_world_key) -> Array:
 	return result
 
 
+func _map_mode_title_for_world(world_key: String) -> String:
+	match world_key:
+		"night":
+			return "夜晚冒险"
+		"pool":
+			return "泳池冒险"
+		"fog":
+			return "浓雾冒险"
+		_:
+			return "白天冒险"
+
+
 func _find_level_index_by_id(level_id: String) -> int:
 	for i in range(Defs.LEVELS.size()):
 		if String(Defs.LEVELS[i].get("id", "")) == level_id:
@@ -7441,7 +7453,7 @@ func _draw_map_scene() -> void:
 	for index in visible_indices:
 		_draw_level_node(int(index))
 
-	_draw_text("夜晚冒险" if is_night_world else "白天冒险", Vector2(70.0, 58.0), 36, Color(0.95, 0.95, 0.98) if is_night_world else Color(0.23, 0.15, 0.05))
+	_draw_text(_map_mode_title_for_world(current_world_key), Vector2(70.0, 58.0), 36, Color(0.95, 0.95, 0.98) if is_night_world else Color(0.23, 0.15, 0.05))
 	_draw_text("点击灯泡进入关卡，超过 10 张植物时先进入选卡。", Vector2(70.0, 90.0), 18, Color(0.88, 0.9, 0.96) if is_night_world else Color(0.26, 0.18, 0.08))
 	_draw_text("世界地图", control_rect.position + Vector2(16.0, 24.0), 18, Color(0.22, 0.16, 0.08) if not is_night_world else Color(0.9, 0.94, 1.0))
 	_draw_panel_shell(MAP_SCROLL_LEFT_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.08, 0.04)

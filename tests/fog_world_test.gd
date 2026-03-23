@@ -16,6 +16,7 @@ func _run() -> void:
 	failed = not _test_fog_world_unlocks_after_3_18() or failed
 	failed = not _test_fog_level_data_matches_original_unlock_rhythm() or failed
 	failed = not _test_fog_units_have_runtime_definitions() or failed
+	failed = not _test_fog_world_map_title_is_not_day_adventure() or failed
 	failed = not _test_fog_cells_start_hidden_on_the_right_side() or failed
 	failed = not _test_plantern_reveals_a_persistent_radius() or failed
 	failed = not _test_sea_shroom_is_water_only() or failed
@@ -163,6 +164,17 @@ func _test_fog_units_have_runtime_definitions() -> bool:
 		passed = _assert_true(Defs.PLANTS.has(plant_kind), "%s should exist in plant definitions" % plant_kind) and passed
 	for zombie_kind in ["balloon_zombie", "digger_zombie", "pogo_zombie", "jack_in_the_box_zombie"]:
 		passed = _assert_true(Defs.ZOMBIES.has(zombie_kind), "%s should exist in zombie definitions" % zombie_kind) and passed
+	return passed
+
+
+func _test_fog_world_map_title_is_not_day_adventure() -> bool:
+	var game = _make_game()
+	var passed = _assert_true(game.has_method("_map_mode_title_for_world"), "expected map title helper to exist for world-specific map labels")
+	if passed:
+		passed = _assert_true(String(game.call("_map_mode_title_for_world", "fog")) == "浓雾冒险", "fog world map title should display as 浓雾冒险 instead of 白天冒险") and passed
+		passed = _assert_true(String(game.call("_map_mode_title_for_world", "pool")) == "泳池冒险", "pool world map title should use its own world label") and passed
+		passed = _assert_true(String(game.call("_map_mode_title_for_world", "night")) == "夜晚冒险", "night world map title should stay unchanged") and passed
+	_free_game(game)
 	return passed
 
 
