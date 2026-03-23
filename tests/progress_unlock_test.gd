@@ -16,6 +16,7 @@ func _run() -> void:
 	failed = not _test_branch_progress_does_not_unlock_future_pool_levels() or failed
 	failed = not _test_sparse_v2_save_data_backfills_near_end_progress() or failed
 	failed = not _test_inconsistent_blank_save_data_recovers_from_last_level_index() or failed
+	failed = not _test_save_merge_preserves_stronger_existing_progress() or failed
 	failed = not _test_loaded_campaign_init_does_not_force_immediate_autosave() or failed
 	quit(1 if failed else 0)
 
@@ -96,6 +97,16 @@ func _completed_ids_for_user_progress() -> Array:
 			continue
 		if level_id.begins_with("3-") and int(level_id.get_slice("-", 1)) <= 10:
 			result.append(level_id)
+	return result
+
+
+func _completed_ids_through(level_id: String) -> Array:
+	var result: Array = []
+	for level in Defs.LEVELS:
+		var current_id = String(level.get("id", ""))
+		result.append(current_id)
+		if current_id == level_id:
+			break
 	return result
 
 
@@ -233,6 +244,44 @@ func _test_inconsistent_blank_save_data_recovers_from_last_level_index() -> bool
 	passed = _assert_true(bool(game.completed_levels[index_1_17]), "blank corrupted saves should restore late prerequisite progress") and passed
 	passed = _assert_true(bool(game.call("_is_level_unlocked", index_1_18)), "blank corrupted saves should keep the final special level unlocked") and passed
 	passed = _assert_true(game.unlocked_levels >= Defs.LEVELS.size() - 1, "blank corrupted saves should recover the unlocked level count from the last played level") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_save_merge_preserves_stronger_existing_progress() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_merge_save_data_preserving_progress"), "expected save merge helper to exist for regression protection"):
+		_free_game(game)
+		return false
+	var index_4_16 = _find_level_index("4-16")
+	var index_4_17 = _find_level_index("4-17")
+	var passed = _assert_true(index_4_16 != -1 and index_4_17 != -1, "expected late fog levels to exist for save merge checks")
+	if not passed:
+		_free_game(game)
+		return false
+	var existing_save = {
+		"version": 2,
+		"unlocked_levels": index_4_17 + 1,
+		"completed_level_ids": _completed_ids_through("4-16"),
+		"coins_total": 2500,
+		"last_level_index": index_4_17,
+		"current_world_key": "fog",
+	}
+	var stale_blank_save = {
+		"version": 2,
+		"unlocked_levels": 1,
+		"completed_level_ids": [],
+		"coins_total": 0,
+		"last_level_index": _find_level_index("3-18"),
+		"current_world_key": "day",
+	}
+	var merged: Dictionary = game.call("_merge_save_data_preserving_progress", existing_save, stale_blank_save)
+	var merged_ids = merged.get("completed_level_ids", [])
+	passed = _assert_true(merged_ids is Array and merged_ids.has("4-16"), "merged save should preserve existing completed progress up to 4-16") and passed
+	passed = _assert_true(not merged_ids.has("4-17"), "merged save should keep 4-17 unfinished when only 4-16 was completed") and passed
+	passed = _assert_true(int(merged.get("unlocked_levels", 0)) >= index_4_17 + 1, "merged save should keep 4-17 unlocked") and passed
+	passed = _assert_true(String(merged.get("current_world_key", "")) == "fog", "merged save should keep the stronger world's map focus") and passed
+	passed = _assert_true(int(merged.get("last_level_index", -1)) >= index_4_17, "merged save should keep the stronger last level index") and passed
 	_free_game(game)
 	return passed
 

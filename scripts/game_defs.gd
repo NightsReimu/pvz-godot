@@ -2942,7 +2942,7 @@ const LEVELS = [
 			"row_count": 6,
 			"time_scale": 0.7,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(1338.0, 612.0),
+			"node_pos": Vector2(1448.0, 708.0),
 			"events": [
 				{"time": 5.0, "kind": "normal"},
 				{"time": 8.0, "kind": "conehead"},
@@ -3005,7 +3005,7 @@ const LEVELS = [
 			"time_scale": 0.68,
 			"sky_sun_range": Vector2(999.0, 999.0),
 			"fog_columns": 6.6,
-			"node_pos": Vector2(1524.0, 548.0),
+			"node_pos": Vector2(1636.0, 620.0),
 			"events": [
 				{"time": 6.0, "kind": "balloon_zombie"},
 				{"time": 12.0, "kind": "digger_zombie"},

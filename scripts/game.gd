@@ -13096,11 +13096,110 @@ func _update_autosave(delta: float) -> void:
 		_save_game()
 
 
-func _save_game() -> void:
-	var save_file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+func _read_existing_save_data() -> Dictionary:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return {}
+	var save_file = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if save_file == null:
-		return
+		return {}
+	var parsed = JSON.parse_string(save_file.get_as_text())
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
 
+
+func _save_data_completed_ids(save_data: Dictionary) -> Array:
+	var result: Array = []
+	var seen := {}
+	var saved_completed_ids = save_data.get("completed_level_ids", [])
+	if saved_completed_ids is Array and not saved_completed_ids.is_empty():
+		for level_id_variant in saved_completed_ids:
+			var level_id = String(level_id_variant)
+			if level_id.is_empty() or seen.has(level_id):
+				continue
+			seen[level_id] = true
+			result.append(level_id)
+		return result
+	var saved_completed = save_data.get("completed_levels", [])
+	if not (saved_completed is Array):
+		return result
+	for i in range(min(saved_completed.size(), Defs.LEVELS.size())):
+		if not bool(saved_completed[i]):
+			continue
+		var level_id = String(Defs.LEVELS[i].get("id", ""))
+		if level_id.is_empty() or seen.has(level_id):
+			continue
+		seen[level_id] = true
+		result.append(level_id)
+	return result
+
+
+func _save_progress_snapshot(save_data: Dictionary) -> Dictionary:
+	var completed_ids = _save_data_completed_ids(save_data)
+	var completed_lookup := {}
+	for level_id in completed_ids:
+		completed_lookup[String(level_id)] = true
+	var unlocked = clampi(int(save_data.get("unlocked_levels", 1)), 1, Defs.LEVELS.size())
+	for level_id in completed_ids:
+		var index = _find_level_index_by_id(String(level_id))
+		if index != -1:
+			unlocked = max(unlocked, min(index + 2, Defs.LEVELS.size()))
+	return {
+		"version": int(save_data.get("version", 1)),
+		"completed_ids": completed_ids,
+		"completed_lookup": completed_lookup,
+		"completed_count": completed_ids.size(),
+		"unlocked_levels": unlocked,
+		"coins_total": max(0, int(save_data.get("coins_total", 0))),
+		"last_level_index": clampi(int(save_data.get("last_level_index", -1)), -1, Defs.LEVELS.size() - 1),
+		"current_world_key": String(save_data.get("current_world_key", "")),
+	}
+
+
+func _save_would_regress_progress(existing_save: Dictionary, candidate_save: Dictionary) -> bool:
+	var existing = _save_progress_snapshot(existing_save)
+	var candidate = _save_progress_snapshot(candidate_save)
+	if int(candidate.get("unlocked_levels", 1)) < int(existing.get("unlocked_levels", 1)):
+		return true
+	if int(candidate.get("completed_count", 0)) < int(existing.get("completed_count", 0)):
+		return true
+	var candidate_lookup: Dictionary = candidate.get("completed_lookup", {})
+	for level_id in existing.get("completed_ids", []):
+		if not candidate_lookup.has(String(level_id)):
+			return true
+	return false
+
+
+func _merge_save_data_preserving_progress(existing_save: Dictionary, candidate_save: Dictionary) -> Dictionary:
+	var existing = _save_progress_snapshot(existing_save)
+	var candidate = _save_progress_snapshot(candidate_save)
+	var merged = candidate_save.duplicate(true)
+	var merged_ids: Array = []
+	var seen := {}
+	for level_id in existing.get("completed_ids", []):
+		var id = String(level_id)
+		if id.is_empty() or seen.has(id):
+			continue
+		seen[id] = true
+		merged_ids.append(id)
+	for level_id in candidate.get("completed_ids", []):
+		var id = String(level_id)
+		if id.is_empty() or seen.has(id):
+			continue
+		seen[id] = true
+		merged_ids.append(id)
+	var regresses = _save_would_regress_progress(existing_save, candidate_save)
+	merged["version"] = max(int(existing.get("version", 1)), int(candidate.get("version", 1)))
+	merged["unlocked_levels"] = max(int(existing.get("unlocked_levels", 1)), int(candidate.get("unlocked_levels", 1)))
+	merged["completed_level_ids"] = merged_ids
+	merged["coins_total"] = max(int(existing.get("coins_total", 0)), int(candidate.get("coins_total", 0)))
+	if regresses:
+		merged["last_level_index"] = max(int(existing.get("last_level_index", -1)), int(candidate.get("last_level_index", -1)))
+		var existing_world = String(existing.get("current_world_key", ""))
+		var candidate_world = String(candidate.get("current_world_key", ""))
+		merged["current_world_key"] = existing_world if not existing_world.is_empty() else candidate_world
+	return merged
+
+
+func _save_game() -> void:
 	var save_data = {
 		"version": 2,
 		"unlocked_levels": unlocked_levels,
@@ -13110,6 +13209,12 @@ func _save_game() -> void:
 		"last_level_index": selected_level_index,
 		"current_world_key": current_world_key,
 	}
+	var existing_save_data = _read_existing_save_data()
+	if not existing_save_data.is_empty():
+		save_data = _merge_save_data_preserving_progress(existing_save_data, save_data)
+	var save_file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if save_file == null:
+		return
 	save_file.store_string(JSON.stringify(save_data))
 	save_dirty = false
 

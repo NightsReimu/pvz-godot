@@ -15,6 +15,7 @@ func _run() -> void:
 	failed = not _test_4x_levels_route_to_fog_world() or failed
 	failed = not _test_fog_world_unlocks_after_3_18() or failed
 	failed = not _test_fog_level_data_matches_original_unlock_rhythm() or failed
+	failed = not _test_fog_endgame_map_nodes_do_not_overlap() or failed
 	failed = not _test_fog_units_have_runtime_definitions() or failed
 	failed = not _test_fog_world_map_title_is_not_day_adventure() or failed
 	failed = not _test_fog_cells_start_hidden_on_the_right_side() or failed
@@ -177,6 +178,30 @@ func _test_fog_level_data_matches_original_unlock_rhythm() -> bool:
 	passed = _assert_true(String(level_4_18.get("terrain", "")) == "fog", "4-18 should return to the normal fog battlefield") and passed
 	passed = _assert_true(String(level_4_18.get("mode", "")) == "conveyor", "4-18 should be a conveyor boss stage") and passed
 	passed = _assert_true(bool(level_4_18.get("boss_level", false)), "4-18 should be marked as the fog-world boss stage") and passed
+	return passed
+
+
+func _test_fog_endgame_map_nodes_do_not_overlap() -> bool:
+	var late_ids = ["4-14", "4-15", "4-16", "4-17", "4-18"]
+	var nodes := {}
+	var passed := true
+	for level_id in late_ids:
+		var level_index = _find_level_index(level_id)
+		passed = _assert_true(level_index != -1, "expected %s to exist before checking node layout" % level_id) and passed
+		if level_index != -1:
+			nodes[level_id] = Vector2(Defs.LEVELS[level_index].get("node_pos", Vector2.ZERO))
+	if not passed:
+		return false
+	var critical_pairs = [
+		["4-15", "4-17"],
+		["4-14", "4-18"],
+		["4-17", "4-18"],
+	]
+	for pair in critical_pairs:
+		var a = String(pair[0])
+		var b = String(pair[1])
+		var distance = Vector2(nodes[a]).distance_to(Vector2(nodes[b]))
+		passed = _assert_true(distance >= 96.0, "%s and %s node positions should stay visually separated on the fog map" % [a, b]) and passed
 	return passed
 
 
