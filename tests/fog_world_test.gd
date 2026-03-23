@@ -97,15 +97,15 @@ func _free_game(game: Control) -> void:
 func _test_fog_world_metadata_exists() -> bool:
 	var fog_world = WorldData.by_key("fog")
 	var passed = _assert_true(String(fog_world.get("key", "")) == "fog", "expected fog world metadata to exist") \
-		and _assert_true(String(fog_world.get("subtitle", "")) == "Adventure 4-1 ~ 4-16", "fog world subtitle should cover the full 4-1 to 4-16 expansion") \
-		and _assert_true(String(fog_world.get("description", "")).find("4-16") != -1 or String(fog_world.get("description", "")).find("16") != -1, "fog world description should reflect the expanded mainline")
+		and _assert_true(String(fog_world.get("subtitle", "")) == "Adventure 4-1 ~ 4-18", "fog world subtitle should cover the full 4-1 to 4-18 expansion") \
+		and _assert_true(String(fog_world.get("description", "")).find("4-18") != -1 or String(fog_world.get("description", "")).find("18") != -1, "fog world description should reflect the expanded mainline")
 	return passed
 
 
 func _test_4x_levels_route_to_fog_world() -> bool:
 	var game = _make_game()
 	var passed := true
-	for level_id in ["4-1", "4-5", "4-10", "4-11", "4-16"]:
+	for level_id in ["4-1", "4-5", "4-10", "4-11", "4-16", "4-17", "4-18"]:
 		passed = _assert_true(String(game.call("_world_key_for_level", {"id": level_id})) == "fog", "%s should route to fog world" % level_id) and passed
 	_free_game(game)
 	return passed
@@ -144,9 +144,11 @@ func _test_fog_level_data_matches_original_unlock_rhythm() -> bool:
 		"4-14": "brine_pot",
 		"4-15": "storm_reed",
 		"4-16": "moonforge",
+		"4-17": "",
+		"4-18": "",
 	}
 	var passed := true
-	for level_number in range(1, 17):
+	for level_number in range(1, 19):
 		var level_id = "4-%d" % level_number
 		var level_index = _find_level_index(level_id)
 		passed = _assert_true(level_index != -1, "expected %s to exist in fog progression" % level_id) and passed
@@ -164,9 +166,17 @@ func _test_fog_level_data_matches_original_unlock_rhythm() -> bool:
 	passed = _assert_true(String(vase_level.get("mode", "")) == "vasebreaker", "4-5 should use vasebreaker mode") and passed
 	passed = _assert_true(String(storm_level.get("terrain", "")) == "storm_fog", "4-10 should use storm fog terrain") and passed
 	passed = _assert_true(String(storm_level.get("mode", "")) == "conveyor", "4-10 should be a conveyor special stage") and passed
-	var end_level = Defs.LEVELS[_find_level_index("4-16")]
-	passed = _assert_true(String(end_level.get("terrain", "")) == "fog", "4-16 should stay inside the normal fog battlefield") and passed
-	passed = _assert_true(not bool(end_level.get("boss_level", false)), "4-16 should currently be a high-pressure mainline stage instead of a boss branch") and passed
+	var level_4_16 = Defs.LEVELS[_find_level_index("4-16")]
+	var level_4_17 = Defs.LEVELS[_find_level_index("4-17")]
+	var level_4_18 = Defs.LEVELS[_find_level_index("4-18")]
+	passed = _assert_true(String(level_4_16.get("terrain", "")) == "fog", "4-16 should stay inside the normal fog battlefield") and passed
+	passed = _assert_true(not bool(level_4_16.get("boss_level", false)), "4-16 should remain a high-pressure mainline stage instead of a boss branch") and passed
+	passed = _assert_true(String(level_4_17.get("terrain", "")) == "clear_backyard", "4-17 should use the no-fog backyard terrain") and passed
+	passed = _assert_true(String(level_4_17.get("mode", "")) == "conveyor", "4-17 should be a conveyor special stage") and passed
+	passed = _assert_true(not bool(level_4_17.get("boss_level", false)), "4-17 should be a special conveyor gauntlet instead of a boss stage") and passed
+	passed = _assert_true(String(level_4_18.get("terrain", "")) == "fog", "4-18 should return to the normal fog battlefield") and passed
+	passed = _assert_true(String(level_4_18.get("mode", "")) == "conveyor", "4-18 should be a conveyor boss stage") and passed
+	passed = _assert_true(bool(level_4_18.get("boss_level", false)), "4-18 should be marked as the fog-world boss stage") and passed
 	return passed
 
 
@@ -174,7 +184,7 @@ func _test_fog_units_have_runtime_definitions() -> bool:
 	var passed := true
 	for plant_kind in ["sea_shroom", "plantern", "cactus", "blover", "split_pea", "starfruit", "pumpkin", "magnet_shroom", "mist_orchid", "anchor_fern", "glowvine", "brine_pot", "storm_reed", "moonforge"]:
 		passed = _assert_true(Defs.PLANTS.has(plant_kind), "%s should exist in plant definitions" % plant_kind) and passed
-	for zombie_kind in ["balloon_zombie", "digger_zombie", "pogo_zombie", "jack_in_the_box_zombie", "squash_zombie", "excavator_zombie", "barrel_screen_zombie", "tornado_zombie", "wolf_knight_zombie"]:
+	for zombie_kind in ["balloon_zombie", "digger_zombie", "pogo_zombie", "jack_in_the_box_zombie", "squash_zombie", "excavator_zombie", "barrel_screen_zombie", "tornado_zombie", "wolf_knight_zombie", "fog_boss"]:
 		passed = _assert_true(Defs.ZOMBIES.has(zombie_kind), "%s should exist in zombie definitions" % zombie_kind) and passed
 	return passed
 

@@ -14,6 +14,8 @@ func _run() -> void:
 	failed = not _test_pool_conveyor_levels_bias_toward_lily_pads() or failed
 	failed = not _test_3_10_uses_all_seen_non_boss_zombies() or failed
 	failed = not _test_pool_expansion_levels_3_11_to_3_18_exist() or failed
+	failed = not _test_4_17_is_brine_only_and_uses_all_non_boss_zombies() or failed
+	failed = not _test_4_18_conveyor_contains_every_fog_world_plant_except_lily_pad() or failed
 	quit(1 if failed else 0)
 
 
@@ -63,6 +65,16 @@ func _count_kind(entries: Array, kind: String) -> int:
 		if String(entry) == kind:
 			count += 1
 	return count
+
+
+func _all_non_boss_zombies() -> Dictionary:
+	var result := {}
+	for kind_variant in Defs.ZOMBIES.keys():
+		var kind = String(kind_variant)
+		if bool(Defs.ZOMBIES[kind].get("boss", false)):
+			continue
+		result[kind] = true
+	return result
 
 
 func _test_conveyor_levels_exclude_sun_generators() -> bool:
@@ -176,4 +188,52 @@ func _test_pool_expansion_levels_3_11_to_3_18_exist() -> bool:
 	var event_kinds = _event_kinds(level_3_18)
 	for kind in ["dragon_boat", "qinghua", "shouyue", "ice_block", "dragon_dance", "pool_boss"]:
 		passed = _assert_true(event_kinds.has(kind), "3-18 should feature %s in its event roster" % kind) and passed
+	return passed
+
+
+func _test_4_17_is_brine_only_and_uses_all_non_boss_zombies() -> bool:
+	var level = _find_level("4-17")
+	if not _assert_true(not level.is_empty(), "expected 4-17 to exist before checking the brine gauntlet"):
+		return false
+	var passed = _assert_true(String(level.get("mode", "")) == "conveyor", "4-17 should be a conveyor level") \
+		and _assert_true(String(level.get("terrain", "")) == "clear_backyard", "4-17 should use the clear backyard terrain")
+	for kind in level.get("conveyor_plants", []):
+		passed = _assert_true(String(kind) == "brine_pot", "4-17 conveyor should only contain brine_pot cards") and passed
+	var actual = _event_kinds(level)
+	var expected = _all_non_boss_zombies()
+	var missing: Array = []
+	for kind in expected.keys():
+		if not actual.has(String(kind)):
+			missing.append(String(kind))
+	missing.sort()
+	passed = _assert_true(missing.is_empty(), "4-17 should include every non-boss zombie, missing: %s" % ", ".join(missing)) and passed
+	return passed
+
+
+func _test_4_18_conveyor_contains_every_fog_world_plant_except_lily_pad() -> bool:
+	var level = _find_level("4-18")
+	if not _assert_true(not level.is_empty(), "expected 4-18 to exist before checking the fog boss conveyor"):
+		return false
+	var expected_plants = [
+		"sea_shroom",
+		"plantern",
+		"cactus",
+		"blover",
+		"split_pea",
+		"starfruit",
+		"pumpkin",
+		"magnet_shroom",
+		"mist_orchid",
+		"anchor_fern",
+		"glowvine",
+		"brine_pot",
+		"storm_reed",
+		"moonforge",
+	]
+	var conveyor_plants = level.get("conveyor_plants", [])
+	var passed = _assert_true(String(level.get("mode", "")) == "conveyor", "4-18 should be a conveyor level") \
+		and _assert_true(bool(level.get("boss_level", false)), "4-18 should be marked as a boss level") \
+		and _assert_true(_count_kind(conveyor_plants, "lily_pad") == 0, "4-18 conveyor should not contain lily_pad")
+	for plant_kind in expected_plants:
+		passed = _assert_true(conveyor_plants.has(plant_kind), "4-18 conveyor should include fog-world plant %s" % plant_kind) and passed
 	return passed

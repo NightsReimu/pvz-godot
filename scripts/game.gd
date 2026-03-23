@@ -123,6 +123,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"day_boss",
 	"night_boss",
 	"pool_boss",
+	"fog_boss",
 	"rumia_boss",
 	"daiyousei_boss",
 	"cirno_boss",
@@ -1498,6 +1499,13 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		boss_unit["rumia_reinforcement_timer"] = 4.9
 		zombies[boss_index] = boss_unit
 		_show_banner("玄潮尸王出现了！", 2.3)
+	elif kind == "fog_boss":
+		var boss_index = zombies.size() - 1
+		var boss_unit = zombies[boss_index]
+		boss_unit["x"] = BOARD_ORIGIN.x + board_size.x + 24.0
+		boss_unit["rumia_reinforcement_timer"] = 4.6
+		zombies[boss_index] = boss_unit
+		_show_banner("雾岚尸王出现了！", 2.3)
 	total_spawned_units += 1
 
 
@@ -5712,6 +5720,13 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["dragon_boat", "dragon_dance", "lifebuoy_bucket", "shouyue", "ice_block"],
 			]
 			tint = Color(0.54, 0.84, 1.0, 0.24)
+		"fog_boss":
+			pools = [
+				["balloon_zombie", "digger_zombie", "snorkel"],
+				["pogo_zombie", "squash_zombie", "screen_door", "tornado_zombie"],
+				["excavator_zombie", "barrel_screen_zombie", "wolf_knight_zombie", "jack_in_the_box_zombie"],
+			]
+			tint = Color(0.72, 0.94, 0.86, 0.24)
 		_:
 			return
 	var pool: Array = pools[min(phase, pools.size() - 1)]
@@ -5743,6 +5758,8 @@ func _update_boss_reinforcements(zombie: Dictionary, delta: float) -> Dictionary
 			default_interval = maxf(3.4, 5.3 - float(phase) * 0.6)
 		"pool_boss":
 			default_interval = maxf(3.0, 4.9 - float(phase) * 0.45)
+		"fog_boss":
+			default_interval = maxf(2.9, 4.6 - float(phase) * 0.42)
 		_:
 			return zombie
 	zombie["rumia_reinforcement_timer"] = float(zombie.get("rumia_reinforcement_timer", default_interval)) - delta
@@ -6092,6 +6109,38 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 					_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
 				_show_banner("玄潮尸王封锁了前场格位！", 1.45)
 		return zombie
+	if String(zombie["kind"]) == "fog_boss":
+		var phase = int(zombie.get("boss_phase", 0))
+		var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		effects.append({
+			"position": center,
+			"radius": 152.0 + phase * 14.0,
+			"time": 0.44,
+			"duration": 0.44,
+			"color": Color(0.72, 0.96, 0.88, 0.34),
+		})
+		match int(zombie.get("boss_skill_cycle", 0)):
+			0:
+				var summon_pool = ["balloon_zombie", "digger_zombie", "pogo_zombie", "jack_in_the_box_zombie", "squash_zombie", "excavator_zombie", "barrel_screen_zombie", "tornado_zombie", "wolf_knight_zombie", "screen_door", "football"]
+				for summon_index in range(3 + phase):
+					var summon_kind = String(summon_pool[rng.randi_range(0, summon_pool.size() - 1)])
+					_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
+				_show_banner("雾岚尸王卷来了新的混编尸群！", 1.5)
+			1:
+				for lane in active_rows:
+					_damage_front_plant_in_row(int(lane), 150.0 + phase * 28.0)
+					var bog_col = clampi(rng.randi_range(3, COLS - 2), 0, COLS - 1)
+					_spawn_bog_pool(_cell_center(int(lane), bog_col), 52.0 + phase * 8.0, 7.0 + phase * 1.4)
+				_show_banner("雾岚尸王把前线拖进盐沼！", 1.45)
+			_:
+				for _i in range(2 + phase):
+					var strike_kind = "tornado_zombie" if rng.randf() < 0.5 else "wolf_knight_zombie"
+					_spawn_zombie(strike_kind, _choose_spawn_row_for_kind(strike_kind), true)
+				for lane in active_rows:
+					if rng.randf() < 0.6:
+						_damage_front_plant_in_row(int(lane), 110.0 + phase * 22.0)
+				_show_banner("雾岚尸王掀起了迷雾突袭！", 1.4)
+		return zombie
 	effects.append({
 		"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"]))),
 		"radius": 120.0,
@@ -6205,6 +6254,23 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 			_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
 		for lane in active_rows:
 			_damage_front_plant_in_row(int(lane), 100.0 + phase * 26.0)
+		return zombie
+	if String(zombie["kind"]) == "fog_boss":
+		_show_banner("雾岚尸王进入第 %d 阶段！" % (phase + 1), 2.0)
+		var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		effects.append({
+			"position": center,
+			"radius": 188.0 + phase * 24.0,
+			"time": 0.58,
+			"duration": 0.58,
+			"color": Color(0.64, 0.96, 0.84, 0.4),
+		})
+		for lane in active_rows:
+			var bog_col = clampi(rng.randi_range(2, COLS - 2), 0, COLS - 1)
+			_spawn_bog_pool(_cell_center(int(lane), bog_col), 58.0 + phase * 10.0, 8.0 + phase * 1.6)
+			_damage_front_plant_in_row(int(lane), 92.0 + phase * 24.0)
+		for summon_kind in ["tornado_zombie", "barrel_screen_zombie", "wolf_knight_zombie"]:
+			_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
 		return zombie
 	_show_banner("Boss 进入第 %d 阶段！" % (phase + 1), 2.0)
 	effects.append({
@@ -7442,6 +7508,10 @@ func _is_fog_level() -> bool:
 	return terrain == "fog" or terrain == "storm_fog"
 
 
+func _is_clear_backyard_level() -> bool:
+	return String(current_level.get("terrain", "")) == "clear_backyard"
+
+
 func _is_storm_fog_level() -> bool:
 	return String(current_level.get("terrain", "")) == "storm_fog"
 
@@ -7465,7 +7535,7 @@ func _is_pool_level() -> bool:
 
 
 func _uses_backyard_pool_board() -> bool:
-	return _is_pool_level() or _is_fog_level()
+	return _is_pool_level() or _is_fog_level() or _is_clear_backyard_level()
 
 
 func _fog_hidden_columns() -> float:
@@ -7836,7 +7906,7 @@ func _extra_spawn_count_for_event(event_index: int, event: Dictionary) -> int:
 	if total_events <= 8:
 		extra += 1
 	var kind = String(event["kind"])
-	if kind == "buckethead" or kind == "day_boss" or kind == "night_boss" or kind == "rumia_boss" or kind == "football" or kind == "dark_football":
+	if kind == "buckethead" or kind == "day_boss" or kind == "night_boss" or kind == "pool_boss" or kind == "fog_boss" or kind == "rumia_boss" or kind == "football" or kind == "dark_football":
 		extra = max(extra - 2, 2)
 	if kind == "screen_door":
 		extra = max(extra - 1, 3)
@@ -7855,6 +7925,14 @@ func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) 
 			if extra_index == 0:
 				return "nether"
 			return "dark_football" if progress >= 0.7 else "screen_door"
+		"pool_boss":
+			if extra_index == 0:
+				return "qinghua"
+			return "dragon_dance" if progress >= 0.7 else "ice_block"
+		"fog_boss":
+			if extra_index == 0:
+				return "tornado_zombie" if progress >= 0.72 else "balloon_zombie"
+			return "barrel_screen_zombie" if progress >= 0.72 else "screen_door"
 		"rumia_boss":
 			if extra_index == 0:
 				return "conehead"
@@ -8775,7 +8853,7 @@ func _draw_battle_background() -> void:
 			draw_line(Vector2(pool_rect.position.x + 12.0, ripple_y), Vector2(pool_rect.position.x + pool_rect.size.x - 12.0, ripple_y), Color(0.86, 0.96, 1.0, 0.08), 2.0)
 		if _is_storm_fog_level() and fog_lightning_timer > 0.0:
 			draw_rect(Rect2(Vector2.ZERO, size), Color(0.92, 0.98, 1.0, 0.1 + fog_lightning_timer * 0.12), true)
-	elif _is_pool_level():
+	elif _is_pool_level() or _is_clear_backyard_level():
 		_draw_rect_full(Color(0.74, 0.9, 1.0))
 		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, 156.0)), Color(0.88, 0.97, 1.0), true)
 		draw_circle(Vector2(114.0, 70.0), 58.0, Color(1.0, 0.94, 0.58, 0.14))
@@ -11567,6 +11645,32 @@ func _draw_pool_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_circle(orb_center, 10.0, Color(0.12, 0.42, 0.64, 0.18))
 
 
+func _draw_fog_boss(center: Vector2, zombie: Dictionary) -> void:
+	var flash = float(zombie.get("flash", 0.0))
+	var phase = int(zombie.get("boss_phase", 0))
+	var bob = sin(level_time * 1.8 + float(zombie.get("anim_phase", 0.0))) * 3.0
+	var torso = center + Vector2(0.0, -10.0 + bob)
+	draw_circle(torso + Vector2(0.0, 66.0), 30.0, Color(0.04, 0.12, 0.1, 0.18))
+	draw_rect(Rect2(torso + Vector2(-36.0, -12.0), Vector2(72.0, 84.0)), Color(0.18, 0.44, 0.36).lerp(Color(1.0, 1.0, 1.0), flash * 1.35), true)
+	draw_circle(torso + Vector2(0.0, -36.0), 25.0, Color(0.78, 0.86, 0.74))
+	draw_rect(Rect2(torso + Vector2(-28.0, -58.0), Vector2(56.0, 18.0)), Color(0.1, 0.28, 0.22), true)
+	draw_line(torso + Vector2(-16.0, 20.0), torso + Vector2(-34.0, 58.0), Color(0.18, 0.2, 0.18), 6.0)
+	draw_line(torso + Vector2(16.0, 20.0), torso + Vector2(34.0, 58.0), Color(0.18, 0.2, 0.18), 6.0)
+	draw_line(torso + Vector2(24.0, -8.0), torso + Vector2(58.0, -22.0), Color(0.78, 0.94, 0.88), 5.0)
+	draw_line(torso + Vector2(58.0, -22.0), torso + Vector2(72.0, -6.0), Color(0.78, 0.94, 0.88), 4.0)
+	draw_line(torso + Vector2(58.0, -22.0), torso + Vector2(74.0, -38.0), Color(0.78, 0.94, 0.88), 4.0)
+	for orbit_index in range(4 + phase):
+		var orbit = level_time * (1.4 + float(phase) * 0.15) + float(orbit_index) * TAU / float(4 + phase)
+		var orb_center = torso + Vector2(cos(orbit) * 42.0, 10.0 + sin(orbit) * 16.0)
+		draw_circle(orb_center, 5.0 + float(phase) * 0.3, Color(0.82, 1.0, 0.9, 0.78))
+		draw_circle(orb_center, 11.0, Color(0.2, 0.56, 0.46, 0.16))
+	for mist_index in range(3 + phase):
+		var drift = level_time * (16.0 + float(mist_index) * 3.0) + float(mist_index) * 0.9
+		var mist_center = torso + Vector2(-56.0 + fmod(drift * 0.6, 116.0), 18.0 + sin(drift) * 10.0)
+		draw_circle(mist_center, 16.0, Color(0.78, 0.98, 0.9, 0.08))
+		draw_circle(mist_center + Vector2(10.0, -4.0), 10.0, Color(0.62, 0.9, 0.82, 0.08))
+
+
 func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie["flash"])
 	var slow_tint = 0.55 if float(zombie["slow_timer"]) > 0.0 else 0.0
@@ -11612,6 +11716,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "pool_boss":
 		_draw_pool_boss(center + Vector2(0.0, -6.0), zombie)
+		return
+	if kind == "fog_boss":
+		_draw_fog_boss(center + Vector2(0.0, -6.0), zombie)
 		return
 	var base_speed = float(zombie.get("base_speed", Defs.ZOMBIES[kind].get("speed", 18.0)))
 	if float(zombie.get("slow_timer", 0.0)) > 0.0:
@@ -12184,6 +12291,8 @@ func _zombie_almanac_stats(kind: String) -> Array:
 			stats.append("特性：骑狼冲锋，首撞后下马")
 		"pool_boss":
 			stats.append("特性：泳池终章 Boss，持续召援并压迫水陆两线")
+		"fog_boss":
+			stats.append("特性：浓雾终章 Boss，持续召援、制造盐沼并压前场")
 		"rumia_boss":
 			stats.append("特性：右侧悬停、换行施法、不可魅惑")
 	return stats
