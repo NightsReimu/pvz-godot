@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GameScript = preload("res://scripts/game.gd")
+const Defs = preload("res://scripts/game_defs.gd")
 
 
 func _initialize() -> void:
@@ -17,6 +18,14 @@ func _run() -> void:
 	failed = not _test_jack_in_the_box_explodes_nearby_plants() or failed
 	failed = not _test_anchor_fern_roots_nearby_plants_against_push() or failed
 	failed = not _test_excavator_zombie_pushes_a_plant_chain_left() or failed
+	failed = not _test_excavator_push_updates_support_plant_motion() or failed
+	failed = not _test_kite_zombie_releases_a_conductive_kite_on_death() or failed
+	failed = not _test_hive_zombie_summons_bees_when_bloodied() or failed
+	failed = not _test_turret_zombie_launches_reinforcement_into_midfield() or failed
+	failed = not _test_programmer_zombie_stacks_global_attack_slow() or failed
+	failed = not _test_origami_blossom_hits_balloon_targets() or failed
+	failed = not _test_tesla_tulip_chains_lightning() or failed
+	failed = not _test_roof_vane_pushes_entire_row() or failed
 	failed = not _test_tornado_zombie_finishes_entry_and_slows_down() or failed
 	quit(1 if failed else 0)
 
@@ -48,6 +57,7 @@ func _make_game() -> Control:
 	game.grid = _make_grid(6, 9)
 	game.support_grid = _make_grid(6, 9)
 	game.zombies = []
+	game.projectiles = []
 	game.weeds = []
 	game.spears = []
 	game.effects = []
@@ -210,6 +220,165 @@ func _test_excavator_zombie_pushes_a_plant_chain_left() -> bool:
 	var passed = _assert_true(game.grid[row][0] != null and String(game.grid[row][0].get("kind", "")) == "peashooter", "excavator push should move the leftmost plant into column 0") \
 		and _assert_true(game.grid[row][1] != null and String(game.grid[row][1].get("kind", "")) == "wallnut", "excavator push should shift the middle plant left by one tile") \
 		and _assert_true(game.grid[row][2] != null and String(game.grid[row][2].get("kind", "")) == "sunflower", "excavator push should move the contacted plant into the previous tile")
+	_free_game(game)
+	return passed
+
+
+func _test_excavator_push_updates_support_plant_motion() -> bool:
+	var game = _make_game()
+	var row := 2
+	game.support_grid[row][3] = game._create_plant("lily_pad", row, 3)
+	var moved = game._push_plant_chain_left(row, 3)
+	var passed = _assert_true(moved, "expected support plant push setup to move the lily pad left")
+	if passed:
+		game._update_plants(0.3)
+		var support = game.support_grid[row][2]
+		var support_center = game._cell_center(row, 2) + Vector2(0.0, 16.0)
+		var motion = game._plant_draw_motion(support, support_center)
+		passed = _assert_true(float(support.get("push_timer", 0.0)) <= 0.0, "support plants should finish their push timer after plant updates") and passed
+		passed = _assert_true(absf(Vector2(motion["center"]).x - support_center.x) < 0.5, "support plants should stop rendering at the old tile after the push animation finishes") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_kite_zombie_releases_a_conductive_kite_on_death() -> bool:
+	var game = _make_game()
+	var row := 2
+	game.grid[row][1] = game._create_plant("peashooter", row, 1)
+	game._spawn_zombie_at("kite_zombie", row, game._cell_center(row, 6).x)
+	var kite = game.zombies[0]
+	kite["health"] = 0.0
+	game.zombies[0] = kite
+	game._cleanup_dead_zombies()
+	var detached_index := -1
+	for i in range(game.zombies.size()):
+		if String(game.zombies[i].get("kind", "")) == "kite_trap":
+			detached_index = i
+			break
+	var passed = _assert_true(detached_index != -1, "kite zombie should release a detached kite after it dies") \
+		and _assert_true(game.grid[row][1] != null, "kite release test should keep the attached target plant alive initially")
+	if passed:
+		var detached = game.zombies[detached_index]
+		passed = _assert_true(bool(detached.get("balloon_flying", false)), "detached kite should behave like an airborne target") and passed
+		passed = _assert_true(int(detached.get("kite_target_row", -1)) == row and int(detached.get("kite_target_col", -1)) == 1, "detached kite should bind to a plant in the left four columns") and passed
+		var plant_before = float(game.grid[row][1].get("health", 0.0))
+		game._strike_thunder_chain(detached_index, 30.0, 0.0, 0.0, 1)
+		var plant_after = float(game.grid[row][1].get("health", 0.0))
+		passed = _assert_true(plant_after < plant_before, "lightning striking the kite should conduct damage into the attached plant") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_hive_zombie_summons_bees_when_bloodied() -> bool:
+	var game = _make_game()
+	var row := 2
+	game._spawn_zombie_at("hive_zombie", row, game._cell_center(row, 6).x)
+	var hive = game.zombies[0]
+	hive["health"] = float(hive.get("max_health", 0.0)) * 0.48
+	hive["special_pause_timer"] = 0.0
+	game.zombies[0] = hive
+	game._update_zombies(0.2)
+	var bee_count := 0
+	var rows_ok := true
+	for zombie in game.zombies:
+		if String(zombie.get("kind", "")) != "bee_minion":
+			continue
+		bee_count += 1
+		if abs(int(zombie.get("row", row)) - row) > 1:
+			rows_ok = false
+	var passed = _assert_true(bee_count >= 3, "hive zombie should summon multiple bees after dropping below half health") \
+		and _assert_true(rows_ok, "summoned bees should stay within the nearby three rows")
+	_free_game(game)
+	return passed
+
+
+func _test_turret_zombie_launches_reinforcement_into_midfield() -> bool:
+	var game = _make_game()
+	var row := 2
+	game._spawn_zombie_at("turret_zombie", row, game._cell_center(row, 8).x)
+	var turret = game.zombies[0]
+	turret["special_pause_timer"] = 0.0
+	turret["launch_cooldown"] = 0.0
+	game.zombies[0] = turret
+	game._update_zombies(0.2)
+	var launched_index := -1
+	for i in range(game.zombies.size()):
+		if i == 0:
+			continue
+		if String(game.zombies[i].get("kind", "")) == "normal":
+			launched_index = i
+			break
+	var passed = _assert_true(launched_index != -1, "turret zombie should launch a reinforcement zombie when its cooldown expires")
+	if passed:
+		var launched = game.zombies[launched_index]
+		var launched_col = game._zombie_cell_col(float(launched.get("x", 0.0)))
+		passed = _assert_true(launched_col >= 4 and launched_col <= 6, "turret reinforcements should land in columns 4 through 6") and passed
+		passed = _assert_true(float(launched.get("health", 0.0)) > float(Defs.ZOMBIES["conehead"].get("health", 370.0)), "turret reinforcements should be tougher than a conehead") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_programmer_zombie_stacks_global_attack_slow() -> bool:
+	var game = _make_game()
+	var base_scale = game._plant_attack_cadence_scale(2, 3)
+	game._spawn_zombie_at("programmer_zombie", 1, game._cell_center(1, 7).x)
+	var one_scale = game._plant_attack_cadence_scale(2, 3)
+	game._spawn_zombie_at("programmer_zombie", 3, game._cell_center(3, 7).x)
+	var two_scale = game._plant_attack_cadence_scale(2, 3)
+	var passed = _assert_true(is_equal_approx(base_scale, 1.0), "plant cadence should start at the default scale in an unfrozen lane") \
+		and _assert_true(is_equal_approx(one_scale, 2.0), "one programmer zombie should halve plant attack speed globally") \
+		and _assert_true(is_equal_approx(two_scale, 4.0), "multiple programmer zombies should stack their plant attack slow")
+	_free_game(game)
+	return passed
+
+
+func _test_origami_blossom_hits_balloon_targets() -> bool:
+	var game = _make_game()
+	game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
+	var row := 2
+	var col := 2
+	game.grid[row][col] = game._create_plant("origami_blossom", row, col)
+	game.grid[row][col]["shot_cooldown"] = 0.0
+	game._spawn_zombie_at("balloon_zombie", row, game._cell_center(row, 6).x)
+	game._update_plants(0.2)
+	for _step in range(10):
+		game._update_projectiles(0.12)
+	var balloon = game.zombies[0]
+	var passed = _assert_true(float(balloon.get("health", 0.0)) < float(balloon.get("max_health", 1.0)), "origami_blossom should be able to damage airborne targets in its lane")
+	_free_game(game)
+	return passed
+
+
+func _test_tesla_tulip_chains_lightning() -> bool:
+	var game = _make_game()
+	game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
+	var row := 2
+	var col := 2
+	game.grid[row][col] = game._create_plant("tesla_tulip", row, col)
+	game.grid[row][col]["attack_timer"] = 0.0
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 5).x)
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 5).x + 54.0)
+	game._update_plants(0.2)
+	var lead = game.zombies[0]
+	var chained = game.zombies[1]
+	var passed = _assert_true(float(lead.get("health", 0.0)) < float(lead.get("max_health", 1.0)), "tesla_tulip should strike the first target in its lane") \
+		and _assert_true(float(chained.get("health", 0.0)) < float(chained.get("max_health", 1.0)), "tesla_tulip should chain lightning into a nearby second target")
+	_free_game(game)
+	return passed
+
+
+func _test_roof_vane_pushes_entire_row() -> bool:
+	var game = _make_game()
+	game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
+	var row := 2
+	var col := 2
+	game.grid[row][col] = game._create_plant("roof_vane", row, col)
+	game.grid[row][col]["gust_timer"] = 0.0
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 5).x)
+	var before_x = float(game.zombies[0].get("x", 0.0))
+	game._update_plants(0.2)
+	var after_x = float(game.zombies[0].get("x", before_x))
+	var passed = _assert_true(after_x > before_x, "roof_vane should push zombies in its lane backward along the roof")
 	_free_game(game)
 	return passed
 

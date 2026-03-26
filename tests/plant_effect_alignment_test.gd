@@ -15,6 +15,8 @@ func _run() -> void:
 	var failed := false
 	failed = not _test_vine_lasher_emits_range_effect() or failed
 	failed = not _test_prism_grass_effect_reaches_configured_range() or failed
+	failed = not _test_lane_spray_visual_geometry_stays_at_configured_extent() or failed
+	failed = not _test_circle_effect_visual_geometry_stays_at_configured_extent() or failed
 	failed = not _test_wind_orchid_effect_reaches_lane_end() or failed
 	failed = not _test_pepper_mortar_plant_food_effect_matches_damage_radius() or failed
 	failed = not _test_threepeater_projectiles_follow_three_distinct_lanes() or failed
@@ -130,6 +132,50 @@ func _test_prism_grass_effect_reaches_configured_range() -> bool:
 		return false
 	var effect = Dictionary(game.effects[game.effects.size() - 1])
 	var passed = _assert_float_gte(_effect_forward_extent(effect), center.x + range_limit - 4.0, "prism_grass effect should visually reach its configured range")
+	_free_game(game)
+	return passed
+
+
+func _test_lane_spray_visual_geometry_stays_at_configured_extent() -> bool:
+	var game = _make_game()
+	var effect := {
+		"shape": "lane_spray",
+		"position": Vector2(320.0, 240.0),
+		"length": 390.0,
+		"width": 42.0,
+		"radius": 195.0,
+		"time": 0.18,
+		"duration": 0.18,
+		"color": Color(0.68, 0.9, 1.0, 0.28),
+	}
+	if not _assert_true(game.has_method("_effect_visual_length"), "game should expose a helper for the rendered lane_spray length"):
+		_free_game(game)
+		return false
+	if not _assert_true(game.has_method("_effect_visual_width"), "game should expose a helper for the rendered lane_spray width"):
+		_free_game(game)
+		return false
+	var passed = _assert_float_eq(float(game.call("_effect_visual_length", effect, 1.0)), 390.0, "lane_spray should render at full configured length at the start of the effect") \
+		and _assert_float_eq(float(game.call("_effect_visual_length", effect, 0.35)), 390.0, "lane_spray should keep rendering at the configured length throughout the effect") \
+		and _assert_float_eq(float(game.call("_effect_visual_width", effect, 1.0)), 42.0, "lane_spray should render at its configured width at the start of the effect") \
+		and _assert_float_eq(float(game.call("_effect_visual_width", effect, 0.35)), 42.0, "lane_spray should keep rendering at the configured width throughout the effect")
+	_free_game(game)
+	return passed
+
+
+func _test_circle_effect_visual_geometry_stays_at_configured_extent() -> bool:
+	var game = _make_game()
+	var effect := {
+		"position": Vector2(320.0, 240.0),
+		"radius": 210.0,
+		"time": 0.34,
+		"duration": 0.34,
+		"color": Color(1.0, 0.42, 0.12, 0.56),
+	}
+	if not _assert_true(game.has_method("_effect_visual_radius"), "game should expose a helper for the rendered circle effect radius"):
+		_free_game(game)
+		return false
+	var passed = _assert_float_eq(float(game.call("_effect_visual_radius", effect, 1.0)), 210.0, "circle effects should render at full configured radius at the start of the effect") \
+		and _assert_float_eq(float(game.call("_effect_visual_radius", effect, 0.35)), 210.0, "circle effects should keep rendering at the configured radius throughout the effect")
 	_free_game(game)
 	return passed
 

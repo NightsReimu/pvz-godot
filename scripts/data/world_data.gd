@@ -47,6 +47,17 @@ const WORLDS := [
 		"panel_dark": Color(0.26, 0.42, 0.46),
 		"plants": ["sea_shroom", "plantern", "mist_orchid", "storm_reed", "moonforge"],
 	},
+	{
+		"key": "roof",
+		"title": "屋顶时代",
+		"subtitle": "Adventure 5-1 ~ 5-17",
+		"description": "白天战场被斜坡屋顶取代，花盆、投掷植物和伞叶体系接管节奏；后半段继续延展出纸鸢、电塔、风向与天窗炮台体系，最终会在 5-17 迎来屋顶终章 Boss 的空袭与工程封锁。",
+		"accent": Color(0.9, 0.52, 0.22),
+		"accent_dark": Color(0.5, 0.22, 0.08),
+		"panel": Color(0.98, 0.9, 0.8),
+		"panel_dark": Color(0.72, 0.48, 0.28),
+		"plants": ["cabbage_pult", "flower_pot", "kernel_pult", "tesla_tulip", "skylight_melon"],
+	},
 ]
 
 

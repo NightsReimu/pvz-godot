@@ -494,10 +494,15 @@ func _test_1_18_prewarms_boss_assets_before_spawn() -> bool:
 	if not _assert_true(level_index != -1, "expected 1-18 to exist before checking boss prewarm"):
 		_free_game(game)
 		return false
-	var passed = _assert_true(bool(game.cirno_frames_loaded), "1-18 should preload Cirno sprite frames before the boss appears") \
-		and _assert_true(bool(game.daiyousei_frames_loaded), "1-18 should preload Daiyousei sprite frames before the midboss appears") \
-		and _assert_true(game.audio_stream_cache.has("res://audio/cirno_intro.mp3"), "1-18 should preload the intro BGM to avoid a boss-entry hitch") \
-		and _assert_true(game.audio_stream_cache.has("res://audio/cirno_boss.mp3"), "1-18 should preload the boss BGM to avoid a boss-entry hitch")
+	var passed = _assert_true(int(game.asset_prewarm_queue.size()) > 0, "1-18 should queue boss art and BGM warmup before the boss appears") \
+		and _assert_true(not bool(game.cirno_frames_loaded), "1-18 boss warmup should be asynchronous until the queue is serviced") \
+		and _assert_true(not bool(game.daiyousei_frames_loaded), "1-18 midboss warmup should be asynchronous until the queue is serviced")
+	if passed:
+		game.call("_drain_asset_prewarm_queue")
+		passed = _assert_true(bool(game.cirno_frames_loaded), "1-18 should warm Cirno sprite frames once the prewarm queue is drained") and passed
+		passed = _assert_true(bool(game.daiyousei_frames_loaded), "1-18 should warm Daiyousei sprite frames once the prewarm queue is drained") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/cirno_intro.mp3"), "1-18 should preload the intro BGM to avoid a boss-entry hitch") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/cirno_boss.mp3"), "1-18 should preload the boss BGM to avoid a boss-entry hitch") and passed
 	_free_game(game)
 	return passed
 
