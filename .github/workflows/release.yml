@@ -166,7 +166,13 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path build/releases/windows/* -DestinationPath "dist/${{ matrix.asset_name }}" -Force
+          $artifactPath = Join-Path $env:GITHUB_WORKSPACE "dist/${{ matrix.asset_name }}"
+          $payload = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'build/releases/windows') | Select-Object -ExpandProperty FullName
+          if (-not $payload) {
+            throw "No Windows release payload found"
+          }
+          Compress-Archive -LiteralPath $payload -DestinationPath $artifactPath -Force
+          Get-Item $artifactPath | Format-List FullName, Length
 
       - name: Package artifact
         if: runner.os == 'macOS'
@@ -189,7 +195,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: dist/${{ matrix.asset_name }}
+          path: ${{ github.workspace }}/dist/${{ matrix.asset_name }}
           if-no-files-found: error
 
   publish:
