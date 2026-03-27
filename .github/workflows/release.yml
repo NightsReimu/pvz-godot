@@ -47,10 +47,85 @@ jobs:
             asset_name: pvz-godot-web.zip
             editor_archive: Godot_v4.6-stable_linux.x86_64.zip
             export_path: build/releases/web/index.html
+          - target: android
+            os: ubuntu-latest
+            preset: Android
+            asset_name: pvz-godot-android.apk
+            editor_archive: Godot_v4.6-stable_linux.x86_64.zip
+            export_path: build/releases/android/pvz-godot.apk
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        if: matrix.target == 'android'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        if: matrix.target == 'android'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        if: matrix.target == 'android'
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Generate Godot Android editor settings
+        if: matrix.target == 'android'
+        shell: bash
+        run: |
+          set -euo pipefail
+          settings_dir="$HOME/.config/godot"
+          sdk_path="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+
+          if [ -z "$sdk_path" ]; then
+            echo "Android SDK path was not configured"
+            exit 1
+          fi
+
+          mkdir -p "$settings_dir"
+          cat > "$settings_dir/editor_settings-4.6.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$sdk_path"
+          EOF
+
+      - name: Prepare Android signing
+        if: matrix.target == 'android'
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_RELEASE_BASE64: ${{ secrets.ANDROID_KEYSTORE_RELEASE_BASE64 }}
+          ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEYSTORE_RELEASE_USER }}
+          ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_RELEASE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${ANDROID_KEYSTORE_RELEASE_BASE64}" ] || [ -z "${ANDROID_KEYSTORE_RELEASE_USER}" ] || [ -z "${ANDROID_KEYSTORE_RELEASE_PASSWORD}" ]; then
+            echo "Android release signing secrets are missing"
+            exit 1
+          fi
+
+          keystore_path="$RUNNER_TEMP/android-release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_RELEASE_BASE64" | base64 --decode > "$keystore_path"
+          chmod 600 "$keystore_path"
+
+          {
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$keystore_path"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$ANDROID_KEYSTORE_RELEASE_USER"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$ANDROID_KEYSTORE_RELEASE_PASSWORD"
+          } >> "$GITHUB_ENV"
 
       - name: Clean release directories
         if: runner.os != 'Windows'
@@ -163,7 +238,7 @@ jobs:
             "${{ matrix.export_path }}"
 
       - name: Package artifact
-        if: runner.os == 'Windows'
+        if: matrix.target == 'windows'
         shell: pwsh
         run: |
           $artifactPath = Join-Path $env:GITHUB_WORKSPACE "dist/${{ matrix.asset_name }}"
@@ -175,7 +250,7 @@ jobs:
           Get-Item $artifactPath | Format-List FullName, Length
 
       - name: Package artifact
-        if: runner.os == 'macOS'
+        if: matrix.target == 'macos'
         shell: bash
         run: |
           set -euo pipefail
@@ -184,12 +259,19 @@ jobs:
             "dist/${{ matrix.asset_name }}"
 
       - name: Package artifact
-        if: runner.os == 'Linux'
+        if: matrix.target == 'web'
         shell: bash
         run: |
           set -euo pipefail
           cd build/releases/web
           zip -r "../../../dist/${{ matrix.asset_name }}" .
+
+      - name: Package artifact
+        if: matrix.target == 'android'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "build/releases/android/pvz-godot.apk" "dist/${{ matrix.asset_name }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -208,7 +290,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: pvz-godot-*.zip
+          pattern: pvz-godot-*
           merge-multiple: true
 
       - name: Create or update release
@@ -228,4 +310,4 @@ jobs:
             gh release create "$tag" --title "$tag" --generate-notes
           fi
 
-          gh release upload "$tag" dist/*.zip --clobber
+          gh release upload "$tag" dist/* --clobber
