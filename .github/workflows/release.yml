@@ -1,0 +1,224 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref_name || github.sha }}
+  cancel-in-progress: true
+
+env:
+  GODOT_RELEASE_TAG: 4.6-stable
+  GODOT_TEMPLATE_DIR: 4.6.stable
+  GODOT_BASE_URL: https://github.com/godotengine/godot-builds/releases/download/4.6-stable
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows
+            os: windows-latest
+            preset: Windows Desktop
+            asset_name: pvz-godot-windows.zip
+            editor_archive: Godot_v4.6-stable_win64.exe.zip
+            export_path: build/releases/windows/pvz-godot.exe
+          - target: macos
+            os: macos-latest
+            preset: macOS
+            asset_name: pvz-godot-macos.zip
+            editor_archive: Godot_v4.6-stable_macos.universal.zip
+            export_path: build/releases/macos/pvz-godot.app
+          - target: web
+            os: ubuntu-latest
+            preset: Web
+            asset_name: pvz-godot-web.zip
+            editor_archive: Godot_v4.6-stable_linux.x86_64.zip
+            export_path: build/releases/web/index.html
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clean release directories
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          rm -rf build/releases dist
+          mkdir -p build/godot build/releases dist
+
+      - name: Clean release directories
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Remove-Item build/releases, dist -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path build/godot, build/releases, dist -Force | Out-Null
+
+      - name: Install Godot and export templates
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $editorDir = Join-Path $env:RUNNER_TEMP 'godot/editor'
+          $templatesDir = Join-Path $env:APPDATA 'Godot/export_templates/4.6.stable'
+          New-Item -ItemType Directory -Path $editorDir, $templatesDir -Force | Out-Null
+
+          $editorZip = Join-Path $env:RUNNER_TEMP 'godot/editor.zip'
+          $templatesTpz = Join-Path $env:RUNNER_TEMP 'godot/templates.tpz'
+          Invoke-WebRequest -Uri "${env:GODOT_BASE_URL}/${{ matrix.editor_archive }}" -OutFile $editorZip
+          Invoke-WebRequest -Uri "${env:GODOT_BASE_URL}/Godot_v4.6-stable_export_templates.tpz" -OutFile $templatesTpz
+
+          Expand-Archive -LiteralPath $editorZip -DestinationPath $editorDir -Force
+          Expand-Archive -LiteralPath $templatesTpz -DestinationPath (Join-Path $env:RUNNER_TEMP 'godot/templates-unpacked') -Force
+          Copy-Item (Join-Path $env:RUNNER_TEMP 'godot/templates-unpacked/templates/*') $templatesDir -Recurse -Force
+
+      - name: Install Godot and export templates
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          editor_zip="$RUNNER_TEMP/godot/editor.zip"
+          templates_tpz="$RUNNER_TEMP/godot/templates.tpz"
+          editor_dir="$RUNNER_TEMP/godot/editor"
+          template_dir="$HOME/Library/Application Support/Godot/export_templates/$GODOT_TEMPLATE_DIR"
+
+          mkdir -p "$editor_dir" "$template_dir"
+          curl -L --fail "$GODOT_BASE_URL/${{ matrix.editor_archive }}" -o "$editor_zip"
+          curl -L --fail "$GODOT_BASE_URL/Godot_v4.6-stable_export_templates.tpz" -o "$templates_tpz"
+
+          unzip -q "$editor_zip" -d "$editor_dir"
+          unzip -q "$templates_tpz" -d "$RUNNER_TEMP/godot/templates-unpacked"
+          cp -R "$RUNNER_TEMP/godot/templates-unpacked/templates/." "$template_dir/"
+
+      - name: Install Godot and export templates
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          editor_zip="$RUNNER_TEMP/godot/editor.zip"
+          templates_tpz="$RUNNER_TEMP/godot/templates.tpz"
+          editor_dir="$RUNNER_TEMP/godot/editor"
+          template_dir="$HOME/.local/share/godot/export_templates/$GODOT_TEMPLATE_DIR"
+
+          mkdir -p "$editor_dir" "$template_dir"
+          curl -L --fail "$GODOT_BASE_URL/${{ matrix.editor_archive }}" -o "$editor_zip"
+          curl -L --fail "$GODOT_BASE_URL/Godot_v4.6-stable_export_templates.tpz" -o "$templates_tpz"
+
+          unzip -q "$editor_zip" -d "$editor_dir"
+          unzip -q "$templates_tpz" -d "$RUNNER_TEMP/godot/templates-unpacked"
+          cp -R "$RUNNER_TEMP/godot/templates-unpacked/templates/." "$template_dir/"
+
+      - name: Prepare export target directory
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path (Split-Path "${{ matrix.export_path }}") -Force | Out-Null
+
+      - name: Prepare export target directory
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "${{ matrix.export_path }}")"
+
+      - name: Export project
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $godotExe = Join-Path $env:RUNNER_TEMP 'godot/editor/Godot_v4.6-stable_win64.exe'
+          & $godotExe --headless --path $env:GITHUB_WORKSPACE --export-release "${{ matrix.preset }}" "${{ matrix.export_path }}"
+
+      - name: Export project
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot/editor/Godot.app/Contents/MacOS/Godot" \
+            --headless \
+            --path "$GITHUB_WORKSPACE" \
+            --export-release "${{ matrix.preset }}" \
+            "${{ matrix.export_path }}"
+
+      - name: Export project
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x "$RUNNER_TEMP/godot/editor/Godot_v4.6-stable_linux.x86_64"
+          "$RUNNER_TEMP/godot/editor/Godot_v4.6-stable_linux.x86_64" \
+            --headless \
+            --path "$GITHUB_WORKSPACE" \
+            --export-release "${{ matrix.preset }}" \
+            "${{ matrix.export_path }}"
+
+      - name: Package artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/releases/windows/* -DestinationPath "dist/${{ matrix.asset_name }}" -Force
+
+      - name: Package artifact
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ditto -c -k --keepParent \
+            "build/releases/macos/pvz-godot.app" \
+            "dist/${{ matrix.asset_name }}"
+
+      - name: Package artifact
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build/releases/web
+          zip -r "../../../dist/${{ matrix.asset_name }}" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: pvz-godot-*.zip
+          merge-multiple: true
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag="${{ github.event.release.tag_name }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --title "$tag" --generate-notes
+          fi
+
+          gh release upload "$tag" dist/*.zip --clobber
