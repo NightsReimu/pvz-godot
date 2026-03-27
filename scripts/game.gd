@@ -1328,37 +1328,128 @@ func _handle_gacha_click(mouse_pos: Vector2) -> void:
 		return
 
 
-func _handle_enhance_click(mouse_pos: Vector2) -> void:
-	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
-	if back_rect.has_point(mouse_pos):
-		_enter_world_select_mode()
-		return
-	# Check plant grid clicks
+func _enhance_panel_rect() -> Rect2:
+	return Rect2(size.x - 380.0, 130.0, 340.0, 520.0)
+
+
+func _enhance_owned_plants() -> Array:
+	var owned_plants: Array = []
+	for pk in Defs.PLANTS.keys():
+		if plant_stars.has(pk) or not bool(Defs.PLANTS[pk].get("gacha_only", false)):
+			owned_plants.append(pk)
+	return owned_plants
+
+
+func _enhance_grid_layout() -> Dictionary:
 	var col_x = 40.0
 	var col_y = 130.0
 	var col_w = 86.0
 	var col_h = 110.0
 	var col_gap = 8.0
-	var cols_per_row = int((size.x - 80.0) / (col_w + col_gap))
-	var owned_plants: Array = []
-	for pk in Defs.PLANTS.keys():
-		if plant_stars.has(pk) or not bool(Defs.PLANTS[pk].get("gacha_only", false)):
-			owned_plants.append(pk)
-	for i in range(owned_plants.size()):
-		var cx = col_x + float(i % cols_per_row) * (col_w + col_gap)
-		var cy = col_y + floor(float(i) / float(cols_per_row)) * (col_h + col_gap)
-		if Rect2(cx, cy, col_w, col_h).has_point(mouse_pos):
-			enhance_selected_plant = String(owned_plants[i])
-			queue_redraw()
-			return
-	# Enhance button
+	var panel_rect = _enhance_panel_rect()
+	var usable_width = maxf(col_w, panel_rect.position.x - col_x - 24.0)
+	var cols_per_row = maxi(1, int(floor((usable_width + col_gap) / (col_w + col_gap))))
+	return {
+		"col_x": col_x,
+		"col_y": col_y,
+		"col_w": col_w,
+		"col_h": col_h,
+		"col_gap": col_gap,
+		"cols_per_row": cols_per_row,
+	}
+
+
+func _enhance_cell_rect(index: int) -> Rect2:
+	var layout = _enhance_grid_layout()
+	var col_x = float(layout["col_x"])
+	var col_y = float(layout["col_y"])
+	var col_w = float(layout["col_w"])
+	var col_h = float(layout["col_h"])
+	var col_gap = float(layout["col_gap"])
+	var cols_per_row = int(layout["cols_per_row"])
+	var cx = col_x + float(index % cols_per_row) * (col_w + col_gap)
+	var cy = col_y + floor(float(index) / float(cols_per_row)) * (col_h + col_gap)
+	return Rect2(cx, cy, col_w, col_h)
+
+
+func _enhance_button_rect() -> Rect2:
+	var panel_rect = _enhance_panel_rect()
+	return Rect2(panel_rect.position.x + 60.0, panel_rect.position.y + 360.0, 220.0, 56.0)
+
+
+func _enhance_stone_button_rect() -> Rect2:
+	var panel_rect = _enhance_panel_rect()
+	return Rect2(panel_rect.position.x + 60.0, panel_rect.position.y + 430.0, 220.0, 48.0)
+
+
+func _custom_level_template(world_key: String) -> Dictionary:
+	var template_index = _world_start_index(world_key)
+	if template_index >= 0 and template_index < Defs.LEVELS.size():
+		return Dictionary(Defs.LEVELS[template_index]).duplicate(true)
+	if not Defs.LEVELS.is_empty():
+		return Dictionary(Defs.LEVELS[0]).duplicate(true)
+	return {
+		"id": "",
+		"title": "",
+		"description": "",
+		"terrain": world_key,
+		"world": world_key,
+		"mode": "",
+		"start_sun": 150,
+		"sky_sun_range": Vector2(6.0, 11.0),
+		"events": [],
+		"available_plants": [],
+		"row_count": 5,
+		"water_rows": [],
+	}
+
+
+func _build_custom_level(world_key: String, level_id: String, title: String, description: String, extra: Dictionary = {}) -> Dictionary:
+	var level = _custom_level_template(world_key)
+	level["id"] = level_id
+	level["title"] = title
+	level["description"] = description
+	level["world"] = world_key
+	level["terrain"] = String(level.get("terrain", world_key))
+	level["events"] = []
+	level["available_plants"] = _player_plant_collection()
+	level["custom_level"] = true
+	level["unlock_plant"] = ""
+	for key in extra.keys():
+		level[key] = extra[key]
+	if not level.has("start_sun"):
+		level["start_sun"] = 150
+	if not level.has("sky_sun_range"):
+		level["sky_sun_range"] = Vector2(6.0, 11.0)
+	if not level.has("row_count"):
+		level["row_count"] = 5
+	if not level.has("water_rows"):
+		level["water_rows"] = []
+	return level
+
+
+func _handle_enhance_click(mouse_pos: Vector2) -> void:
+	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
+	if back_rect.has_point(mouse_pos):
+		_enter_world_select_mode()
+		return
+
 	if enhance_selected_plant != "":
 		var elevel = int(plant_enhance_levels.get(enhance_selected_plant, 0))
 		if elevel < 15:
-			var btn_rect = Rect2(size.x - 380.0 + 60.0, 130.0 + 360.0, 220.0, 56.0)
-			if btn_rect.has_point(mouse_pos):
+			if _enhance_button_rect().has_point(mouse_pos) or _enhance_stone_button_rect().has_point(mouse_pos):
 				_try_enhance_plant(enhance_selected_plant)
 				return
+
+	var owned_plants = _enhance_owned_plants()
+	for i in range(owned_plants.size()):
+		var cell_rect = _enhance_cell_rect(i)
+		if cell_rect.position.y > size.y - 80.0:
+			continue
+		if cell_rect.has_point(mouse_pos):
+			enhance_selected_plant = String(owned_plants[i])
+			queue_redraw()
+			return
 
 
 func _enter_enhance_mode() -> void:
@@ -1392,6 +1483,10 @@ func _today_string() -> String:
 	return "%04d-%02d-%02d" % [dt["year"], dt["month"], dt["day"]]
 
 
+func _is_endless_level() -> bool:
+	return String(current_level.get("id", "")) == "无尽"
+
+
 func _enter_endless_mode() -> void:
 	endless_wave = 0
 	endless_difficulty_mult = 1.0
@@ -1399,20 +1494,24 @@ func _enter_endless_mode() -> void:
 	endless_wave_active = false
 	endless_zombies_remaining = 0
 	current_world_key = "day"
-	# Build an endless level definition
-	current_level = {
-		"id": "无尽",
-		"world": "day",
+	selected_level_index = -1
+	current_level = _build_custom_level("day", "无尽", "无尽模式", "白天草坪的尸潮不会停止，每一波都会更强。", {
 		"events": [],
-		"plants": [],
-		"rows": [0, 1, 2, 3, 4],
-	}
+		"available_plants": _player_plant_collection(),
+		"start_sun": 250,
+		"sky_sun_range": Vector2(5.0, 10.0),
+		"row_count": 5,
+	})
 	mode = MODE_SELECTION
 	battle_state = BATTLE_PLAYING
 	panel_action = ""
 	message_panel.visible = false
 	selected_tool = ""
+	active_rows = _build_active_rows(int(current_level.get("row_count", ROWS)))
 	active_cards = []
+	selection_pool_cards = _available_seed_cards_for_level(current_level)
+	selection_cards = []
+	selection_pool_scroll = 0.0
 	queue_redraw()
 
 
@@ -1477,11 +1576,8 @@ func _update_endless(delta: float) -> void:
 				sun_points += 150
 				_show_toast("第 %d 波! 奖励 150 阳光!" % endless_wave)
 	else:
-		# Check if wave is cleared
-		var alive = 0
-		for z in zombies:
-			alive += 1
-		if alive == 0 and endless_zombies_remaining <= 0:
+		var alive = _enemy_zombie_count()
+		if alive == 0:
 			endless_wave_active = false
 			endless_wave_timer = 0.0
 			if endless_wave > endless_best_wave:
@@ -1658,23 +1754,32 @@ func _enter_daily_challenge() -> void:
 		var row = rng.randi_range(0, rows.size() - 1)
 		events.append({"type": "zombie", "kind": kind, "row": rows[row], "time": 8.0 + float(i) * 3.2 + rng.randf_range(0.0, 2.0)})
 	events.sort_custom(func(a, b): return float(a["time"]) < float(b["time"]))
-	current_level = {
-		"id": "每日",
-		"world": world_key,
-		"events": events,
-		"plants": [],
-		"rows": rows,
-	}
-	# Apply rich_start modifier
+	var start_sun = 150
 	for mod in daily_modifiers:
 		if String(mod["id"]) == "rich_start":
-			current_level["starting_sun"] = 500
+			start_sun = 500
+	var modifier_desc = ""
+	for mod in daily_modifiers:
+		if modifier_desc != "":
+			modifier_desc += " / "
+		modifier_desc += String(mod["name"])
+	selected_level_index = -1
+	current_level = _build_custom_level(world_key, "每日", "每日挑战", "世界: %s  修饰: %s" % [_map_mode_title_for_world(world_key), modifier_desc], {
+		"events": events,
+		"available_plants": _player_plant_collection(),
+		"start_sun": start_sun,
+		"row_count": rows.size(),
+	})
 	mode = MODE_SELECTION
 	battle_state = BATTLE_PLAYING
 	panel_action = ""
 	message_panel.visible = false
 	selected_tool = ""
 	active_cards = []
+	active_rows = _build_active_rows(int(current_level.get("row_count", ROWS)))
+	selection_pool_cards = _available_seed_cards_for_level(current_level)
+	selection_cards = []
+	selection_pool_scroll = 0.0
 	daily_completed_today = false
 	queue_redraw()
 
@@ -1820,37 +1925,27 @@ func _draw_enhance_scene() -> void:
 	_draw_text("金币: %d" % coins_total, Vector2(size.x - 256.0, 72.0), 20, Color(0.33, 0.21, 0.04))
 	_draw_text("强化石: %d" % enhance_stones, Vector2(size.x - 256.0, 92.0), 16, Color(0.33, 0.21, 0.04))
 	# Plant grid
-	var col_x = 40.0
-	var col_y = 130.0
-	var col_w = 86.0
-	var col_h = 110.0
-	var col_gap = 8.0
-	var cols_per_row = int((size.x - 80.0) / (col_w + col_gap))
-	var owned_plants: Array = []
-	for pk in Defs.PLANTS.keys():
-		if plant_stars.has(pk) or not bool(Defs.PLANTS[pk].get("gacha_only", false)):
-			owned_plants.append(pk)
+	var layout = _enhance_grid_layout()
+	var owned_plants = _enhance_owned_plants()
 	for i in range(owned_plants.size()):
 		var pk = String(owned_plants[i])
-		var cx = col_x + float(i % cols_per_row) * (col_w + col_gap)
-		var cy = col_y + floor(float(i) / float(cols_per_row)) * (col_h + col_gap)
-		if cy > size.y - 80.0:
+		var cell_rect = _enhance_cell_rect(i)
+		if cell_rect.position.y > size.y - 80.0:
 			continue
-		var cell_rect = Rect2(cx, cy, col_w, col_h)
 		var is_selected = pk == enhance_selected_plant
 		var border_color = Color(0.82, 0.62, 0.18) if is_selected else Color(0.38, 0.32, 0.48)
 		_draw_panel_shell(cell_rect, Color(0.16, 0.12, 0.24, 0.92), border_color, 0.1, 0.06)
 		_draw_card_icon(pk, cell_rect.position + Vector2(cell_rect.size.x * 0.5, 48.0))
 		var elevel = int(plant_enhance_levels.get(pk, 0))
 		if elevel > 0:
-			_draw_text("+%d" % elevel, cell_rect.position + Vector2(4.0, col_h - 4.0), 14, Color(0.82, 0.72, 0.18))
+			_draw_text("+%d" % elevel, cell_rect.position + Vector2(4.0, float(layout["col_h"]) - 4.0), 14, Color(0.82, 0.72, 0.18))
 		# Rarity indicator
 		var rarity = String(Defs.PLANTS[pk].get("rarity", "green"))
 		var rarity_color = _gacha_rarity_color(rarity) if rarity != "green" else Color(0.52, 0.72, 0.42)
 		draw_rect(Rect2(cell_rect.position + Vector2(0.0, 0.0), Vector2(cell_rect.size.x, 3.0)), rarity_color, true)
 	# Enhancement panel (right side)
 	if enhance_selected_plant != "":
-		var panel_rect = Rect2(size.x - 380.0, 130.0, 340.0, 520.0)
+		var panel_rect = _enhance_panel_rect()
 		_draw_panel_shell(panel_rect, Color(0.14, 0.1, 0.22, 0.96), Color(0.42, 0.32, 0.56), 0.16, 0.08)
 		var pk = enhance_selected_plant
 		var data = Defs.PLANTS[pk]
@@ -1869,11 +1964,11 @@ func _draw_enhance_scene() -> void:
 			if int(table["penalty"]) > 0:
 				_draw_text("失败降级: -%d" % int(table["penalty"]), panel_rect.position + Vector2(20.0, 308.0), 16, Color(0.92, 0.42, 0.36))
 			# Enhance button
-			var btn_rect = Rect2(panel_rect.position.x + 60.0, panel_rect.position.y + 360.0, 220.0, 56.0)
+			var btn_rect = _enhance_button_rect()
 			_draw_panel_shell(btn_rect, Color(0.72, 0.36, 0.92), Color(0.48, 0.22, 0.62), 0.18, 0.1)
 			_draw_text("强化!", btn_rect.position + Vector2(80.0, 36.0), 24, Color(1.0, 0.96, 1.0))
 			if enhance_stones > 0:
-				var stone_btn = Rect2(panel_rect.position.x + 60.0, panel_rect.position.y + 430.0, 220.0, 48.0)
+				var stone_btn = _enhance_stone_button_rect()
 				_draw_panel_shell(stone_btn, Color(0.82, 0.62, 0.18), Color(0.52, 0.36, 0.08), 0.14, 0.08)
 				_draw_text("使用强化石", stone_btn.position + Vector2(52.0, 32.0), 20, Color(1.0, 0.96, 0.86))
 		else:
@@ -1884,9 +1979,14 @@ func _draw_enhance_scene() -> void:
 	_draw_text("返回", back_rect.position + Vector2(36.0, 34.0), 22, Color(0.96, 0.94, 0.98))
 
 
-func _begin_level(level_index: int, chosen_cards: Array) -> void:
+func _begin_level(level_index: int, chosen_cards: Array, level_override: Dictionary = {}) -> void:
 	selected_level_index = level_index
-	current_level = Defs.LEVELS[level_index]
+	if not level_override.is_empty():
+		current_level = level_override.duplicate(true)
+	elif level_index >= 0 and level_index < Defs.LEVELS.size():
+		current_level = Defs.LEVELS[level_index]
+	else:
+		current_level = current_level.duplicate(true)
 	conveyor_source_cards = []
 	frozen_branch_post_freeze_cards = []
 	selection_cards = []
@@ -2019,7 +2119,10 @@ func _prewarm_level_boss_assets() -> void:
 
 func _handle_selection_click(mouse_pos: Vector2) -> void:
 	if PREP_BACK_RECT.has_point(mouse_pos):
-		_enter_map_mode()
+		if bool(current_level.get("custom_level", false)):
+			_enter_world_select_mode()
+		else:
+			_enter_map_mode()
 		return
 
 	if PREP_START_RECT.has_point(mouse_pos):
@@ -2027,7 +2130,10 @@ func _handle_selection_click(mouse_pos: Vector2) -> void:
 		if selection_cards.size() < required_count:
 			_show_toast("必须选满 %d 张植物" % required_count)
 			return
-		_begin_level(selected_level_index, selection_cards)
+		if bool(current_level.get("custom_level", false)):
+			_begin_level(-1, selection_cards, current_level)
+		else:
+			_begin_level(selected_level_index, selection_cards)
 		return
 
 	var selected_index = _selection_slot_at(mouse_pos)
@@ -4807,12 +4913,14 @@ func _win_level() -> void:
 		return
 
 	battle_state = BATTLE_WON
-	completed_levels[selected_level_index] = true
+	var custom_level = bool(current_level.get("custom_level", false)) or selected_level_index < 0
+	if not custom_level and selected_level_index >= 0 and selected_level_index < completed_levels.size():
+		completed_levels[selected_level_index] = true
 	if not current_level.is_empty():
 		current_world_key = _world_key_for_level(current_level)
 
 	var unlocked_new = false
-	if selected_level_index + 1 >= unlocked_levels and selected_level_index < Defs.LEVELS.size() - 1:
+	if not custom_level and selected_level_index + 1 >= unlocked_levels and selected_level_index < Defs.LEVELS.size() - 1:
 		unlocked_levels = selected_level_index + 2
 		unlocked_new = true
 
@@ -4832,9 +4940,15 @@ func _win_level() -> void:
 		_show_message("每日挑战完成!\n修饰: %s\n已消灭 %d 只僵尸\n奖励金币 +200" % [mod_names, total_kills], "world_select", "返回")
 		return
 
+	if _is_endless_level():
+		coins_total += max(0, endless_wave * 10)
+		_mark_save_dirty(true)
+		_show_message("无尽模式结束\n坚持波数: %d\n奖励金币 +%d" % [endless_wave, 50 + max(0, endless_wave * 10)], "world_select", "返回")
+		return
+
 	_mark_save_dirty(true)
 	var message = "%s 通关\n已消灭 %d 只僵尸\n奖励金币 +50" % [current_level["title"], total_kills]
-	if unlocked_new and String(current_level["unlock_plant"]) != "":
+	if unlocked_new and String(current_level.get("unlock_plant", "")) != "":
 		message += "\n解锁植物：%s" % Defs.PLANTS[String(current_level["unlock_plant"])]["name"]
 
 	_show_message(message, "map", "返回地图")
@@ -4845,6 +4959,15 @@ func _lose_level() -> void:
 	if battle_state != BATTLE_PLAYING:
 		return
 	battle_state = BATTLE_LOST
+	if _is_endless_level():
+		if endless_wave > endless_best_wave:
+			endless_best_wave = endless_wave
+		_mark_save_dirty(true)
+		_show_message("%s 失败\n坚持到第 %d 波" % [current_level["title"], max(endless_wave, 1)], "retry_endless", "再次挑战")
+		return
+	if String(current_level.get("id", "")) == "每日":
+		_show_message("%s 失败\n今日挑战尚未完成" % current_level["title"], "retry_daily", "重试挑战")
+		return
 	_show_message("%s 失败\n僵尸闯进了房子" % current_level["title"], "retry", "重试本关")
 
 
@@ -4859,6 +4982,12 @@ func _on_message_button_pressed() -> void:
 	match panel_action:
 		"retry":
 			_start_level(selected_level_index)
+		"retry_endless":
+			_enter_endless_mode()
+		"retry_daily":
+			_enter_daily_challenge()
+		"world_select":
+			_enter_world_select_mode()
 		_:
 			_enter_map_mode()
 
@@ -6939,6 +7068,8 @@ func _damage_obstacles_in_radius(row: int, center_x: float, radius: float, damag
 
 
 func _can_finish_level_ignoring_obstacles() -> bool:
+	if _is_endless_level():
+		return false
 	if _is_vasebreaker_level() and not vases.is_empty():
 		return false
 	return next_event_index >= current_level["events"].size() and _enemy_zombie_count() <= 0 and batch_spawn_queue.is_empty() and batch_spawn_remaining <= 0
