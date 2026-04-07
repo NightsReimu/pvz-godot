@@ -18,7 +18,6 @@ const SUPPORTED_KINDS = [
 	"pulse_bulb",
 	"sun_bean",
 	"wind_orchid",
-	"wallnut_bowling",
 	"puff_shroom",
 	"sun_shroom",
 	"fume_shroom",
@@ -42,6 +41,7 @@ const SUPPORTED_KINDS = [
 	"spikeweed",
 	"torchwood",
 	"tallnut",
+	"wallnut_bowling",
 	"sea_shroom",
 	"plantern",
 	"cactus",
@@ -76,6 +76,46 @@ const SUPPORTED_KINDS = [
 	"signal_ivy",
 	"roof_vane",
 	"skylight_melon",
+	"heather_shooter",
+	"leyline",
+	"holo_nut",
+	"healing_gourd",
+	"mango_bowling",
+	"snow_bloom",
+	"cluster_boomerang",
+	"glitch_walnut",
+	"nether_shroom",
+	"seraph_flower",
+	"magma_stream",
+	"orange_bloom",
+	"hive_flower",
+	"mamba_tree",
+	"chambord_sniper",
+	"dream_disc",
+	"prism_pea",
+	"magnet_daisy",
+	"thorn_cactus",
+	"bubble_lotus",
+	"spiral_bamboo",
+	"honey_blossom",
+	"echo_fern",
+	"glow_ivy",
+	"laser_lily",
+	"rock_armor_fruit",
+	"aurora_orchid",
+	"blast_pomegranate",
+	"frost_cypress",
+	"mirror_shroom",
+	"chain_lotus",
+	"plasma_shroom",
+	"meteor_flower",
+	"destiny_tree",
+	"abyss_tentacle",
+	"solar_emperor",
+	"shadow_assassin",
+	"core_blossom",
+	"holy_lotus",
+	"chaos_shroom",
 	"shadow_pea",
 	"ice_queen",
 	"vine_emperor",
@@ -451,6 +491,117 @@ func activate(row: int, col: int) -> bool:
 			plant["plant_food_timer"] = 1.8
 			plant["plant_food_interval"] = 0.01
 			plant["shot_cooldown"] = 0.0
+		"heather_shooter":
+			if String(plant["plant_food_mode"]) == "heather_bloom" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "heather_bloom"
+			plant["plant_food_timer"] = 2.0
+			plant["plant_food_interval"] = 0.01
+			plant["shot_cooldown"] = 0.0
+		"leyline":
+			if String(plant["plant_food_mode"]) == "leyline_quake" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "leyline_quake"
+			plant["plant_food_timer"] = 0.8
+			plant["plant_food_interval"] = 0.0
+			plant["attack_timer"] = 0.0
+		"holo_nut":
+			plant["health"] = float(plant["max_health"])
+			plant["armor_health"] = 7200.0
+			plant["max_armor_health"] = 7200.0
+			plant["plant_food_mode"] = "fortify"
+			plant["plant_food_timer"] = 9999.0
+		"healing_gourd":
+			if String(plant["plant_food_mode"]) == "gourd_burst" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "gourd_burst"
+			plant["plant_food_timer"] = 0.8
+			plant["plant_food_interval"] = 0.0
+			plant["support_timer"] = 0.0
+		"mango_bowling":
+			if String(plant["plant_food_mode"]) == "mango_rush" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "mango_rush"
+			plant["plant_food_timer"] = 1.5
+			plant["plant_food_interval"] = 0.0
+			plant["attack_timer"] = 0.0
+		"snow_bloom":
+			plant["plant_food_mode"] = "whiteout"
+			plant["plant_food_timer"] = 0.45
+			for snow_row in range(max(0, row - 1), min(game.ROWS, row + 2)):
+				for snow_col in range(max(0, col - 1), min(game.COLS, col + 2)):
+					if not game._is_row_active(snow_row):
+						continue
+					game._create_snowfield_tile(snow_row, snow_col, float(Defs.PLANTS["snow_bloom"].get("snow_duration", 10.0)) + 4.0)
+			game._damage_zombies_in_circle(center, game.CELL_SIZE.x * 1.8, 90.0)
+			for zombie_index in game._find_closest_zombies_in_radius(center, game.CELL_SIZE.x * 1.8, 8):
+				var frost_zombie = game.zombies[zombie_index]
+				frost_zombie["slow_timer"] = maxf(float(frost_zombie.get("slow_timer", 0.0)), float(Defs.PLANTS["snow_bloom"].get("freeze_duration", 2.5)) + 4.0)
+				frost_zombie["special_pause_timer"] = maxf(float(frost_zombie.get("special_pause_timer", 0.0)), 0.28)
+				game.zombies[zombie_index] = frost_zombie
+		"cluster_boomerang":
+			if String(plant["plant_food_mode"]) == "cluster_field" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "cluster_field"
+			plant["plant_food_timer"] = 2.6
+			plant["plant_food_interval"] = 0.0
+			plant["shot_cooldown"] = 0.0
+		"glitch_walnut":
+			plant["plant_food_mode"] = "glitch_burst"
+			plant["plant_food_timer"] = 0.35
+			plant["support_timer"] = 0.0
+		"nether_shroom":
+			if String(plant["plant_food_mode"]) == "nether_rites" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "nether_rites"
+			plant["plant_food_timer"] = 2.4
+			plant["plant_food_interval"] = 0.0
+			plant["support_timer"] = 0.0
+		"seraph_flower":
+			if String(plant["plant_food_mode"]) == "seraph_choir" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "seraph_choir"
+			plant["plant_food_timer"] = 2.2
+			plant["plant_food_interval"] = 0.0
+			plant["shot_cooldown"] = 0.0
+		"magma_stream":
+			plant["plant_food_mode"] = "magma_surge"
+			plant["plant_food_timer"] = 0.45
+			plant["burst_done"] = false
+		"orange_bloom":
+			if String(plant["plant_food_mode"]) == "orange_tide" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "orange_tide"
+			plant["plant_food_timer"] = 1.8
+			plant["plant_food_interval"] = 0.0
+			plant["attack_timer"] = 0.0
+		"hive_flower":
+			if String(plant["plant_food_mode"]) == "queen_swarm" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "queen_swarm"
+			plant["plant_food_timer"] = 1.8
+			plant["plant_food_interval"] = 0.0
+			plant["attack_timer"] = 0.0
+		"mamba_tree":
+			if String(plant["plant_food_mode"]) == "mamba_grove" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "mamba_grove"
+			plant["plant_food_timer"] = 1.6
+			plant["plant_food_interval"] = 0.0
+			plant["support_timer"] = 0.0
+		"chambord_sniper":
+			if String(plant["plant_food_mode"]) == "sniper_focus" and float(plant["plant_food_timer"]) > 0.0:
+				return false
+			plant["plant_food_mode"] = "sniper_focus"
+			plant["plant_food_timer"] = 1.6
+			plant["plant_food_interval"] = 0.0
+			plant["attack_timer"] = 0.0
+		"dream_disc":
+			plant["plant_food_mode"] = "dream_wave"
+			plant["plant_food_timer"] = 0.5
+			plant["plant_food_interval"] = 0.0
+			plant["dream_triggered"] = false
+			plant["support_timer"] = 0.0
 		"vine_lasher":
 			plant["plant_food_mode"] = "lash_frenzy"
 			plant["plant_food_timer"] = 0.6
@@ -986,6 +1137,223 @@ func activate(row: int, col: int) -> bool:
 				"duration": 0.3,
 				"color": Color(1.0, 0.96, 0.48, 0.3),
 			})
+		# ==================== NEW PURPLE PLANT FOOD ====================
+		"prism_pea":
+			plant["plant_food_mode"] = "pea_storm"
+			plant["plant_food_timer"] = 2.0
+			plant["plant_food_interval"] = 0.12
+			plant["prism_storm"] = true
+		"magnet_daisy":
+			var d = Defs.PLANTS["magnet_daisy"]
+			for i in range(game.zombies.size()):
+				var zombie = game.zombies[i]
+				if not game._is_enemy_zombie(zombie):
+					continue
+				zombie["x"] += (center.x - float(zombie["x"])) * 0.45
+				zombie = game._apply_zombie_slow(zombie, 0.5, 4.0)
+				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer",0.0)), 3.0)
+				game.zombies[i] = zombie
+			game.effects.append({"position": center, "radius": 300.0, "time": 0.4, "duration": 0.4, "color": Color(0.54, 0.82, 1.0, 0.32)})
+		"thorn_cactus":
+			plant["health"] = float(plant["max_health"])
+			plant["armor_health"] = 3000.0
+			plant["max_armor_health"] = 3000.0
+			game._damage_zombies_in_circle(center, 200.0, 180.0)
+			game.effects.append({"position": center, "radius": 200.0, "time": 0.3, "duration": 0.3, "color": Color(0.52, 0.86, 0.32, 0.3)})
+		"bubble_lotus":
+			for r in range(game.ROWS):
+				for c in range(game.COLS):
+					var p = game._top_plant_at(r, c)
+					if p != null:
+						p["armor_health"] = maxf(float(p.get("armor_health",0.0)), 800.0)
+						p["max_armor_health"] = maxf(float(p.get("max_armor_health",0.0)), 800.0)
+						game.grid[r][c] = p
+			game.effects.append({"position": center, "radius": 400.0, "time": 0.36, "duration": 0.36, "color": Color(0.52, 0.9, 1.0, 0.24)})
+		"spiral_bamboo":
+			plant["plant_food_mode"] = "pea_storm"
+			plant["plant_food_timer"] = 2.2
+			plant["plant_food_interval"] = 0.15
+			plant["spiral_storm"] = true
+		"honey_blossom":
+			for i in range(4):
+				var angle = TAU * float(i) / 4.0
+				game._spawn_sun(center + Vector2(cos(angle), sin(angle)) * 30.0, center.y - 24.0, "plant_food", 50)
+			for r in range(game.active_rows.size()):
+				var lane = int(game.active_rows[r])
+				for i2 in range(game.zombies.size()):
+					var zombie = game.zombies[i2]
+					if not game._is_enemy_zombie(zombie) or int(zombie["row"]) != lane:
+						continue
+					game.zombies[i2] = game._apply_zombie_slow(zombie, 0.5, 8.0)
+			game.effects.append({"position": center, "radius": 280.0, "time": 0.34, "duration": 0.34, "color": Color(1.0, 0.84, 0.22, 0.3)})
+		"echo_fern":
+			for _pulse in range(5):
+				for zombie_index in game._find_closest_zombies_in_radius(center, 180.0, 8):
+					var zombie = game.zombies[zombie_index]
+					zombie = game._apply_zombie_damage(zombie, float(Defs.PLANTS["echo_fern"]["damage"]) * 1.3, 0.1, 0.0)
+					zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer",0.0)), 0.4)
+					game.zombies[zombie_index] = zombie
+			game.effects.append({"position": center, "radius": 180.0, "time": 0.4, "duration": 0.4, "color": Color(0.52, 1.0, 0.78, 0.3)})
+		"glow_ivy":
+			for lane in game.active_rows:
+				game._damage_zombies_in_row_segment(int(lane), game.BOARD_ORIGIN.x, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, 30.0, 0.0)
+				for i in range(game.zombies.size()):
+					if int(game.zombies[i].get("row",-1)) == int(lane):
+						game.zombies[i]["revealed_timer"] = maxf(float(game.zombies[i].get("revealed_timer",0.0)), 6.0)
+			game.effects.append({"position": center, "radius": game.board_size.x, "time": 0.34, "duration": 0.34, "color": Color(0.72, 1.0, 0.56, 0.22)})
+		# ==================== NEW ORANGE PLANT FOOD ====================
+		"laser_lily":
+			for lane in game.active_rows:
+				var lane_center = Vector2(center.x, game._row_center_y(int(lane)))
+				game._damage_zombies_in_row_segment(int(lane), center.x + 8.0, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, 200.0, 0.0)
+				game.effects.append({"shape": "lane_spray", "position": lane_center + Vector2(14.0, -6.0), "length": game.board_size.x, "width": 38.0, "radius": game.board_size.x * 0.5, "time": 0.8, "duration": 0.8, "color": Color(1.0, 0.22, 0.34, 0.32)})
+		"rock_armor_fruit":
+			plant["health"] = float(plant["max_health"])
+			plant["armor_health"] = float(Defs.PLANTS["rock_armor_fruit"]["layer_hp"]) * float(Defs.PLANTS["rock_armor_fruit"]["armor_layers"])
+			plant["max_armor_health"] = plant["armor_health"]
+			plant["armor_layer"] = 3
+			game._damage_zombies_in_circle(center, 200.0, float(Defs.PLANTS["rock_armor_fruit"]["shockwave_damage"]) * 2.0)
+			game.effects.append({"position": center, "radius": 200.0, "time": 0.34, "duration": 0.34, "color": Color(0.82, 0.64, 0.38, 0.36)})
+		"aurora_orchid":
+			for r in range(game.ROWS):
+				for c in range(game.COLS):
+					var p = game._top_plant_at(r, c)
+					if p != null:
+						p["aurora_buff_timer"] = 8.0
+						p["aurora_buff_ratio"] = 0.5
+						p["health"] = minf(float(p["health"]) + 300.0, float(p.get("max_health",120.0)))
+						game.grid[r][c] = p
+			game.effects.append({"position": center, "radius": 400.0, "time": 0.4, "duration": 0.4, "color": Color(0.56, 0.9, 1.0, 0.28)})
+		"blast_pomegranate":
+			for _volley in range(3):
+				var t_i = game._find_frontmost_zombie(row)
+				if t_i >= 0:
+					var tz = game.zombies[t_i]
+					var impact = Vector2(float(tz["x"]), game._row_center_y(int(tz["row"])) - 8.0)
+					game._damage_zombies_in_circle(impact, 90.0, 80.0)
+					for i in range(8):
+						var angle = TAU * float(i) / 8.0
+						var spread = impact + Vector2(cos(angle), sin(angle)) * (50.0 + randf() * 30.0)
+						game._damage_zombies_in_circle(spread, 50.0, 50.0)
+						game.effects.append({"position": spread, "radius": 50.0, "time": 0.18, "duration": 0.18, "color": Color(1.0, 0.36, 0.22, 0.28)})
+		"frost_cypress":
+			for i in range(game.zombies.size()):
+				var zombie = game.zombies[i]
+				if not game._is_enemy_zombie(zombie):
+					continue
+				zombie["frozen_timer"] = maxf(float(zombie.get("frozen_timer",0.0)), 3.0)
+				game.zombies[i] = zombie
+			game.effects.append({"position": center, "radius": game.board_size.x, "time": 0.4, "duration": 0.4, "color": Color(0.72, 0.96, 1.0, 0.32)})
+		"mirror_shroom":
+			for r in range(game.ROWS):
+				for c in range(game.COLS):
+					var p = game._top_plant_at(r, c)
+					if p == null or String(p.get("kind","")) == "mirror_shroom":
+						continue
+					var pd = Defs.PLANTS.get(String(p["kind"]), {})
+					var pdmg = float(pd.get("damage", float(pd.get("zone_damage", 0.0))))
+					if pdmg > 0.0:
+						game._damage_zombies_in_row_segment(r, game._cell_center(r,c).x, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, pdmg * float(Defs.PLANTS["mirror_shroom"]["clone_damage_ratio"]) * 1.5, 0.0)
+			game.effects.append({"position": center, "radius": 350.0, "time": 0.36, "duration": 0.36, "color": Color(0.88, 0.88, 1.0, 0.28)})
+		"chain_lotus":
+			for _hit in range(3):
+				for i in range(game.zombies.size()):
+					var zombie = game.zombies[i]
+					if not game._is_enemy_zombie(zombie):
+						continue
+					game.zombies[i] = game._apply_zombie_damage(zombie, float(Defs.PLANTS["chain_lotus"]["damage"]), 0.12, 0.0)
+			game.effects.append({"position": center, "radius": 280.0, "time": 0.34, "duration": 0.34, "color": Color(0.36, 0.88, 0.72, 0.3)})
+		"plasma_shroom":
+			for i in range(5):
+				var angle = TAU * float(i) / 5.0
+				var spread = center + Vector2(cos(angle), sin(angle)) * 100.0
+				game.effects.append({"shape": "plasma_zone", "position": spread, "radius": 140.0, "time": 8.0, "duration": 8.0, "color": Color(0.36, 0.72, 1.0, 0.2), "dps": float(Defs.PLANTS["plasma_shroom"]["zone_damage"]) * 1.5})
+			game.effects.append({"position": center, "radius": 260.0, "time": 0.32, "duration": 0.32, "color": Color(0.36, 0.72, 1.0, 0.3)})
+		# ==================== NEW GOLD PLANT FOOD ====================
+		"meteor_flower":
+			for i in range(6):
+				var angle = TAU * float(i) / 6.0
+				var t_row = clampi(row + (randi() % 3) - 1, 0, game.ROWS - 1)
+				game._spawn_projectile(t_row, center + Vector2(cos(angle) * 16.0, sin(angle) * 16.0), Color(1.0, 0.48, 0.18), 100.0, 0.0, 520.0, 10.0)
+			game.effects.append({"position": center, "radius": 160.0, "time": 0.34, "duration": 0.34, "color": Color(1.0, 0.56, 0.22, 0.3)})
+		"destiny_tree":
+			for r in range(game.ROWS):
+				for c in range(game.COLS):
+					var p = game._top_plant_at(r, c)
+					if p != null:
+						p["health"] = float(p.get("max_health", 120.0))
+						p["destiny_dmg_timer"] = 12.0
+						p["destiny_speed_timer"] = 12.0
+						p["destiny_dmg_ratio"] = 0.5
+						game.grid[r][c] = p
+			game.effects.append({"position": center, "radius": 400.0, "time": 0.44, "duration": 0.44, "color": Color(1.0, 0.9, 0.46, 0.28)})
+		"abyss_tentacle":
+			for zombie_index in game._find_closest_zombies_in_radius(center, 300.0, 3):
+				var zombie = game.zombies[zombie_index]
+				zombie = game._apply_zombie_damage(zombie, 200.0, 0.22, 0.0)
+				zombie["rooted_timer"] = maxf(float(zombie.get("rooted_timer",0.0)), 4.0)
+				game.zombies[zombie_index] = zombie
+			game.effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.28, 0.08, 0.44, 0.38)})
+		"solar_emperor":
+			for i in range(6):
+				var angle = TAU * float(i) / 6.0
+				game._spawn_sun(center + Vector2(cos(angle), sin(angle)) * 32.0, center.y - 26.0, "plant_food", 150)
+			for lane in game.active_rows:
+				game._damage_zombies_in_row_segment(int(lane), center.x + 10.0, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, 150.0, 0.0)
+			game.effects.append({"position": center, "radius": 250.0, "time": 0.38, "duration": 0.38, "color": Color(1.0, 0.9, 0.36, 0.3)})
+		"shadow_assassin":
+			for _strike in range(3):
+				var best_i := -1
+				var best_hp := -1.0
+				for i in range(game.zombies.size()):
+					var zombie = game.zombies[i]
+					if not game._is_enemy_zombie(zombie) and float(zombie["health"]) > best_hp:
+						best_hp = float(zombie["health"])
+						best_i = i
+				if best_i >= 0:
+					game.zombies[best_i] = game._apply_zombie_damage(game.zombies[best_i], 200.0, 0.2, 0.0)
+					game.effects.append({"position": Vector2(float(game.zombies[best_i]["x"]), game._row_center_y(int(game.zombies[best_i]["row"]))), "radius": 50.0, "time": 0.18, "duration": 0.18, "color": Color(0.22, 0.08, 0.36, 0.44)})
+		"core_blossom":
+			game._damage_zombies_in_circle(center, float(Defs.PLANTS["core_blossom"]["radius"]) * 1.25, 600.0)
+			game._damage_obstacles_in_circle(center, float(Defs.PLANTS["core_blossom"]["radius"]) * 1.25, 600.0)
+			game.effects.append({"position": center, "radius": float(Defs.PLANTS["core_blossom"]["radius"]) * 1.25, "time": 0.44, "duration": 0.44, "color": Color(1.0, 0.48, 0.16, 0.44)})
+			plant["core_state"] = "recharging"
+			plant["charge_timer"] = 3.0
+		"holy_lotus":
+			for r in range(game.ROWS):
+				for c in range(game.COLS):
+					var p = game._top_plant_at(r, c)
+					if p != null:
+						p["health"] = float(p.get("max_health", 120.0))
+						p["holy_invincible_timer"] = 3.0
+						game.grid[r][c] = p
+			game._damage_zombies_in_circle(center, game.board_size.x, 300.0)
+			game.effects.append({"position": center, "radius": 400.0, "time": 0.44, "duration": 0.44, "color": Color(1.0, 0.98, 0.78, 0.3)})
+		"chaos_shroom":
+			for _i in range(3):
+				var rng = RandomNumberGenerator.new()
+				rng.randomize()
+				var et = rng.randi() % 5
+				match et:
+					0: game._damage_zombies_in_circle(center, 250.0, 150.0)
+					1:
+						for _s in range(2):
+							game._spawn_sun(center + Vector2(randf_range(-30.0,30.0), -20.0), center.y - 30.0, "plant_food", 100)
+					2:
+						for zi in game._find_closest_zombies_in_radius(center, 220.0, 5):
+							game.zombies[zi]["frozen_timer"] = maxf(float(game.zombies[zi].get("frozen_timer",0.0)), 3.0)
+					3:
+						for r in range(game.ROWS):
+							for c2 in range(game.COLS):
+								var p = game._top_plant_at(r, c2)
+								if p != null:
+									p["health"] = minf(float(p["health"]) + 200.0, float(p.get("max_health",120.0)))
+									game.grid[r][c2] = p
+					4:
+						for _sp in range(10):
+							var sp_row = clampi(row + (rng.randi() % 3) - 1, 0, game.ROWS - 1)
+							game._spawn_projectile(sp_row, center + Vector2(randf_range(-10.0,10.0), -8.0), Color(0.7, 0.3, 0.9), 60.0, 0.0, 460.0, 7.0)
+			game.effects.append({"position": center, "radius": 300.0, "time": 0.44, "duration": 0.44, "color": Color(0.8, 0.4, 1.0, 0.3)})
 		_:
 			return false
 

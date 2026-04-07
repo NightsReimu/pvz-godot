@@ -14,8 +14,10 @@ func _run() -> void:
 	failed = not _test_plant_food_runtime_covers_every_plant_kind() or failed
 	failed = not _test_plant_update_runtime_exists_and_exposes_core_entrypoints() or failed
 	failed = not _test_projectile_runtime_exists_and_exposes_core_entrypoints() or failed
+	failed = not _test_every_defined_plant_supports_click_ultimate() or failed
 	failed = not _test_every_defined_plant_can_trigger_plant_food_in_a_valid_scenario() or failed
 	failed = not _test_bowling_plant_food_click_path_allows_empty_lane_activation() or failed
+	failed = not _test_legacy_plants_can_charge_and_activate_click_ultimates() or failed
 	quit(1 if failed else 0)
 
 
@@ -200,4 +202,52 @@ func _test_bowling_plant_food_click_path_allows_empty_lane_activation() -> bool:
 		passed = _assert_true(bool(game.rollers[0].get("empowered", false)), "bowling lane click activation should spawn an empowered roller") and passed
 		passed = _assert_true(float(game.rollers[0].get("damage", 0.0)) > float(GameDefs.PLANTS["wallnut_bowling"]["damage"]), "bowling lane click activation should use the empowered damage profile") and passed
 	_free_game(game)
+	return passed
+
+
+func _test_every_defined_plant_supports_click_ultimate() -> bool:
+	var game = _make_game()
+	var passed = _assert_true(game.has_method("_plant_supports_click_ultimate"), "game should expose a click-ultimate capability helper")
+	if not passed:
+		_free_game(game)
+		return false
+	for kind in _plant_food_expected_kinds():
+		passed = _assert_true(bool(game.call("_plant_supports_click_ultimate", kind)), "%s should expose a click ultimate profile" % kind) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_legacy_plants_can_charge_and_activate_click_ultimates() -> bool:
+	var passed := true
+	var scenarios = [
+		{"kind": "peashooter", "terrain": "day", "row": 2, "col": 2, "support": "", "expect_projectiles": true},
+		{"kind": "sunflower", "terrain": "day", "row": 2, "col": 2, "support": "", "expect_suns": true},
+		{"kind": "lily_pad", "terrain": "pool", "row": 2, "col": 2, "support": "support_only", "expect_effects": true},
+	]
+	for scenario_variant in scenarios:
+		var scenario = Dictionary(scenario_variant)
+		var game = _make_game()
+		var row = int(scenario["row"])
+		var col = int(scenario["col"])
+		if String(scenario["terrain"]) == "pool":
+			game.current_level["terrain"] = "pool"
+			game.water_rows = [row]
+		if String(scenario.get("support", "")) == "support_only":
+			game.support_grid[row][col] = game._create_plant(String(scenario["kind"]), row, col)
+		else:
+			game.grid[row][col] = game._create_plant(String(scenario["kind"]), row, col)
+			if bool(scenario.get("expect_projectiles", false)):
+				game._spawn_zombie_at("normal", row, game._cell_center(row, col).x + 92.0)
+		game.call("_update_ultimate_charges", 999.0)
+		var targetable = game._targetable_plant_at(row, col)
+		passed = _assert_true(targetable != null and float(targetable.get("ultimate_charge", 0.0)) >= 1.0, "%s should accumulate click-ultimate charge even without explicit plant defs fields" % String(scenario["kind"])) and passed
+		var activated = bool(game.call("_try_activate_ultimate", row, col))
+		passed = _assert_true(activated, "%s should activate its click ultimate when fully charged" % String(scenario["kind"])) and passed
+		if bool(scenario.get("expect_projectiles", false)):
+			passed = _assert_true(game.projectiles.size() > 0 or game.effects.size() > 0, "%s click ultimate should create an offensive effect" % String(scenario["kind"])) and passed
+		if bool(scenario.get("expect_suns", false)):
+			passed = _assert_true(game.suns.size() > 0, "%s click ultimate should create sun pickups" % String(scenario["kind"])) and passed
+		if bool(scenario.get("expect_effects", false)):
+			passed = _assert_true(game.effects.size() > 0, "%s click ultimate should create a visible support effect" % String(scenario["kind"])) and passed
+		_free_game(game)
 	return passed

@@ -183,6 +183,8 @@ func _test_roof_level_data_matches_original_unlock_rhythm() -> bool:
 	var level_5_17 = Defs.LEVELS[_find_level_index("5-17")]
 	passed = _assert_true(String(level_5_17.get("mode", "")) == "conveyor", "5-17 should be the roof boss conveyor stage") and passed
 	passed = _assert_true(bool(level_5_17.get("boss_level", false)), "5-17 should be marked as the roof-world boss stage") and passed
+	passed = _assert_true(not level_5_17.get("available_plants", []).has("coffee_bean"), "5-17 should not offer coffee_bean in the boss conveyor pool") and passed
+	passed = _assert_true(not level_5_17.get("conveyor_plants", []).has("coffee_bean"), "5-17 conveyor drops should not contain coffee_bean") and passed
 	return passed
 
 

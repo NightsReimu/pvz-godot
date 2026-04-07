@@ -2,12 +2,12 @@ extends RefCounted
 class_name WorldData
 
 
-const WORLDS := [
+const WORLDS: Array = [
 	{
 		"key": "day",
 		"title": "白天庭院",
-		"subtitle": "Adventure 1-1 ~ 1-18",
-		"description": "从单行开局到保龄球、传送带与白天 Boss，最右侧还藏着血月支线 1-17 与寒湖支线 1-18。",
+		"subtitle": "Adventure 1-1 ~ 1-22",
+		"description": "从单行开局到保龄球、传送带与白天 Boss，最右侧还藏着露米娅的血月支线 1-17、琪露诺的寒湖支线 1-18、美铃守门的 1-19、帕秋莉坐镇的 1-20 血色图书馆、咲夜压轴的 1-21 红魔馆时钟厅终幕，以及最终由蕾米莉亚坐镇的 1-22 猩红长夜决战。",
 		"accent": Color(0.95, 0.76, 0.22),
 		"accent_dark": Color(0.64, 0.42, 0.08),
 		"panel": Color(0.98, 0.93, 0.78),
@@ -57,6 +57,17 @@ const WORLDS := [
 		"panel": Color(0.98, 0.9, 0.8),
 		"panel_dark": Color(0.72, 0.48, 0.28),
 		"plants": ["cabbage_pult", "flower_pot", "kernel_pult", "tesla_tulip", "skylight_melon"],
+	},
+	{
+		"key": "city",
+		"title": "城市世界",
+		"subtitle": "Adventure 6-1 ~ 6-18",
+		"description": "霓虹街区、广场砖面、地铁轨道与下水道井盖共同组成新的战场。后半段还会被暴风雪席卷，寒潮会覆盖整片城市战场，并把冥界蘑菇、炽天使花、岩浆陷阱、橙汁弹幕、蜂群、煤炭诅咒和高压狙击一起推上前线。",
+		"accent": Color(0.4, 0.76, 0.92),
+		"accent_dark": Color(0.08, 0.18, 0.32),
+		"panel": Color(0.86, 0.94, 0.98),
+		"panel_dark": Color(0.34, 0.46, 0.58),
+		"plants": ["heather_shooter", "leyline", "holo_nut", "healing_gourd", "mango_bowling"],
 	},
 ]
 

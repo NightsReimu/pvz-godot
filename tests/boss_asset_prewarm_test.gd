@@ -59,6 +59,21 @@ func _snapshot_shared_state() -> Dictionary:
 		"daiyousei_frames": GameScript.shared_daiyousei_frames.duplicate(),
 		"daiyousei_loaded": GameScript.shared_daiyousei_frames_loaded,
 		"daiyousei_face_left": GameScript.shared_daiyousei_frames_face_left,
+		"meiling_frames": GameScript.shared_meiling_frames.duplicate(),
+		"meiling_loaded": GameScript.shared_meiling_frames_loaded,
+		"meiling_face_left": GameScript.shared_meiling_frames_face_left,
+		"koakuma_frames": GameScript.shared_koakuma_frames.duplicate(),
+		"koakuma_loaded": GameScript.shared_koakuma_frames_loaded,
+		"koakuma_face_left": GameScript.shared_koakuma_frames_face_left,
+		"patchouli_frames": GameScript.shared_patchouli_frames.duplicate(),
+		"patchouli_loaded": GameScript.shared_patchouli_frames_loaded,
+		"patchouli_face_left": GameScript.shared_patchouli_frames_face_left,
+		"sakuya_frames": GameScript.shared_sakuya_frames.duplicate(),
+		"sakuya_loaded": GameScript.shared_sakuya_frames_loaded,
+		"sakuya_face_left": GameScript.shared_sakuya_frames_face_left,
+		"remilia_frames": GameScript.shared_remilia_frames.duplicate(),
+		"remilia_loaded": GameScript.shared_remilia_frames_loaded,
+		"remilia_face_left": GameScript.shared_remilia_frames_face_left,
 	}
 
 
@@ -73,6 +88,21 @@ func _restore_shared_state(snapshot: Dictionary) -> void:
 	GameScript.shared_daiyousei_frames = Array(snapshot["daiyousei_frames"]).duplicate()
 	GameScript.shared_daiyousei_frames_loaded = bool(snapshot["daiyousei_loaded"])
 	GameScript.shared_daiyousei_frames_face_left = snapshot["daiyousei_face_left"]
+	GameScript.shared_meiling_frames = Array(snapshot["meiling_frames"]).duplicate()
+	GameScript.shared_meiling_frames_loaded = bool(snapshot["meiling_loaded"])
+	GameScript.shared_meiling_frames_face_left = snapshot["meiling_face_left"]
+	GameScript.shared_koakuma_frames = Array(snapshot["koakuma_frames"]).duplicate()
+	GameScript.shared_koakuma_frames_loaded = bool(snapshot["koakuma_loaded"])
+	GameScript.shared_koakuma_frames_face_left = snapshot["koakuma_face_left"]
+	GameScript.shared_patchouli_frames = Array(snapshot["patchouli_frames"]).duplicate()
+	GameScript.shared_patchouli_frames_loaded = bool(snapshot["patchouli_loaded"])
+	GameScript.shared_patchouli_frames_face_left = snapshot["patchouli_face_left"]
+	GameScript.shared_sakuya_frames = Array(snapshot["sakuya_frames"]).duplicate()
+	GameScript.shared_sakuya_frames_loaded = bool(snapshot["sakuya_loaded"])
+	GameScript.shared_sakuya_frames_face_left = snapshot["sakuya_face_left"]
+	GameScript.shared_remilia_frames = Array(snapshot["remilia_frames"]).duplicate()
+	GameScript.shared_remilia_frames_loaded = bool(snapshot["remilia_loaded"])
+	GameScript.shared_remilia_frames_face_left = snapshot["remilia_face_left"]
 
 
 func _reset_boss_caches() -> void:
@@ -86,6 +116,21 @@ func _reset_boss_caches() -> void:
 	GameScript.shared_daiyousei_frames = []
 	GameScript.shared_daiyousei_frames_loaded = false
 	GameScript.shared_daiyousei_frames_face_left = null
+	GameScript.shared_meiling_frames = []
+	GameScript.shared_meiling_frames_loaded = false
+	GameScript.shared_meiling_frames_face_left = null
+	GameScript.shared_koakuma_frames = []
+	GameScript.shared_koakuma_frames_loaded = false
+	GameScript.shared_koakuma_frames_face_left = null
+	GameScript.shared_patchouli_frames = []
+	GameScript.shared_patchouli_frames_loaded = false
+	GameScript.shared_patchouli_frames_face_left = null
+	GameScript.shared_sakuya_frames = []
+	GameScript.shared_sakuya_frames_loaded = false
+	GameScript.shared_sakuya_frames_face_left = null
+	GameScript.shared_remilia_frames = []
+	GameScript.shared_remilia_frames_loaded = false
+	GameScript.shared_remilia_frames_face_left = null
 
 
 func _test_try_get_boss_frame_texture_queues_without_sync_loading() -> bool:
@@ -120,6 +165,9 @@ func _test_entering_zombie_almanac_queues_boss_assets() -> bool:
 		passed = _assert_true(bool(GameScript.shared_rumia_frames_loaded), "zombie almanac prewarm should populate Rumia art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_daiyousei_frames_loaded), "zombie almanac prewarm should populate Daiyousei art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_cirno_frames_loaded), "zombie almanac prewarm should populate Cirno art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_meiling_frames_loaded), "zombie almanac prewarm should populate Meiling art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_sakuya_frames_loaded), "zombie almanac prewarm should populate Sakuya art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_remilia_frames_loaded), "zombie almanac prewarm should populate Remilia art into the shared cache") and passed
 	_free_game(game)
 	_restore_shared_state(snapshot)
 	return passed
@@ -139,6 +187,9 @@ func _test_switching_to_zombie_almanac_queues_boss_assets() -> bool:
 		passed = _assert_true(bool(GameScript.shared_rumia_frames_loaded), "switching to the zombie almanac should warm Rumia art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_daiyousei_frames_loaded), "switching to the zombie almanac should warm Daiyousei art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_cirno_frames_loaded), "switching to the zombie almanac should warm Cirno art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_meiling_frames_loaded), "switching to the zombie almanac should warm Meiling art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_sakuya_frames_loaded), "switching to the zombie almanac should warm Sakuya art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_remilia_frames_loaded), "switching to the zombie almanac should warm Remilia art into the shared cache") and passed
 	_free_game(game)
 	_restore_shared_state(snapshot)
 	return passed
@@ -158,9 +209,22 @@ func _test_entering_day_map_queues_special_boss_assets() -> bool:
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/rumia_boss.mp3"), "day map prewarm should decode the Rumia boss BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/cirno_intro.mp3"), "day map prewarm should decode the Cirno intro BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/cirno_boss.mp3"), "day map prewarm should decode the Cirno boss BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/th06_06.mp3"), "day map prewarm should decode the Meiling intro BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/th06_07.mp3"), "day map prewarm should decode the Meiling boss BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/patchouli_intro.mp3"), "day map prewarm should decode the Patchouli intro BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/patchouli_boss.mp3"), "day map prewarm should decode the Patchouli boss BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/sakuya_intro.mp3"), "day map prewarm should decode the Sakuya intro BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/sakuya_boss.mp3"), "day map prewarm should decode the Sakuya boss BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/remilia_intro.mp3"), "day map prewarm should decode the Remilia intro BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/remilia_boss.mp3"), "day map prewarm should decode the Remilia boss BGM ahead of the click path") and passed
 		passed = _assert_true(bool(GameScript.shared_rumia_frames_loaded), "day map prewarm should populate Rumia art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_daiyousei_frames_loaded), "day map prewarm should populate Daiyousei art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_cirno_frames_loaded), "day map prewarm should populate Cirno art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_meiling_frames_loaded), "day map prewarm should populate Meiling art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_koakuma_frames_loaded), "day map prewarm should populate Koakuma art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_patchouli_frames_loaded), "day map prewarm should populate Patchouli art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_sakuya_frames_loaded), "day map prewarm should populate Sakuya art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_remilia_frames_loaded), "day map prewarm should populate Remilia art into the shared cache") and passed
 	_free_game(game)
 	_restore_shared_state(snapshot)
 	return passed

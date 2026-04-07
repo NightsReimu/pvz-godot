@@ -11,13 +11,14 @@ func _init(game_owner: Control) -> void:
 
 
 func spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color, damage: float, slow_duration: float, speed: float = 460.0, radius: float = 8.0) -> void:
+	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position))
 	game.projectiles.append({
 		"kind": "pea",
 		"row": row,
 		"position": spawn_position,
 		"speed": speed,
 		"velocity_y": 0.0,
-		"damage": damage,
+		"damage": damage * damage_mult,
 		"slow_duration": slow_duration,
 		"color": projectile_color,
 		"radius": radius,
@@ -25,6 +26,7 @@ func spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color
 		"fire": false,
 		"free_aim": false,
 		"anti_air": false,
+		"source_enhance_mult": damage_mult,
 	})
 
 
@@ -126,7 +128,8 @@ func update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictio
 			if zombie_index != -1:
 				var zombie = game.zombies[zombie_index]
 				if game._is_enemy_zombie(zombie):
-					zombie = game._apply_zombie_damage(zombie, float(projectile["damage"]), 0.12)
+					var return_damage = float(projectile.get("return_damage", projectile["damage"]))
+					zombie = game._apply_zombie_damage(zombie, return_damage, 0.12)
 					game.zombies[zombie_index] = zombie
 			return_hits.append(uid)
 		projectile["return_hits"] = return_hits
@@ -203,6 +206,24 @@ func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: V
 				"duration": 0.2,
 				"color": Color(0.92, 0.9, 0.42, 0.24) if projectile_kind != "cabbage" else Color(0.56, 0.9, 0.34, 0.24),
 			})
+		"meteor_flower":
+			var meteor_radius = float(projectile.get("splash_radius", 80.0))
+			var burn_damage = float(projectile.get("burn_damage", 0.0))
+			var burn_duration = float(projectile.get("burn_duration", 0.0))
+			game._damage_zombies_in_circle(impact_position, meteor_radius, damage)
+			game._damage_obstacles_in_circle(impact_position, meteor_radius * 0.92, damage)
+			for zombie_index in game._find_closest_zombies_in_radius(impact_position, meteor_radius, 8):
+				var zombie = game.zombies[zombie_index]
+				zombie["corrode_timer"] = maxf(float(zombie.get("corrode_timer", 0.0)), burn_duration)
+				zombie["corrode_dps"] = maxf(float(zombie.get("corrode_dps", 0.0)), burn_damage)
+				game.zombies[zombie_index] = zombie
+			game.effects.append({
+				"position": impact_position,
+				"radius": meteor_radius,
+				"time": 0.28,
+				"duration": 0.28,
+				"color": Color(1.0, 0.56, 0.22, 0.3),
+			})
 
 
 func update_projectiles(delta: float) -> void:
@@ -233,6 +254,26 @@ func update_projectiles(delta: float) -> void:
 			projectile_pos.x += float(projectile["speed"]) * delta
 			projectile_pos.y += float(projectile.get("velocity_y", 0.0)) * delta
 			projectile["position"] = projectile_pos
+		if projectile_kind == "prism_pea" and not bool(projectile.get("split_done", false)) and projectile_pos.x >= float(projectile.get("split_at_x", projectile_pos.x + 1.0)):
+			var fragment_count = max(1, int(projectile.get("split_count", 3)))
+			for fragment_index in range(fragment_count):
+				var spread = 0.0 if fragment_count <= 1 else lerpf(-1.0, 1.0, float(fragment_index) / float(fragment_count - 1))
+				game.projectiles.append({
+					"kind": "prism_fragment",
+					"row": int(projectile["row"]),
+					"position": projectile_pos + Vector2(8.0, spread * 8.0),
+					"speed": 360.0,
+					"velocity_y": spread * 210.0,
+					"damage": float(projectile.get("fragment_damage", projectile.get("damage", 0.0) * 0.8)),
+					"slow_duration": 0.0,
+					"color": Color(0.72, 0.96, 1.0),
+					"radius": maxf(5.0, float(projectile.get("radius", 7.0)) - 1.0),
+					"reflected": false,
+					"fire": false,
+					"free_aim": absf(spread) > 0.01,
+				})
+			game.projectiles.remove_at(i)
+			continue
 		projectile = apply_torchwood_to_projectile(projectile)
 		if projectile_kind == "moon_meteor":
 			var impact_target = Vector2(projectile.get("target", projectile_pos))
@@ -288,12 +329,31 @@ func update_projectiles(delta: float) -> void:
 				projectile["position"] = Vector2(float(zombie["x"]) - 18.0, projectile_pos.y)
 				game.projectiles[i] = projectile
 				continue
+			if String(zombie["kind"]) == "janitor_zombie" and float(zombie.get("shield_health", 0.0)) > 0.0 and float(projectile.get("speed", 0.0)) >= 0.0:
+				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - float(projectile["damage"]))
+				zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.1)
+				zombie["impact_timer"] = maxf(float(zombie.get("impact_timer", 0.0)), 0.12)
+				game.zombies[hit_index] = zombie
+				game.effects.append({
+					"shape": "anchor_ring",
+					"position": Vector2(float(zombie["x"]) - 12.0, game._row_center_y(int(zombie["row"])) - 10.0),
+					"radius": 34.0,
+					"time": 0.14,
+					"duration": 0.14,
+					"color": Color(0.82, 0.92, 1.0, 0.18),
+				})
+				game.projectiles.remove_at(i)
+				continue
 
 			zombie = game._apply_zombie_damage(zombie, float(projectile["damage"]), 0.12, float(projectile["slow_duration"]))
 			if projectile_kind == "mist_bloom":
 				var reveal_duration = float(projectile.get("reveal_duration", 0.0))
 				if reveal_duration > 0.0:
 					zombie["revealed_timer"] = maxf(float(zombie.get("revealed_timer", 0.0)), reveal_duration)
+			if projectile_kind == "heather_thorn":
+				zombie["corrode_timer"] = maxf(float(zombie.get("corrode_timer", 0.0)), float(projectile.get("dot_duration", 0.0)))
+				zombie["corrode_dps"] = maxf(float(zombie.get("corrode_dps", 0.0)), float(projectile.get("dot_damage", 0.0)))
+				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), float(projectile.get("stun_duration", 0.0)))
 			if projectile_kind == "moon_meteor":
 				game.zombies[hit_index] = zombie
 				game._explode_moonforge_projectile(projectile, Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 10.0))
@@ -308,6 +368,15 @@ func update_projectiles(delta: float) -> void:
 				game._emit_glowvine_burst(Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"]))), int(zombie["row"]), float(projectile["damage"]) * 0.72)
 			elif bool(projectile.get("fire", false)):
 				apply_fire_projectile_splash(int(projectile["row"]), float(zombie["x"]), float(projectile["damage"]) * 0.55, hit_index)
+			if int(projectile.get("pierce_left", 0)) > 0:
+				var hit_uids: Array = projectile.get("hit_uids", [])
+				hit_uids.append(int(zombie.get("uid", -1)))
+				projectile["hit_uids"] = hit_uids
+				projectile["pierce_left"] = int(projectile.get("pierce_left", 0)) - 1
+				var step = 26.0 if float(projectile.get("speed", 0.0)) >= 0.0 else -26.0
+				projectile["position"] = Vector2(float(zombie["x"]) + step, projectile_pos.y)
+				game.projectiles[i] = projectile
+				continue
 			game.projectiles.remove_at(i)
 			continue
 
@@ -350,6 +419,25 @@ func spawn_bowling_roller(row: int, col: int, empowered: bool = false) -> void:
 	})
 
 
+func spawn_mango_roller(row: int, col: int, empowered: bool = false) -> void:
+	var center = game._cell_center(row, col)
+	var base_damage = float(Defs.PLANTS["mango_bowling"]["damage"]) * float(game.call("_plant_enhance_multiplier_at_cell", row, col))
+	game.rollers.append({
+		"kind": "mango",
+		"row": row,
+		"x": center.x,
+		"speed": float(Defs.PLANTS["mango_bowling"]["roll_speed"]) * (1.12 if empowered else 1.0),
+		"damage": base_damage * (1.4 if empowered else 1.0),
+		"hits_left": 8 if empowered else 5,
+		"bounce_dir": 1 if float(row) < float(game.ROWS) * 0.5 else -1,
+		"last_hit_frame": -1,
+		"empowered": empowered,
+		"impact_radius": 88.0 if empowered else 64.0,
+		"splash_ratio": 0.38 if empowered else 0.24,
+		"trail_phase": game.rng.randf_range(0.0, TAU),
+	})
+
+
 func _spawn_roller_impact_effect(position: Vector2, empowered: bool) -> void:
 	game.effects.append({
 		"position": position,
@@ -388,6 +476,24 @@ func _apply_empowered_roller_blast(roller: Dictionary, primary_index: int, impac
 		game.zombies[z] = zombie
 
 
+func _apply_mango_roller_blast(roller: Dictionary, primary_index: int, impact_position: Vector2) -> void:
+	var impact_radius = float(roller.get("impact_radius", 64.0))
+	var splash_ratio = float(roller.get("splash_ratio", 0.24))
+	for z in range(game.zombies.size()):
+		if z == primary_index:
+			continue
+		var zombie = game.zombies[z]
+		if not game._is_enemy_zombie(zombie):
+			continue
+		if abs(int(zombie["row"]) - int(roller["row"])) > 1:
+			continue
+		var zombie_position = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
+		if zombie_position.distance_to(impact_position) > impact_radius:
+			continue
+		zombie = game._apply_zombie_damage(zombie, float(roller["damage"]) * splash_ratio, 0.12)
+		game.zombies[z] = zombie
+
+
 func update_rollers(delta: float) -> void:
 	for i in range(game.rollers.size() - 1, -1, -1):
 		var roller = game.rollers[i]
@@ -403,7 +509,9 @@ func update_rollers(delta: float) -> void:
 			game.zombies[z] = zombie
 			var impact_position = Vector2(float(roller["x"]), game._row_center_y(int(roller["row"])))
 			_spawn_roller_impact_effect(impact_position, bool(roller.get("empowered", false)))
-			if bool(roller.get("empowered", false)):
+			if String(roller.get("kind", "")) == "mango":
+				_apply_mango_roller_blast(roller, z, impact_position)
+			elif bool(roller.get("empowered", false)):
 				_apply_empowered_roller_blast(roller, z, impact_position)
 			roller["hits_left"] = int(roller["hits_left"]) - 1
 			var next_row = int(roller["row"]) + int(roller["bounce_dir"])

@@ -20,6 +20,8 @@ func _run() -> void:
 	failed = not _test_cirno_freeze_swaps_conveyor_pool() or failed
 	failed = not _test_cirno_spellcards_create_ice_effects_and_reinforcements() or failed
 	failed = not _test_boss_frame_cleanup_removes_white_border_and_faces_left() or failed
+	failed = not _test_prebaked_cirno_frames_have_clean_transparent_outer_edges() or failed
+	failed = not _test_prebaked_cirno_frames_keep_safe_transparent_margin_and_no_far_fragments() or failed
 	failed = not _test_cirno_freeze_clears_existing_water_support_cards() or failed
 	failed = not _test_cirno_freeze_animates_smoothly() or failed
 	failed = not _test_1_18_assets_and_bgm_are_present() or failed
@@ -372,6 +374,143 @@ func _test_boss_frame_cleanup_removes_white_border_and_faces_left() -> bool:
 	return passed
 
 
+func _test_prebaked_cirno_frames_have_clean_transparent_outer_edges() -> bool:
+	var passed := true
+	for frame_index in range(8):
+		var image := Image.new()
+		var path = ProjectSettings.globalize_path("res://art/cirno/frame_%02d.png" % frame_index)
+		if image.load(path) != OK:
+			passed = _assert_true(false, "expected prebaked Cirno frame %02d to load from disk" % frame_index) and passed
+			continue
+		image.convert(Image.FORMAT_RGBA8)
+		var width = image.get_width()
+		var height = image.get_height()
+		for y in range(height):
+			for x in range(width):
+				if x != 0 and x != width - 1 and y != 0 and y != height - 1:
+					continue
+				var pixel = image.get_pixel(x, y)
+				var is_opaque_white = pixel.a > 0.05 and pixel.r > 0.93 and pixel.g > 0.93 and pixel.b > 0.93
+				passed = _assert_true(not is_opaque_white, "Cirno prebaked frame %02d should not keep opaque white edge pixels after offline cleanup" % frame_index) and passed
+	return passed
+
+
+func _test_prebaked_cirno_frames_keep_safe_transparent_margin_and_no_far_fragments() -> bool:
+	var passed := true
+	for frame_index in range(8):
+		var image := Image.new()
+		var path = ProjectSettings.globalize_path("res://art/cirno/frame_%02d.png" % frame_index)
+		if image.load(path) != OK:
+			passed = _assert_true(false, "expected Cirno prebaked frame %02d to load before checking sprite cleanup" % frame_index) and passed
+			continue
+		image.convert(Image.FORMAT_RGBA8)
+		var width = image.get_width()
+		var height = image.get_height()
+		var safe_margin = min(4, min(width, height) / 2)
+		var margin_is_clean := true
+		for y in range(height):
+			for x in range(width):
+				if x >= safe_margin and x < width - safe_margin and y >= safe_margin and y < height - safe_margin:
+					continue
+				var pixel = image.get_pixel(x, y)
+				if pixel.a > 0.05:
+					margin_is_clean = false
+					break
+			if not margin_is_clean:
+				break
+		passed = _assert_true(margin_is_clean, "Cirno prebaked frame %02d should keep a transparent outer safety margin after offline cleanup" % frame_index) and passed
+		var components = _collect_opaque_components(image)
+		if components.is_empty():
+			passed = _assert_true(false, "Cirno prebaked frame %02d should still contain a visible sprite body after cleanup" % frame_index) and passed
+			continue
+		var dominant_index := 0
+		var dominant_pixels := int(components[0]["pixels"])
+		for component_index in range(1, components.size()):
+			var candidate_pixels = int(components[component_index]["pixels"])
+			if candidate_pixels > dominant_pixels:
+				dominant_pixels = candidate_pixels
+				dominant_index = component_index
+		var dominant_rect: Rect2i = components[dominant_index]["rect"]
+		var dominant_safe_rect = _expand_rect(dominant_rect, 24)
+		for component_index in range(components.size()):
+			if component_index == dominant_index:
+				continue
+			var component = components[component_index]
+			var component_pixels = int(component["pixels"])
+			if component_pixels < 800:
+				continue
+			var component_rect: Rect2i = component["rect"]
+			var fragment_is_attached = _rects_intersect(dominant_safe_rect, component_rect)
+			passed = _assert_true(fragment_is_attached, "Cirno prebaked frame %02d still keeps a large disconnected fragment away from the boss body" % frame_index) and passed
+			if not fragment_is_attached:
+				break
+	return passed
+
+
+func _collect_opaque_components(image: Image) -> Array:
+	var width = image.get_width()
+	var height = image.get_height()
+	var visited := PackedByteArray()
+	visited.resize(width * height)
+	var components: Array = []
+	for y in range(height):
+		for x in range(width):
+			var index = y * width + x
+			if visited[index] != 0:
+				continue
+			visited[index] = 1
+			var pixel = image.get_pixel(x, y)
+			if pixel.a <= 0.05:
+				continue
+			var queue: Array = [Vector2i(x, y)]
+			var head := 0
+			var min_x := x
+			var min_y := y
+			var max_x := x
+			var max_y := y
+			var pixels := 0
+			while head < queue.size():
+				var point: Vector2i = queue[head]
+				head += 1
+				pixels += 1
+				min_x = min(min_x, point.x)
+				min_y = min(min_y, point.y)
+				max_x = max(max_x, point.x)
+				max_y = max(max_y, point.y)
+				for offset in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					var next = point + offset
+					if next.x < 0 or next.x >= width or next.y < 0 or next.y >= height:
+						continue
+					var next_index = next.y * width + next.x
+					if visited[next_index] != 0:
+						continue
+					visited[next_index] = 1
+					if image.get_pixel(next.x, next.y).a <= 0.05:
+						continue
+					queue.append(next)
+			components.append({
+				"pixels": pixels,
+				"rect": Rect2i(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1),
+			})
+	return components
+
+
+func _expand_rect(rect: Rect2i, amount: int) -> Rect2i:
+	return Rect2i(
+		rect.position - Vector2i(amount, amount),
+		rect.size + Vector2i(amount * 2, amount * 2)
+	)
+
+
+func _rects_intersect(a: Rect2i, b: Rect2i) -> bool:
+	return not (
+		a.position.x + a.size.x <= b.position.x
+		or b.position.x + b.size.x <= a.position.x
+		or a.position.y + a.size.y <= b.position.y
+		or b.position.y + b.size.y <= a.position.y
+	)
+
+
 func _test_cirno_freeze_clears_existing_water_support_cards() -> bool:
 	var game = _make_game()
 	var level_index = _begin_level(game, "1-18")
@@ -520,13 +659,13 @@ func _test_cirno_shared_frame_cache_reloads_when_stale() -> bool:
 		stale_frames.append(ImageTexture.create_from_image(image))
 	GameScript.shared_cirno_frames_loaded = true
 	GameScript.shared_cirno_frames = stale_frames
-	GameScript.shared_cirno_frames_face_left = false
+	GameScript.shared_cirno_frames_face_left = true
 	var game = _make_game()
 	game.cirno_frames = []
 	game.cirno_frames_loaded = false
 	game.call("_ensure_cirno_frames_loaded")
 	var passed = _assert_true(game.cirno_frames.size() == 8, "Cirno should still load a full boss frame set when the shared cache is stale") \
-		and _assert_true(game.cirno_frames[0] != stale_frames[0], "Cirno should rebuild a stale shared boss frame cache instead of reusing right-facing textures")
+		and _assert_true(game.cirno_frames[0] != stale_frames[0], "Cirno should rebuild a stale shared boss frame cache instead of reusing mismatched orientation metadata")
 	_free_game(game)
 	GameScript.shared_cirno_frames_loaded = previous_loaded
 	GameScript.shared_cirno_frames = previous_frames

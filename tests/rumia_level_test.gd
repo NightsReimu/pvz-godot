@@ -27,7 +27,7 @@ func _run() -> void:
 	failed = not _test_rumia_skill_effects_use_animated_shapes() or failed
 	failed = not _test_rumia_idle_animation_stays_stable_without_skill_or_movement() or failed
 	failed = not _test_legacy_save_data_migrates_sparse_progress_using_level_ids() or failed
-	failed = not _test_touhou_boss_sprites_are_configured_to_face_left() or failed
+	failed = not _test_touhou_boss_sprites_are_prebaked_left_without_runtime_flip() or failed
 	quit(1 if failed else 0)
 
 
@@ -434,13 +434,14 @@ func _test_legacy_save_data_migrates_sparse_progress_using_level_ids() -> bool:
 	return passed
 
 
-func _test_touhou_boss_sprites_are_configured_to_face_left() -> bool:
+func _test_touhou_boss_sprites_are_prebaked_left_without_runtime_flip() -> bool:
 	var game = _make_game()
 	if not _assert_true(game.has_method("_boss_frames_face_left"), "expected _boss_frames_face_left helper to exist for Touhou boss orientation rules"):
 		_free_game(game)
 		return false
-	var passed = _assert_true(bool(game.call("_boss_frames_face_left", "rumia_boss")), "Rumia frames should be loaded facing left") \
-		and _assert_true(bool(game.call("_boss_frames_face_left", "daiyousei_boss")), "Daiyousei frames should be loaded facing left") \
-		and _assert_true(bool(game.call("_boss_frames_face_left", "cirno_boss")), "Cirno frames should be loaded facing left")
+	var passed = _assert_true(not bool(game.call("_boss_frames_face_left", "rumia_boss")), "Rumia should use prebaked left-facing frames without an extra runtime flip") \
+		and _assert_true(not bool(game.call("_boss_frames_face_left", "daiyousei_boss")), "Daiyousei should use prebaked left-facing frames without an extra runtime flip") \
+		and _assert_true(not bool(game.call("_boss_frames_face_left", "cirno_boss")), "Cirno should use prebaked left-facing frames without an extra runtime flip") \
+		and _assert_true(not bool(game.call("_boss_frames_face_left", "meiling_boss")), "Meiling should use prebaked left-facing frames without an extra runtime flip")
 	_free_game(game)
 	return passed

@@ -11,12 +11,16 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_replaying_old_level_uses_current_progress_plant_pool() or failed
+	failed = not _test_gacha_owned_plants_enter_persistent_plant_pool() or failed
+	failed = not _test_gacha_owned_plants_enter_almanac() or failed
 	failed = not _test_seed_selection_starts_empty_for_manual_pick() or failed
 	failed = not _test_special_modes_keep_their_curated_plant_pools() or failed
 	failed = not _test_branch_progress_does_not_unlock_future_pool_levels() or failed
 	failed = not _test_sparse_v2_save_data_backfills_near_end_progress() or failed
 	failed = not _test_inconsistent_blank_save_data_recovers_from_last_level_index() or failed
 	failed = not _test_save_merge_preserves_stronger_existing_progress() or failed
+	failed = not _test_save_merge_preserves_stronger_enhancement_progress() or failed
+	failed = not _test_loaded_enhance_progress_persists_into_battle_stats() or failed
 	failed = not _test_loaded_campaign_init_does_not_force_immediate_autosave() or failed
 	quit(1 if failed else 0)
 
@@ -123,6 +127,35 @@ func _test_replaying_old_level_uses_current_progress_plant_pool() -> bool:
 		and _assert_true(game.selection_pool_cards.has("tallnut"), "replaying old levels should include late-game unlocked plants in the selection pool") \
 		and _assert_true(game.selection_pool_cards.has("dream_drum"), "replaying old levels should include all currently obtained plants") \
 		and _assert_true(not game.selection_pool_cards.has("wallnut_bowling"), "replayed standard levels should not leak special-only plants into the persistent collection")
+	_free_game(game)
+	return passed
+
+
+func _test_gacha_owned_plants_enter_persistent_plant_pool() -> bool:
+	var game = _make_game()
+	game.plant_stars = {
+		"shadow_pea": 1,
+		"ice_queen": 2,
+	}
+	var collection: Array = game.call("_player_plant_collection")
+	var passed = _assert_true(collection.has("shadow_pea"), "gacha-owned shadow_pea should enter the persistent plant pool") \
+		and _assert_true(collection.has("ice_queen"), "gacha-owned ice_queen should enter the persistent plant pool") \
+		and _assert_true(collection.has("peashooter"), "base peashooter should remain available alongside gacha plants")
+	_free_game(game)
+	return passed
+
+
+func _test_gacha_owned_plants_enter_almanac() -> bool:
+	var game = _make_game()
+	game.plant_stars = {
+		"shadow_pea": 1,
+		"ice_queen": 2,
+		"moonforge": 1,
+	}
+	var almanac_plants: Array = game.call("_visible_almanac_plants")
+	var passed = _assert_true(almanac_plants.has("shadow_pea"), "gacha-owned shadow_pea should appear in the almanac plant list") \
+		and _assert_true(almanac_plants.has("ice_queen"), "gacha-owned ice_queen should appear in the almanac plant list") \
+		and _assert_true(almanac_plants.has("moonforge"), "gacha-owned moonforge should appear in the almanac plant list")
 	_free_game(game)
 	return passed
 
@@ -282,6 +315,70 @@ func _test_save_merge_preserves_stronger_existing_progress() -> bool:
 	passed = _assert_true(int(merged.get("unlocked_levels", 0)) >= index_4_17 + 1, "merged save should keep 4-17 unlocked") and passed
 	passed = _assert_true(String(merged.get("current_world_key", "")) == "fog", "merged save should keep the stronger world's map focus") and passed
 	passed = _assert_true(int(merged.get("last_level_index", -1)) >= index_4_17, "merged save should keep the stronger last level index") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_save_merge_preserves_stronger_enhancement_progress() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_merge_save_data_preserving_progress"), "expected save merge helper to exist for enhancement merge checks"):
+		_free_game(game)
+		return false
+	var existing_save = {
+		"version": 2,
+		"unlocked_levels": 12,
+		"completed_level_ids": _completed_ids_through("1-10"),
+		"coins_total": 1200,
+		"last_level_index": _find_level_index("1-10"),
+		"current_world_key": "day",
+		"plant_enhance_levels": {"peashooter": 3, "wallnut": 1},
+		"enhance_stones": 5,
+	}
+	var stale_candidate = {
+		"version": 2,
+		"unlocked_levels": 12,
+		"completed_level_ids": _completed_ids_through("1-10"),
+		"coins_total": 1200,
+		"last_level_index": _find_level_index("1-10"),
+		"current_world_key": "day",
+		"plant_enhance_levels": {"peashooter": 1},
+		"enhance_stones": 2,
+	}
+	var merged: Dictionary = game.call("_merge_save_data_preserving_progress", existing_save, stale_candidate)
+	var merged_levels = merged.get("plant_enhance_levels", {})
+	var passed = _assert_true(merged_levels is Dictionary and int(merged_levels.get("peashooter", 0)) == 3, "save merge should keep the stronger existing peashooter enhancement") \
+		and _assert_true(int(merged_levels.get("wallnut", 0)) == 1, "save merge should keep enhancement entries missing from the stale candidate") \
+		and _assert_true(int(merged.get("enhance_stones", 0)) == 5, "save merge should keep the stronger enhancement stone count")
+	_free_game(game)
+	return passed
+
+
+func _test_loaded_enhance_progress_persists_into_battle_stats() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_apply_loaded_save_data"), "expected _apply_loaded_save_data helper to exist for enhancement persistence checks"):
+		_free_game(game)
+		return false
+	game.call("_apply_loaded_save_data", {
+		"version": 2,
+		"unlocked_levels": 1,
+		"completed_level_ids": [],
+		"last_level_index": 0,
+		"current_world_key": "day",
+		"plant_enhance_levels": {"peashooter": 2},
+		"enhance_stones": 4,
+	})
+	var plant: Dictionary = game.call("_create_plant", "peashooter", 2, 2)
+	game.grid[2][2] = plant
+	game.call("_spawn_zombie_at", "normal", 2, game._cell_center(2, 6).x)
+	game.call("_update_plants", 0.6)
+	var base_health = float(Defs.PLANTS["peashooter"]["health"])
+	var base_damage = float(Defs.PLANTS["peashooter"]["damage"])
+	var passed = _assert_true(int(game.plant_enhance_levels.get("peashooter", 0)) == 2, "loaded save data should keep peashooter enhancement levels") \
+		and _assert_true(int(game.enhance_stones) == 4, "loaded save data should keep enhancement stones") \
+		and _assert_true(float(game.grid[2][2]["max_health"]) > base_health, "loaded enhancement levels should permanently increase created plant health") \
+		and _assert_true(game.projectiles.size() == 1, "enhanced peashooter should still fire normally after loading save data")
+	if passed:
+		passed = _assert_true(float(game.projectiles[0].get("damage", 0.0)) > base_damage, "loaded enhancement levels should permanently increase projectile damage in battle") and passed
 	_free_game(game)
 	return passed
 

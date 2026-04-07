@@ -25,5 +25,7 @@ func _test_game_script_loads() -> bool:
 		return false
 	var game = script.new()
 	passed = _assert_true(game.has_method("_draw_shovel_icon"), "expected game boot script to expose the shovel icon draw helper used by the seed bank") and passed
+	passed = _assert_true(game.has_method("_draw_heather_shooter"), "expected game boot script to expose city plant draw helpers") and passed
+	passed = _assert_true(game.has_method("_draw_wenjie_zombie"), "expected game boot script to expose city zombie draw helpers") and passed
 	game.free()
 	return passed
