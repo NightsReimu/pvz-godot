@@ -76,6 +76,10 @@ const WORLD_SELECT_UPDATE_INFO_RECT := Rect2(734.0, 802.0, 420.0, 46.0)
 const MAP_VIEW_RECT := Rect2(120.0, 138.0, 716.0, 548.0)
 const MAP_SCROLL_LEFT_RECT := Rect2(1080.0, 32.0, 44.0, 44.0)
 const MAP_SCROLL_RIGHT_RECT := Rect2(1132.0, 32.0, 44.0, 44.0)
+const WORLD_CARD_SPACING := 470.0
+const TOUCH_DRAG_THRESHOLD := 18.0
+const WORLD_DRAG_RELEASE_BIAS := 0.32
+const MAP_DRAG_RELEASE_MULTIPLIER := 3.4
 
 const RUMIA_FRAME_COUNT := 8
 const CIRNO_FRAME_COUNT := 8
@@ -312,6 +316,13 @@ var page_transition_progress := 0.0
 var page_transition_direction := 1
 var map_scroll_by_world := {}
 var map_scroll_target_by_world := {}
+var touch_navigation_index := -1
+var touch_navigation_mode := ""
+var touch_navigation_start_pos := Vector2.ZERO
+var touch_navigation_last_delta := Vector2.ZERO
+var touch_navigation_world_scroll_origin := 0.0
+var touch_navigation_map_scroll_origin := 0.0
+var touch_navigation_dragging := false
 
 var grid: Array = []
 var support_grid: Array = []
@@ -436,6 +447,95 @@ func _notification(what: int) -> void:
 			_save_game()
 
 
+func _pointer_local_position() -> Vector2:
+	return get_local_mouse_position() if is_inside_tree() else Vector2.ZERO
+
+
+func _event_local_position(event: InputEvent) -> Vector2:
+	if event is InputEventMouseButton or event is InputEventMouseMotion:
+		return event.position
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		return event.position
+	return _pointer_local_position()
+
+
+func _smooth_ui_value(current: float, target: float, delta: float, response: float) -> float:
+	if absf(target - current) <= 0.001:
+		return target
+	var blend = clampf(1.0 - exp(-maxf(delta, 0.0) * response), 0.0, 1.0)
+	return lerpf(current, target, blend)
+
+
+func _reset_touch_navigation() -> void:
+	touch_navigation_index = -1
+	touch_navigation_mode = ""
+	touch_navigation_start_pos = Vector2.ZERO
+	touch_navigation_last_delta = Vector2.ZERO
+	touch_navigation_world_scroll_origin = 0.0
+	touch_navigation_map_scroll_origin = 0.0
+	touch_navigation_dragging = false
+
+
+func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
+	if mode != MODE_WORLD_SELECT and mode != MODE_MAP:
+		return false
+	touch_navigation_index = event.index
+	touch_navigation_mode = mode
+	touch_navigation_start_pos = event.position
+	touch_navigation_last_delta = Vector2.ZERO
+	touch_navigation_dragging = false
+	touch_navigation_world_scroll_origin = world_select_scroll
+	touch_navigation_map_scroll_origin = _map_scroll_value(current_world_key)
+	return true
+
+
+func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
+	if event.index != touch_navigation_index or touch_navigation_mode == "":
+		return false
+	var delta_total = event.position - touch_navigation_start_pos
+	touch_navigation_last_delta = event.relative
+	if not touch_navigation_dragging:
+		if delta_total.length() < TOUCH_DRAG_THRESHOLD:
+			return false
+		if absf(delta_total.x) <= absf(delta_total.y):
+			return false
+		touch_navigation_dragging = true
+	if touch_navigation_mode == MODE_WORLD_SELECT:
+		var world_count = max(WorldDataLib.all().size() - 1, 0)
+		var dragged_scroll = clampf(touch_navigation_world_scroll_origin - delta_total.x / WORLD_CARD_SPACING, 0.0, float(world_count))
+		world_select_scroll = dragged_scroll
+		world_select_index = clampi(int(round(dragged_scroll)), 0, max(world_count, 0))
+		return true
+	if touch_navigation_mode == MODE_MAP:
+		_set_map_scroll(current_world_key, touch_navigation_map_scroll_origin - delta_total.x, true)
+		return true
+	return false
+
+
+func _finish_touch_navigation(event: InputEventScreenTouch) -> bool:
+	if event.index != touch_navigation_index or touch_navigation_mode == "":
+		return false
+	var released_mode = touch_navigation_mode
+	var released_pos = event.position
+	var last_delta = touch_navigation_last_delta
+	var was_dragging = touch_navigation_dragging
+	_reset_touch_navigation()
+	if released_mode == MODE_WORLD_SELECT:
+		if was_dragging:
+			var predicted = clampf(world_select_scroll - last_delta.x / WORLD_CARD_SPACING * WORLD_DRAG_RELEASE_BIAS, 0.0, float(max(WorldDataLib.all().size() - 1, 0)))
+			world_select_index = clampi(int(round(predicted)), 0, max(WorldDataLib.all().size() - 1, 0))
+			return true
+		_handle_world_select_click(released_pos)
+		return true
+	if released_mode == MODE_MAP:
+		if was_dragging:
+			_set_map_scroll(current_world_key, _map_scroll_value(current_world_key, true) + (-last_delta.x * MAP_DRAG_RELEASE_MULTIPLIER))
+			return true
+		_handle_map_click(released_pos)
+		return true
+	return false
+
+
 func _process(delta: float) -> void:
 	ui_time += delta
 	# Screen shake decay
@@ -455,7 +555,8 @@ func _process(delta: float) -> void:
 	_update_autosave(delta)
 	_update_page_transition(delta)
 	_update_freeze_transition_visual(delta)
-	world_select_scroll = lerpf(world_select_scroll, float(world_select_index), min(1.0, delta * 7.5))
+	if not (touch_navigation_dragging and touch_navigation_mode == MODE_WORLD_SELECT):
+		world_select_scroll = _smooth_ui_value(world_select_scroll, float(world_select_index), delta, 10.5)
 	var prewarm_steps := 1 if mode == MODE_BATTLE else 2
 	if page_transition_active:
 		prewarm_steps = 3
@@ -486,7 +587,7 @@ func _process(delta: float) -> void:
 	if mode == MODE_MAP:
 		map_time += delta
 		_update_map_scroll(delta)
-		hovered_level_index = _level_node_at(get_local_mouse_position())
+		hovered_level_index = _level_node_at(_pointer_local_position())
 		queue_redraw()
 		return
 
@@ -575,7 +676,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	if startup_loading_active or page_transition_active:
 		return
 
-	var mouse_pos = get_local_mouse_position()
+	var mouse_pos = _event_local_position(event)
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			if _begin_touch_navigation(event):
+				return
+		elif _finish_touch_navigation(event):
+			queue_redraw()
+			return
+	if event is InputEventScreenDrag:
+		if _handle_touch_navigation_drag(event):
+			queue_redraw()
+			return
 	if event is InputEventPanGesture:
 		if mode == MODE_WORLD_SELECT and absf(event.delta.x) > absf(event.delta.y):
 			if event.delta.x >= 0.35:
@@ -654,21 +766,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if mode == MODE_MAP:
-		if MAP_ALMANAC_BUTTON_RECT.has_point(mouse_pos):
-			_enter_almanac_mode("plants")
-			return
-		if MAP_WORLD_BACK_RECT.has_point(mouse_pos):
-			_enter_world_select_mode()
-			return
-		if MAP_SCROLL_LEFT_RECT.has_point(mouse_pos):
-			_nudge_map_scroll(-MAP_VIEW_RECT.size.x * 0.32)
-			return
-		if MAP_SCROLL_RIGHT_RECT.has_point(mouse_pos):
-			_nudge_map_scroll(MAP_VIEW_RECT.size.x * 0.32)
-			return
-		var level_index = _level_node_at(mouse_pos)
-		if level_index != -1 and _is_level_unlocked(level_index):
-			_start_level(level_index)
+		_handle_map_click(mouse_pos)
 		return
 
 	if mode == MODE_ALMANAC:
@@ -875,6 +973,9 @@ func _build_update_requests() -> void:
 
 func _begin_auto_update_check_if_needed() -> void:
 	if update_check_started:
+		return
+	if not is_inside_tree():
+		update_check_started = true
 		return
 	update_check_started = true
 	_begin_update_check()
@@ -1625,12 +1726,14 @@ func _nudge_map_scroll(delta_x: float) -> void:
 
 
 func _update_map_scroll(delta: float) -> void:
+	if touch_navigation_dragging and touch_navigation_mode == MODE_MAP:
+		return
 	var current = _map_scroll_value(current_world_key)
 	var target = _map_scroll_value(current_world_key, true)
 	if absf(target - current) <= 0.25:
 		map_scroll_by_world[current_world_key] = target
 		return
-	map_scroll_by_world[current_world_key] = lerpf(current, target, minf(1.0, delta * 10.5))
+	map_scroll_by_world[current_world_key] = _smooth_ui_value(current, target, delta, 11.5)
 
 
 func _map_node_position(level_index: int) -> Vector2:
@@ -1838,6 +1941,24 @@ func _handle_world_select_click(mouse_pos: Vector2) -> void:
 		else:
 			_show_toast("该世界尚未解锁")
 		return
+
+
+func _handle_map_click(mouse_pos: Vector2) -> void:
+	if MAP_ALMANAC_BUTTON_RECT.has_point(mouse_pos):
+		_enter_almanac_mode("plants")
+		return
+	if MAP_WORLD_BACK_RECT.has_point(mouse_pos):
+		_enter_world_select_mode()
+		return
+	if MAP_SCROLL_LEFT_RECT.has_point(mouse_pos):
+		_nudge_map_scroll(-MAP_VIEW_RECT.size.x * 0.32)
+		return
+	if MAP_SCROLL_RIGHT_RECT.has_point(mouse_pos):
+		_nudge_map_scroll(MAP_VIEW_RECT.size.x * 0.32)
+		return
+	var level_index = _level_node_at(mouse_pos)
+	if level_index != -1 and _is_level_unlocked(level_index):
+		_start_level(level_index)
 
 
 func _handle_gacha_click(mouse_pos: Vector2) -> void:
@@ -11690,7 +11811,7 @@ func _path_midpoint(from: Vector2, to: Vector2, index: int) -> Vector2:
 
 
 func _world_card_rect(index: int) -> Rect2:
-	var center_x = size.x * 0.5 + (float(index) - world_select_scroll) * 470.0
+	var center_x = size.x * 0.5 + (float(index) - world_select_scroll) * WORLD_CARD_SPACING
 	var delta = absf(float(index) - world_select_scroll)
 	var card_scale = clampf(1.0 - delta * 0.12, 0.84, 1.0)
 	var card_size = Vector2(460.0, 560.0) * card_scale
@@ -11792,7 +11913,7 @@ func _draw_world_select_scene() -> void:
 	# Coin display
 	_draw_panel_shell(Rect2(1180.0, 808.0, 236.0, 42.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.1, 0.06)
 	_draw_text("金币: %d" % coins_total, Vector2(1204.0, 838.0), 22, Color(0.33, 0.21, 0.04))
-	_draw_text("滚轮或触控板左右滑动切换世界", Vector2(76.0, 836.0), 18, Color(0.24, 0.18, 0.08) if not sky_night else Color(0.86, 0.9, 0.98))
+	_draw_text("滚轮、触控板或手指左右滑动切换世界", Vector2(76.0, 836.0), 18, Color(0.24, 0.18, 0.08) if not sky_night else Color(0.86, 0.9, 0.98))
 
 
 func _draw_map_scene() -> void:
@@ -11833,7 +11954,7 @@ func _draw_map_scene() -> void:
 	_draw_panel_shell(MAP_SCROLL_RIGHT_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.08, 0.04)
 	draw_polyline(PackedVector2Array([MAP_SCROLL_LEFT_RECT.get_center() + Vector2(8.0, -10.0), MAP_SCROLL_LEFT_RECT.get_center() + Vector2(-6.0, 0.0), MAP_SCROLL_LEFT_RECT.get_center() + Vector2(8.0, 10.0)]), Color(0.28, 0.18, 0.08), 4.0)
 	draw_polyline(PackedVector2Array([MAP_SCROLL_RIGHT_RECT.get_center() + Vector2(-8.0, -10.0), MAP_SCROLL_RIGHT_RECT.get_center() + Vector2(6.0, 0.0), MAP_SCROLL_RIGHT_RECT.get_center() + Vector2(-8.0, 10.0)]), Color(0.28, 0.18, 0.08), 4.0)
-	var scroll_hint = "触控板左右滑动或点箭头查看右侧支线" if _map_scroll_bounds_for_world(current_world_key).y > 0.0 else "当前世界地图已完整显示"
+	var scroll_hint = "左右拖动地图或点箭头查看右侧支线" if _map_scroll_bounds_for_world(current_world_key).y > 0.0 else "当前世界地图已完整显示"
 	_draw_text(scroll_hint, control_rect.position + Vector2(16.0, 68.0), 14, Color(0.28, 0.18, 0.08) if not is_night_world else Color(0.86, 0.92, 0.98))
 
 	_draw_panel_shell(COIN_METER_RECT, Color(0.97, 0.89, 0.44), Color(0.48, 0.36, 0.09), 0.14, 0.08)

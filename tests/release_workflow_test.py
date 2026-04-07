@@ -29,6 +29,13 @@ def main() -> int:
     assert_contains(text, "pvz-godot-macos.zip", "workflow should package the macOS artifact")
     assert_contains(text, "pvz-godot-web.zip", "workflow should package the Web artifact")
     assert_contains(text, "pvz-godot-android.apk", "workflow should package the Android artifact")
+    assert_contains(text, 'Path("export_presets.cfg")', "release workflow should stamp export preset metadata alongside project.godot")
+    assert_contains(text, '"version/code"', "release workflow should update Android versionCode for release APKs")
+    assert_contains(text, '"version/name"', "release workflow should update the Android version name in export presets")
+    assert_contains(text, '"application/file_version"', "release workflow should sync the Windows file version")
+    assert_contains(text, '"application/product_version"', "release workflow should sync the Windows product version")
+    assert_contains(text, '"application/short_version"', "release workflow should sync the macOS short version")
+    assert_contains(text, '"application/version"', "release workflow should sync the macOS bundle version")
     return 0
 
 
