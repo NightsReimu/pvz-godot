@@ -3,6 +3,10 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      build_ref:
+        description: Optional git ref to build
+        required: false
+        type: string
       release_tag:
         description: Optional tag to publish artifacts to
         required: false
@@ -62,6 +66,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.build_ref || github.ref }}
           lfs: false
 
       - name: Set up Java 17
