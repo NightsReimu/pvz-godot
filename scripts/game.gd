@@ -3,6 +3,7 @@ extends Control
 const Defs = preload("res://scripts/game_defs.gd")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const WindowModeLib = preload("res://scripts/system/window_mode.gd")
+const UpdateManagerLib = preload("res://scripts/system/update_manager.gd")
 const WorldDataLib = preload("res://scripts/data/world_data.gd")
 const AlmanacTextLib = preload("res://scripts/data/almanac_text.gd")
 const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
@@ -70,6 +71,8 @@ const WORLD_SELECT_ALMANAC_RECT := Rect2(924.0, 732.0, 236.0, 62.0)
 const WORLD_SELECT_ENDLESS_RECT := Rect2(74.0, 732.0, 200.0, 62.0)
 const WORLD_SELECT_GACHA_RECT := Rect2(294.0, 732.0, 200.0, 62.0)
 const WORLD_SELECT_DAILY_RECT := Rect2(514.0, 732.0, 200.0, 62.0)
+const WORLD_SELECT_UPDATE_RECT := Rect2(734.0, 732.0, 170.0, 62.0)
+const WORLD_SELECT_UPDATE_INFO_RECT := Rect2(734.0, 802.0, 420.0, 46.0)
 const MAP_VIEW_RECT := Rect2(120.0, 138.0, 716.0, 548.0)
 const MAP_SCROLL_LEFT_RECT := Rect2(1080.0, 32.0, 44.0, 44.0)
 const MAP_SCROLL_RIGHT_RECT := Rect2(1132.0, 32.0, 44.0, 44.0)
@@ -351,6 +354,16 @@ var music_player: AudioStreamPlayer
 var current_bgm_path := ""
 var pending_bgm_path := ""
 var audio_stream_cache := {}
+var update_manager := UpdateManagerLib.new()
+var update_check_request: HTTPRequest
+var update_download_request: HTTPRequest
+var update_state := "idle"
+var update_release_info: Dictionary = {}
+var update_error_text := ""
+var update_status_text := ""
+var update_download_progress := 0.0
+var update_check_started := false
+var update_download_target_path := ""
 var asset_prewarm_queue: Array = []
 var asset_prewarm_keys := {}
 var startup_loading_active := false
@@ -411,6 +424,7 @@ func _ready() -> void:
 	_build_font()
 	_build_overlay_ui()
 	_build_audio_player()
+	_build_update_requests()
 	_init_campaign()
 	call_deferred("_apply_display_mode")
 	queue_redraw()
@@ -457,11 +471,14 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		return
 
+	_update_download_progress_runtime()
+
 	if page_transition_active:
 		queue_redraw()
 		return
 
 	if mode == MODE_WORLD_SELECT:
+		_begin_auto_update_check_if_needed()
 		map_time += delta
 		queue_redraw()
 		return
@@ -839,6 +856,275 @@ func _build_audio_player() -> void:
 	music_player.bus = "Master"
 	music_player.volume_db = -7.0
 	add_child(music_player)
+
+
+func _build_update_requests() -> void:
+	if update_check_request == null:
+		update_check_request = HTTPRequest.new()
+		update_check_request.accept_gzip = true
+		update_check_request.use_threads = true
+		update_check_request.request_completed.connect(_on_update_check_completed)
+		add_child(update_check_request)
+	if update_download_request == null:
+		update_download_request = HTTPRequest.new()
+		update_download_request.accept_gzip = true
+		update_download_request.use_threads = true
+		update_download_request.request_completed.connect(_on_update_download_completed)
+		add_child(update_download_request)
+
+
+func _begin_auto_update_check_if_needed() -> void:
+	if update_check_started:
+		return
+	update_check_started = true
+	_begin_update_check()
+
+
+func _current_app_version() -> String:
+	return update_manager.normalize_version(String(ProjectSettings.get_setting("application/config/version", "0.0.0")))
+
+
+func _update_action_text() -> String:
+	var install_mode = String(update_release_info.get("install_mode", "desktop_replace"))
+	match update_state:
+		"checking":
+			return "检查更新中"
+		"latest":
+			return "重新检查"
+		"available":
+			if install_mode == "notify_only":
+				return "查看更新"
+			if install_mode == "android_handoff":
+				return "下载 APK"
+			return "下载并更新"
+		"downloading":
+			return "下载中 %d%%" % clampi(int(round(update_download_progress * 100.0)), 0, 100)
+		"ready":
+			if install_mode == "notify_only":
+				return "查看更新"
+			if install_mode == "android_handoff":
+				return "安装 APK"
+			return "安装更新"
+		"applying":
+			return "正在应用"
+		"error":
+			return "重试更新"
+		_:
+			return "检查更新"
+
+
+func _update_status_line() -> String:
+	if update_status_text != "":
+		return update_status_text
+	match update_state:
+		"checking":
+			return "正在检查 GitHub Release..."
+		"latest":
+			return "当前版本 v%s 已是最新" % _current_app_version()
+		"available":
+			return "发现新版本 v%s" % String(update_release_info.get("latest_version", "?"))
+		"downloading":
+			return "正在下载 %s" % String(update_release_info.get("asset_name", "更新包"))
+		"ready":
+			var install_mode = String(update_release_info.get("install_mode", "desktop_replace"))
+			if install_mode == "notify_only":
+				return "浏览器版无法自替换，可下载新版本或刷新页面"
+			if install_mode == "android_handoff":
+				return "APK 已下载，点击按钮继续安装"
+			return "更新包已下载，点击按钮应用更新"
+		"applying":
+			return "更新助手已启动，游戏即将退出并替换文件"
+		"error":
+			return update_error_text if update_error_text != "" else "更新失败"
+		_:
+			return "当前版本 v%s" % _current_app_version()
+
+
+func _update_badge_fill() -> Color:
+	match update_state:
+		"checking":
+			return Color(0.36, 0.62, 0.92)
+		"latest":
+			return Color(0.3, 0.7, 0.3)
+		"available", "ready":
+			return Color(0.9, 0.44, 0.16)
+		"downloading":
+			return Color(0.78, 0.56, 0.18)
+		"applying":
+			return Color(0.72, 0.3, 0.78)
+		"error":
+			return Color(0.8, 0.22, 0.24)
+		_:
+			return Color(0.52, 0.58, 0.62)
+
+
+func _begin_update_check() -> void:
+	update_error_text = ""
+	update_status_text = ""
+	update_download_progress = 0.0
+	update_state = "checking"
+	update_release_info = {}
+	if update_check_request == null:
+		_build_update_requests()
+	var headers = PackedStringArray([
+		"User-Agent: pvz-godot-updater",
+		"Accept: application/vnd.github+json",
+	])
+	var request_error = update_check_request.request(update_manager.latest_release_api_url(), headers)
+	if request_error != OK:
+		_set_update_error("无法发起版本检查：%s" % error_string(request_error))
+
+
+func _start_update_download() -> void:
+	var asset_url = String(update_release_info.get("asset_url", ""))
+	var asset_name = String(update_release_info.get("asset_name", ""))
+	if asset_url == "" or asset_name == "":
+		_set_update_error("当前平台没有可下载的更新包")
+		return
+	var dir_result = update_manager.ensure_dir_absolute(update_manager.downloads_root_path())
+	if dir_result != OK:
+		_set_update_error("无法创建更新下载目录")
+		return
+	update_download_target_path = update_manager.downloaded_asset_path(asset_name)
+	if FileAccess.file_exists(update_download_target_path):
+		update_manager.remove_recursive_absolute(update_download_target_path)
+	update_download_request.download_file = update_download_target_path
+	update_download_progress = 0.0
+	update_status_text = ""
+	update_state = "downloading"
+	var headers = PackedStringArray(["User-Agent: pvz-godot-updater"])
+	var request_error = update_download_request.request(asset_url, headers)
+	if request_error != OK:
+		_set_update_error("无法开始下载：%s" % error_string(request_error))
+
+
+func _update_download_progress_runtime() -> void:
+	if update_state != "downloading" or update_download_request == null:
+		return
+	var body_size = update_download_request.get_body_size()
+	var downloaded = update_download_request.get_downloaded_bytes()
+	if body_size > 0:
+		update_download_progress = clampf(float(downloaded) / float(body_size), 0.0, 1.0)
+
+
+func _apply_or_open_downloaded_update() -> void:
+	var install_mode = String(update_release_info.get("install_mode", "desktop_replace"))
+	if install_mode == "desktop_replace":
+		_apply_desktop_update()
+		return
+	if install_mode == "android_handoff":
+		if _open_downloaded_android_apk():
+			update_status_text = "已调用系统安装器，请确认安装"
+			update_state = "ready"
+		else:
+			_set_update_error("无法调用系统安装器打开 APK")
+		return
+	_open_release_page()
+
+
+func _apply_desktop_update() -> void:
+	if update_download_target_path == "":
+		_set_update_error("更新包尚未下载完成")
+		return
+	var platform = String(update_release_info.get("platform", update_manager.platform_key_for_runtime()))
+	var version = String(update_release_info.get("latest_version", "pending"))
+	var stage_dir = update_manager.staged_root_path(version)
+	var cleanup_result = update_manager.remove_recursive_absolute(stage_dir)
+	if cleanup_result != OK and cleanup_result != ERR_DOES_NOT_EXIST:
+		_set_update_error("无法清理旧的更新缓存目录")
+		return
+	var extract_result = update_manager.extract_zip_archive(update_download_target_path, stage_dir)
+	if extract_result != OK:
+		_set_update_error("无法解压更新包")
+		return
+	var install_target = update_manager.desktop_install_target(platform, OS.get_executable_path())
+	var helper_path = update_manager.helper_script_path(platform)
+	var helper_script = update_manager.build_desktop_apply_script(
+		platform,
+		OS.get_process_id(),
+		stage_dir,
+		String(install_target.get("install_dir", "")),
+		String(install_target.get("relaunch_path", ""))
+	)
+	var write_result = update_manager.write_text_file_absolute(helper_path, helper_script)
+	if write_result != OK:
+		_set_update_error("无法写入更新助手脚本")
+		return
+	update_state = "applying"
+	update_status_text = "正在退出并替换文件..."
+	var launch_result = OK
+	if platform == "windows":
+		launch_result = OS.create_process("cmd.exe", PackedStringArray(["/C", helper_path]))
+	else:
+		launch_result = OS.create_process("/bin/sh", PackedStringArray([helper_path]))
+	if launch_result != OK:
+		_set_update_error("无法启动更新助手：%s" % error_string(launch_result))
+		return
+	_save_game()
+	get_tree().quit()
+
+
+func _open_downloaded_android_apk() -> bool:
+	if update_download_target_path == "":
+		return false
+	var apk_uri = "file://" + update_download_target_path.replace(" ", "%20")
+	return OS.shell_open(apk_uri) == OK or OS.shell_open(update_download_target_path) == OK
+
+
+func _open_release_page() -> void:
+	var page_url = String(update_release_info.get("page_url", update_manager.releases_url()))
+	if page_url == "":
+		page_url = update_manager.releases_url()
+	if OS.shell_open(page_url) != OK:
+		_set_update_error("无法打开更新页面")
+
+
+func _set_update_error(message: String) -> void:
+	update_error_text = message
+	update_status_text = message
+	update_state = "error"
+
+
+func _on_update_check_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS:
+		_set_update_error("版本检查失败，请稍后重试")
+		return
+	if response_code < 200 or response_code >= 300:
+		_set_update_error("版本检查失败，HTTP %d" % response_code)
+		return
+	var parsed = JSON.parse_string(body.get_string_from_utf8())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		_set_update_error("无法解析版本信息")
+		return
+	var platform = update_manager.platform_key_for_runtime()
+	update_release_info = update_manager.resolve_release(parsed, _current_app_version(), platform)
+	match String(update_release_info.get("status", "")):
+		"latest":
+			update_state = "latest"
+			update_status_text = ""
+		"update_available":
+			update_state = "available"
+			update_status_text = ""
+			_show_toast("发现新版本 v%s" % String(update_release_info.get("latest_version", "")))
+		"missing_asset":
+			_set_update_error("该平台暂时没有对应的更新包")
+		"unsupported_platform":
+			_set_update_error("当前平台暂不支持自动更新")
+		_:
+			_set_update_error("无法获取可用更新信息")
+
+
+func _on_update_download_completed(result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS:
+		_set_update_error("更新包下载失败")
+		return
+	if response_code < 200 or response_code >= 300:
+		_set_update_error("更新包下载失败，HTTP %d" % response_code)
+		return
+	update_download_progress = 1.0
+	update_state = "ready"
+	update_status_text = ""
+	_apply_or_open_downloaded_update()
 
 
 func _load_audio_stream(path: String) -> AudioStream:
@@ -1509,6 +1795,25 @@ func _handle_world_select_click(mouse_pos: Vector2) -> void:
 		return
 	if WORLD_SELECT_DAILY_RECT.has_point(mouse_pos):
 		_enter_daily_challenge()
+		return
+	if WORLD_SELECT_UPDATE_RECT.has_point(mouse_pos) or WORLD_SELECT_UPDATE_INFO_RECT.has_point(mouse_pos):
+		match update_state:
+			"checking", "applying":
+				_show_toast("更新流程进行中，请稍候")
+			"latest", "idle":
+				_begin_update_check()
+			"available":
+				var install_mode = String(update_release_info.get("install_mode", "desktop_replace"))
+				if install_mode == "notify_only":
+					_open_release_page()
+				else:
+					_start_update_download()
+			"downloading":
+				_show_toast("更新包下载中")
+			"ready":
+				_apply_or_open_downloaded_update()
+			"error":
+				_begin_update_check()
 		return
 	if WORLD_SELECT_ENTER_RECT.has_point(mouse_pos):
 		var selected_world = _selected_world_data()
@@ -7960,11 +8265,12 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 					float(data.get("knife_damage", 58.0)) + phase * 12.0
 				) or fan_hit
 			effects.append({
-				"shape": "lane_spray",
-				"position": Vector2(start_x, _row_center_y(row) - 12.0),
-				"length": anchor_x - start_x,
-				"width": CELL_SIZE.y * 2.0,
+				"shape": "sakuya_knife_fan",
+				"position": Vector2(anchor_x - 12.0, _row_center_y(row) - 10.0),
+				"length": anchor_x - start_x + CELL_SIZE.x * 0.24,
+				"width": CELL_SIZE.y * 2.8,
 				"radius": 210.0,
+				"knife_count": 8 + phase * 2,
 				"time": 0.4,
 				"duration": 0.4,
 				"anim_speed": 8.2,
@@ -7975,17 +8281,22 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 		1:
 			var rain_cells = _sakuya_target_cells(row, 4 + phase, 4)
 			var rain_hits = _damage_plants_in_cells(rain_cells, float(data.get("knife_rain_damage", 96.0)) + phase * 15.0, 1.0 + phase * 0.08)
+			var rain_points: Array = []
 			for cell_variant in rain_cells:
 				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "arcane_circle",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 44.0,
-					"time": 0.46,
-					"duration": 0.46,
-					"anim_speed": 6.8,
-					"color": Color(0.88, 0.94, 1.0, 0.28 if rain_hits > 0 else 0.15),
-				})
+				rain_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "sakuya_knife_rain",
+				"position": Vector2(anchor_x - 88.0, _row_center_y(row) - 10.0),
+				"points": rain_points,
+				"radius": 52.0,
+				"knife_height": 120.0 + phase * 12.0,
+				"knife_count": 3 + phase,
+				"time": 0.46,
+				"duration": 0.46,
+				"anim_speed": 6.8,
+				"color": Color(0.88, 0.94, 1.0, 0.28 if rain_hits > 0 else 0.15),
+			})
 			_show_banner("Illusion Sign \"Killing Doll\"", 1.16)
 			return _set_rumia_state(zombie, "rain", 0.48)
 		2:
@@ -8015,11 +8326,13 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 				zombie["row"] = target_row
 				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), move_duration * 0.84)
 				effects.append({
-					"shape": "glow_burst",
+					"shape": "sakuya_time_grid",
 					"position": Vector2(anchor_x, _row_center_y(target_row) - 10.0),
-					"radius": 82.0,
+					"radius": 86.0,
+					"width": CELL_SIZE.y * 1.2,
 					"time": 0.34,
 					"duration": 0.34,
+					"anim_speed": 7.8,
 					"color": Color(0.84, 0.9, 1.0, 0.28),
 				})
 			_show_banner("Time Sign \"Teleport\"", 0.95)
@@ -8034,9 +8347,10 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 			for _i in range(1 + phase):
 				_spawn_hover_boss_reinforcement("sakuya_boss", phase)
 			effects.append({
-				"shape": "arcane_circle",
+				"shape": "sakuya_time_grid",
 				"position": Vector2(anchor_x - 92.0, _row_center_y(int(zombie.get("row", row))) - 12.0),
 				"radius": 234.0 + phase * 20.0,
+				"width": board_size.y * 0.44,
 				"time": 0.62,
 				"duration": 0.62,
 				"anim_speed": 7.6,
@@ -8047,17 +8361,21 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 		5:
 			var clock_cells = _sakuya_target_cells(row, 5, 3)
 			var clock_hits = _damage_plants_in_cells(clock_cells, float(data.get("clock_damage", 108.0)) + phase * 18.0, 1.3 + phase * 0.1)
+			var clock_points: Array = []
 			for cell_variant in clock_cells:
 				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "fairy_ring",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 36.0,
-					"time": 0.5,
-					"duration": 0.5,
-					"anim_speed": 8.6,
-					"color": Color(0.8, 0.9, 1.0, 0.28 if clock_hits > 0 else 0.14),
-				})
+				clock_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "sakuya_time_grid",
+				"position": Vector2(anchor_x - 96.0, _row_center_y(row) - 12.0),
+				"points": clock_points,
+				"radius": 42.0,
+				"width": 30.0,
+				"time": 0.5,
+				"duration": 0.5,
+				"anim_speed": 8.6,
+				"color": Color(0.8, 0.9, 1.0, 0.28 if clock_hits > 0 else 0.14),
+			})
 			_show_banner("Clock Sign \"Private Square\"", 1.16)
 			return _set_rumia_state(zombie, "clock", 0.54)
 		6:
@@ -8072,17 +8390,21 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 				for lane in active_rows:
 					column_targets.append(Vector2i(int(lane), target_col))
 			var column_hits = _damage_plants_in_cells(column_targets, float(data.get("clock_damage", 108.0)) * 0.66 + phase * 12.0, 0.92 + phase * 0.08)
+			var column_points: Array = []
 			for cell_variant in column_targets:
 				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "fairy_ring",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 28.0,
-					"time": 0.4,
-					"duration": 0.4,
-					"anim_speed": 9.0,
-					"color": Color(0.82, 0.92, 1.0, 0.28 if column_hits > 0 else 0.14),
-				})
+				column_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "sakuya_time_grid",
+				"position": Vector2(anchor_x - 96.0, _row_center_y(row) - 12.0),
+				"points": column_points,
+				"radius": 34.0,
+				"width": 26.0,
+				"time": 0.4,
+				"duration": 0.4,
+				"anim_speed": 9.0,
+				"color": Color(0.82, 0.92, 1.0, 0.28 if column_hits > 0 else 0.14),
+			})
 			_show_banner("Maid Secret \"Changeling Magic\"", 1.12)
 			return _set_rumia_state(zombie, "clock", 0.52)
 		7:
@@ -8102,11 +8424,15 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 					float(data.get("knife_damage", 58.0)) * (0.92 + float(phase) * 0.12)
 				) or hop_hit
 				effects.append({
-					"shape": "glow_burst",
-					"position": Vector2(anchor_x - 76.0 + sin(float(hop_index) * 1.7) * 14.0, _row_center_y(target_row) - 10.0),
+					"shape": "sakuya_knife_fan",
+					"position": Vector2(anchor_x - 16.0, _row_center_y(target_row) - 10.0),
+					"length": anchor_x - slash_start + CELL_SIZE.x * 0.16,
+					"width": CELL_SIZE.y * 1.18,
+					"knife_count": 4 + phase,
 					"radius": 62.0,
 					"time": 0.28,
 					"duration": 0.28,
+					"anim_speed": 9.0,
 					"color": Color(0.84, 0.92, 1.0, 0.28 if hop_hit else 0.16),
 				})
 			if final_row != row:
@@ -8129,19 +8455,34 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 			zombie["sakuya_relocations_remaining"] = 2 + phase
 			var world_cells = _sakuya_target_cells(row, 6 + phase, 2)
 			var world_hits = _damage_plants_in_cells(world_cells, float(data.get("knife_rain_damage", 96.0)) * 0.72 + phase * 16.0, 1.18 + phase * 0.08)
+			var world_points: Array = []
 			for _i in range(1 + phase):
 				_spawn_hover_boss_reinforcement("sakuya_boss", phase)
 			for cell_variant in world_cells:
 				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "arcane_circle",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 40.0,
-					"time": 0.44,
-					"duration": 0.44,
-					"anim_speed": 8.4,
-					"color": Color(0.86, 0.94, 1.0, 0.3 if world_hits > 0 else 0.16),
-				})
+				world_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "sakuya_time_grid",
+				"position": Vector2(anchor_x - 92.0, _row_center_y(int(zombie.get("row", row))) - 12.0),
+				"radius": 212.0 + phase * 18.0,
+				"width": board_size.y * 0.4,
+				"time": 0.44,
+				"duration": 0.44,
+				"anim_speed": 8.4,
+				"color": Color(0.86, 0.94, 1.0, 0.3 if world_hits > 0 else 0.16),
+			})
+			effects.append({
+				"shape": "sakuya_knife_rain",
+				"position": Vector2(anchor_x - 84.0, _row_center_y(int(zombie.get("row", row))) - 10.0),
+				"points": world_points,
+				"radius": 54.0,
+				"knife_height": 132.0 + phase * 12.0,
+				"knife_count": 3 + phase,
+				"time": 0.44,
+				"duration": 0.44,
+				"anim_speed": 8.4,
+				"color": Color(0.86, 0.94, 1.0, 0.3 if world_hits > 0 else 0.16),
+			})
 			_show_banner("Time Sign \"Sakuya's World\"", 1.22)
 			return _set_rumia_state(zombie, "time", 0.72)
 		_:
@@ -8241,11 +8582,12 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 			for lane_variant in [row, _next_active_row(row, -1).get("row", row), _next_active_row(row, 1).get("row", row)]:
 				lane_hit = _damage_plants_in_row_segment(int(lane_variant), start_x, anchor_x, float(data.get("scarlet_shot_damage", 62.0)) + phase * 12.0) or lane_hit
 			effects.append({
-				"shape": "lane_spray",
+				"shape": "remilia_scarlet_wave",
 				"position": Vector2(start_x, _row_center_y(row) - 12.0),
 				"length": anchor_x - start_x,
-				"width": CELL_SIZE.y * 2.1,
+				"width": CELL_SIZE.y * 2.26,
 				"radius": 220.0,
+				"spike_count": 9 + phase * 2,
 				"time": 0.42,
 				"duration": 0.42,
 				"anim_speed": 8.0,
@@ -8256,17 +8598,20 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 		1:
 			var magic_cells = _remilia_target_cells(row, 4 + phase, 3)
 			var magic_hits = _damage_plants_in_cells(magic_cells, float(data.get("red_magic_damage", 86.0)) + phase * 15.0, 1.05 + phase * 0.08)
+			var magic_points: Array = []
 			for cell_variant in magic_cells:
 				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "arcane_circle",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 46.0,
-					"time": 0.46,
-					"duration": 0.46,
-					"anim_speed": 6.9,
-					"color": Color(0.98, 0.22, 0.32, 0.28 if magic_hits > 0 else 0.16),
-				})
+				magic_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "remilia_blood_sigil",
+				"position": Vector2(anchor_x - 88.0, _row_center_y(row) - 10.0),
+				"points": magic_points,
+				"radius": 52.0,
+				"time": 0.46,
+				"duration": 0.46,
+				"anim_speed": 6.9,
+				"color": Color(0.98, 0.22, 0.32, 0.28 if magic_hits > 0 else 0.16),
+			})
 			_show_banner("Red Magic", 1.12)
 			return _set_rumia_state(zombie, "magic", 0.5)
 		2:
@@ -8274,11 +8619,11 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 			for lane_variant in active_rows:
 				world_hit = _damage_plants_in_row_segment(int(lane_variant), BOARD_ORIGIN.x + board_size.x * 0.18, anchor_x, float(data.get("gensokyo_damage", 48.0)) + phase * 10.0) or world_hit
 			effects.append({
-				"shape": "lane_spray",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.18, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.18),
-				"width": board_size.y * 0.88,
-				"radius": board_size.x,
+				"shape": "remilia_crimson_field",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
+				"length": board_size.x * 0.88,
+				"width": board_size.y * 0.9,
+				"radius": board_size.x * 0.5,
 				"time": 0.54,
 				"duration": 0.54,
 				"anim_speed": 7.2,
@@ -8300,7 +8645,7 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 				zombie["row"] = heart_target.x
 				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), move_duration * 0.82)
 			effects.append({
-				"shape": "storm_arc",
+				"shape": "remilia_heart_break",
 				"position": Vector2(anchor_x - 80.0, _row_center_y(int(zombie.get("row", heart_target.x))) - 20.0),
 				"target": heart_center,
 				"radius": 168.0,
@@ -8322,7 +8667,7 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 			for cell_variant in gungnir_cells:
 				var cell = Vector2i(cell_variant)
 				effects.append({
-					"shape": "storm_arc",
+					"shape": "remilia_gungnir_lance",
 					"position": Vector2(anchor_x - 64.0, _row_center_y(int(zombie.get("row", row))) - 16.0),
 					"target": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
 					"radius": 132.0,
@@ -8344,11 +8689,15 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 				var slash_start = BOARD_ORIGIN.x + board_size.x * (0.24 + float(dive_index) * 0.08)
 				dive_hit = _damage_plants_in_row_segment(target_row, slash_start, anchor_x, float(data.get("cradle_damage", 94.0)) + phase * 13.0) or dive_hit
 				effects.append({
-					"shape": "glow_burst",
-					"position": Vector2(anchor_x - 70.0 + sin(float(dive_index) * 1.7) * 14.0, _row_center_y(target_row) - 10.0),
+					"shape": "remilia_scarlet_wave",
+					"position": Vector2(slash_start, _row_center_y(target_row) - 10.0),
+					"length": anchor_x - slash_start,
+					"width": CELL_SIZE.y * 1.18,
+					"spike_count": 6 + phase,
 					"radius": 66.0,
 					"time": 0.26,
 					"duration": 0.26,
+					"anim_speed": 8.8,
 					"color": Color(0.96, 0.2, 0.24, 0.28 if dive_hit else 0.16),
 				})
 			if final_row != row:
@@ -8373,19 +8722,22 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 				for lane_variant in active_rows:
 					column_targets.append(Vector2i(int(lane_variant), target_col))
 			var column_hits = _damage_plants_in_cells(column_targets, float(data.get("cradle_damage", 94.0)) * 0.78 + phase * 12.0, 0.92 + phase * 0.06)
+			var column_points: Array = []
 			for _i in range(1 + phase):
 				_spawn_hover_boss_reinforcement("remilia_boss", phase)
 			for cell_variant in column_targets:
 				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "fairy_ring",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 32.0,
-					"time": 0.42,
-					"duration": 0.42,
-					"anim_speed": 8.4,
-					"color": Color(0.88, 0.18, 0.26, 0.28 if column_hits > 0 else 0.14),
-				})
+				column_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "remilia_bat_swarm",
+				"position": Vector2(anchor_x - 84.0, _row_center_y(row) - 10.0),
+				"points": column_points,
+				"radius": 38.0,
+				"time": 0.42,
+				"duration": 0.42,
+				"anim_speed": 8.4,
+				"color": Color(0.88, 0.18, 0.26, 0.28 if column_hits > 0 else 0.14),
+			})
 			_show_banner("Dracula Cradle", 1.12)
 			return _set_rumia_state(zombie, "drain", 0.58)
 		7:
@@ -8397,7 +8749,7 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 						drained += 1
 			zombie = _heal_hover_boss(zombie, 180.0 + float(drained) * 24.0 + float(phase) * 60.0)
 			effects.append({
-				"shape": "arcane_circle",
+				"shape": "remilia_blood_sigil",
 				"position": Vector2(anchor_x - 92.0, _row_center_y(int(zombie.get("row", row))) - 12.0),
 				"radius": 220.0,
 				"time": 0.48,
@@ -8412,20 +8764,28 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 				_spawn_hover_boss_reinforcement("remilia_boss", phase)
 			var bat_cells = _remilia_target_cells(row, 5 + phase, 2)
 			var bat_hits = _damage_plants_in_cells(bat_cells, float(data.get("bat_damage", 44.0)) + phase * 11.0, 0.82 + phase * 0.06)
+			var bat_points: Array = []
 			for cell_variant in bat_cells:
 				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "glow_burst",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -12.0),
-					"radius": 52.0,
-					"time": 0.22,
-					"duration": 0.22,
-					"color": Color(0.94, 0.08, 0.16, 0.22 if bat_hits > 0 else 0.12),
-				})
+				bat_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -12.0))
+			effects.append({
+				"shape": "remilia_bat_swarm",
+				"position": Vector2(anchor_x - 92.0, _row_center_y(row) - 10.0),
+				"points": bat_points,
+				"radius": 54.0,
+				"time": 0.22,
+				"duration": 0.22,
+				"anim_speed": 8.8,
+				"color": Color(0.94, 0.08, 0.16, 0.22 if bat_hits > 0 else 0.12),
+			})
 			_show_banner("Scarlet Devil", 1.16)
 			return _set_rumia_state(zombie, "bats", 0.58)
 		_:
 			var meister_cells = _remilia_target_cells(row, 6 + phase, 2)
+			var meister_points: Array = []
+			for cell_variant in meister_cells:
+				var meister_cell = Vector2i(cell_variant)
+				meister_points.append(_cell_center(meister_cell.x, meister_cell.y) + Vector2(0.0, -10.0))
 			var meister_hits = _damage_plants_in_cells(meister_cells, float(data.get("red_magic_damage", 86.0)) * 0.82 + phase * 17.0, 1.24 + phase * 0.08)
 			var cross_rows: Array = active_rows.duplicate()
 			cross_rows.shuffle()
@@ -8434,15 +8794,26 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.22, anchor_x, float(data.get("scarlet_shot_damage", 62.0)) * 0.82 + phase * 8.0)
 			zombie = _heal_hover_boss(zombie, 90.0 + float(meister_hits) * 16.0)
 			effects.append({
-				"shape": "lane_spray",
+				"shape": "remilia_meister_barrage",
 				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.22, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
 				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.22),
 				"width": board_size.y * 0.92,
 				"radius": board_size.x,
+				"points": meister_points,
 				"time": 0.58,
 				"duration": 0.58,
 				"anim_speed": 7.6,
 				"color": Color(1.0, 0.18, 0.24, 0.34 if meister_hits > 0 else 0.18),
+			})
+			effects.append({
+				"shape": "remilia_blood_sigil",
+				"position": Vector2(anchor_x - 88.0, _row_center_y(row) - 10.0),
+				"points": meister_points,
+				"radius": 48.0,
+				"time": 0.58,
+				"duration": 0.58,
+				"anim_speed": 7.2,
+				"color": Color(0.98, 0.22, 0.28, 0.24 if meister_hits > 0 else 0.12),
 			})
 			_show_banner("Scarlet Meister", 1.2)
 			return _set_rumia_state(zombie, "meister", 0.72)
@@ -9108,9 +9479,10 @@ func _trigger_sakuya_boss_phase_shift(zombie: Dictionary, phase: int) -> Diction
 	var center = Vector2(_boss_anchor_x("sakuya_boss") - 96.0, _row_center_y(int(zombie["row"])) - 10.0)
 	_show_banner("咲夜进入第 %d 阶段！" % (phase + 1), 2.0)
 	effects.append({
-		"shape": "arcane_circle",
+		"shape": "sakuya_time_grid",
 		"position": center,
 		"radius": 210.0 + phase * 22.0,
+		"width": board_size.y * 0.4,
 		"time": 0.6,
 		"duration": 0.6,
 		"anim_speed": 8.0,
@@ -9128,18 +9500,18 @@ func _trigger_remilia_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 	var center = Vector2(_boss_anchor_x("remilia_boss") - 104.0, _row_center_y(int(zombie["row"])) - 10.0)
 	_show_banner("蕾米莉亚进入第 %d 阶段！" % (phase + 1), 2.2)
 	effects.append({
-		"shape": "lane_spray",
-		"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.22, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0),
-		"length": _boss_anchor_x("remilia_boss") - (BOARD_ORIGIN.x + board_size.x * 0.22),
+		"shape": "remilia_crimson_field",
+		"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0),
+		"length": board_size.x * 0.88,
 		"width": board_size.y * 0.92,
-		"radius": board_size.x,
+		"radius": board_size.x * 0.48,
 		"time": 0.6,
 		"duration": 0.6,
 		"anim_speed": 7.4,
 		"color": Color(0.98, 0.16, 0.22, 0.34),
 	})
 	effects.append({
-		"shape": "arcane_circle",
+		"shape": "remilia_blood_sigil",
 		"position": center,
 		"radius": 224.0 + phase * 22.0,
 		"time": 0.64,
@@ -9152,7 +9524,7 @@ func _trigger_remilia_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 	for cell_variant in cells:
 		var cell = Vector2i(cell_variant)
 		effects.append({
-			"shape": "storm_arc",
+			"shape": "remilia_gungnir_lance",
 			"position": center,
 			"target": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
 			"radius": 156.0,
@@ -10569,6 +10941,21 @@ func _is_scarlet_clocktower_level() -> bool:
 	return String(current_level.get("terrain", "")) == "scarlet_clocktower"
 
 
+func _scarlet_clocktower_floor_style() -> Dictionary:
+	return {
+		"tile_mode": "ceramic",
+		"tile_inset": 9.0,
+		"mortar": Color(0.14, 0.03, 0.06, 0.8),
+		"tile_light": Color(0.82, 0.22, 0.18, 0.92),
+		"tile_dark": Color(0.42, 0.08, 0.12, 0.96),
+		"bevel_light": Color(1.0, 0.86, 0.8, 0.24),
+		"bevel_shadow": Color(0.18, 0.02, 0.08, 0.46),
+		"gloss": Color(1.0, 0.92, 0.86, 0.12),
+		"accent": Color(0.98, 0.72, 0.52, 0.2),
+		"rivet": Color(0.96, 0.82, 0.64, 0.24),
+	}
+
+
 func _has_scarlet_clock_hazard() -> bool:
 	return _is_scarlet_clocktower_level() and current_level.has("clock_hazard_interval")
 
@@ -11391,6 +11778,17 @@ func _draw_world_select_scene() -> void:
 	var daily_fill = Color(0.36, 0.64, 0.86) if not daily_done else Color(0.52, 0.56, 0.6)
 	_draw_panel_shell(WORLD_SELECT_DAILY_RECT, daily_fill, Color(0.16, 0.32, 0.48), 0.18, 0.1)
 	_draw_text("每日挑战" if not daily_done else "已完成", WORLD_SELECT_DAILY_RECT.position + Vector2(48.0, 38.0), 22, Color(1.0, 0.98, 0.94))
+	# Update button and status
+	_draw_panel_shell(WORLD_SELECT_UPDATE_RECT, _update_badge_fill(), Color(0.18, 0.22, 0.28), 0.18, 0.1)
+	_draw_text(_update_action_text(), WORLD_SELECT_UPDATE_RECT.position + Vector2(18.0, 38.0), 20, Color(1.0, 0.98, 0.94))
+	_draw_panel_shell(WORLD_SELECT_UPDATE_INFO_RECT, Color(0.14, 0.16, 0.2, 0.9), Color(0.34, 0.4, 0.48), 0.12, 0.08)
+	_draw_text("自动更新", WORLD_SELECT_UPDATE_INFO_RECT.position + Vector2(16.0, 20.0), 16, Color(0.92, 0.96, 1.0))
+	_draw_text(_update_status_line(), WORLD_SELECT_UPDATE_INFO_RECT.position + Vector2(16.0, 40.0), 14, Color(0.84, 0.9, 0.98))
+	if update_state == "downloading":
+		var bar_rect = Rect2(WORLD_SELECT_UPDATE_INFO_RECT.position + Vector2(250.0, 13.0), Vector2(148.0, 16.0))
+		draw_rect(bar_rect, Color(0.08, 0.1, 0.12, 0.82), true)
+		draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * clampf(update_download_progress, 0.0, 1.0), bar_rect.size.y)), Color(0.92, 0.66, 0.22, 0.94), true)
+		draw_rect(bar_rect, Color(0.94, 0.96, 1.0, 0.24), false, 1.0)
 	# Coin display
 	_draw_panel_shell(Rect2(1180.0, 808.0, 236.0, 42.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.1, 0.06)
 	_draw_text("金币: %d" % coins_total, Vector2(1204.0, 838.0), 22, Color(0.33, 0.21, 0.04))
@@ -12610,6 +13008,7 @@ func _draw_battle_background() -> void:
 
 func _draw_battle_board() -> void:
 	var freeze_visual_ratio = _freeze_transition_visual_ratio()
+	var clock_floor_style := _scarlet_clocktower_floor_style() if _is_scarlet_clocktower_level() else {}
 	for row in range(board_rows):
 		var lane_rect = Rect2(
 			Vector2(BOARD_ORIGIN.x, BOARD_ORIGIN.y + row * CELL_SIZE.y),
@@ -12686,8 +13085,8 @@ func _draw_battle_board() -> void:
 				tint = Color(0.94, 0.26, 0.34, 0.04) if (row + col) % 2 == 0 else Color(0.08, 0.0, 0.04, 0.08)
 				border_color = Color(0.56, 0.14, 0.22, 0.3)
 			elif _is_scarlet_clocktower_level():
-				tint = Color(0.62, 0.1, 0.16, 0.18) if (row + col) % 2 == 0 else Color(0.16, 0.04, 0.08, 0.24)
-				border_color = Color(0.78, 0.26, 0.2, 0.34)
+				tint = Color(clock_floor_style.get("mortar", Color(0.14, 0.03, 0.06, 0.8)))
+				border_color = Color(clock_floor_style.get("bevel_shadow", Color(0.18, 0.02, 0.08, 0.46)))
 			elif String(current_level.get("terrain", "")) == "scarlet_gate":
 				tint = Color(0.82, 0.28, 0.14, 0.04) if (row + col) % 2 == 0 else Color(0.0, 0.0, 0.0, 0.06)
 				border_color = Color(0.48, 0.14, 0.08, 0.24)
@@ -12729,18 +13128,58 @@ func _draw_battle_board() -> void:
 				border_color = Color(0.68, 0.94, 1.0, 0.16)
 			draw_rect(tile, tint, true)
 			if _is_scarlet_clocktower_level():
+				var tile_inset = float(clock_floor_style.get("tile_inset", 9.0))
 				var tile_center = tile.position + tile.size * 0.5
-				var groove_alpha = 0.08 + 0.03 * sin(ui_time * 1.8 + float(row) * 0.9 + float(col) * 0.7)
-				draw_line(tile.position + Vector2(tile.size.x * 0.22, 10.0), tile.position + Vector2(tile.size.x * 0.78, tile.size.y - 10.0), Color(0.96, 0.8, 0.68, groove_alpha), 1.2)
-				draw_line(tile.position + Vector2(tile.size.x * 0.78, 10.0), tile.position + Vector2(tile.size.x * 0.22, tile.size.y - 10.0), Color(0.14, 0.02, 0.06, 0.14), 1.2)
-				draw_line(tile.position + Vector2(8.0, tile.size.y * 0.5), tile.position + Vector2(tile.size.x - 8.0, tile.size.y * 0.5), Color(0.34, 0.08, 0.12, 0.16), 1.0)
+				var ceramic_rect = tile.grow(-tile_inset)
+				ThemeLib.draw_gradient_rect_v(
+					self,
+					ceramic_rect,
+					Color(clock_floor_style.get("tile_light", Color(0.82, 0.22, 0.18, 0.92))),
+					Color(clock_floor_style.get("tile_dark", Color(0.42, 0.08, 0.12, 0.96)))
+				)
+				draw_rect(ceramic_rect, Color(clock_floor_style.get("bevel_shadow", Color(0.18, 0.02, 0.08, 0.46))), false, 2.0)
+				draw_line(
+					ceramic_rect.position + Vector2(4.0, 4.0),
+					ceramic_rect.position + Vector2(ceramic_rect.size.x - 4.0, 4.0),
+					Color(clock_floor_style.get("bevel_light", Color(1.0, 0.86, 0.8, 0.24))),
+					2.0
+				)
+				draw_line(
+					ceramic_rect.position + Vector2(4.0, 4.0),
+					ceramic_rect.position + Vector2(4.0, ceramic_rect.size.y - 4.0),
+					Color(clock_floor_style.get("bevel_light", Color(1.0, 0.86, 0.8, 0.24))),
+					2.0
+				)
+				draw_rect(
+					Rect2(ceramic_rect.position + Vector2(6.0, 6.0), Vector2(maxf(8.0, ceramic_rect.size.x - 12.0), maxf(10.0, ceramic_rect.size.y * 0.26))),
+					Color(clock_floor_style.get("gloss", Color(1.0, 0.92, 0.86, 0.12))),
+					true
+				)
+				draw_line(
+					tile_center + Vector2(-ceramic_rect.size.x * 0.34, 0.0),
+					tile_center + Vector2(ceramic_rect.size.x * 0.34, 0.0),
+					Color(clock_floor_style.get("accent", Color(0.98, 0.72, 0.52, 0.2))),
+					1.2
+				)
+				draw_line(
+					tile_center + Vector2(0.0, -ceramic_rect.size.y * 0.32),
+					tile_center + Vector2(0.0, ceramic_rect.size.y * 0.32),
+					Color(0.12, 0.01, 0.04, 0.18),
+					1.0
+				)
+				for rivet_offset in [
+					Vector2(-ceramic_rect.size.x * 0.32, -ceramic_rect.size.y * 0.28),
+					Vector2(ceramic_rect.size.x * 0.32, -ceramic_rect.size.y * 0.28),
+					Vector2(-ceramic_rect.size.x * 0.32, ceramic_rect.size.y * 0.28),
+					Vector2(ceramic_rect.size.x * 0.32, ceramic_rect.size.y * 0.28),
+				]:
+					draw_circle(tile_center + rivet_offset, 2.4, Color(clock_floor_style.get("rivet", Color(0.96, 0.82, 0.64, 0.24))))
 				if (row + col) % 2 == 0:
-					var arc_radius = minf(tile.size.x, tile.size.y) * 0.18
-					var arc_start = scarlet_clock_drift * 0.8 + float(row) * 0.36 + float(col) * 0.22
-					draw_arc(tile_center, arc_radius, arc_start, arc_start + PI * 1.55, 16, Color(0.92, 0.28, 0.34, 0.18), 1.6)
-					draw_circle(tile_center, arc_radius * 0.32, Color(0.88, 0.78, 0.62, 0.08))
+					var arc_radius = minf(ceramic_rect.size.x, ceramic_rect.size.y) * 0.16
+					var arc_start = scarlet_clock_drift * 0.68 + float(row) * 0.28 + float(col) * 0.2
+					draw_arc(tile_center, arc_radius, arc_start, arc_start + PI * 1.42, 18, Color(clock_floor_style.get("accent", Color(0.98, 0.72, 0.52, 0.2))), 1.4)
 				else:
-					draw_rect(Rect2(tile.position + Vector2(12.0, 12.0), tile.size - Vector2(24.0, 24.0)), Color(0.18, 0.02, 0.06, 0.08), false, 1.0)
+					draw_rect(ceramic_rect.grow(-5.0), Color(0.12, 0.01, 0.04, 0.08), false, 1.0)
 			elif _is_city_level():
 				var city_terrain = _cell_terrain_kind(row, col)
 				if city_terrain == "city_tile":
@@ -14108,6 +14547,48 @@ func _effect_visual_width(effect: Dictionary, _ratio: float) -> float:
 	return float(effect.get("width", 78.0))
 
 
+func _draw_effect_blade(tip: Vector2, tail: Vector2, half_width: float, edge_color: Color, core_color: Color) -> void:
+	var direction = tip - tail
+	var direction_length = maxf(direction.length(), 0.001)
+	var forward = direction / direction_length
+	var normal = Vector2(-forward.y, forward.x) * half_width
+	var shoulder = tail.lerp(tip, 0.22)
+	var guard = tail.lerp(tip, 0.12)
+	draw_polygon(
+		PackedVector2Array([
+			tip,
+			shoulder + normal,
+			tail + normal * 0.28,
+			tail - normal * 0.28,
+			shoulder - normal,
+		]),
+		PackedColorArray([core_color, edge_color, edge_color.darkened(0.14), edge_color.darkened(0.14), edge_color])
+	)
+	draw_line(guard - normal * 0.92, guard + normal * 0.92, Color(0.72, 0.82, 0.92, edge_color.a * 0.82), 1.6)
+	draw_line(tail.lerp(tip, 0.16), tip, Color(1.0, 1.0, 1.0, core_color.a * 0.68), 1.2)
+
+
+func _draw_effect_bat(center: Vector2, scale: float, color: Color, flutter: float) -> void:
+	var wing = 11.0 * scale
+	var body = 4.5 * scale
+	var flap = flutter * 0.32 * scale
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(-wing * 1.08, -2.0 * scale + flap),
+			center + Vector2(-wing * 0.5, -wing * 0.54 - flap),
+			center + Vector2(-body * 0.2, -body * 0.9),
+			center + Vector2(0.0, body * 0.36),
+			center + Vector2(body * 0.2, -body * 0.9),
+			center + Vector2(wing * 0.5, -wing * 0.54 - flap),
+			center + Vector2(wing * 1.08, -2.0 * scale + flap),
+			center + Vector2(wing * 0.52, wing * 0.18),
+			center + Vector2(-wing * 0.52, wing * 0.18),
+		]),
+		PackedColorArray([color, color, color, color.darkened(0.1), color, color, color, color.darkened(0.08), color.darkened(0.08)])
+	)
+	draw_circle(center + Vector2(0.0, -body * 0.24), body * 0.34, Color(1.0, 0.78, 0.78, color.a * 0.2))
+
+
 func _draw_effects() -> void:
 	for effect in effects:
 		var ratio = float(effect["time"]) / float(effect["duration"])
@@ -14224,6 +14705,274 @@ func _draw_effects() -> void:
 				draw_circle(spark_center, 2.6 + (1.0 - spark_ratio) * 2.0, Color(0.92, 1.0, 1.0, effect_color.a * 0.72))
 			draw_circle(beam_origin, 7.0, Color(0.88, 0.98, 1.0, effect_color.a * 0.5))
 			draw_circle(beam_target, 12.0, Color(0.9, 1.0, 1.0, effect_color.a * 0.78))
+			continue
+		if shape == "sakuya_knife_fan":
+			var fan_origin = Vector2(effect["position"])
+			var fan_length = _effect_visual_length(effect, ratio) * (0.56 + ratio * 0.44)
+			var fan_width = _effect_visual_width(effect, ratio)
+			var knife_count = max(3, int(effect.get("knife_count", 8)))
+			for knife_index in range(knife_count):
+				var knife_ratio = 0.5 if knife_count == 1 else float(knife_index) / float(knife_count - 1)
+				var spread = lerpf(-0.5, 0.5, knife_ratio)
+				var angle = spread * 0.92 + sin(level_time * anim_speed * 0.18 + knife_ratio * 4.8) * 0.05
+				var tip = fan_origin + Vector2(-cos(angle) * fan_length, sin(angle) * fan_length * 0.28 + spread * fan_width * 0.72)
+				var tail = fan_origin + Vector2(-6.0, spread * fan_width * 0.18)
+				_draw_effect_blade(
+					tip,
+					tail,
+					4.8 + (1.0 - absf(spread)) * 2.4,
+					Color(0.8, 0.88, 0.96, effect_color.a * 0.92),
+					Color(0.98, 1.0, 1.0, effect_color.a)
+				)
+				draw_line(tail, tip, Color(0.88, 0.96, 1.0, effect_color.a * 0.18), 1.2)
+			draw_circle(fan_origin, 16.0, Color(0.92, 0.98, 1.0, effect_color.a * 0.16))
+			draw_arc(fan_origin, 28.0 + (1.0 - ratio) * 6.0, -0.58, 0.58, 18, Color(0.88, 0.96, 1.0, effect_color.a * 0.42), 1.8)
+			continue
+		if shape == "sakuya_knife_rain":
+			var rain_points: Array = effect.get("points", [])
+			var knife_height = float(effect.get("knife_height", 120.0))
+			var rain_count = max(1, int(effect.get("knife_count", 3)))
+			for point_variant in rain_points:
+				var impact = Vector2(point_variant)
+				for knife_index in range(rain_count):
+					var spread = (float(knife_index) - float(rain_count - 1) * 0.5) * 12.0
+					var fall = knife_height * (0.54 + float(knife_index) * 0.08) * (1.0 - ratio * 0.1)
+					var tip = impact + Vector2(spread * 0.1, -6.0)
+					var tail = impact + Vector2(spread, -fall - 18.0)
+					_draw_effect_blade(
+						tip,
+						tail,
+						3.8 + float(knife_index) * 0.7,
+						Color(0.82, 0.9, 0.98, effect_color.a * 0.92),
+						Color(1.0, 1.0, 1.0, effect_color.a)
+					)
+					draw_line(tail + Vector2(0.0, -14.0), tip, Color(0.84, 0.92, 1.0, effect_color.a * 0.16), 1.0)
+				draw_circle(impact + Vector2(0.0, 5.0), 12.0, Color(0.92, 0.98, 1.0, effect_color.a * 0.14))
+				draw_line(impact + Vector2(-10.0, 6.0), impact + Vector2(10.0, 6.0), Color(0.98, 1.0, 1.0, effect_color.a * 0.22), 1.2)
+			continue
+		if shape == "sakuya_time_grid":
+			var grid_points: Array = effect.get("points", [])
+			var has_grid_points = not grid_points.is_empty()
+			if grid_points.is_empty():
+				grid_points.append(Vector2(effect["position"]))
+			for point_variant in grid_points:
+				var grid_center = Vector2(point_variant)
+				var grid_radius = float(effect.get("radius", 120.0)) * (0.84 + (1.0 - ratio) * 0.22)
+				if has_grid_points:
+					grid_radius = minf(grid_radius, maxf(18.0, float(effect.get("width", 30.0)) * 1.3))
+				var cell_span = clampf(grid_radius * 0.34, 12.0, 44.0)
+				draw_circle(grid_center, grid_radius, Color(0.78, 0.88, 1.0, effect_color.a * 0.1))
+				draw_circle(grid_center, grid_radius * 0.78, Color(1.0, 1.0, 1.0, effect_color.a * 0.08), false, 2.0)
+				for line_index in range(-2, 3):
+					var offset = float(line_index) * cell_span
+					draw_line(
+						grid_center + Vector2(offset, -grid_radius * 0.76),
+						grid_center + Vector2(offset, grid_radius * 0.76),
+						Color(0.86, 0.94, 1.0, effect_color.a * 0.2),
+						1.1
+					)
+					draw_line(
+						grid_center + Vector2(-grid_radius * 0.76, offset),
+						grid_center + Vector2(grid_radius * 0.76, offset),
+						Color(0.66, 0.78, 0.94, effect_color.a * 0.18),
+						1.1
+					)
+				for tick_index in range(12):
+					var tick_angle = level_time * anim_speed * 0.18 + float(tick_index) * TAU / 12.0
+					var tick_from = grid_center + Vector2(cos(tick_angle), sin(tick_angle)) * grid_radius * 0.78
+					var tick_to = grid_center + Vector2(cos(tick_angle), sin(tick_angle)) * grid_radius * 0.96
+					draw_line(tick_from, tick_to, Color(0.98, 1.0, 1.0, effect_color.a * 0.42), 1.4)
+				draw_arc(grid_center, grid_radius * 0.52, level_time * anim_speed * 0.22, level_time * anim_speed * 0.22 + PI * 1.28, 22, Color(0.92, 0.98, 1.0, effect_color.a * 0.46), 1.8)
+			continue
+		if shape == "remilia_scarlet_wave":
+			var scarlet_origin = Vector2(effect["position"])
+			var scarlet_length = _effect_visual_length(effect, ratio)
+			var scarlet_width = _effect_visual_width(effect, ratio)
+			var spike_count = max(5, int(effect.get("spike_count", 8)))
+			draw_rect(
+				Rect2(scarlet_origin + Vector2(0.0, -scarlet_width * 0.38), Vector2(scarlet_length, scarlet_width * 0.76)),
+				Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.16),
+				true
+			)
+			for band_index in range(3):
+				var band_y = -scarlet_width * 0.24 + float(band_index) * scarlet_width * 0.24 + sin(level_time * anim_speed + float(band_index) * 1.4) * scarlet_width * 0.05
+				draw_line(
+					scarlet_origin + Vector2(0.0, band_y),
+					scarlet_origin + Vector2(scarlet_length, band_y),
+					Color(1.0, 0.54, 0.44, effect_color.a * (0.24 + float(band_index) * 0.08)),
+					scarlet_width * (0.08 + float(band_index) * 0.04)
+				)
+			for spike_index in range(spike_count):
+				var spike_ratio = float(spike_index) / float(max(1, spike_count - 1))
+				var spike_center = scarlet_origin + Vector2(scarlet_length * spike_ratio, sin(level_time * anim_speed * 0.82 + spike_ratio * 7.0) * scarlet_width * 0.12)
+				var spike_height = scarlet_width * (0.22 + (1.0 - absf(spike_ratio - 0.5) * 1.7) * 0.18)
+				var spike_sign = -1.0 if spike_index % 2 == 0 else 1.0
+				draw_polygon(
+					PackedVector2Array([
+						spike_center + Vector2(-8.0, spike_sign * scarlet_width * 0.12),
+						spike_center + Vector2(12.0, spike_sign * spike_height),
+						spike_center + Vector2(28.0, 0.0),
+						spike_center + Vector2(12.0, -spike_sign * spike_height * 0.32),
+					]),
+					PackedColorArray([
+						Color(0.9, 0.12, 0.18, effect_color.a * 0.82),
+						Color(1.0, 0.48, 0.34, effect_color.a),
+						Color(1.0, 0.72, 0.54, effect_color.a * 0.88),
+						Color(0.9, 0.12, 0.18, effect_color.a * 0.72),
+					])
+				)
+			draw_circle(scarlet_origin + Vector2(scarlet_length, 0.0), scarlet_width * 0.28, Color(1.0, 0.68, 0.52, effect_color.a * 0.84))
+			continue
+		if shape == "remilia_blood_sigil":
+			var sigil_points: Array = effect.get("points", [])
+			var has_sigil_points = not sigil_points.is_empty()
+			if sigil_points.is_empty():
+				sigil_points.append(Vector2(effect["position"]))
+			for point_variant in sigil_points:
+				var sigil_center = Vector2(point_variant)
+				var sigil_radius = float(effect.get("radius", 54.0)) * (0.84 + (1.0 - ratio) * 0.22)
+				if has_sigil_points:
+					sigil_radius = minf(sigil_radius, 54.0)
+				draw_circle(sigil_center, sigil_radius, Color(0.72, 0.04, 0.1, effect_color.a * 0.16))
+				draw_circle(sigil_center, sigil_radius * 0.78, Color(1.0, 0.56, 0.5, effect_color.a * 0.1), false, 2.0)
+				var outer_points: Array = []
+				for rune_index in range(5):
+					var outer_angle = level_time * anim_speed * 0.18 - PI * 0.5 + float(rune_index) * TAU / 5.0
+					var outer_point = sigil_center + Vector2(cos(outer_angle), sin(outer_angle)) * sigil_radius * 0.8
+					outer_points.append(outer_point)
+					draw_circle(outer_point, 3.6, Color(1.0, 0.74, 0.62, effect_color.a * 0.76))
+				for rune_index in range(5):
+					var start = Vector2(outer_points[rune_index])
+					var target = Vector2(outer_points[(rune_index + 2) % 5])
+					draw_line(start, target, Color(0.98, 0.38, 0.34, effect_color.a * 0.54), 1.6)
+				draw_line(sigil_center + Vector2(-sigil_radius * 0.42, 0.0), sigil_center + Vector2(sigil_radius * 0.42, 0.0), Color(1.0, 0.68, 0.54, effect_color.a * 0.42), 1.4)
+				draw_line(sigil_center + Vector2(0.0, -sigil_radius * 0.42), sigil_center + Vector2(0.0, sigil_radius * 0.42), Color(0.66, 0.04, 0.12, effect_color.a * 0.32), 1.2)
+			continue
+		if shape == "remilia_heart_break":
+			var heart_origin = Vector2(effect["position"])
+			var heart_target = Vector2(effect.get("target", heart_origin))
+			var heart_direction = heart_target - heart_origin
+			var heart_length = maxf(heart_direction.length(), 1.0)
+			var heart_forward = heart_direction / heart_length
+			var heart_normal = Vector2(-heart_forward.y, heart_forward.x)
+			for band_index in range(3):
+				var band_offset = heart_normal * sin(level_time * anim_speed + float(band_index) * 1.4) * 6.0
+				draw_line(
+					heart_origin + band_offset,
+					heart_target + band_offset,
+					Color(0.86, 0.04, 0.12, effect_color.a * (0.24 + float(band_index) * 0.12)),
+					3.2 - float(band_index) * 0.7
+				)
+			var heart_center = heart_target
+			draw_circle(heart_center + Vector2(-9.0, -7.0), 10.0, Color(0.98, 0.2, 0.28, effect_color.a * 0.7))
+			draw_circle(heart_center + Vector2(9.0, -7.0), 10.0, Color(0.98, 0.2, 0.28, effect_color.a * 0.7))
+			draw_polygon(
+				PackedVector2Array([
+					heart_center + Vector2(-18.0, -2.0),
+					heart_center + Vector2(0.0, 24.0),
+					heart_center + Vector2(18.0, -2.0),
+				]),
+				PackedColorArray([
+					Color(0.92, 0.08, 0.16, effect_color.a * 0.82),
+					Color(1.0, 0.42, 0.36, effect_color.a),
+					Color(0.92, 0.08, 0.16, effect_color.a * 0.82),
+				])
+			)
+			draw_line(heart_center + Vector2(-4.0, -18.0), heart_center + Vector2(5.0, 20.0), Color(1.0, 0.92, 0.9, effect_color.a * 0.64), 2.0)
+			continue
+		if shape == "remilia_gungnir_lance":
+			var lance_origin = Vector2(effect["position"])
+			var lance_target = Vector2(effect.get("target", lance_origin + Vector2.LEFT * 160.0))
+			var lance_direction = lance_target - lance_origin
+			var lance_length = maxf(lance_direction.length(), 1.0)
+			var lance_forward = lance_direction / lance_length
+			var lance_normal = Vector2(-lance_forward.y, lance_forward.x)
+			for band_index in range(3):
+				var trail_width = 8.0 - float(band_index) * 2.0
+				var trail_offset = lance_normal * sin(level_time * anim_speed + float(band_index) * 1.2) * 3.6
+				draw_line(
+					lance_origin + trail_offset,
+					lance_target + trail_offset,
+					Color(0.84, 0.04, 0.12, effect_color.a * (0.28 + float(band_index) * 0.14)),
+					trail_width
+				)
+			var shaft_base = lance_target - lance_forward * 26.0
+			draw_polygon(
+				PackedVector2Array([
+					lance_target,
+					shaft_base + lance_normal * 12.0,
+					shaft_base + lance_normal * 3.0,
+					lance_target - lance_forward * 8.0,
+					shaft_base - lance_normal * 3.0,
+					shaft_base - lance_normal * 12.0,
+				]),
+				PackedColorArray([
+					Color(1.0, 0.88, 0.72, effect_color.a),
+					Color(1.0, 0.4, 0.26, effect_color.a * 0.92),
+					Color(0.86, 0.08, 0.14, effect_color.a * 0.92),
+					Color(0.7, 0.02, 0.08, effect_color.a * 0.82),
+					Color(0.86, 0.08, 0.14, effect_color.a * 0.92),
+					Color(1.0, 0.4, 0.26, effect_color.a * 0.92),
+				])
+			)
+			draw_line(shaft_base, lance_origin, Color(1.0, 0.62, 0.5, effect_color.a * 0.32), 2.0)
+			continue
+		if shape == "remilia_bat_swarm":
+			var swarm_points: Array = effect.get("points", [])
+			if swarm_points.is_empty():
+				swarm_points.append(Vector2(effect["position"]))
+			for point_variant in swarm_points:
+				var swarm_center = Vector2(point_variant)
+				for bat_index in range(3):
+					var bat_angle = level_time * anim_speed * 0.42 + float(bat_index) * TAU / 3.0
+					var bat_radius = 12.0 + float(bat_index) * 8.0
+					var bat_center = swarm_center + Vector2(cos(bat_angle), sin(bat_angle * 1.3)) * bat_radius
+					_draw_effect_bat(bat_center, 0.7 + float(bat_index) * 0.14, Color(0.7, 0.02, 0.08, effect_color.a * (0.68 - float(bat_index) * 0.12)), sin(level_time * anim_speed + float(bat_index)) * 6.0)
+				draw_circle(swarm_center, 12.0, Color(0.96, 0.18, 0.24, effect_color.a * 0.12))
+			continue
+		if shape == "remilia_crimson_field":
+			var field_center = Vector2(effect["position"])
+			var field_length = float(effect.get("length", board_size.x * 0.8))
+			var field_width = float(effect.get("width", board_size.y * 0.88))
+			var field_rect = Rect2(field_center - Vector2(field_length * 0.5, field_width * 0.5), Vector2(field_length, field_width))
+			draw_rect(field_rect, Color(0.64, 0.02, 0.08, effect_color.a * 0.12), true)
+			for ring_index in range(3):
+				var ring_radius = float(effect.get("radius", 180.0)) * (0.38 + float(ring_index) * 0.16) * (0.86 + (1.0 - ratio) * 0.18)
+				draw_arc(field_center, ring_radius, level_time * anim_speed * 0.14 + float(ring_index), level_time * anim_speed * 0.14 + float(ring_index) + PI * 1.34, 26, Color(1.0, 0.36, 0.32, effect_color.a * (0.42 - float(ring_index) * 0.08)), 2.2)
+			for column_index in range(6):
+				var column_ratio = float(column_index + 1) / 7.0
+				var x = field_rect.position.x + field_rect.size.x * column_ratio
+				draw_line(
+					Vector2(x, field_rect.position.y + 10.0),
+					Vector2(x, field_rect.position.y + field_rect.size.y - 10.0),
+					Color(0.86, 0.08, 0.14, effect_color.a * 0.14),
+					2.0
+				)
+			for drop_index in range(8):
+				var drop_ratio = float(drop_index) / 7.0
+				var drop_center = field_rect.position + Vector2(field_rect.size.x * drop_ratio, field_rect.size.y * (0.24 + 0.52 * absf(sin(level_time * 0.9 + drop_ratio * 4.0))))
+				draw_circle(drop_center, 5.0 + float(drop_index % 3), Color(1.0, 0.18, 0.22, effect_color.a * 0.26))
+			continue
+		if shape == "remilia_meister_barrage":
+			var barrage_origin = Vector2(effect["position"])
+			var barrage_length = _effect_visual_length(effect, ratio)
+			var barrage_width = _effect_visual_width(effect, ratio)
+			var barrage_points: Array = effect.get("points", [])
+			for lance_index in range(8):
+				var lance_ratio = float(lance_index) / 7.0
+				var lance_center = barrage_origin + Vector2(barrage_length * lance_ratio, lerpf(-0.42, 0.42, lance_ratio) * barrage_width)
+				_draw_effect_blade(
+					lance_center + Vector2(28.0, -18.0),
+					lance_center + Vector2(-14.0, 18.0),
+					5.2,
+					Color(0.8, 0.08, 0.14, effect_color.a * 0.82),
+					Color(1.0, 0.4, 0.3, effect_color.a)
+				)
+			for point_variant in barrage_points:
+				var barrage_target = Vector2(point_variant)
+				draw_circle(barrage_target, 18.0, Color(1.0, 0.26, 0.28, effect_color.a * 0.12))
+				draw_line(barrage_target + Vector2(-12.0, 0.0), barrage_target + Vector2(12.0, 0.0), Color(1.0, 0.72, 0.58, effect_color.a * 0.24), 1.8)
+				draw_line(barrage_target + Vector2(0.0, -12.0), barrage_target + Vector2(0.0, 12.0), Color(0.72, 0.04, 0.08, effect_color.a * 0.22), 1.4)
 			continue
 		if shape == "fairy_ring":
 			var ring_center = Vector2(effect["position"])

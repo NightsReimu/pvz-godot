@@ -69,6 +69,57 @@ jobs:
           ref: ${{ github.event.inputs.build_ref || github.ref }}
           lfs: false
 
+      - name: Stamp project version
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            raw_version="${{ github.event.inputs.release_tag }}"
+          elif [[ "${GITHUB_REF_NAME}" == v* ]]; then
+            raw_version="${GITHUB_REF_NAME}"
+          else
+            raw_version="dev-${GITHUB_SHA::7}"
+          fi
+          export BUILD_VERSION="${raw_version#v}"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path("project.godot")
+          text = path.read_text(encoding="utf-8")
+          version = os.environ["BUILD_VERSION"]
+          if 'config/version="' in text:
+            import re
+            text = re.sub(r'config/version="[^"]*"', f'config/version="{version}"', text, count=1)
+          else:
+            text = text.replace('config/name="植物大战僵尸svg版"\n', f'config/name="植物大战僵尸svg版"\nconfig/version="{version}"\n', 1)
+          path.write_text(text, encoding="utf-8")
+          print(f"Stamped project version: {version}")
+          PY
+
+      - name: Stamp project version
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ("${{ github.event.inputs.release_tag }}") {
+            $rawVersion = "${{ github.event.inputs.release_tag }}"
+          } elseif ($env:GITHUB_REF_NAME.StartsWith("v")) {
+            $rawVersion = $env:GITHUB_REF_NAME
+          } else {
+            $rawVersion = "dev-$($env:GITHUB_SHA.Substring(0,7))"
+          }
+          $version = $rawVersion.TrimStart('v')
+          $path = "project.godot"
+          $text = Get-Content $path -Raw -Encoding UTF8
+          if ($text -match 'config/version="[^"]*"') {
+            $text = [regex]::Replace($text, 'config/version="[^"]*"', "config/version=`"$version`"", 1)
+          } else {
+            $text = $text.Replace("config/name=`"植物大战僵尸svg版`"`n", "config/name=`"植物大战僵尸svg版`"`nconfig/version=`"$version`"`n")
+          }
+          Set-Content $path -Value $text -Encoding UTF8
+          Write-Host "Stamped project version: $version"
+
       - name: Set up Java 17
         if: matrix.target == 'android'
         uses: actions/setup-java@v5
