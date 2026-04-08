@@ -41,12 +41,14 @@ const CARD_GAP := 6.0
 const BASE_WAVE_BAR_RECT := Rect2(948.0, 26.0, 340.0, 24.0)
 const BASE_PLANT_FOOD_RECT := Rect2(948.0, 58.0, 90.0, 46.0)
 const BASE_COIN_METER_RECT := Rect2(1046.0, 64.0, 136.0, 40.0)
+const BASE_PAUSE_BUTTON_RECT := Rect2(1088.0, 64.0, 96.0, 40.0)
 const BASE_BACK_BUTTON_RECT := Rect2(1190.0, 64.0, 100.0, 40.0)
 var SEED_BANK_RECT := BASE_SEED_BANK_RECT
 var SUN_METER_RECT := BASE_SUN_METER_RECT
 var WAVE_BAR_RECT := BASE_WAVE_BAR_RECT
 var PLANT_FOOD_RECT := BASE_PLANT_FOOD_RECT
 var COIN_METER_RECT := BASE_COIN_METER_RECT
+var PAUSE_BUTTON_RECT := BASE_PAUSE_BUTTON_RECT
 var BACK_BUTTON_RECT := BASE_BACK_BUTTON_RECT
 
 const MOWER_SPEED := 760.0
@@ -88,6 +90,7 @@ const MAP_SCROLL_LEFT_RECT := Rect2(1080.0, 32.0, 44.0, 44.0)
 const MAP_SCROLL_RIGHT_RECT := Rect2(1132.0, 32.0, 44.0, 44.0)
 const WORLD_CARD_SPACING := 470.0
 const TOUCH_DRAG_THRESHOLD := 18.0
+const TOUCH_PRIORITY_CLICK_THRESHOLD := 34.0
 const WORLD_DRAG_RELEASE_BIAS := 0.32
 const MAP_DRAG_RELEASE_MULTIPLIER := 3.4
 
@@ -205,6 +208,7 @@ var ui_font: SystemFont
 
 var mode := MODE_WORLD_SELECT
 var battle_state := BATTLE_PLAYING
+var battle_paused := false
 var panel_action := ""
 var board_rows := DEFAULT_BOARD_ROWS
 var board_size := Vector2(COLS * CELL_SIZE.x, DEFAULT_BOARD_ROWS * CELL_SIZE.y)
@@ -336,6 +340,8 @@ var touch_navigation_release_velocity := Vector2.ZERO
 var touch_navigation_world_scroll_origin := 0.0
 var touch_navigation_map_scroll_origin := 0.0
 var touch_navigation_dragging := false
+var touch_navigation_press_target := ""
+var touch_navigation_press_rect := Rect2()
 
 var grid: Array = []
 var support_grid: Array = []
@@ -525,7 +531,8 @@ func _refresh_battle_layout() -> void:
 	WAVE_BAR_RECT = Rect2(wave_x, BASE_WAVE_BAR_RECT.position.y, wave_width, BASE_WAVE_BAR_RECT.size.y)
 	PLANT_FOOD_RECT = Rect2(WAVE_BAR_RECT.position.x, BASE_PLANT_FOOD_RECT.position.y, 96.0, BASE_PLANT_FOOD_RECT.size.y)
 	BACK_BUTTON_RECT = Rect2(viewport.x - BASE_BACK_BUTTON_RECT.size.x - 44.0, BASE_BACK_BUTTON_RECT.position.y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
-	COIN_METER_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, BASE_COIN_METER_RECT.position.y, BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
+	PAUSE_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_PAUSE_BUTTON_RECT.size.x - 14.0, BASE_PAUSE_BUTTON_RECT.position.y, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
+	COIN_METER_RECT = Rect2(PAUSE_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, BASE_COIN_METER_RECT.position.y, BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
 
 
 func _reset_touch_navigation() -> void:
@@ -537,6 +544,68 @@ func _reset_touch_navigation() -> void:
 	touch_navigation_world_scroll_origin = 0.0
 	touch_navigation_map_scroll_origin = 0.0
 	touch_navigation_dragging = false
+	touch_navigation_press_target = ""
+	touch_navigation_press_rect = Rect2()
+
+
+func _world_select_touch_target(position: Vector2) -> Dictionary:
+	var enhance_rect = Rect2(WORLD_SELECT_GACHA_RECT.position.x, WORLD_SELECT_GACHA_RECT.position.y + 72.0, 200.0, 52.0)
+	var rect_targets = [
+		{"id": "world_arrow_left", "rect": WORLD_SELECT_ARROW_LEFT_RECT},
+		{"id": "world_arrow_right", "rect": WORLD_SELECT_ARROW_RIGHT_RECT},
+		{"id": "world_almanac", "rect": WORLD_SELECT_ALMANAC_RECT},
+		{"id": "world_endless", "rect": WORLD_SELECT_ENDLESS_RECT},
+		{"id": "world_gacha", "rect": WORLD_SELECT_GACHA_RECT},
+		{"id": "world_enhance", "rect": enhance_rect},
+		{"id": "world_daily", "rect": WORLD_SELECT_DAILY_RECT},
+		{"id": "world_update", "rect": WORLD_SELECT_UPDATE_RECT},
+		{"id": "world_update_info", "rect": WORLD_SELECT_UPDATE_INFO_RECT},
+		{"id": "world_enter", "rect": WORLD_SELECT_ENTER_RECT},
+	]
+	for target_variant in rect_targets:
+		var target = Dictionary(target_variant)
+		var rect = Rect2(target.get("rect", Rect2()))
+		if rect.has_point(position):
+			return {"id": String(target.get("id", "")), "rect": rect}
+	for i in range(WorldDataLib.all().size()):
+		var card_rect = _world_card_rect(i)
+		if card_rect.has_point(position):
+			return {"id": "world_card_%d" % i, "rect": card_rect}
+	return {}
+
+
+func _map_touch_target(position: Vector2) -> Dictionary:
+	var rect_targets = [
+		{"id": "map_almanac", "rect": MAP_ALMANAC_BUTTON_RECT},
+		{"id": "map_back", "rect": MAP_WORLD_BACK_RECT},
+		{"id": "map_left", "rect": MAP_SCROLL_LEFT_RECT},
+		{"id": "map_right", "rect": MAP_SCROLL_RIGHT_RECT},
+	]
+	for target_variant in rect_targets:
+		var target = Dictionary(target_variant)
+		var rect = Rect2(target.get("rect", Rect2()))
+		if rect.has_point(position):
+			return {"id": String(target.get("id", "")), "rect": rect}
+	var level_index = _level_node_at(position)
+	if level_index != -1:
+		var node_center = _map_node_position(level_index)
+		return {"id": "map_level_%d" % level_index, "rect": Rect2(node_center - Vector2(44.0, 44.0), Vector2(88.0, 88.0))}
+	return {}
+
+
+func _touch_navigation_target(position: Vector2, target_mode: String) -> Dictionary:
+	if target_mode == MODE_WORLD_SELECT:
+		return _world_select_touch_target(position)
+	if target_mode == MODE_MAP:
+		return _map_touch_target(position)
+	return {}
+
+
+func _handle_touch_navigation_tap(released_mode: String, released_pos: Vector2) -> void:
+	if released_mode == MODE_WORLD_SELECT:
+		_handle_world_select_click(released_pos)
+	elif released_mode == MODE_MAP:
+		_handle_map_click(released_pos)
 
 
 func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
@@ -549,6 +618,9 @@ func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
 	touch_navigation_dragging = false
 	touch_navigation_world_scroll_origin = world_select_scroll
 	touch_navigation_map_scroll_origin = _map_scroll_value(current_world_key)
+	var press_target = _touch_navigation_target(event.position, mode)
+	touch_navigation_press_target = String(press_target.get("id", ""))
+	touch_navigation_press_rect = Rect2(press_target.get("rect", Rect2()))
 	if mode == MODE_WORLD_SELECT:
 		world_select_velocity = 0.0
 	elif mode == MODE_MAP:
@@ -563,11 +635,15 @@ func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 	touch_navigation_last_delta = event.relative
 	touch_navigation_release_velocity = event.velocity
 	if not touch_navigation_dragging:
+		if touch_navigation_press_target != "" and delta_total.length() < TOUCH_PRIORITY_CLICK_THRESHOLD:
+			return false
 		if delta_total.length() < TOUCH_DRAG_THRESHOLD:
 			return false
 		if absf(delta_total.x) <= absf(delta_total.y):
 			return false
 		touch_navigation_dragging = true
+		touch_navigation_press_target = ""
+		touch_navigation_press_rect = Rect2()
 	if touch_navigation_mode == MODE_WORLD_SELECT:
 		var world_count = max(WorldDataLib.all().size() - 1, 0)
 		var dragged_scroll = clampf(touch_navigation_world_scroll_origin - delta_total.x / WORLD_CARD_SPACING, 0.0, float(world_count))
@@ -589,6 +665,8 @@ func _finish_touch_navigation(event: InputEventScreenTouch) -> bool:
 	var released_pos = event.position
 	var release_velocity = touch_navigation_release_velocity
 	var was_dragging = touch_navigation_dragging
+	var press_target = touch_navigation_press_target
+	var press_rect = touch_navigation_press_rect
 	_reset_touch_navigation()
 	if released_mode == MODE_WORLD_SELECT:
 		if was_dragging:
@@ -597,7 +675,8 @@ func _finish_touch_navigation(event: InputEventScreenTouch) -> bool:
 			var predicted = clampf(world_select_scroll + release_cards_per_second * WORLD_DRAG_RELEASE_BIAS, 0.0, float(max(WorldDataLib.all().size() - 1, 0)))
 			world_select_index = clampi(int(round(predicted)), 0, max(WorldDataLib.all().size() - 1, 0))
 			return true
-		_handle_world_select_click(released_pos)
+		if press_target == "" or press_rect.has_point(released_pos):
+			_handle_touch_navigation_tap(released_mode, released_pos)
 		return true
 	if released_mode == MODE_MAP:
 		if was_dragging:
@@ -605,9 +684,76 @@ func _finish_touch_navigation(event: InputEventScreenTouch) -> bool:
 			map_scroll_velocity_by_world[current_world_key] = release_speed
 			_set_map_scroll(current_world_key, _map_scroll_value(current_world_key, true) + release_speed * 0.14)
 			return true
-		_handle_map_click(released_pos)
+		if press_target == "" or press_rect.has_point(released_pos):
+			_handle_touch_navigation_tap(released_mode, released_pos)
 		return true
 	return false
+
+
+func _set_battle_paused(value: bool) -> void:
+	if battle_paused == value:
+		return
+	battle_paused = value
+	selected_tool = ""
+	queue_redraw()
+
+
+func _toggle_battle_pause() -> void:
+	if mode != MODE_BATTLE or battle_state != BATTLE_PLAYING:
+		return
+	_set_battle_paused(not battle_paused)
+
+
+func _restart_current_battle() -> void:
+	_set_battle_paused(false)
+	if _is_endless_level():
+		_enter_endless_mode()
+		return
+	if String(current_level.get("id", "")) == "每日":
+		_enter_daily_challenge()
+		return
+	if selected_level_index >= 0:
+		_start_level(selected_level_index)
+		return
+	_begin_level(-1, active_cards, current_level)
+
+
+func _battle_pause_menu_rect() -> Rect2:
+	return Rect2(size * 0.5 - Vector2(182.0, 208.0), Vector2(364.0, 416.0))
+
+
+func _battle_pause_button_rect(action: String) -> Rect2:
+	var panel_rect = _battle_pause_menu_rect()
+	var base_x = panel_rect.position.x + 46.0
+	var width = panel_rect.size.x - 92.0
+	match action:
+		"resume":
+			return Rect2(base_x, panel_rect.position.y + 118.0, width, 54.0)
+		"restart":
+			return Rect2(base_x, panel_rect.position.y + 184.0, width, 54.0)
+		"almanac":
+			return Rect2(base_x, panel_rect.position.y + 250.0, width, 54.0)
+		"map":
+			return Rect2(base_x, panel_rect.position.y + 316.0, width, 54.0)
+		_:
+			return Rect2()
+
+
+func _handle_battle_pause_click(mouse_pos: Vector2) -> void:
+	if not battle_paused:
+		return
+	if _battle_pause_button_rect("resume").has_point(mouse_pos):
+		_set_battle_paused(false)
+		return
+	if _battle_pause_button_rect("restart").has_point(mouse_pos):
+		_restart_current_battle()
+		return
+	if _battle_pause_button_rect("almanac").has_point(mouse_pos):
+		_enter_almanac_mode("plants")
+		return
+	if _battle_pause_button_rect("map").has_point(mouse_pos):
+		_set_battle_paused(false)
+		_enter_map_mode()
 
 
 func _process(delta: float) -> void:
@@ -673,6 +819,10 @@ func _process(delta: float) -> void:
 
 	if mode == MODE_SELECTION:
 		_ensure_selection_scene_ready()
+		queue_redraw()
+		return
+
+	if mode == MODE_BATTLE and battle_paused:
 		queue_redraw()
 		return
 
@@ -753,6 +903,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	var mouse_pos = _event_local_position(event)
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE or event.is_action_pressed("ui_cancel"):
+			if mode == MODE_ALMANAC and almanac_return_mode == MODE_BATTLE:
+				_handle_almanac_click(ALMANAC_CLOSE_RECT.get_center())
+				return
+			if mode == MODE_BATTLE and battle_state == BATTLE_PLAYING:
+				_toggle_battle_pause()
+				return
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			if _begin_touch_navigation(event):
@@ -821,7 +979,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		if mode == MODE_BATTLE and battle_state == BATTLE_PLAYING:
+		if mode == MODE_BATTLE and battle_state == BATTLE_PLAYING and not battle_paused:
 			selected_tool = ""
 			queue_redraw()
 		return
@@ -853,7 +1011,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_selection_click(mouse_pos)
 		return
 
+	if mode == MODE_BATTLE and battle_paused:
+		_handle_battle_pause_click(mouse_pos)
+		return
+
 	if battle_state != BATTLE_PLAYING:
+		return
+
+	if PAUSE_BUTTON_RECT.has_point(mouse_pos):
+		_set_battle_paused(true)
 		return
 
 	if BACK_BUTTON_RECT.has_point(mouse_pos):
@@ -1227,7 +1393,7 @@ func _apply_or_open_downloaded_update() -> void:
 		return
 	if install_mode == "android_handoff":
 		if _open_downloaded_android_apk():
-			update_status_text = "已调用系统安装器，请确认安装"
+			update_status_text = "已尝试拉起安装；若系统先要求允许安装未知应用，请授权后再点一次安装"
 			update_state = "ready"
 		else:
 			_set_update_error("无法调用系统安装器打开 APK")
@@ -1277,9 +1443,53 @@ func _apply_desktop_update() -> void:
 	get_tree().quit()
 
 
-func _open_downloaded_android_apk() -> bool:
-	if update_download_target_path == "":
+func _android_runtime_singleton():
+	if not OS.has_feature("android") and OS.get_name().to_lower() != "android":
+		return null
+	if not Engine.has_singleton("AndroidRuntime"):
+		return null
+	return Engine.get_singleton("AndroidRuntime")
+
+
+func _android_should_request_install_sources(activity) -> bool:
+	if activity == null:
 		return false
+	var package_manager = activity.getPackageManager()
+	if package_manager == null:
+		return false
+	return package_manager.canRequestPackageInstalls() == false
+
+
+func _open_downloaded_android_apk() -> bool:
+	if update_download_target_path == "" or not FileAccess.file_exists(update_download_target_path):
+		return false
+	var android_runtime = _android_runtime_singleton()
+	if android_runtime != null:
+		var activity = android_runtime.getActivity()
+		if activity != null:
+			var intent_class = JavaClassWrapper.wrap("android.content.Intent")
+			var uri_class = JavaClassWrapper.wrap("android.net.Uri")
+			var file_class = JavaClassWrapper.wrap("java.io.File")
+			var settings_class = JavaClassWrapper.wrap("android.provider.Settings")
+			if intent_class != null and uri_class != null and file_class != null and settings_class != null:
+				var apk_path = update_download_target_path
+				var install_runnable = android_runtime.createRunnableFromGodotCallable(func ():
+					if _android_should_request_install_sources(activity):
+						var settings_intent = intent_class.Intent(settings_class.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+						settings_intent.addFlags(intent_class.FLAG_ACTIVITY_NEW_TASK)
+						settings_intent.setData(uri_class.parse("package:%s" % String(activity.getPackageName())))
+						activity.startActivity(settings_intent)
+						return
+					var apk_file = file_class.File(apk_path)
+					var apk_uri_native = uri_class.fromFile(apk_file)
+					var install_intent = intent_class.Intent(intent_class.ACTION_VIEW)
+					install_intent.addFlags(intent_class.FLAG_ACTIVITY_NEW_TASK)
+					install_intent.addFlags(intent_class.FLAG_GRANT_READ_URI_PERMISSION)
+					install_intent.setDataAndType(apk_uri_native, "application/vnd.android.package-archive")
+					activity.startActivity(install_intent)
+				)
+				activity.runOnUiThread(install_runnable)
+				return true
 	var apk_uri = "file://" + update_download_target_path.replace(" ", "%20")
 	return OS.shell_open(apk_uri) == OK or OS.shell_open(update_download_target_path) == OK
 
@@ -1914,6 +2124,7 @@ func _begin_startup_loading() -> void:
 func _enter_world_select_mode(animated: bool = true) -> void:
 	almanac_selected_kind = ""
 	selected_tool = ""
+	battle_paused = false
 	message_panel.visible = false
 	_stop_bgm()
 	var target_world = current_world_key if _is_world_unlocked(current_world_key) else "day"
@@ -1929,6 +2140,7 @@ func _enter_world_select_mode(animated: bool = true) -> void:
 
 func _enter_map_mode(animated: bool = false) -> void:
 	battle_state = BATTLE_PLAYING
+	battle_paused = false
 	board_rows = DEFAULT_BOARD_ROWS
 	board_size = Vector2(COLS * CELL_SIZE.x, board_rows * CELL_SIZE.y)
 	current_level = {}
@@ -2401,6 +2613,7 @@ func _enter_endless_mode() -> void:
 	})
 	mode = MODE_SELECTION
 	battle_state = BATTLE_PLAYING
+	battle_paused = false
 	panel_action = ""
 	message_panel.visible = false
 	selected_tool = ""
@@ -2702,6 +2915,7 @@ func _enter_seed_selection(level_index: int) -> void:
 	_queue_level_boss_asset_prewarm(current_level)
 	mode = MODE_SELECTION
 	battle_state = BATTLE_PLAYING
+	battle_paused = false
 	panel_action = ""
 	message_panel.visible = false
 	selected_tool = ""
@@ -2998,6 +3212,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	active_rows = _build_active_rows(int(current_level.get("row_count", ROWS)))
 	mode = MODE_BATTLE
 	battle_state = BATTLE_PLAYING
+	battle_paused = false
 	panel_action = ""
 	message_panel.visible = false
 	selected_tool = ""
@@ -3182,6 +3397,11 @@ func _handle_almanac_click(mouse_pos: Vector2) -> void:
 	if ALMANAC_CLOSE_RECT.has_point(mouse_pos):
 		if almanac_return_mode == MODE_WORLD_SELECT:
 			_enter_world_select_mode(false)
+		elif almanac_return_mode == MODE_BATTLE:
+			mode = MODE_BATTLE
+			battle_paused = true
+			selected_tool = ""
+			queue_redraw()
 		else:
 			_enter_map_mode(false)
 		return
@@ -7174,6 +7394,7 @@ func _lose_level() -> void:
 
 func _show_message(text: String, action: String, button_text: String) -> void:
 	panel_action = action
+	battle_paused = false
 	message_label.text = text
 	action_button.text = button_text
 	message_panel.visible = true
@@ -12661,6 +12882,8 @@ func _draw_battle_scene() -> void:
 	_draw_battle_board()
 	_draw_seed_bank()
 	_draw_wave_bar()
+	_draw_panel_shell(PAUSE_BUTTON_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.1, 0.05)
+	_draw_text("暂停", PAUSE_BUTTON_RECT.position + Vector2(24.0, 27.0), 18, Color(0.27, 0.18, 0.08))
 	_draw_hover()
 	_draw_mowers()
 	_draw_lane_obstacles()
@@ -12681,6 +12904,33 @@ func _draw_battle_scene() -> void:
 
 	if battle_state != BATTLE_PLAYING:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.28), true)
+	elif battle_paused:
+		_draw_battle_pause_overlay()
+
+
+func _draw_battle_pause_overlay() -> void:
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.02, 0.04, 0.46), true)
+	var panel_rect = _battle_pause_menu_rect()
+	var pulse = 0.48 + 0.52 * sin(ui_time * 2.6)
+	var halo_rect = panel_rect.grow(34.0)
+	ThemeLib.draw_gradient_rect_v(self, halo_rect, Color(0.14, 0.08, 0.02, 0.02), Color(0.0, 0.0, 0.0, 0.0))
+	draw_rect(halo_rect, Color(0.0, 0.0, 0.0, 0.04 + pulse * 0.04), false, 2.0)
+	_draw_panel_shell(panel_rect, Color(0.88, 0.76, 0.48, 0.96), Color(0.4, 0.24, 0.08), 0.2, 0.12)
+	var title_rect = Rect2(panel_rect.position + Vector2(46.0, 28.0), Vector2(panel_rect.size.x - 92.0, 54.0))
+	_draw_panel_shell(title_rect, Color(0.5, 0.28, 0.08, 0.92), Color(0.28, 0.14, 0.04), 0.1, 0.06)
+	_draw_text("游戏暂停", title_rect.position + Vector2(86.0, 34.0), 28, Color(1.0, 0.96, 0.9))
+	_draw_text("查看图鉴、重新布阵，或者直接返回地图。", panel_rect.position + Vector2(54.0, 104.0), 18, Color(0.32, 0.2, 0.08))
+	var button_specs = [
+		{"action": "resume", "label": "继续游戏", "fill": Color(0.5, 0.72, 0.32, 0.96), "border": Color(0.22, 0.36, 0.12)},
+		{"action": "restart", "label": "重新开始", "fill": Color(0.9, 0.66, 0.22, 0.96), "border": Color(0.52, 0.32, 0.08)},
+		{"action": "almanac", "label": "查看图鉴", "fill": Color(0.76, 0.62, 0.32, 0.96), "border": Color(0.42, 0.28, 0.1)},
+		{"action": "map", "label": "返回地图", "fill": Color(0.74, 0.42, 0.24, 0.96), "border": Color(0.42, 0.18, 0.08)},
+	]
+	for spec_variant in button_specs:
+		var spec = Dictionary(spec_variant)
+		var button_rect = _battle_pause_button_rect(String(spec.get("action", "")))
+		_draw_panel_shell(button_rect, Color(spec.get("fill", Color(0.92, 0.88, 0.78))), Color(spec.get("border", Color(0.42, 0.3, 0.14))), 0.16, 0.08)
+		_draw_text(String(spec.get("label", "")), button_rect.position + Vector2(78.0, 34.0), 22, Color(0.96, 0.96, 0.92))
 
 
 func _draw_battle_background() -> void:
@@ -14121,7 +14371,7 @@ func _draw_click_ultimate_indicator(draw_center: Vector2, plant: Dictionary) -> 
 
 
 func _draw_hover() -> void:
-	if battle_state != BATTLE_PLAYING:
+	if battle_state != BATTLE_PLAYING or battle_paused:
 		return
 	if _is_whack_level() and selected_tool == "":
 		var target_index = _find_whack_target(_pointer_local_position())

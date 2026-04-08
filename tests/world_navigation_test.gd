@@ -10,6 +10,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_world_select_supports_screen_drag_and_snap() or failed
+	failed = not _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() or failed
 	failed = not _test_map_supports_screen_drag_scroll() or failed
 	quit(1 if failed else 0)
 
@@ -85,6 +86,18 @@ func _test_world_select_supports_screen_drag_and_snap() -> bool:
 		game._process(0.08)
 	passed = _assert_true(int(game.world_select_index) == 1, "releasing a left swipe should snap the world selection to the next world") and passed
 	passed = _assert_true(absf(float(game.world_select_scroll) - 1.0) < 0.15, "world selection should settle near the snapped world after release") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() -> bool:
+	var game := _make_game()
+	game.mode = game.MODE_WORLD_SELECT
+	var tap_pos = game.WORLD_SELECT_ALMANAC_RECT.get_center()
+	game._unhandled_input(_screen_touch(tap_pos, true))
+	game._unhandled_input(_screen_drag(tap_pos + Vector2(26.0, 4.0), Vector2(26.0, 4.0)))
+	game._unhandled_input(_screen_touch(tap_pos + Vector2(26.0, 4.0), false))
+	var passed = _assert_true(game.mode == game.MODE_ALMANAC, "small touch motion on a world-select button should still trigger the button instead of starting carousel drag")
 	_free_game(game)
 	return passed
 

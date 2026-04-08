@@ -18,6 +18,7 @@ def main() -> int:
     assert_contains(text, 'permissions/custom_permissions=PackedStringArray(', "android export preset should declare custom Android permissions")
     assert_contains(text, 'android.permission.INTERNET', "android export preset should request INTERNET so update checks can resolve hosts")
     assert_contains(text, 'android.permission.ACCESS_NETWORK_STATE', "android export preset should request ACCESS_NETWORK_STATE for network diagnostics")
+    assert_contains(text, 'android.permission.REQUEST_INSTALL_PACKAGES', "android export preset should request REQUEST_INSTALL_PACKAGES so the in-app updater can hand APK installs to Android")
     return 0
 
 
