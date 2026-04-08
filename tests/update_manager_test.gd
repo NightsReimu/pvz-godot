@@ -8,6 +8,8 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_compare_versions_and_normalize_tags() or failed
+	failed = not _test_project_settings_release_payload_builds_stable_asset_links() or failed
+	failed = not _test_default_update_sources_prioritize_static_version_sources() or failed
 	failed = not _test_resolve_release_for_each_supported_platform() or failed
 	failed = not _test_desktop_apply_script_templates_include_wait_copy_and_relaunch() or failed
 	quit(1 if failed else 0)
@@ -62,6 +64,39 @@ func _test_compare_versions_and_normalize_tags() -> bool:
 	passed = _assert_true(int(manager.compare_versions("0.1.5", "0.1.6")) < 0, "0.1.5 should compare lower than 0.1.6") and passed
 	passed = _assert_true(int(manager.compare_versions("0.1.6", "0.1.6")) == 0, "same versions should compare equal") and passed
 	passed = _assert_true(int(manager.compare_versions("0.2.0", "0.1.9")) > 0, "0.2.0 should compare higher than 0.1.9") and passed
+	return passed
+
+
+func _test_project_settings_release_payload_builds_stable_asset_links() -> bool:
+	var manager = _manager()
+	if manager == null:
+		return false
+	var payload = manager.release_payload_from_project_settings_text("config/name=\"植物大战僵尸svg版\"\nconfig/version=\"1.2.3\"\n")
+	var passed := true
+	passed = _assert_true(String(payload.get("tag_name", "")) == "v1.2.3", "project settings text should be converted into a synthetic v-prefixed release tag") and passed
+	passed = _assert_true(String(payload.get("html_url", "")) == "https://github.com/NightsReimu/pvz-godot/releases/tag/v1.2.3", "synthetic release payload should point to the matching GitHub release page") and passed
+	var assets: Array = payload.get("assets", [])
+	var asset_names: Array = []
+	for asset_variant in assets:
+		asset_names.append(String(Dictionary(asset_variant).get("name", "")))
+	passed = _assert_true(asset_names.has("pvz-godot-windows.zip"), "synthetic payload should include the Windows asset") and passed
+	passed = _assert_true(asset_names.has("pvz-godot-macos.zip"), "synthetic payload should include the macOS asset") and passed
+	passed = _assert_true(asset_names.has("pvz-godot-web.zip"), "synthetic payload should include the Web asset") and passed
+	passed = _assert_true(asset_names.has("pvz-godot-android.apk"), "synthetic payload should include the Android asset") and passed
+	return passed
+
+
+func _test_default_update_sources_prioritize_static_version_sources() -> bool:
+	var manager = _manager()
+	if manager == null:
+		return false
+	var sources: Array = manager.default_update_sources()
+	var passed := true
+	passed = _assert_true(sources.size() >= 3, "update manager should expose multiple fallback sources for update checks") and passed
+	if passed:
+		passed = _assert_true(String(Dictionary(sources[0]).get("kind", "")) == "project_settings", "first update source should be a static project settings manifest") and passed
+		passed = _assert_true(String(Dictionary(sources[1]).get("kind", "")) == "project_settings", "second update source should keep using a static project settings mirror") and passed
+		passed = _assert_true(String(Dictionary(sources[sources.size() - 1]).get("kind", "")) == "api", "GitHub API should remain available as the last fallback source") and passed
 	return passed
 
 

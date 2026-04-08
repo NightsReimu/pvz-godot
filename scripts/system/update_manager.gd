@@ -4,6 +4,8 @@ const REPO_OWNER := "HecreReed"
 const REPO_NAME := "pvz-godot"
 const RELEASES_URL := "https://github.com/NightsReimu/pvz-godot/releases"
 const LATEST_RELEASE_API_URL := "https://api.github.com/repos/NightsReimu/pvz-godot/releases/latest"
+const PROJECT_SETTINGS_CDN_URL := "https://cdn.jsdelivr.net/gh/NightsReimu/pvz-godot@main/project.godot"
+const PROJECT_SETTINGS_RAW_URL := "https://github.com/NightsReimu/pvz-godot/raw/main/project.godot"
 const UPDATES_ROOT := "user://updates"
 const STAGE_ROOT_NAME := "staged"
 const DOWNLOAD_ROOT_NAME := "downloads"
@@ -13,8 +15,24 @@ func latest_release_api_url() -> String:
 	return LATEST_RELEASE_API_URL
 
 
+func project_settings_cdn_url() -> String:
+	return PROJECT_SETTINGS_CDN_URL
+
+
+func project_settings_raw_url() -> String:
+	return PROJECT_SETTINGS_RAW_URL
+
+
 func releases_url() -> String:
 	return RELEASES_URL
+
+
+func default_update_sources() -> Array:
+	return [
+		{"kind": "project_settings", "url": project_settings_cdn_url()},
+		{"kind": "project_settings", "url": project_settings_raw_url()},
+		{"kind": "api", "url": latest_release_api_url()},
+	]
 
 
 func normalize_version(raw: String) -> String:
@@ -69,6 +87,24 @@ func resolve_release(payload: Dictionary, current_version: String, platform: Str
 		return info
 	info["status"] = "missing_asset"
 	return info
+
+
+func release_payload_from_project_settings_text(text: String) -> Dictionary:
+	var version = _extract_project_version(text)
+	if version == "":
+		return {}
+	var tag = "v%s" % normalize_version(version)
+	var payload := {
+		"tag_name": tag,
+		"html_url": "%s/tag/%s" % [RELEASES_URL, tag],
+		"assets": [],
+	}
+	for asset_name in _known_release_asset_names():
+		payload["assets"].append({
+			"name": asset_name,
+			"browser_download_url": "%s/download/%s/%s" % [RELEASES_URL, tag, asset_name],
+		})
+	return payload
 
 
 func asset_name_for_platform(platform: String) -> String:
@@ -249,6 +285,27 @@ func _version_parts(version: String) -> Array:
 				break
 		parts.append(int(digits if digits != "" else "0"))
 	return parts
+
+
+func _extract_project_version(text: String) -> String:
+	var marker = 'config/version="'
+	var start = text.find(marker)
+	if start == -1:
+		return ""
+	start += marker.length()
+	var end = text.find('"', start)
+	if end == -1:
+		return ""
+	return normalize_version(text.substr(start, end - start))
+
+
+func _known_release_asset_names() -> Array:
+	return [
+		"pvz-godot-windows.zip",
+		"pvz-godot-macos.zip",
+		"pvz-godot-web.zip",
+		"pvz-godot-android.apk",
+	]
 
 
 func _build_windows_apply_script(process_id: int, stage_dir: String, install_dir: String, relaunch_path: String) -> String:
