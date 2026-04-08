@@ -1092,7 +1092,7 @@ func _try_next_update_check_source(last_error: String) -> void:
 		headers.append("Accept: application/vnd.github+json")
 	var request_error = update_check_request.request(String(source.get("url", "")), headers)
 	if request_error != OK:
-		_try_next_update_check_source("无法发起版本检查：%s" % error_string(request_error))
+		_try_next_update_check_source(update_manager.build_update_request_start_error_message(request_error))
 
 
 func _finalize_update_check() -> void:
@@ -1230,10 +1230,10 @@ func _on_update_check_completed(result: int, response_code: int, _headers: Packe
 	var source := Dictionary(update_check_sources[update_check_source_index]) if update_check_source_index >= 0 and update_check_source_index < update_check_sources.size() else {}
 	var source_kind = String(source.get("kind", "unknown"))
 	if result != HTTPRequest.RESULT_SUCCESS:
-		_try_next_update_check_source("版本检查失败（%s，结果码 %d）" % [source_kind, result])
+		_try_next_update_check_source(update_manager.build_update_check_failure_message(source_kind, result, update_manager.platform_key_for_runtime()))
 		return
 	if response_code < 200 or response_code >= 300:
-		_try_next_update_check_source("版本检查失败（%s，HTTP %d）" % [source_kind, response_code])
+		_try_next_update_check_source(update_manager.build_update_http_status_error_message(response_code))
 		return
 	var body_text = body.get_string_from_utf8()
 	var parsed
@@ -1244,7 +1244,7 @@ func _on_update_check_completed(result: int, response_code: int, _headers: Packe
 	else:
 		parsed = JSON.parse_string(body_text)
 	if typeof(parsed) != TYPE_DICTIONARY or Dictionary(parsed).is_empty():
-		_try_next_update_check_source("无法解析版本信息（%s）" % source_kind)
+		_try_next_update_check_source(update_manager.build_update_parse_error_message())
 		return
 	var platform = update_manager.platform_key_for_runtime()
 	var resolved = update_manager.resolve_release(parsed, _current_app_version(), platform)
@@ -1252,7 +1252,7 @@ func _on_update_check_completed(result: int, response_code: int, _headers: Packe
 		update_best_release_info = update_manager.prefer_release_info(update_best_release_info, resolved)
 		_try_next_update_check_source("")
 		return
-	_try_next_update_check_source("无法获取可用更新信息（%s）" % source_kind)
+	_try_next_update_check_source("版本检查失败: 无法获取可用更新信息")
 
 
 func _on_update_download_completed(result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:

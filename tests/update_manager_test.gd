@@ -12,6 +12,7 @@ func _run() -> void:
 	failed = not _test_release_page_html_builds_release_payload() or failed
 	failed = not _test_default_update_sources_prioritize_release_sources() or failed
 	failed = not _test_prefer_release_info_uses_the_highest_version() or failed
+	failed = not _test_update_failure_messages_use_readable_copy() or failed
 	failed = not _test_resolve_release_for_each_supported_platform() or failed
 	failed = not _test_desktop_apply_script_templates_include_wait_copy_and_relaunch() or failed
 	quit(1 if failed else 0)
@@ -154,6 +155,23 @@ func _test_prefer_release_info_uses_the_highest_version() -> bool:
 	passed = _assert_true(String(preferred.get("status", "")) == "update_available", "prefer_release_info should keep an update_available candidate when it is newer") and passed
 	preferred = manager.prefer_release_info({"status": "latest", "latest_version": "1.0.3"}, same_version_better_status)
 	passed = _assert_true(String(preferred.get("status", "")) == "update_available", "prefer_release_info should prefer a downloadable candidate over a same-version latest result") and passed
+	return passed
+
+
+func _test_update_failure_messages_use_readable_copy() -> bool:
+	var manager = _manager()
+	if manager == null:
+		return false
+	var dns_message = String(manager.build_update_check_failure_message("release_page", 3, "android"))
+	var timeout_message = String(manager.build_update_check_failure_message("api", 13, "windows"))
+	var request_message = String(manager.build_update_request_start_error_message(ERR_BUSY))
+	var passed := true
+	passed = _assert_true(dns_message.contains("无法解析更新服务器地址"), "result code 3 should be rendered as a readable DNS failure message") and passed
+	passed = _assert_true(dns_message.contains("联网权限"), "android DNS failures should hint that the APK may be missing network permission") and passed
+	passed = _assert_true(not dns_message.contains("release_page"), "user-facing update errors should not leak internal source ids") and passed
+	passed = _assert_true(not dns_message.contains("（"), "user-facing update errors should avoid full-width punctuation that may render as tofu") and passed
+	passed = _assert_true(timeout_message.contains("请求超时"), "timeouts should have a specific user-facing message") and passed
+	passed = _assert_true(request_message.begins_with("无法发起版本检查:"), "request start failures should use a readable prefix") and passed
 	return passed
 
 

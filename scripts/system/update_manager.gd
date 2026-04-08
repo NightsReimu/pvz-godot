@@ -32,6 +32,22 @@ func releases_url() -> String:
 	return RELEASES_URL
 
 
+func build_update_request_start_error_message(request_error: int) -> String:
+	return "无法发起版本检查: %s" % error_string(request_error)
+
+
+func build_update_check_failure_message(_source_kind: String, result: int, platform: String = "") -> String:
+	return "版本检查失败: %s" % _describe_http_request_result(result, platform)
+
+
+func build_update_http_status_error_message(response_code: int) -> String:
+	return "版本检查失败: 更新服务器返回 HTTP %d" % response_code
+
+
+func build_update_parse_error_message() -> String:
+	return "版本检查失败: 无法解析版本信息"
+
+
 func default_update_sources() -> Array:
 	return [
 		{"kind": "release_page", "url": latest_release_page_url()},
@@ -368,6 +384,40 @@ func _release_status_rank(status: String) -> int:
 			return 0
 		_:
 			return -1
+
+
+func _describe_http_request_result(result: int, platform: String = "") -> String:
+	match result:
+		1:
+			return "更新响应数据不完整"
+		2:
+			return "无法连接更新服务器"
+		3:
+			if platform.to_lower() == "android":
+				return "无法解析更新服务器地址，请检查手机网络或 VPN；如果仍失败，请安装最新版 APK，旧版 Android 包缺少联网权限"
+			return "无法解析更新服务器地址"
+		4:
+			return "更新连接中断"
+		5:
+			return "安全连接握手失败"
+		6:
+			return "更新服务器暂时没有响应"
+		7:
+			return "更新响应过大"
+		8:
+			return "更新响应解压失败"
+		9:
+			return "更新请求失败"
+		10:
+			return "无法打开更新下载文件"
+		11:
+			return "写入更新下载文件失败"
+		12:
+			return "更新跳转次数过多"
+		13:
+			return "更新请求超时"
+		_:
+			return "网络请求失败（结果码 %d）" % result
 
 
 func _build_windows_apply_script(process_id: int, stage_dir: String, install_dir: String, relaunch_path: String) -> String:
