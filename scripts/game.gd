@@ -27,17 +27,27 @@ const BATTLE_PLAYING := "playing"
 const BATTLE_WON := "won"
 const BATTLE_LOST := "lost"
 
-const BOARD_ORIGIN := Vector2(250.0, 160.0)
-const CELL_SIZE := Vector2(98.0, 110.0)
+const BASE_VIEWPORT_SIZE := Vector2(1600.0, 900.0)
+const BASE_BOARD_ORIGIN := Vector2(250.0, 160.0)
+const BASE_CELL_SIZE := Vector2(98.0, 110.0)
 
-const SEED_BANK_RECT := Rect2(26.0, 18.0, 920.0, 102.0)
-const SUN_METER_RECT := Rect2(34.0, 24.0, 92.0, 88.0)
+var BOARD_ORIGIN := BASE_BOARD_ORIGIN
+var CELL_SIZE := BASE_CELL_SIZE
+
+const BASE_SEED_BANK_RECT := Rect2(26.0, 18.0, 920.0, 102.0)
+const BASE_SUN_METER_RECT := Rect2(34.0, 24.0, 92.0, 88.0)
 const CARD_SIZE := Vector2(82.0, 92.0)
 const CARD_GAP := 6.0
-const WAVE_BAR_RECT := Rect2(948.0, 26.0, 340.0, 24.0)
-const PLANT_FOOD_RECT := Rect2(948.0, 58.0, 90.0, 46.0)
-const COIN_METER_RECT := Rect2(1046.0, 64.0, 136.0, 40.0)
-const BACK_BUTTON_RECT := Rect2(1190.0, 64.0, 100.0, 40.0)
+const BASE_WAVE_BAR_RECT := Rect2(948.0, 26.0, 340.0, 24.0)
+const BASE_PLANT_FOOD_RECT := Rect2(948.0, 58.0, 90.0, 46.0)
+const BASE_COIN_METER_RECT := Rect2(1046.0, 64.0, 136.0, 40.0)
+const BASE_BACK_BUTTON_RECT := Rect2(1190.0, 64.0, 100.0, 40.0)
+var SEED_BANK_RECT := BASE_SEED_BANK_RECT
+var SUN_METER_RECT := BASE_SUN_METER_RECT
+var WAVE_BAR_RECT := BASE_WAVE_BAR_RECT
+var PLANT_FOOD_RECT := BASE_PLANT_FOOD_RECT
+var COIN_METER_RECT := BASE_COIN_METER_RECT
+var BACK_BUTTON_RECT := BASE_BACK_BUTTON_RECT
 
 const MOWER_SPEED := 760.0
 const SUN_COLLECT_SPEED := 920.0
@@ -308,6 +318,7 @@ var almanac_return_mode := MODE_WORLD_SELECT
 var current_world_key := "day"
 var world_select_index := 0
 var world_select_scroll := 0.0
+var world_select_velocity := 0.0
 var page_transition_active := false
 var page_transition_from_mode := ""
 var page_transition_to_mode := ""
@@ -316,10 +327,12 @@ var page_transition_progress := 0.0
 var page_transition_direction := 1
 var map_scroll_by_world := {}
 var map_scroll_target_by_world := {}
+var map_scroll_velocity_by_world := {}
 var touch_navigation_index := -1
 var touch_navigation_mode := ""
 var touch_navigation_start_pos := Vector2.ZERO
 var touch_navigation_last_delta := Vector2.ZERO
+var touch_navigation_release_velocity := Vector2.ZERO
 var touch_navigation_world_scroll_origin := 0.0
 var touch_navigation_map_scroll_origin := 0.0
 var touch_navigation_dragging := false
@@ -436,6 +449,7 @@ func _ready() -> void:
 	rng.randomize()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_PASS
+	_refresh_battle_layout()
 	_build_font()
 	_build_overlay_ui()
 	_build_audio_player()
@@ -452,14 +466,16 @@ func _notification(what: int) -> void:
 
 
 func _pointer_local_position() -> Vector2:
-	return get_local_mouse_position() if is_inside_tree() else Vector2.ZERO
+	if not is_inside_tree():
+		return Vector2.ZERO
+	return _scene_local_position(get_local_mouse_position())
 
 
 func _event_local_position(event: InputEvent) -> Vector2:
 	if event is InputEventMouseButton or event is InputEventMouseMotion:
-		return event.position
+		return _scene_local_position(event.position)
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
-		return event.position
+		return _scene_local_position(event.position)
 	return _pointer_local_position()
 
 
@@ -470,11 +486,54 @@ func _smooth_ui_value(current: float, target: float, delta: float, response: flo
 	return lerpf(current, target, blend)
 
 
+func _spring_ui_value(current: float, target: float, velocity: float, delta: float, stiffness: float, damping: float, snap_distance: float = 0.001, snap_velocity: float = 0.001) -> Dictionary:
+	if delta <= 0.0:
+		return {"value": current, "velocity": velocity}
+	var displacement = target - current
+	velocity += displacement * stiffness * delta
+	velocity *= exp(-damping * delta)
+	current += velocity * delta
+	if absf(target - current) <= snap_distance and absf(velocity) <= snap_velocity:
+		return {"value": target, "velocity": 0.0}
+	return {"value": current, "velocity": velocity}
+
+
+func _scene_local_position(raw_position: Vector2) -> Vector2:
+	return raw_position
+
+
+func _refresh_battle_layout() -> void:
+	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
+	var width_scale = maxf(viewport.x / BASE_VIEWPORT_SIZE.x, 1.0)
+	var height_scale = maxf(viewport.y / BASE_VIEWPORT_SIZE.y, 1.0)
+	var cell_width = clampf(BASE_CELL_SIZE.x * (1.04 + (width_scale - 1.0) * 0.16), BASE_CELL_SIZE.x * 1.04, BASE_CELL_SIZE.x * 1.1)
+	var cell_height = clampf(BASE_CELL_SIZE.y * (1.02 + (height_scale - 1.0) * 0.14), BASE_CELL_SIZE.y * 1.02, BASE_CELL_SIZE.y * 1.06)
+	CELL_SIZE = Vector2(round(cell_width), round(cell_height))
+	var next_board_size = Vector2(COLS * CELL_SIZE.x, board_rows * CELL_SIZE.y)
+	var origin_x = minf(clampf(viewport.x * 0.16, 220.0, 336.0), viewport.x - next_board_size.x - 214.0)
+	var origin_y = minf(clampf(viewport.y * 0.16, 144.0, 176.0), viewport.y - next_board_size.y - 116.0)
+	BOARD_ORIGIN = Vector2(maxf(172.0, origin_x), maxf(128.0, origin_y))
+	board_size = next_board_size
+
+	var hud_left = BASE_SEED_BANK_RECT.position.x
+	var hud_top = BASE_SEED_BANK_RECT.position.y
+	var seed_width = minf(maxf(BASE_SEED_BANK_RECT.size.x, viewport.x - 520.0), 1080.0)
+	SEED_BANK_RECT = Rect2(hud_left, hud_top, seed_width, BASE_SEED_BANK_RECT.size.y)
+	SUN_METER_RECT = Rect2(hud_left + 8.0, hud_top + 6.0, BASE_SUN_METER_RECT.size.x, BASE_SUN_METER_RECT.size.y)
+	var wave_width = clampf(viewport.x * 0.23, BASE_WAVE_BAR_RECT.size.x, 420.0)
+	var wave_x = maxf(SEED_BANK_RECT.position.x + SEED_BANK_RECT.size.x + 28.0, viewport.x - wave_width - 332.0)
+	WAVE_BAR_RECT = Rect2(wave_x, BASE_WAVE_BAR_RECT.position.y, wave_width, BASE_WAVE_BAR_RECT.size.y)
+	PLANT_FOOD_RECT = Rect2(WAVE_BAR_RECT.position.x, BASE_PLANT_FOOD_RECT.position.y, 96.0, BASE_PLANT_FOOD_RECT.size.y)
+	BACK_BUTTON_RECT = Rect2(viewport.x - BASE_BACK_BUTTON_RECT.size.x - 44.0, BASE_BACK_BUTTON_RECT.position.y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
+	COIN_METER_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, BASE_COIN_METER_RECT.position.y, BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
+
+
 func _reset_touch_navigation() -> void:
 	touch_navigation_index = -1
 	touch_navigation_mode = ""
 	touch_navigation_start_pos = Vector2.ZERO
 	touch_navigation_last_delta = Vector2.ZERO
+	touch_navigation_release_velocity = Vector2.ZERO
 	touch_navigation_world_scroll_origin = 0.0
 	touch_navigation_map_scroll_origin = 0.0
 	touch_navigation_dragging = false
@@ -490,6 +549,10 @@ func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
 	touch_navigation_dragging = false
 	touch_navigation_world_scroll_origin = world_select_scroll
 	touch_navigation_map_scroll_origin = _map_scroll_value(current_world_key)
+	if mode == MODE_WORLD_SELECT:
+		world_select_velocity = 0.0
+	elif mode == MODE_MAP:
+		map_scroll_velocity_by_world[current_world_key] = 0.0
 	return true
 
 
@@ -498,6 +561,7 @@ func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 		return false
 	var delta_total = event.position - touch_navigation_start_pos
 	touch_navigation_last_delta = event.relative
+	touch_navigation_release_velocity = event.velocity
 	if not touch_navigation_dragging:
 		if delta_total.length() < TOUCH_DRAG_THRESHOLD:
 			return false
@@ -508,10 +572,12 @@ func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 		var world_count = max(WorldDataLib.all().size() - 1, 0)
 		var dragged_scroll = clampf(touch_navigation_world_scroll_origin - delta_total.x / WORLD_CARD_SPACING, 0.0, float(world_count))
 		world_select_scroll = dragged_scroll
+		world_select_velocity = clampf(-event.velocity.x / WORLD_CARD_SPACING, -4.8, 4.8)
 		world_select_index = clampi(int(round(dragged_scroll)), 0, max(world_count, 0))
 		return true
 	if touch_navigation_mode == MODE_MAP:
 		_set_map_scroll(current_world_key, touch_navigation_map_scroll_origin - delta_total.x, true)
+		map_scroll_velocity_by_world[current_world_key] = -event.velocity.x
 		return true
 	return false
 
@@ -521,19 +587,23 @@ func _finish_touch_navigation(event: InputEventScreenTouch) -> bool:
 		return false
 	var released_mode = touch_navigation_mode
 	var released_pos = event.position
-	var last_delta = touch_navigation_last_delta
+	var release_velocity = touch_navigation_release_velocity
 	var was_dragging = touch_navigation_dragging
 	_reset_touch_navigation()
 	if released_mode == MODE_WORLD_SELECT:
 		if was_dragging:
-			var predicted = clampf(world_select_scroll - last_delta.x / WORLD_CARD_SPACING * WORLD_DRAG_RELEASE_BIAS, 0.0, float(max(WorldDataLib.all().size() - 1, 0)))
+			var release_cards_per_second = clampf(-release_velocity.x / WORLD_CARD_SPACING, -4.8, 4.8)
+			world_select_velocity = release_cards_per_second
+			var predicted = clampf(world_select_scroll + release_cards_per_second * WORLD_DRAG_RELEASE_BIAS, 0.0, float(max(WorldDataLib.all().size() - 1, 0)))
 			world_select_index = clampi(int(round(predicted)), 0, max(WorldDataLib.all().size() - 1, 0))
 			return true
 		_handle_world_select_click(released_pos)
 		return true
 	if released_mode == MODE_MAP:
 		if was_dragging:
-			_set_map_scroll(current_world_key, _map_scroll_value(current_world_key, true) + (-last_delta.x * MAP_DRAG_RELEASE_MULTIPLIER))
+			var release_speed = clampf(-release_velocity.x, -2800.0, 2800.0)
+			map_scroll_velocity_by_world[current_world_key] = release_speed
+			_set_map_scroll(current_world_key, _map_scroll_value(current_world_key, true) + release_speed * 0.14)
 			return true
 		_handle_map_click(released_pos)
 		return true
@@ -560,7 +630,9 @@ func _process(delta: float) -> void:
 	_update_page_transition(delta)
 	_update_freeze_transition_visual(delta)
 	if not (touch_navigation_dragging and touch_navigation_mode == MODE_WORLD_SELECT):
-		world_select_scroll = _smooth_ui_value(world_select_scroll, float(world_select_index), delta, 10.5)
+		var world_spring = _spring_ui_value(world_select_scroll, float(world_select_index), world_select_velocity, delta, 52.0, 12.0, 0.002, 0.01)
+		world_select_scroll = float(world_spring.get("value", world_select_scroll))
+		world_select_velocity = float(world_spring.get("velocity", world_select_velocity))
 	var prewarm_steps := 1 if mode == MODE_BATTLE else 2
 	if page_transition_active:
 		prewarm_steps = 3
@@ -662,7 +734,7 @@ func _apply_display_mode() -> void:
 func _update_page_transition(delta: float) -> void:
 	if not page_transition_active:
 		return
-	page_transition_progress = minf(1.0, page_transition_progress + delta / 0.46)
+	page_transition_progress = minf(1.0, page_transition_progress + delta / 0.32)
 	if page_transition_progress < 1.0:
 		return
 	page_transition_active = false
@@ -1759,9 +1831,11 @@ func _set_map_scroll(world_key: String, value: float, snap: bool = false) -> voi
 	map_scroll_target_by_world[world_key] = clamped
 	if snap:
 		map_scroll_by_world[world_key] = clamped
+		map_scroll_velocity_by_world[world_key] = 0.0
 
 
 func _nudge_map_scroll(delta_x: float) -> void:
+	map_scroll_velocity_by_world[current_world_key] = clampf(float(map_scroll_velocity_by_world.get(current_world_key, 0.0)) + delta_x * 3.2, -1800.0, 1800.0)
 	_set_map_scroll(current_world_key, _map_scroll_value(current_world_key, true) + delta_x)
 
 
@@ -1770,10 +1844,14 @@ func _update_map_scroll(delta: float) -> void:
 		return
 	var current = _map_scroll_value(current_world_key)
 	var target = _map_scroll_value(current_world_key, true)
-	if absf(target - current) <= 0.25:
+	var velocity = float(map_scroll_velocity_by_world.get(current_world_key, 0.0))
+	if absf(target - current) <= 0.25 and absf(velocity) <= 6.0:
 		map_scroll_by_world[current_world_key] = target
+		map_scroll_velocity_by_world[current_world_key] = 0.0
 		return
-	map_scroll_by_world[current_world_key] = _smooth_ui_value(current, target, delta, 11.5)
+	var spring = _spring_ui_value(current, target, velocity, delta, 44.0, 10.5, 0.22, 4.0)
+	map_scroll_by_world[current_world_key] = float(spring.get("value", current))
+	map_scroll_velocity_by_world[current_world_key] = float(spring.get("velocity", velocity))
 
 
 func _map_node_position(level_index: int) -> Vector2:
@@ -1900,6 +1978,7 @@ func _begin_page_transition(target_mode: String, target_world: String = "", dire
 	page_transition_target_world = target_world
 	page_transition_progress = 0.0
 	page_transition_direction = direction
+	world_select_velocity = 0.0
 	if target_world != "":
 		world_select_index = WorldDataLib.index_of(target_world)
 
@@ -1907,6 +1986,7 @@ func _begin_page_transition(target_mode: String, target_world: String = "", dire
 func _shift_world_select(direction: int) -> void:
 	var world_count = WorldDataLib.all().size()
 	world_select_index = clampi(world_select_index + direction, 0, max(world_count - 1, 0))
+	world_select_velocity = clampf(float(direction) * 1.6, -3.2, 3.2)
 
 
 func _selected_world_data() -> Dictionary:
@@ -2905,7 +2985,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	selection_cards = []
 	selection_pool_cards = []
 	board_rows = clampi(max(DEFAULT_BOARD_ROWS, int(current_level.get("row_count", DEFAULT_BOARD_ROWS))), DEFAULT_BOARD_ROWS, ROWS)
-	board_size = Vector2(COLS * CELL_SIZE.x, board_rows * CELL_SIZE.y)
+	_refresh_battle_layout()
 	water_rows = current_level.get("water_rows", []).duplicate()
 	if current_level.has("conveyor_plants"):
 		conveyor_source_cards = current_level["conveyor_plants"].duplicate()
@@ -10599,8 +10679,10 @@ func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: 
 func _card_rect(index: int) -> Rect2:
 	var card_size = _seed_bank_card_size()
 	var card_gap = _seed_bank_card_gap()
+	var start_x = SUN_METER_RECT.position.x + SUN_METER_RECT.size.x + 12.0
+	var y = SEED_BANK_RECT.position.y + 4.0
 	return Rect2(
-		Vector2(138.0 + index * (card_size.x + card_gap), 22.0),
+		Vector2(start_x + index * (card_size.x + card_gap), y),
 		card_size
 	)
 
@@ -10615,8 +10697,9 @@ func _card_at(mouse_pos: Vector2) -> String:
 func _shovel_rect() -> Rect2:
 	var card_size = _seed_bank_card_size()
 	var card_gap = _seed_bank_card_gap()
-	var x = 138.0 + active_cards.size() * (card_size.x + card_gap) + 12.0
-	return Rect2(x, 22.0, 84.0, 92.0)
+	var start_x = SUN_METER_RECT.position.x + SUN_METER_RECT.size.x + 12.0
+	var x = start_x + active_cards.size() * (card_size.x + card_gap) + 12.0
+	return Rect2(x, SEED_BANK_RECT.position.y + 4.0, 84.0, 92.0)
 
 
 func _seed_bank_card_size() -> Vector2:
@@ -11631,14 +11714,14 @@ func _draw() -> void:
 		_draw_startup_loading_scene()
 		return
 	if page_transition_active:
-		var eased = ThemeLib.ease_ui(page_transition_progress)
-		var width = size.x
-		var from_offset = Vector2(-width * eased * page_transition_direction, 0.0)
-		var to_offset = Vector2(width * (1.0 - eased) * page_transition_direction, 0.0)
+		var eased = ThemeLib.ease_in_out(page_transition_progress)
+		var travel = size.x * 0.94
+		var from_offset = Vector2(-travel * eased * page_transition_direction, 0.0)
+		var to_offset = Vector2(travel * (1.0 - eased) * page_transition_direction, 0.0)
 		_draw_mode_scene(page_transition_from_mode, from_offset)
 		_draw_mode_scene(page_transition_to_mode, to_offset)
 		# Improved transition overlay with vignette
-		var fade_alpha = 0.12 * sin(eased * PI)
+		var fade_alpha = 0.1 * sin(eased * PI)
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.02, 0.04, fade_alpha), true)
 		# Edge darkening during transition
 		ThemeLib.draw_gradient_rect_h(self, Rect2(Vector2.ZERO, Vector2(80.0, size.y)), Color(0.0, 0.0, 0.0, fade_alpha * 0.6), Color(0.0, 0.0, 0.0, 0.0))
@@ -12305,7 +12388,7 @@ func _draw_seed_selection_scene() -> void:
 
 
 func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: bool, allow_hover: bool = true) -> void:
-	var mouse_pos = get_local_mouse_position()
+	var mouse_pos = _pointer_local_position()
 	var hovered = allow_hover and rect.has_point(mouse_pos)
 	var lift = 4.0 if hovered and not disabled else 0.0
 	var card_rect_draw = rect.grow(2.0 if hovered else 0.0)
@@ -13551,7 +13634,7 @@ func _draw_seed_bank() -> void:
 				draw_circle(draw_rect_local.position + Vector2(draw_rect_local.size.x - 10.0 - float(star_i) * 10.0, 12.0), 4.0, Color(1.0, 0.86, 0.2, 0.9))
 
 	if _is_whack_level():
-		var hammer_rect = Rect2(948.0, 24.0, 120.0, 80.0)
+		var hammer_rect = Rect2(WAVE_BAR_RECT.position.x, SEED_BANK_RECT.position.y + 2.0, 120.0, 80.0)
 		_draw_panel_shell(hammer_rect, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.08, 0.05)
 		_draw_mallet_icon(hammer_rect.position + Vector2(34.0, 38.0))
 		_draw_text("默认挥锤", hammer_rect.position + Vector2(52.0, 28.0), 16, Color(0.26, 0.19, 0.08))
@@ -14041,14 +14124,14 @@ func _draw_hover() -> void:
 	if battle_state != BATTLE_PLAYING:
 		return
 	if _is_whack_level() and selected_tool == "":
-		var target_index = _find_whack_target(get_local_mouse_position())
+		var target_index = _find_whack_target(_pointer_local_position())
 		if target_index != -1:
 			var zombie = zombies[target_index]
 			var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + float(zombie.get("jump_offset", 0.0)))
 			draw_circle(center, 34.0, Color(1.0, 0.92, 0.38, 0.14))
 			draw_circle(center, 30.0, Color(1.0, 0.9, 0.18, 0.7), false, 2.0)
 		return
-	var cell = _mouse_to_cell(get_local_mouse_position())
+	var cell = _mouse_to_cell(_pointer_local_position())
 	if cell.x == -1:
 		return
 
