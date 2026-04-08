@@ -34,10 +34,10 @@ func releases_url() -> String:
 
 func default_update_sources() -> Array:
 	return [
-		{"kind": "project_settings", "url": project_settings_cdn_url()},
-		{"kind": "project_settings", "url": project_settings_raw_url()},
 		{"kind": "release_page", "url": latest_release_page_url()},
 		{"kind": "api", "url": latest_release_api_url()},
+		{"kind": "project_settings", "url": project_settings_cdn_url()},
+		{"kind": "project_settings", "url": project_settings_raw_url()},
 	]
 
 
@@ -93,6 +93,26 @@ func resolve_release(payload: Dictionary, current_version: String, platform: Str
 		return info
 	info["status"] = "missing_asset"
 	return info
+
+
+func prefer_release_info(current_info: Dictionary, challenger_info: Dictionary) -> Dictionary:
+	if current_info.is_empty():
+		return challenger_info.duplicate(true)
+	if challenger_info.is_empty():
+		return current_info.duplicate(true)
+	var version_cmp = compare_versions(
+		String(current_info.get("latest_version", "")),
+		String(challenger_info.get("latest_version", ""))
+	)
+	if version_cmp < 0:
+		return challenger_info.duplicate(true)
+	if version_cmp > 0:
+		return current_info.duplicate(true)
+	var current_rank = _release_status_rank(String(current_info.get("status", "")))
+	var challenger_rank = _release_status_rank(String(challenger_info.get("status", "")))
+	if challenger_rank > current_rank:
+		return challenger_info.duplicate(true)
+	return current_info.duplicate(true)
 
 
 func release_payload_from_project_settings_text(text: String) -> Dictionary:
@@ -334,6 +354,20 @@ func _known_release_asset_names() -> Array:
 		"pvz-godot-web.zip",
 		"pvz-godot-android.apk",
 	]
+
+
+func _release_status_rank(status: String) -> int:
+	match status:
+		"update_available":
+			return 3
+		"latest":
+			return 2
+		"missing_asset":
+			return 1
+		"unsupported_platform":
+			return 0
+		_:
+			return -1
 
 
 func _build_windows_apply_script(process_id: int, stage_dir: String, install_dir: String, relaunch_path: String) -> String:

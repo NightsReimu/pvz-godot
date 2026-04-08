@@ -10,7 +10,8 @@ func _run() -> void:
 	failed = not _test_compare_versions_and_normalize_tags() or failed
 	failed = not _test_project_settings_release_payload_builds_stable_asset_links() or failed
 	failed = not _test_release_page_html_builds_release_payload() or failed
-	failed = not _test_default_update_sources_prioritize_static_version_sources() or failed
+	failed = not _test_default_update_sources_prioritize_release_sources() or failed
+	failed = not _test_prefer_release_info_uses_the_highest_version() or failed
 	failed = not _test_resolve_release_for_each_supported_platform() or failed
 	failed = not _test_desktop_apply_script_templates_include_wait_copy_and_relaunch() or failed
 	quit(1 if failed else 0)
@@ -99,7 +100,7 @@ func _test_release_page_html_builds_release_payload() -> bool:
 	return passed
 
 
-func _test_default_update_sources_prioritize_static_version_sources() -> bool:
+func _test_default_update_sources_prioritize_release_sources() -> bool:
 	var manager = _manager()
 	if manager == null:
 		return false
@@ -107,13 +108,52 @@ func _test_default_update_sources_prioritize_static_version_sources() -> bool:
 	var passed := true
 	passed = _assert_true(sources.size() >= 4, "update manager should expose multiple fallback sources for update checks") and passed
 	if passed:
-		passed = _assert_true(String(Dictionary(sources[0]).get("kind", "")) == "project_settings", "first update source should be a static project settings manifest") and passed
-		passed = _assert_true(String(Dictionary(sources[0]).get("url", "")).contains("cdn.jsdelivr.net"), "first update source should prefer the jsDelivr mirror") and passed
-		passed = _assert_true(String(Dictionary(sources[1]).get("kind", "")) == "project_settings", "second update source should keep using a static project settings mirror") and passed
-		passed = _assert_true(String(Dictionary(sources[1]).get("url", "")).contains("raw.githubusercontent.com"), "second update source should use raw.githubusercontent.com directly instead of github.com/raw redirects") and passed
-		passed = _assert_true(String(Dictionary(sources[2]).get("kind", "")) == "release_page", "third update source should read the GitHub release page as a non-API fallback") and passed
-		passed = _assert_true(String(Dictionary(sources[2]).get("url", "")).contains("/releases/latest"), "release page fallback should point at the latest release landing page") and passed
-		passed = _assert_true(String(Dictionary(sources[3]).get("kind", "")) == "api", "fourth update source should still use the GitHub API") and passed
+		passed = _assert_true(String(Dictionary(sources[0]).get("kind", "")) == "release_page", "first update source should use the latest release page to avoid stale manifest caches") and passed
+		passed = _assert_true(String(Dictionary(sources[0]).get("url", "")).contains("/releases/latest"), "release page source should point at the latest release landing page") and passed
+		passed = _assert_true(String(Dictionary(sources[1]).get("kind", "")) == "api", "second update source should still use the GitHub API") and passed
+		passed = _assert_true(String(Dictionary(sources[2]).get("kind", "")) == "project_settings", "third update source should fall back to static manifests only after release sources") and passed
+		passed = _assert_true(String(Dictionary(sources[2]).get("url", "")).contains("cdn.jsdelivr.net"), "third update source should keep jsDelivr as the mirror fallback") and passed
+		passed = _assert_true(String(Dictionary(sources[3]).get("kind", "")) == "project_settings", "fourth update source should keep a direct raw manifest as the final fallback") and passed
+	return passed
+
+
+func _test_prefer_release_info_uses_the_highest_version() -> bool:
+	var manager = _manager()
+	if manager == null:
+		return false
+	var stale_info := {
+		"status": "latest",
+		"latest_version": "1.0.2",
+		"page_url": "https://example.invalid/v1.0.2",
+		"asset_name": "",
+		"asset_url": "",
+		"install_mode": "desktop_replace",
+		"platform": "macos",
+	}
+	var newer_info := {
+		"status": "update_available",
+		"latest_version": "1.0.3",
+		"page_url": "https://example.invalid/v1.0.3",
+		"asset_name": "pvz-godot-macos.zip",
+		"asset_url": "https://example.invalid/pvz-godot-macos.zip",
+		"install_mode": "desktop_replace",
+		"platform": "macos",
+	}
+	var same_version_better_status := {
+		"status": "update_available",
+		"latest_version": "1.0.3",
+		"page_url": "https://example.invalid/v1.0.3",
+		"asset_name": "pvz-godot-macos.zip",
+		"asset_url": "https://example.invalid/pvz-godot-macos.zip",
+		"install_mode": "desktop_replace",
+		"platform": "macos",
+	}
+	var passed := true
+	var preferred = manager.prefer_release_info(stale_info, newer_info)
+	passed = _assert_true(String(preferred.get("latest_version", "")) == "1.0.3", "prefer_release_info should keep the highest version seen across all update sources") and passed
+	passed = _assert_true(String(preferred.get("status", "")) == "update_available", "prefer_release_info should keep an update_available candidate when it is newer") and passed
+	preferred = manager.prefer_release_info({"status": "latest", "latest_version": "1.0.3"}, same_version_better_status)
+	passed = _assert_true(String(preferred.get("status", "")) == "update_available", "prefer_release_info should prefer a downloadable candidate over a same-version latest result") and passed
 	return passed
 
 

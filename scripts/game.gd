@@ -377,6 +377,8 @@ var update_check_started := false
 var update_download_target_path := ""
 var update_check_sources: Array = []
 var update_check_source_index := -1
+var update_best_release_info: Dictionary = {}
+var update_check_last_error := ""
 var asset_prewarm_queue: Array = []
 var asset_prewarm_keys := {}
 var startup_loading_active := false
@@ -963,6 +965,7 @@ func _build_update_requests() -> void:
 		update_check_request = HTTPRequest.new()
 		update_check_request.accept_gzip = true
 		update_check_request.use_threads = true
+		update_check_request.timeout = 6.0
 		update_check_request.request_completed.connect(_on_update_check_completed)
 		add_child(update_check_request)
 	if update_download_request == null:
@@ -1067,6 +1070,8 @@ func _begin_update_check() -> void:
 	update_download_progress = 0.0
 	update_state = "checking"
 	update_release_info = {}
+	update_best_release_info = {}
+	update_check_last_error = ""
 	update_check_sources = update_manager.default_update_sources()
 	update_check_source_index = -1
 	if update_check_request == null:
@@ -1075,9 +1080,11 @@ func _begin_update_check() -> void:
 
 
 func _try_next_update_check_source(last_error: String) -> void:
+	if last_error != "":
+		update_check_last_error = last_error
 	update_check_source_index += 1
 	if update_check_source_index >= update_check_sources.size():
-		_set_update_error(last_error if last_error != "" else "版本检查失败，请稍后重试")
+		_finalize_update_check()
 		return
 	var source = Dictionary(update_check_sources[update_check_source_index])
 	var headers = PackedStringArray(["User-Agent: pvz-godot-updater"])
@@ -1086,6 +1093,27 @@ func _try_next_update_check_source(last_error: String) -> void:
 	var request_error = update_check_request.request(String(source.get("url", "")), headers)
 	if request_error != OK:
 		_try_next_update_check_source("无法发起版本检查：%s" % error_string(request_error))
+
+
+func _finalize_update_check() -> void:
+	if update_best_release_info.is_empty():
+		_set_update_error(update_check_last_error if update_check_last_error != "" else "版本检查失败，请稍后重试")
+		return
+	update_release_info = update_best_release_info.duplicate(true)
+	match String(update_release_info.get("status", "")):
+		"latest":
+			update_state = "latest"
+			update_status_text = ""
+		"update_available":
+			update_state = "available"
+			update_status_text = ""
+			_show_toast("发现新版本 v%s" % String(update_release_info.get("latest_version", "")))
+		"missing_asset":
+			_set_update_error("该平台暂时没有对应的更新包")
+		"unsupported_platform":
+			_set_update_error("当前平台暂不支持自动更新")
+		_:
+			_set_update_error(update_check_last_error if update_check_last_error != "" else "无法获取可用更新信息")
 
 
 func _start_update_download() -> void:
@@ -1200,11 +1228,12 @@ func _set_update_error(message: String) -> void:
 
 func _on_update_check_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	var source := Dictionary(update_check_sources[update_check_source_index]) if update_check_source_index >= 0 and update_check_source_index < update_check_sources.size() else {}
+	var source_kind = String(source.get("kind", "unknown"))
 	if result != HTTPRequest.RESULT_SUCCESS:
-		_try_next_update_check_source("版本检查失败，请检查网络后重试")
+		_try_next_update_check_source("版本检查失败（%s，结果码 %d）" % [source_kind, result])
 		return
 	if response_code < 200 or response_code >= 300:
-		_try_next_update_check_source("版本检查失败，HTTP %d" % response_code)
+		_try_next_update_check_source("版本检查失败（%s，HTTP %d）" % [source_kind, response_code])
 		return
 	var body_text = body.get_string_from_utf8()
 	var parsed
@@ -1215,26 +1244,15 @@ func _on_update_check_completed(result: int, response_code: int, _headers: Packe
 	else:
 		parsed = JSON.parse_string(body_text)
 	if typeof(parsed) != TYPE_DICTIONARY or Dictionary(parsed).is_empty():
-		_try_next_update_check_source("无法解析版本信息")
+		_try_next_update_check_source("无法解析版本信息（%s）" % source_kind)
 		return
 	var platform = update_manager.platform_key_for_runtime()
-	update_release_info = update_manager.resolve_release(parsed, _current_app_version(), platform)
-	match String(update_release_info.get("status", "")):
-		"latest":
-			update_state = "latest"
-			update_status_text = ""
-		"update_available":
-			update_state = "available"
-			update_status_text = ""
-			_show_toast("发现新版本 v%s" % String(update_release_info.get("latest_version", "")))
-		"missing_asset":
-			_set_update_error("该平台暂时没有对应的更新包")
-		"unsupported_platform":
-			_set_update_error("当前平台暂不支持自动更新")
-		"invalid_release":
-			_try_next_update_check_source("无法获取可用更新信息")
-		_:
-			_try_next_update_check_source("无法获取可用更新信息")
+	var resolved = update_manager.resolve_release(parsed, _current_app_version(), platform)
+	if String(resolved.get("status", "")) != "invalid_release":
+		update_best_release_info = update_manager.prefer_release_info(update_best_release_info, resolved)
+		_try_next_update_check_source("")
+		return
+	_try_next_update_check_source("无法获取可用更新信息（%s）" % source_kind)
 
 
 func _on_update_download_completed(result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
