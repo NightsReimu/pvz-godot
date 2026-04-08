@@ -9,6 +9,7 @@ func _run() -> void:
 	var failed := false
 	failed = not _test_compare_versions_and_normalize_tags() or failed
 	failed = not _test_project_settings_release_payload_builds_stable_asset_links() or failed
+	failed = not _test_release_page_html_builds_release_payload() or failed
 	failed = not _test_default_update_sources_prioritize_static_version_sources() or failed
 	failed = not _test_resolve_release_for_each_supported_platform() or failed
 	failed = not _test_desktop_apply_script_templates_include_wait_copy_and_relaunch() or failed
@@ -86,17 +87,33 @@ func _test_project_settings_release_payload_builds_stable_asset_links() -> bool:
 	return passed
 
 
+func _test_release_page_html_builds_release_payload() -> bool:
+	var manager = _manager()
+	if manager == null:
+		return false
+	var html = '<html><head><link rel="canonical" href="https://github.com/NightsReimu/pvz-godot/releases/tag/v1.0.2"></head></html>'
+	var payload = manager.release_payload_from_release_page_html(html)
+	var passed := true
+	passed = _assert_true(String(payload.get("tag_name", "")) == "v1.0.2", "release page HTML should be converted into a synthetic payload using the detected tag") and passed
+	passed = _assert_true(String(payload.get("html_url", "")) == "https://github.com/NightsReimu/pvz-godot/releases/tag/v1.0.2", "release page HTML should resolve to the matching release page") and passed
+	return passed
+
+
 func _test_default_update_sources_prioritize_static_version_sources() -> bool:
 	var manager = _manager()
 	if manager == null:
 		return false
 	var sources: Array = manager.default_update_sources()
 	var passed := true
-	passed = _assert_true(sources.size() >= 3, "update manager should expose multiple fallback sources for update checks") and passed
+	passed = _assert_true(sources.size() >= 4, "update manager should expose multiple fallback sources for update checks") and passed
 	if passed:
 		passed = _assert_true(String(Dictionary(sources[0]).get("kind", "")) == "project_settings", "first update source should be a static project settings manifest") and passed
+		passed = _assert_true(String(Dictionary(sources[0]).get("url", "")).contains("cdn.jsdelivr.net"), "first update source should prefer the jsDelivr mirror") and passed
 		passed = _assert_true(String(Dictionary(sources[1]).get("kind", "")) == "project_settings", "second update source should keep using a static project settings mirror") and passed
-		passed = _assert_true(String(Dictionary(sources[sources.size() - 1]).get("kind", "")) == "api", "GitHub API should remain available as the last fallback source") and passed
+		passed = _assert_true(String(Dictionary(sources[1]).get("url", "")).contains("raw.githubusercontent.com"), "second update source should use raw.githubusercontent.com directly instead of github.com/raw redirects") and passed
+		passed = _assert_true(String(Dictionary(sources[2]).get("kind", "")) == "release_page", "third update source should read the GitHub release page as a non-API fallback") and passed
+		passed = _assert_true(String(Dictionary(sources[2]).get("url", "")).contains("/releases/latest"), "release page fallback should point at the latest release landing page") and passed
+		passed = _assert_true(String(Dictionary(sources[3]).get("kind", "")) == "api", "fourth update source should still use the GitHub API") and passed
 	return passed
 
 

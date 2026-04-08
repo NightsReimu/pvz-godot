@@ -3,9 +3,10 @@ extends RefCounted
 const REPO_OWNER := "HecreReed"
 const REPO_NAME := "pvz-godot"
 const RELEASES_URL := "https://github.com/NightsReimu/pvz-godot/releases"
+const LATEST_RELEASE_PAGE_URL := "https://github.com/NightsReimu/pvz-godot/releases/latest"
 const LATEST_RELEASE_API_URL := "https://api.github.com/repos/NightsReimu/pvz-godot/releases/latest"
 const PROJECT_SETTINGS_CDN_URL := "https://cdn.jsdelivr.net/gh/NightsReimu/pvz-godot@main/project.godot"
-const PROJECT_SETTINGS_RAW_URL := "https://github.com/NightsReimu/pvz-godot/raw/main/project.godot"
+const PROJECT_SETTINGS_RAW_URL := "https://raw.githubusercontent.com/NightsReimu/pvz-godot/main/project.godot"
 const UPDATES_ROOT := "user://updates"
 const STAGE_ROOT_NAME := "staged"
 const DOWNLOAD_ROOT_NAME := "downloads"
@@ -13,6 +14,10 @@ const DOWNLOAD_ROOT_NAME := "downloads"
 
 func latest_release_api_url() -> String:
 	return LATEST_RELEASE_API_URL
+
+
+func latest_release_page_url() -> String:
+	return LATEST_RELEASE_PAGE_URL
 
 
 func project_settings_cdn_url() -> String:
@@ -31,6 +36,7 @@ func default_update_sources() -> Array:
 	return [
 		{"kind": "project_settings", "url": project_settings_cdn_url()},
 		{"kind": "project_settings", "url": project_settings_raw_url()},
+		{"kind": "release_page", "url": latest_release_page_url()},
 		{"kind": "api", "url": latest_release_api_url()},
 	]
 
@@ -94,6 +100,17 @@ func release_payload_from_project_settings_text(text: String) -> Dictionary:
 	if version == "":
 		return {}
 	var tag = "v%s" % normalize_version(version)
+	return _payload_for_tag(tag)
+
+
+func release_payload_from_release_page_html(text: String) -> Dictionary:
+	var tag = _extract_release_tag(text)
+	if tag == "":
+		return {}
+	return _payload_for_tag(tag)
+
+
+func _payload_for_tag(tag: String) -> Dictionary:
 	var payload := {
 		"tag_name": tag,
 		"html_url": "%s/tag/%s" % [RELEASES_URL, tag],
@@ -297,6 +314,17 @@ func _extract_project_version(text: String) -> String:
 	if end == -1:
 		return ""
 	return normalize_version(text.substr(start, end - start))
+
+
+func _extract_release_tag(text: String) -> String:
+	var match = RegEx.new()
+	var compile_error = match.compile("/releases/tag/(v[0-9A-Za-z._-]+)")
+	if compile_error != OK:
+		return ""
+	var result = match.search(text)
+	if result == null:
+		return ""
+	return String(result.get_string(1))
 
 
 func _known_release_asset_names() -> Array:

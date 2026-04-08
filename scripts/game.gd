@@ -1210,6 +1210,8 @@ func _on_update_check_completed(result: int, response_code: int, _headers: Packe
 	var parsed
 	if String(source.get("kind", "")) == "project_settings":
 		parsed = update_manager.release_payload_from_project_settings_text(body_text)
+	elif String(source.get("kind", "")) == "release_page":
+		parsed = update_manager.release_payload_from_release_page_html(body_text)
 	else:
 		parsed = JSON.parse_string(body_text)
 	if typeof(parsed) != TYPE_DICTIONARY or Dictionary(parsed).is_empty():
