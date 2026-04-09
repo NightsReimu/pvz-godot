@@ -1306,6 +1306,7 @@ func _begin_update_check() -> void:
 	update_error_text = ""
 	update_status_text = ""
 	update_download_progress = 0.0
+	update_download_target_path = ""
 	update_state = "checking"
 	update_release_info = {}
 	update_best_release_info = {}
@@ -1333,6 +1334,43 @@ func _try_next_update_check_source(last_error: String) -> void:
 		_try_next_update_check_source(update_manager.build_update_request_start_error_message(request_error))
 
 
+func _build_update_receipt() -> Dictionary:
+	return {
+		"latest_version": String(update_release_info.get("latest_version", "")),
+		"asset_name": String(update_release_info.get("asset_name", "")),
+		"install_mode": String(update_release_info.get("install_mode", "")),
+		"platform": String(update_release_info.get("platform", update_manager.platform_key_for_runtime())),
+		"local_path": update_download_target_path,
+	}
+
+
+func _restore_downloaded_update_from_receipt() -> bool:
+	var receipt = update_manager.read_update_receipt()
+	if receipt.is_empty():
+		return false
+	var expected_version = String(update_release_info.get("latest_version", ""))
+	var expected_asset = String(update_release_info.get("asset_name", ""))
+	var expected_install_mode = String(update_release_info.get("install_mode", ""))
+	var expected_platform = String(update_release_info.get("platform", update_manager.platform_key_for_runtime()))
+	var local_path = String(receipt.get("local_path", ""))
+	var matches_release = (
+		String(receipt.get("latest_version", "")) == expected_version
+		and String(receipt.get("asset_name", "")) == expected_asset
+		and String(receipt.get("install_mode", "")) == expected_install_mode
+		and String(receipt.get("platform", "")) == expected_platform
+	)
+	if not matches_release:
+		update_manager.clear_update_receipt()
+		return false
+	if local_path == "" or not FileAccess.file_exists(local_path):
+		update_manager.clear_update_receipt()
+		return false
+	update_download_target_path = local_path
+	update_state = "ready"
+	update_status_text = ""
+	return true
+
+
 func _finalize_update_check() -> void:
 	if update_best_release_info.is_empty():
 		_set_update_error(update_check_last_error if update_check_last_error != "" else "版本检查失败，请稍后重试")
@@ -1343,6 +1381,8 @@ func _finalize_update_check() -> void:
 			update_state = "latest"
 			update_status_text = ""
 		"update_available":
+			if _restore_downloaded_update_from_receipt():
+				return
 			update_state = "available"
 			update_status_text = ""
 			_show_toast("发现新版本 v%s" % String(update_release_info.get("latest_version", "")))
@@ -1364,6 +1404,7 @@ func _start_update_download() -> void:
 	if dir_result != OK:
 		_set_update_error("无法创建更新下载目录")
 		return
+	update_manager.clear_update_receipt()
 	update_download_target_path = update_manager.downloaded_asset_path(asset_name)
 	if FileAccess.file_exists(update_download_target_path):
 		update_manager.remove_recursive_absolute(update_download_target_path)
@@ -1544,6 +1585,12 @@ func _on_update_download_completed(result: int, response_code: int, _headers: Pa
 	if response_code < 200 or response_code >= 300:
 		_set_update_error("更新包下载失败，HTTP %d" % response_code)
 		return
+	if update_download_target_path == "" or not FileAccess.file_exists(update_download_target_path):
+		_set_update_error("更新包下载完成，但没有找到下载文件")
+		return
+	var receipt_result = update_manager.write_update_receipt(_build_update_receipt())
+	if receipt_result != OK:
+		push_warning("failed to persist update receipt: %s" % error_string(receipt_result))
 	update_download_progress = 1.0
 	update_state = "ready"
 	update_status_text = ""

@@ -15,6 +15,7 @@ func _run() -> void:
 	failed = not _test_update_failure_messages_use_readable_copy() or failed
 	failed = not _test_resolve_release_for_each_supported_platform() or failed
 	failed = not _test_desktop_apply_script_templates_include_wait_copy_and_relaunch() or failed
+	failed = not _test_update_receipt_round_trip_persists_downloaded_asset_metadata() or failed
 	quit(1 if failed else 0)
 
 
@@ -211,4 +212,29 @@ func _test_desktop_apply_script_templates_include_wait_copy_and_relaunch() -> bo
 	passed = _assert_true(unix_script.contains("while kill -0"), "unix update script should wait for the running process to exit") and passed
 	passed = _assert_true(unix_script.contains("cp -R") or unix_script.contains("rsync"), "unix update script should copy staged files into the install directory") and passed
 	passed = _assert_true(unix_script.contains("open ") or unix_script.contains("\"/Applications/pvz-godot.app/Contents/MacOS/pvz-godot\""), "unix update script should relaunch the game") and passed
+	return passed
+
+
+func _test_update_receipt_round_trip_persists_downloaded_asset_metadata() -> bool:
+	var manager = _manager()
+	if manager == null:
+		return false
+	manager.clear_update_receipt()
+	var receipt := {
+		"latest_version": "1.0.8",
+		"asset_name": "pvz-godot-android.apk",
+		"install_mode": "android_handoff",
+		"platform": "android",
+		"local_path": manager.downloaded_asset_path("pvz-godot-android.apk"),
+	}
+	var write_result = manager.write_update_receipt(receipt)
+	var loaded = manager.read_update_receipt()
+	var passed := true
+	passed = _assert_true(write_result == OK, "write_update_receipt should persist the receipt file") and passed
+	passed = _assert_true(String(loaded.get("latest_version", "")) == "1.0.8", "read_update_receipt should restore the stored version") and passed
+	passed = _assert_true(String(loaded.get("asset_name", "")) == "pvz-godot-android.apk", "read_update_receipt should restore the stored asset name") and passed
+	passed = _assert_true(String(loaded.get("install_mode", "")) == "android_handoff", "read_update_receipt should restore the install mode") and passed
+	passed = _assert_true(String(loaded.get("local_path", "")).ends_with("pvz-godot-android.apk"), "read_update_receipt should preserve the downloaded asset path") and passed
+	manager.clear_update_receipt()
+	passed = _assert_true(manager.read_update_receipt().is_empty(), "clear_update_receipt should remove persisted state") and passed
 	return passed

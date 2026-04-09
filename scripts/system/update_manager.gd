@@ -10,6 +10,7 @@ const PROJECT_SETTINGS_RAW_URL := "https://raw.githubusercontent.com/NightsReimu
 const UPDATES_ROOT := "user://updates"
 const STAGE_ROOT_NAME := "staged"
 const DOWNLOAD_ROOT_NAME := "downloads"
+const UPDATE_RECEIPT_FILE_NAME := "download_receipt.json"
 
 
 func latest_release_api_url() -> String:
@@ -225,6 +226,37 @@ func helper_script_path(platform: String) -> String:
 
 func downloaded_asset_path(asset_name: String) -> String:
 	return downloads_root_path().path_join(asset_name)
+
+
+func update_receipt_path() -> String:
+	return updates_root_path().path_join(UPDATE_RECEIPT_FILE_NAME)
+
+
+func read_update_receipt() -> Dictionary:
+	var path = update_receipt_path()
+	if not FileAccess.file_exists(path):
+		return {}
+	var file = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}
+	var parsed = JSON.parse_string(file.get_as_text())
+	file.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	return Dictionary(parsed).duplicate(true)
+
+
+func write_update_receipt(data: Dictionary) -> Error:
+	if data.is_empty():
+		return ERR_INVALID_DATA
+	return write_text_file_absolute(update_receipt_path(), JSON.stringify(data))
+
+
+func clear_update_receipt() -> Error:
+	var path = update_receipt_path()
+	if not FileAccess.file_exists(path):
+		return OK
+	return DirAccess.remove_absolute(path)
 
 
 func desktop_install_target(platform: String, executable_path: String) -> Dictionary:
