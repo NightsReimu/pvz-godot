@@ -1554,6 +1554,18 @@ func _android_should_request_install_sources(activity) -> bool:
 	return package_manager.canRequestPackageInstalls() == false
 
 
+func _android_install_intent_spec(package_name: String, apk_path: String) -> Dictionary:
+	package_name = package_name.strip_edges()
+	apk_path = apk_path.strip_edges()
+	if package_name == "" or apk_path == "":
+		return {}
+	return {
+		"provider_authority": "%s.fileprovider" % package_name,
+		"uri_scheme": "content",
+		"mime_type": "application/vnd.android.package-archive",
+	}
+
+
 func _open_downloaded_android_apk() -> bool:
 	if update_download_target_path == "" or not FileAccess.file_exists(update_download_target_path):
 		return false
@@ -1564,9 +1576,13 @@ func _open_downloaded_android_apk() -> bool:
 			var intent_class = JavaClassWrapper.wrap("android.content.Intent")
 			var uri_class = JavaClassWrapper.wrap("android.net.Uri")
 			var file_class = JavaClassWrapper.wrap("java.io.File")
+			var file_provider_class = JavaClassWrapper.wrap("androidx.core.content.FileProvider")
 			var settings_class = JavaClassWrapper.wrap("android.provider.Settings")
 			if intent_class != null and uri_class != null and file_class != null and settings_class != null:
 				var apk_path = update_download_target_path
+				var install_spec = _android_install_intent_spec(String(activity.getPackageName()), apk_path)
+				if install_spec.is_empty():
+					return false
 				var install_runnable = android_runtime.createRunnableFromGodotCallable(func ():
 					if _android_should_request_install_sources(activity):
 						var settings_intent = intent_class.Intent(settings_class.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
@@ -1575,11 +1591,19 @@ func _open_downloaded_android_apk() -> bool:
 						activity.startActivity(settings_intent)
 						return
 					var apk_file = file_class.File(apk_path)
-					var apk_uri_native = uri_class.fromFile(apk_file)
+					var apk_uri_native = null
+					if file_provider_class != null:
+						apk_uri_native = file_provider_class.getUriForFile(
+							activity,
+							String(install_spec.get("provider_authority", "")),
+							apk_file
+						)
+					if apk_uri_native == null:
+						apk_uri_native = uri_class.fromFile(apk_file)
 					var install_intent = intent_class.Intent(intent_class.ACTION_VIEW)
 					install_intent.addFlags(intent_class.FLAG_ACTIVITY_NEW_TASK)
 					install_intent.addFlags(intent_class.FLAG_GRANT_READ_URI_PERMISSION)
-					install_intent.setDataAndType(apk_uri_native, "application/vnd.android.package-archive")
+					install_intent.setDataAndType(apk_uri_native, String(install_spec.get("mime_type", "application/vnd.android.package-archive")))
 					activity.startActivity(install_intent)
 				)
 				activity.runOnUiThread(install_runnable)

@@ -11,6 +11,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_update_button_labels_follow_state_and_platform() or failed
+	failed = not _test_android_install_spec_uses_file_provider_content_uri() or failed
 	failed = not _test_finalize_update_check_restores_a_downloaded_android_apk() or failed
 	failed = not _test_finalize_update_check_ignores_stale_or_missing_downloaded_apks() or failed
 	quit(1 if failed else 0)
@@ -70,6 +71,19 @@ func _test_update_button_labels_follow_state_and_platform() -> bool:
 	passed = _assert_true(String(game.call("_update_action_text")) == "查看更新", "web ready state should fall back to viewing the update") and passed
 	game.update_state = "error"
 	passed = _assert_true(String(game.call("_update_action_text")) == "重试更新", "error state should offer retry") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_android_install_spec_uses_file_provider_content_uri() -> bool:
+	var game = _make_game()
+	var spec = game.call("_android_install_intent_spec", "com.hecrereed.pvz", "/data/user/0/com.hecrereed.pvz/files/updates/downloads/pvz-godot-android.apk")
+	var passed := true
+	passed = _assert_true(spec is Dictionary and not Dictionary(spec).is_empty(), "android update flow should expose an install intent spec for APK handoff") and passed
+	if passed:
+		passed = _assert_true(String(spec.get("provider_authority", "")) == "com.hecrereed.pvz.fileprovider", "android APK install should use the exported Godot FileProvider authority instead of a raw file:// URI") and passed
+		passed = _assert_true(String(spec.get("uri_scheme", "")) == "content", "android APK install should hand the installer a content URI") and passed
+		passed = _assert_true(String(spec.get("mime_type", "")) == "application/vnd.android.package-archive", "android APK install should keep the package archive MIME type") and passed
 	_free_game(game)
 	return passed
 
