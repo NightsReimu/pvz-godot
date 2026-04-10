@@ -25,7 +25,7 @@ static func plant_lines(kind: String) -> Array:
 		"vine_lasher":
 			return ["中近距离鞭击，命中后还能短暂减速。", "能量豆会抽击一整排并清掉障碍。"]
 		"pepper_mortar":
-			return ["锁定一路最前方威胁，打出范围溅射。", "能量豆会连续重炮轰击该路。"]
+			return ["整行锁定最前方威胁，喷出细长的高温火焰束精准点杀。", "能量豆会连续重炮轰击该路。"]
 		"cactus_guard":
 			return ["高耐久防御植物，接触敌人会反刺。", "能量豆会立刻补满并套上厚护甲。"]
 		"pulse_bulb":

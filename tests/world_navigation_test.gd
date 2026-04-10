@@ -12,6 +12,9 @@ func _run() -> void:
 	failed = not _test_world_select_supports_screen_drag_and_snap() or failed
 	failed = not _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() or failed
 	failed = not _test_map_supports_screen_drag_scroll() or failed
+	failed = not _test_selection_screen_supports_vertical_touch_drag_scroll() or failed
+	failed = not _test_selection_cards_keep_tap_priority_during_small_touch_motion() or failed
+	failed = not _test_selection_drag_does_not_trigger_card_click() or failed
 	quit(1 if failed else 0)
 
 
@@ -55,6 +58,22 @@ func _free_game(game: Control) -> void:
 	if is_instance_valid(game.message_panel):
 		game.message_panel.free()
 	game.free()
+
+
+func _prepare_selection_game() -> Control:
+	var game := _make_game()
+	game.mode = game.MODE_SELECTION
+	game.current_level = {
+		"id": "selection-touch-test",
+		"terrain": "day",
+		"events": [],
+		"mode": "",
+		"available_plants": game.call("_player_plant_collection"),
+	}
+	game.selection_pool_cards = game.call("_player_plant_collection")
+	game.selection_cards = []
+	game.selection_pool_scroll = 0.0
+	return game
 
 
 func _screen_touch(position: Vector2, pressed: bool, index: int = 0) -> InputEventScreenTouch:
@@ -120,5 +139,49 @@ func _test_map_supports_screen_drag_scroll() -> bool:
 	game._process(0.12)
 	var live_scroll = float(game.call("_map_scroll_value", "day", false))
 	passed = _assert_true(live_scroll > 0.0, "map scroll should start animating after a mobile drag release") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_selection_screen_supports_vertical_touch_drag_scroll() -> bool:
+	var game := _prepare_selection_game()
+	var max_scroll = float(game.call("_selection_pool_max_scroll"))
+	if not _assert_true(max_scroll > 0.0, "selection plant pool should overflow so touch scrolling can be tested"):
+		_free_game(game)
+		return false
+	var view_rect: Rect2 = game.call("_selection_pool_view_rect")
+	var start = view_rect.get_center()
+	game._unhandled_input(_screen_touch(start, true))
+	game._unhandled_input(_screen_drag(start + Vector2(8.0, -260.0), Vector2(8.0, -260.0)))
+	var passed = _assert_true(float(game.selection_pool_scroll) > 120.0, "dragging inside the selection pool viewport should vertically scroll the plant list on mobile") \
+		and _assert_true(float(game.selection_pool_scroll) <= max_scroll, "selection pool touch scrolling should stay clamped within the available content")
+	game._unhandled_input(_screen_touch(start + Vector2(8.0, -260.0), false))
+	_free_game(game)
+	return passed
+
+
+func _test_selection_cards_keep_tap_priority_during_small_touch_motion() -> bool:
+	var game := _prepare_selection_game()
+	var card_rect: Rect2 = game.call("_selection_pool_rect", 0)
+	var tap_pos = card_rect.get_center()
+	var expected_kind = String(game.selection_pool_cards[0])
+	game._unhandled_input(_screen_touch(tap_pos, true))
+	game._unhandled_input(_screen_drag(tap_pos + Vector2(20.0, 4.0), Vector2(20.0, 4.0)))
+	game._unhandled_input(_screen_touch(tap_pos + Vector2(20.0, 4.0), false))
+	var passed = _assert_true(game.selection_cards.size() == 1, "small touch motion on a selection card should still count as a tap") \
+		and _assert_true(String(game.selection_cards[0]) == expected_kind, "selection card tap priority should preserve the touched plant kind")
+	_free_game(game)
+	return passed
+
+
+func _test_selection_drag_does_not_trigger_card_click() -> bool:
+	var game := _prepare_selection_game()
+	var card_rect: Rect2 = game.call("_selection_pool_rect", 0)
+	var start = card_rect.get_center()
+	game._unhandled_input(_screen_touch(start, true))
+	game._unhandled_input(_screen_drag(start + Vector2(4.0, -220.0), Vector2(4.0, -220.0)))
+	game._unhandled_input(_screen_touch(start + Vector2(4.0, -220.0), false))
+	var passed = _assert_true(game.selection_cards.is_empty(), "dragging a selection card should scroll instead of accidentally selecting it") \
+		and _assert_true(float(game.selection_pool_scroll) > 100.0, "dragging from a card should still move the selection pool when the gesture is vertical")
 	_free_game(game)
 	return passed

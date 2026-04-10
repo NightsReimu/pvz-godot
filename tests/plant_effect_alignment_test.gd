@@ -18,6 +18,7 @@ func _run() -> void:
 	failed = not _test_lane_spray_visual_geometry_stays_at_configured_extent() or failed
 	failed = not _test_circle_effect_visual_geometry_stays_at_configured_extent() or failed
 	failed = not _test_wind_orchid_effect_reaches_lane_end() or failed
+	failed = not _test_pepper_mortar_locks_frontmost_zombie_with_beam() or failed
 	failed = not _test_pepper_mortar_plant_food_effect_matches_damage_radius() or failed
 	failed = not _test_threepeater_projectiles_follow_three_distinct_lanes() or failed
 	failed = not _test_jalapeno_effect_is_a_full_lane_blast() or failed
@@ -196,6 +197,33 @@ func _test_wind_orchid_effect_reaches_lane_end() -> bool:
 	var lane_end_x = game.BOARD_ORIGIN.x + game.board_size.x - 8.0
 	var passed = _assert_true(String(effect.get("shape", "")) == "lane_spray", "wind_orchid effect should be a lane gust instead of a short circle pulse") \
 		and _assert_float_gte(_effect_forward_extent(effect), lane_end_x, "wind_orchid gust effect should visually reach the end of the lane it affects")
+	_free_game(game)
+	return passed
+
+
+func _test_pepper_mortar_locks_frontmost_zombie_with_beam() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var plant = game._create_plant("pepper_mortar", row, col)
+	var front_x = game.BOARD_ORIGIN.x + game.board_size.x - 42.0
+	var rear_x = front_x - 60.0
+	game._spawn_zombie_at("normal", row, rear_x)
+	game._spawn_zombie_at("normal", row, front_x)
+	plant["attack_timer"] = 0.0
+	var rear_before = float(game.zombies[0].get("health", 0.0))
+	var front_before = float(game.zombies[1].get("health", 0.0))
+	game._update_pepper_mortar(plant, 0.1, row, col)
+	if not _assert_true(not game.effects.is_empty(), "pepper_mortar should emit an effect when it attacks"):
+		_free_game(game)
+		return false
+	var effect = Dictionary(game.effects[game.effects.size() - 1])
+	var rear_after = float(game.zombies[0].get("health", 0.0))
+	var front_after = float(game.zombies[1].get("health", 0.0))
+	var passed = _assert_true(String(effect.get("shape", "")) == "pepper_beam", "pepper_mortar should emit a dedicated pepper_beam effect instead of its old splash pulse") \
+		and _assert_float_eq(Vector2(effect.get("target", Vector2.ZERO)).x, front_x, "pepper_mortar beam should visually end at the frontmost zombie") \
+		and _assert_true(front_after < front_before, "pepper_mortar should damage the frontmost zombie in the lane") \
+		and _assert_float_eq(rear_after, rear_before, "pepper_mortar should stop splashing the zombie behind the frontmost target")
 	_free_game(game)
 	return passed
 

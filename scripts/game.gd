@@ -339,6 +339,7 @@ var touch_navigation_last_delta := Vector2.ZERO
 var touch_navigation_release_velocity := Vector2.ZERO
 var touch_navigation_world_scroll_origin := 0.0
 var touch_navigation_map_scroll_origin := 0.0
+var touch_navigation_selection_scroll_origin := 0.0
 var touch_navigation_dragging := false
 var touch_navigation_press_target := ""
 var touch_navigation_press_rect := Rect2()
@@ -543,6 +544,7 @@ func _reset_touch_navigation() -> void:
 	touch_navigation_release_velocity = Vector2.ZERO
 	touch_navigation_world_scroll_origin = 0.0
 	touch_navigation_map_scroll_origin = 0.0
+	touch_navigation_selection_scroll_origin = 0.0
 	touch_navigation_dragging = false
 	touch_navigation_press_target = ""
 	touch_navigation_press_rect = Rect2()
@@ -593,11 +595,42 @@ func _map_touch_target(position: Vector2) -> Dictionary:
 	return {}
 
 
+func _selection_touch_target(position: Vector2) -> Dictionary:
+	var back_rect = _selection_back_rect()
+	if back_rect.has_point(position) or PREP_BACK_RECT.has_point(position):
+		return {"id": "selection_back", "rect": back_rect}
+	var start_rect = _selection_start_rect()
+	if start_rect.has_point(position) or PREP_START_RECT.has_point(position):
+		return {"id": "selection_start", "rect": start_rect}
+	var selected_index = _selection_slot_at(position)
+	if selected_index != -1:
+		return {"id": "selection_slot_%d" % selected_index, "rect": _selection_slot_rect(selected_index)}
+	var track_rect = _selection_pool_track_rect()
+	if track_rect.has_point(position):
+		return {"id": "selection_pool_track", "rect": track_rect}
+	var pool_card_kind = _selection_pool_card_at(position)
+	if pool_card_kind != "":
+		for i in range(selection_pool_cards.size()):
+			if String(selection_pool_cards[i]) == pool_card_kind:
+				return {"id": "selection_pool_card_%d" % i, "rect": _selection_pool_rect(i)}
+	if _selection_pool_view_rect().has_point(position):
+		return {"id": "selection_pool_view", "rect": _selection_pool_view_rect()}
+	if _selection_pool_panel_rect().has_point(position):
+		return {"id": "selection_pool_panel", "rect": _selection_pool_panel_rect()}
+	return {}
+
+
+func _selection_touch_target_allows_drag(target_id: String) -> bool:
+	return target_id.begins_with("selection_pool_")
+
+
 func _touch_navigation_target(position: Vector2, target_mode: String) -> Dictionary:
 	if target_mode == MODE_WORLD_SELECT:
 		return _world_select_touch_target(position)
 	if target_mode == MODE_MAP:
 		return _map_touch_target(position)
+	if target_mode == MODE_SELECTION:
+		return _selection_touch_target(position)
 	return {}
 
 
@@ -606,10 +639,12 @@ func _handle_touch_navigation_tap(released_mode: String, released_pos: Vector2) 
 		_handle_world_select_click(released_pos)
 	elif released_mode == MODE_MAP:
 		_handle_map_click(released_pos)
+	elif released_mode == MODE_SELECTION:
+		_handle_selection_click(released_pos)
 
 
 func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
-	if mode != MODE_WORLD_SELECT and mode != MODE_MAP:
+	if mode != MODE_WORLD_SELECT and mode != MODE_MAP and mode != MODE_SELECTION:
 		return false
 	touch_navigation_index = event.index
 	touch_navigation_mode = mode
@@ -618,6 +653,7 @@ func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
 	touch_navigation_dragging = false
 	touch_navigation_world_scroll_origin = world_select_scroll
 	touch_navigation_map_scroll_origin = _map_scroll_value(current_world_key)
+	touch_navigation_selection_scroll_origin = selection_pool_scroll
 	var press_target = _touch_navigation_target(event.position, mode)
 	touch_navigation_press_target = String(press_target.get("id", ""))
 	touch_navigation_press_rect = Rect2(press_target.get("rect", Rect2()))
@@ -625,6 +661,8 @@ func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
 		world_select_velocity = 0.0
 	elif mode == MODE_MAP:
 		map_scroll_velocity_by_world[current_world_key] = 0.0
+	elif mode == MODE_SELECTION:
+		_set_selection_pool_scroll(selection_pool_scroll)
 	return true
 
 
@@ -639,8 +677,14 @@ func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 			return false
 		if delta_total.length() < TOUCH_DRAG_THRESHOLD:
 			return false
-		if absf(delta_total.x) <= absf(delta_total.y):
-			return false
+		if touch_navigation_mode == MODE_SELECTION:
+			if not _selection_touch_target_allows_drag(touch_navigation_press_target):
+				return false
+			if absf(delta_total.y) <= absf(delta_total.x):
+				return false
+		else:
+			if absf(delta_total.x) <= absf(delta_total.y):
+				return false
 		touch_navigation_dragging = true
 		touch_navigation_press_target = ""
 		touch_navigation_press_rect = Rect2()
@@ -654,6 +698,9 @@ func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 	if touch_navigation_mode == MODE_MAP:
 		_set_map_scroll(current_world_key, touch_navigation_map_scroll_origin - delta_total.x, true)
 		map_scroll_velocity_by_world[current_world_key] = -event.velocity.x
+		return true
+	if touch_navigation_mode == MODE_SELECTION:
+		_set_selection_pool_scroll(touch_navigation_selection_scroll_origin - delta_total.y)
 		return true
 	return false
 
@@ -683,6 +730,12 @@ func _finish_touch_navigation(event: InputEventScreenTouch) -> bool:
 			var release_speed = clampf(-release_velocity.x, -2800.0, 2800.0)
 			map_scroll_velocity_by_world[current_world_key] = release_speed
 			_set_map_scroll(current_world_key, _map_scroll_value(current_world_key, true) + release_speed * 0.14)
+			return true
+		if press_target == "" or press_rect.has_point(released_pos):
+			_handle_touch_navigation_tap(released_mode, released_pos)
+		return true
+	if released_mode == MODE_SELECTION:
+		if was_dragging:
 			return true
 		if press_target == "" or press_rect.has_point(released_pos):
 			_handle_touch_navigation_tap(released_mode, released_pos)
@@ -15211,6 +15264,42 @@ func _draw_effects() -> void:
 				var spark_center = origin + Vector2(beam_length * spark_ratio, sin(level_time * anim_speed * 1.4 + spark_ratio * 7.0) * width * 0.18)
 				draw_circle(spark_center, width * (0.06 + (1.0 - spark_ratio) * 0.03), Color(1.0, 0.56, 0.62, effect_color.a * 0.54))
 			draw_circle(origin + Vector2(beam_length, 0.0), width * 0.3, Color(1.0, 0.28, 0.34, effect_color.a * 0.92))
+			continue
+		if shape == "pepper_beam":
+			var beam_origin = Vector2(effect["position"])
+			var beam_target = Vector2(effect.get("target", beam_origin + Vector2.RIGHT * float(effect.get("length", 140.0))))
+			var beam_dir = beam_target - beam_origin
+			var beam_length = maxf(beam_dir.length(), 1.0)
+			var beam_dir_n = beam_dir / beam_length
+			var beam_normal = Vector2(-beam_dir.y, beam_dir.x).normalized()
+			var flame_width = float(effect.get("width", 34.0)) * (0.82 + ratio * 0.18)
+			for band_index in range(4):
+				var band_ratio = float(band_index) / 3.0
+				var base_width = flame_width * (0.9 - band_ratio * 0.18)
+				var wave = sin(level_time * anim_speed * (1.6 + band_index * 0.18) + band_index * 1.14) * (2.0 + band_index * 1.25)
+				var offset = beam_normal * wave
+				var band_color = [
+					Color(0.78, 0.08, 0.02, effect_color.a * 0.28),
+					Color(0.98, 0.24, 0.06, effect_color.a * 0.42),
+					Color(1.0, 0.58, 0.14, effect_color.a * 0.58),
+					Color(1.0, 0.92, 0.74, effect_color.a * 0.78),
+				][band_index]
+				draw_line(beam_origin + offset, beam_target + offset, band_color, base_width)
+			for tongue_index in range(6):
+				var tongue_ratio = float(tongue_index + 1) / 6.0
+				var tongue_center = beam_origin + beam_dir_n * beam_length * tongue_ratio
+				var tongue_offset = beam_normal * sin(level_time * anim_speed * 2.2 + tongue_ratio * 9.0) * flame_width * 0.18
+				var tongue_radius = flame_width * (0.18 + (1.0 - tongue_ratio) * 0.08)
+				draw_circle(tongue_center + tongue_offset, tongue_radius, Color(1.0, 0.68, 0.2, effect_color.a * 0.34))
+				draw_circle(tongue_center - tongue_offset * 0.45, tongue_radius * 0.52, Color(1.0, 0.94, 0.82, effect_color.a * 0.18))
+			for ember_index in range(8):
+				var ember_ratio = float(ember_index + 1) / 8.0
+				var ember_center = beam_origin + beam_dir_n * beam_length * ember_ratio + beam_normal * sin(level_time * anim_speed * 2.7 + ember_ratio * 11.0) * flame_width * 0.22
+				draw_circle(ember_center, 1.6 + (1.0 - ember_ratio) * 2.4, Color(1.0, 0.76, 0.28, effect_color.a * 0.72))
+			draw_circle(beam_origin, flame_width * 0.34, Color(0.82, 0.16, 0.04, effect_color.a * 0.46))
+			draw_circle(beam_origin, flame_width * 0.2, Color(1.0, 0.94, 0.82, effect_color.a * 0.82))
+			draw_circle(beam_target, flame_width * 0.42, Color(1.0, 0.34, 0.08, effect_color.a * 0.62))
+			draw_circle(beam_target, flame_width * 0.24, Color(1.0, 0.96, 0.88, effect_color.a * 0.7))
 			continue
 		if shape == "sniper_focus":
 			var focus_origin = Vector2(effect["position"])

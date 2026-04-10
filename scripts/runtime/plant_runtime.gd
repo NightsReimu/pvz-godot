@@ -2597,24 +2597,31 @@ func update_pepper_mortar(plant: Dictionary, delta: float, row: int, col: int) -
 	plant["attack_timer"] -= cadence_delta
 	if float(plant["attack_timer"]) > 0.0:
 		return
+	var center = game._cell_center(row, col)
+	var beam_origin = center + Vector2(20.0, -24.0)
+	var beam_target = beam_origin + Vector2.RIGHT * 120.0
+	var damage = float(Defs.PLANTS["pepper_mortar"]["damage"])
 	var target_index = game._find_frontmost_zombie(row)
-	var impact_x := 0.0
 	if target_index == -1:
-		impact_x = game._find_frontmost_obstacle_x(row)
-		if impact_x < -1000.0:
+		var obstacle_x = game._find_frontmost_obstacle_x(row)
+		if obstacle_x < -1000.0:
 			plant["attack_timer"] = 0.25
 			return
+		beam_target = Vector2(obstacle_x, game._row_center_y(row) - 6.0)
+		game._damage_obstacles_in_radius(row, obstacle_x, 14.0, damage)
 	else:
 		var zombie = game.zombies[target_index]
-		impact_x = float(zombie["x"])
-	var impact = Vector2(impact_x, game._row_center_y(row))
-	game._damage_zombies_in_radius(row, impact.x, float(Defs.PLANTS["pepper_mortar"]["splash_radius"]), float(Defs.PLANTS["pepper_mortar"]["damage"]))
-	game._damage_obstacles_in_radius(row, impact.x, float(Defs.PLANTS["pepper_mortar"]["splash_radius"]), float(Defs.PLANTS["pepper_mortar"]["damage"]))
+		beam_target = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 10.0)
+		zombie = game._apply_zombie_damage(zombie, damage, 0.18)
+		game.zombies[target_index] = zombie
 	game.effects.append({
-		"position": impact,
-		"radius": float(Defs.PLANTS["pepper_mortar"]["splash_radius"]),
-		"time": 0.34,
-		"duration": 0.34,
+		"shape": "pepper_beam",
+		"position": beam_origin,
+		"target": beam_target,
+		"length": maxf(beam_target.x - beam_origin.x, 24.0),
+		"width": 34.0,
+		"time": 0.26,
+		"duration": 0.26,
 		"color": Color(1.0, 0.42, 0.12, 0.56),
 	})
 	plant["flash"] = maxf(float(plant["flash"]), 0.16)
