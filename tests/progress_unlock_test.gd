@@ -20,6 +20,7 @@ func _run() -> void:
 	failed = not _test_inconsistent_blank_save_data_recovers_from_last_level_index() or failed
 	failed = not _test_save_merge_preserves_stronger_existing_progress() or failed
 	failed = not _test_save_merge_preserves_stronger_enhancement_progress() or failed
+	failed = not _test_save_merge_preserves_gacha_collection_progress() or failed
 	failed = not _test_loaded_enhance_progress_persists_into_battle_stats() or failed
 	failed = not _test_loaded_campaign_init_does_not_force_immediate_autosave() or failed
 	quit(1 if failed else 0)
@@ -349,6 +350,42 @@ func _test_save_merge_preserves_stronger_enhancement_progress() -> bool:
 	var passed = _assert_true(merged_levels is Dictionary and int(merged_levels.get("peashooter", 0)) == 3, "save merge should keep the stronger existing peashooter enhancement") \
 		and _assert_true(int(merged_levels.get("wallnut", 0)) == 1, "save merge should keep enhancement entries missing from the stale candidate") \
 		and _assert_true(int(merged.get("enhance_stones", 0)) == 5, "save merge should keep the stronger enhancement stone count")
+	_free_game(game)
+	return passed
+
+
+func _test_save_merge_preserves_gacha_collection_progress() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_merge_save_data_preserving_progress"), "expected save merge helper to exist for gacha collection merge checks"):
+		_free_game(game)
+		return false
+	var existing_save = {
+		"version": 2,
+		"unlocked_levels": 24,
+		"completed_level_ids": _completed_ids_through("2-10"),
+		"plant_stars": {"shadow_pea": 2, "ice_queen": 1},
+		"plant_fragments": {"shadow_pea": 18, "ice_queen": 6},
+		"gacha_pity_counter": 37,
+		"endless_best_wave": 12,
+	}
+	var stale_candidate = {
+		"version": 2,
+		"unlocked_levels": 1,
+		"completed_level_ids": [],
+		"plant_stars": {"shadow_pea": 1},
+		"plant_fragments": {"shadow_pea": 3},
+		"gacha_pity_counter": 2,
+		"endless_best_wave": 1,
+	}
+	var merged: Dictionary = game.call("_merge_save_data_preserving_progress", existing_save, stale_candidate)
+	var merged_stars = merged.get("plant_stars", {})
+	var merged_fragments = merged.get("plant_fragments", {})
+	var passed = _assert_true(merged_stars is Dictionary and int(merged_stars.get("shadow_pea", 0)) == 2, "save merge should keep the stronger shadow_pea star count") \
+		and _assert_true(int(merged_stars.get("ice_queen", 0)) == 1, "save merge should preserve owned gacha plants missing from the stale candidate") \
+		and _assert_true(merged_fragments is Dictionary and int(merged_fragments.get("shadow_pea", 0)) == 18, "save merge should keep the stronger fragment count") \
+		and _assert_true(int(merged_fragments.get("ice_queen", 0)) == 6, "save merge should preserve fragment entries missing from the stale candidate") \
+		and _assert_true(int(merged.get("gacha_pity_counter", 0)) == 37, "save merge should keep the stronger pity counter") \
+		and _assert_true(int(merged.get("endless_best_wave", 0)) == 12, "save merge should keep the stronger endless record")
 	_free_game(game)
 	return passed
 

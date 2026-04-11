@@ -12,6 +12,13 @@ func _run() -> void:
 	failed = not _test_peashooter_click_ultimate_uses_its_own_plant_food_pattern() or failed
 	failed = not _test_moonforge_click_ultimate_launches_moonfall_projectiles() or failed
 	failed = not _test_flower_pot_click_ultimate_creates_supports_instead_of_generic_heal() or failed
+	failed = not _test_pepper_mortar_click_ultimate_creates_front_fire_wall() or failed
+	failed = not _test_pulse_bulb_click_ultimate_freezes_a_5x5_area() or failed
+	failed = not _test_pepper_mortar_plant_food_creates_front_target_3x3_fire_zone() or failed
+	failed = not _test_pulse_bulb_plant_food_pushes_nearby_zombies_in_5x5() or failed
+	failed = not _test_prism_grass_click_ultimate_hits_three_lanes() or failed
+	failed = not _test_lantern_bloom_click_ultimate_stuns_nearby_enemies() or failed
+	failed = not _test_thunder_pine_click_ultimate_spawns_tracking_cloud() or failed
 	quit(1 if failed else 0)
 
 
@@ -79,6 +86,14 @@ func _count_support_kind(game: Control, kind: String) -> int:
 	return count
 
 
+func _count_effect_shape(game: Control, shape: String) -> int:
+	var count := 0
+	for effect_variant in game.effects:
+		if String(Dictionary(effect_variant).get("shape", "")) == shape:
+			count += 1
+	return count
+
+
 func _test_peashooter_click_ultimate_uses_its_own_plant_food_pattern() -> bool:
 	var game := _make_game()
 	var row := 2
@@ -124,5 +139,169 @@ func _test_flower_pot_click_ultimate_creates_supports_instead_of_generic_heal() 
 	var after_count := _count_support_kind(game, "flower_pot")
 	var passed := _assert_true(activated, "flower_pot should accept click ultimate activation when fully charged") \
 		and _assert_true(after_count > before_count, "flower_pot click ultimate should create additional support pots instead of falling back to the generic support heal")
+	_free_game(game)
+	return passed
+
+
+func _test_pepper_mortar_click_ultimate_creates_front_fire_wall() -> bool:
+	var game := _make_game()
+	var row := 2
+	var col := 2
+	var target_row := 1
+	var target_col := 7
+	var plant = game.call("_create_plant", "pepper_mortar", row, col)
+	plant["ultimate_charge"] = 1.0
+	game.grid[row][col] = plant
+	var target_x = game.call("_cell_center", target_row, target_col).x
+	game.call("_spawn_zombie_at", "normal", target_row, target_x)
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	var patch_count := 0
+	var duration_ok := true
+	for active_row in game.active_rows:
+		var effect_index := int(game.call("_cell_effect_index", "magma_patch", int(active_row), target_col))
+		if effect_index != -1:
+			patch_count += 1
+			duration_ok = duration_ok and is_equal_approx(float(game.effects[effect_index].get("duration", 0.0)), 10.0)
+	return _assert_true(activated, "pepper_mortar should accept click ultimate activation when fully charged") \
+		and _assert_true(patch_count == game.active_rows.size(), "pepper_mortar click ultimate should create a full fire wall on the frontmost zombie column") \
+		and _assert_true(duration_ok, "pepper_mortar click ultimate fire wall should last 10 seconds")
+
+
+func _test_pulse_bulb_click_ultimate_freezes_a_5x5_area() -> bool:
+	var game := _make_game()
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "pulse_bulb", row, col)
+	plant["ultimate_charge"] = 1.0
+	game.grid[row][col] = plant
+	game.call("_spawn_zombie_at", "normal", 0, game.call("_cell_center", 0, 0).x)
+	game.call("_spawn_zombie_at", "normal", 4, game.call("_cell_center", 4, 4).x)
+	game.call("_spawn_zombie_at", "normal", 2, game.call("_cell_center", 2, 6).x)
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	var near_a = game.zombies[0]
+	var near_b = game.zombies[1]
+	var far = game.zombies[2]
+	var passed := _assert_true(activated, "pulse_bulb should accept click ultimate activation when fully charged") \
+		and _assert_true(float(near_a.get("special_pause_timer", 0.0)) > 0.0, "pulse_bulb click ultimate should freeze targets within its 5x5 field") \
+		and _assert_true(float(near_b.get("special_pause_timer", 0.0)) > 0.0, "pulse_bulb click ultimate should reach the far corner of its 5x5 field") \
+		and _assert_true(float(far.get("special_pause_timer", 0.0)) <= 0.0, "pulse_bulb click ultimate should not freeze zombies outside the 5x5 field")
+	_free_game(game)
+	return passed
+
+
+func _test_pepper_mortar_plant_food_creates_front_target_3x3_fire_zone() -> bool:
+	var game := _make_game()
+	var row := 2
+	var col := 2
+	var target_row := 2
+	var target_col := 6
+	var plant = game.call("_create_plant", "pepper_mortar", row, col)
+	game.grid[row][col] = plant
+	game.call("_spawn_zombie_at", "normal", target_row, game.call("_cell_center", target_row, target_col).x)
+	var activated := bool(game.call("_activate_plant_food", row, col))
+	var patch_count := 0
+	var duration_ok := true
+	for patch_row in range(target_row - 1, target_row + 2):
+		for patch_col in range(target_col - 1, target_col + 2):
+			var effect_index := int(game.call("_cell_effect_index", "magma_patch", patch_row, patch_col))
+			if effect_index != -1:
+				patch_count += 1
+				duration_ok = duration_ok and is_equal_approx(float(game.effects[effect_index].get("duration", 0.0)), 12.0)
+	var passed := _assert_true(activated, "pepper_mortar plant food should activate on a planted mortar") \
+		and _assert_true(patch_count == 9, "pepper_mortar plant food should create a 3x3 fire zone around the frontmost target") \
+		and _assert_true(duration_ok, "pepper_mortar plant food fire zone should last 12 seconds")
+	_free_game(game)
+	return passed
+
+
+func _test_pulse_bulb_plant_food_pushes_nearby_zombies_in_5x5() -> bool:
+	var game := _make_game()
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "pulse_bulb", row, col)
+	game.grid[row][col] = plant
+	game.call("_spawn_zombie_at", "normal", 1, game.call("_cell_center", 1, 4).x)
+	game.call("_spawn_zombie_at", "normal", 2, game.call("_cell_center", 2, 4).x)
+	game.call("_spawn_zombie_at", "normal", 2, game.call("_cell_center", 2, 7).x)
+	var near_before_a = float(game.zombies[0].get("x", 0.0))
+	var near_before_b = float(game.zombies[1].get("x", 0.0))
+	var far_before = float(game.zombies[2].get("x", 0.0))
+	var activated := bool(game.call("_activate_plant_food", row, col))
+	var near_after_a = float(game.zombies[0].get("x", 0.0))
+	var near_after_b = float(game.zombies[1].get("x", 0.0))
+	var far_after = float(game.zombies[2].get("x", 0.0))
+	var passed := _assert_true(activated, "pulse_bulb plant food should activate on a planted pulse bulb") \
+		and _assert_true(near_after_a > near_before_a and near_after_b > near_before_b, "pulse_bulb plant food should push zombies inside its 5x5 pulse field backward") \
+		and _assert_true(is_equal_approx(far_after, far_before), "pulse_bulb plant food should not move zombies outside the 5x5 pulse field")
+	_free_game(game)
+	return passed
+
+
+func _test_prism_grass_click_ultimate_hits_three_lanes() -> bool:
+	var game := _make_game()
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "prism_grass", row, col)
+	plant["ultimate_charge"] = 1.0
+	game.grid[row][col] = plant
+	for lane in [1, 2, 3]:
+		game.call("_spawn_zombie_at", "normal", lane, game.call("_cell_center", lane, 6).x)
+	var before: Array = []
+	for zombie in game.zombies:
+		before.append(float(zombie.get("health", 0.0)))
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	var passed := _assert_true(activated, "prism_grass should accept click ultimate activation when fully charged")
+	for zombie_index in range(game.zombies.size()):
+		passed = _assert_true(float(game.zombies[zombie_index].get("health", 0.0)) < before[zombie_index], "prism_grass click ultimate should damage each of the three covered lanes") and passed
+	passed = _assert_true(_count_effect_shape(game, "rainbow_beam") >= 3, "prism_grass click ultimate should emit rainbow beams across three lanes") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_lantern_bloom_click_ultimate_stuns_nearby_enemies() -> bool:
+	var game := _make_game()
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "lantern_bloom", row, col)
+	plant["ultimate_charge"] = 1.0
+	game.grid[row][col] = plant
+	game.call("_spawn_zombie_at", "normal", row, game.call("_cell_center", row, 4).x)
+	game.call("_spawn_zombie_at", "normal", row, game.call("_cell_center", row, 8).x)
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	var near = game.zombies[0]
+	var far = game.zombies[1]
+	var passed := _assert_true(activated, "lantern_bloom should accept click ultimate activation when fully charged") \
+		and _assert_true(float(near.get("special_pause_timer", 0.0)) > 0.0, "lantern_bloom click ultimate should stun nearby enemies") \
+		and _assert_true(float(far.get("special_pause_timer", 0.0)) <= 0.0, "lantern_bloom click ultimate should not stun enemies outside its bloom radius")
+	_free_game(game)
+	return passed
+
+
+func _test_thunder_pine_click_ultimate_spawns_tracking_cloud() -> bool:
+	var game := _make_game()
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "thunder_pine", row, col)
+	plant["ultimate_charge"] = 1.0
+	game.grid[row][col] = plant
+	game.call("_spawn_zombie_at", "normal", row, game.call("_cell_center", row, 4).x)
+	game.call("_spawn_zombie_at", "normal", 4, game.call("_cell_center", 4, 8).x)
+	var near_before = float(game.zombies[0].get("health", 0.0))
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	game.call("_update_effects", 0.6)
+	var near_after = float(game.zombies[0].get("health", 0.0))
+	var has_cloud := false
+	var duration_ok := false
+	for effect_variant in game.effects:
+		var effect = Dictionary(effect_variant)
+		if String(effect.get("shape", "")) != "thunder_cloud":
+			continue
+		has_cloud = true
+		duration_ok = is_equal_approx(float(effect.get("duration", 0.0)), 8.0)
+		break
+	var passed := _assert_true(activated, "thunder_pine should accept click ultimate activation when fully charged") \
+		and _assert_true(has_cloud, "thunder_pine click ultimate should create a persistent thunder_cloud effect") \
+		and _assert_true(duration_ok, "thunder_pine click ultimate thunder_cloud should last 8 seconds") \
+		and _assert_true(near_after < near_before, "thunder_pine click ultimate cloud should start striking the nearest zombie")
 	_free_game(game)
 	return passed

@@ -215,7 +215,7 @@ const PLANTS: Dictionary = {
 		"health": 150.0,
 		"attack_interval": 1.25,
 		"damage": 45.0,
-		"range": 220.0,
+		"range": 320.0,
 		"slow_duration": 2.0,
 	},
 	"pepper_mortar": {
@@ -276,7 +276,7 @@ const PLANTS: Dictionary = {
 		"health": 80.0,
 		"shoot_interval": 1.3,
 		"damage": 20.0,
-		"range": 250.0,
+		"range": 350.0,
 	},
 	"sun_shroom": {
 		"name": "阳光菇",

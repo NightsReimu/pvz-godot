@@ -1,6 +1,8 @@
 extends RefCounted
 class_name AlmanacText
 
+const PlantDefs = preload("res://scripts/data/plant_defs.gd")
+
 
 static func plant_lines(kind: String) -> Array:
 	match kind:
@@ -108,6 +110,22 @@ static func plant_lines(kind: String) -> Array:
 			return ["镜芦苇会周期性放出照镜脉冲，能把隐身单位扫出轮廓并顺带造成伤害。", "能量豆会扩大脉冲范围并立刻做一次高强度反隐清场。"]
 		"frost_fan":
 			return ["霜扇草会朝前方三路扇出寒雾，边打边减速。", "能量豆会把霜风扩大成覆盖全场的寒潮。"]
+		"cabbage_pult":
+			return ["卷心菜投手会把抛物线菜叶砸到前方尸群头上，适合屋顶这种平射受限的地形。", "能量豆会让它短时间连续抛射，快速压低整路前场血线。"]
+		"flower_pot":
+			return ["花盆是屋顶与特殊地皮的基础种植台，没有它，很多位置根本放不下主力植物。", "能量豆会把附近可用地块快速补成临时种植位，方便你立即重建阵型。"]
+		"kernel_pult":
+			return ["玉米投手会交替抛出玉米粒和黄油，黄油命中时还能把目标直接糊在原地。", "能量豆会提高黄油压制频率，让前线连续陷入停顿。"]
+		"coffee_bean":
+			return ["咖啡豆专门叫醒夜行植物，让它们在白天和其他特殊场景里也能立刻投入战斗。", "能量豆会把附近仍在沉睡的植物一起唤醒，并短暂提高它们的作战节奏。"]
+		"garlic":
+			return ["大蒜会把啃到它的僵尸挤去相邻线路，是调度尸潮走位的经典转线前排。", "能量豆会把附近多只贴脸僵尸一起挤开，快速重排前线。"]
+		"umbrella_leaf":
+			return ["叶子保护伞会替周围植物挡下来自空中和抛射方向的偷袭，专门克制后场拆阵。", "能量豆会把保护范围暂时撑到更大，并顺带弹开一轮落下来的威胁。"]
+		"marigold":
+			return ["金盏花偏向长期收益，会稳定产出资源，适合在压力较低的关卡慢慢滚优势。", "能量豆会立刻喷出一波额外收益，让你更快完成阵容补强。"]
+		"melon_pult":
+			return ["西瓜投手会把重型瓜弹砸向目标，落点附近的尸群也会一起吃到溅射伤害。", "能量豆会让它进入重瓜连投状态，把整路前线持续砸穿。"]
 		"mist_orchid":
 			return ["雾兰会朝本行前方喷出雾团，命中后还会在小范围内显形并溅射。", "能量豆会让整行进入高频雾暴，持续显形并减速。"]
 		"anchor_fern":
@@ -167,7 +185,78 @@ static func plant_lines(kind: String) -> Array:
 		"dream_disc":
 			return ["梦中碟是一次性控场植物，会把附近僵尸直接拖进睡眠。", "能量豆会把梦域扩成更大范围的沉眠力场。"]
 		_:
-			return ["资料暂未填写。"]
+			return _fallback_plant_lines(kind)
+
+
+static func _fallback_plant_lines(kind: String) -> Array:
+	var plant_def: Dictionary = PlantDefs.PLANTS.get(kind, {})
+	if plant_def.is_empty():
+		return ["图鉴资料同步中。", "该植物的正式说明会在后续版本里补齐。"]
+	var plant_name := String(plant_def.get("name", kind))
+	return [
+		_describe_plant_role(plant_name, plant_def),
+		_describe_plant_ultimate(plant_def),
+	]
+
+
+static func _describe_plant_role(plant_name: String, plant_def: Dictionary) -> String:
+	var health := float(plant_def.get("health", 0.0))
+	if bool(plant_def.get("water_only", false)):
+		return "%s是水路专用单位，主要负责补足泳池线路的火力或功能空位。" % plant_name
+	if plant_def.has("sun_interval"):
+		if plant_def.has("shoot_interval") or plant_def.has("attack_interval") or plant_def.has("pulse_interval"):
+			return "%s兼顾资源与战斗节奏，能一边滚阳光一边给前线持续施压。" % plant_name
+		return "%s偏向经济与辅助，会稳定提供资源，帮你更快搭起完整阵容。" % plant_name
+	if health >= 3500.0 or plant_def.has("shield_hp") or plant_def.has("armor_layers") or plant_def.has("reflect_ratio") or plant_def.has("regen"):
+		return "%s属于高耐久防线植物，职责是拖住尸潮并保护后排关键输出。" % plant_name
+	if plant_def.has("heal_interval") or plant_def.has("support_interval") or plant_def.has("wake_radius"):
+		return "%s偏向辅助定位，会给附近植物提供治疗、护盾或功能增益。" % plant_name
+	if plant_def.has("freeze_duration") or plant_def.has("slow_duration") or plant_def.has("slow_ratio") or plant_def.has("sleep_duration") or plant_def.has("root_duration"):
+		return "%s擅长控场，能靠冻结、减速、沉睡或定身把敌人的推进节奏拖慢。" % plant_name
+	if plant_def.has("reveal_range") or plant_def.has("reveal_radius"):
+		return "%s兼顾侦测与压制，能把隐蔽目标扫出来并稳定住周围线路。" % plant_name
+	if plant_def.has("pull_interval") or plant_def.has("pull_strength") or plant_def.has("pull_distance"):
+		return "%s会扰乱尸群站位，把已经成形的推进队列重新拉散。" % plant_name
+	if plant_def.has("magma_dps") or plant_def.has("ember_dps") or plant_def.has("burn_damage") or plant_def.has("burn_duration"):
+		return "%s更偏持续灼烧与地形压制，适合把敌人拖进长时间掉血状态。" % plant_name
+	if plant_def.has("charge_time") or plant_def.has("beam_duration"):
+		return "%s属于蓄力型炮台，出手不快，但每一轮命中都带着很强的爆发。" % plant_name
+	if plant_def.has("shoot_interval"):
+		if plant_def.has("chain_damage") or plant_def.has("split_count") or plant_def.has("pierce_count") or plant_def.has("max_hits") or bool(plant_def.get("homing", false)):
+			return "%s属于远程特化输出，弹道会分裂、连锁、追踪或折返，适合处理中后场多目标。" % plant_name
+		return "%s是稳定远程火力点，会持续朝前方输出，负责把整路压力压在中后场。" % plant_name
+	if plant_def.has("attack_interval"):
+		if plant_def.has("cone_range") or plant_def.has("cone_width"):
+			return "%s会对前方扇形区域施压，适合处理中近距离成群目标。" % plant_name
+		if plant_def.has("range"):
+			return "%s会在射程内周期性主动出手，兼顾稳定伤害与功能压制。" % plant_name
+		return "%s会按固定节奏主动出手，用独特机制反复干扰前线。" % plant_name
+	if plant_def.has("pulse_interval") and plant_def.has("radius"):
+		return "%s依赖范围脉冲作战，能在固定节奏里同时碰到一片尸群。" % plant_name
+	if plant_def.has("radius"):
+		return "%s更偏范围控场或一次性爆发，适合在小片区域里迅速改变战局。" % plant_name
+	return "%s拥有独特定位，会围绕自身机制持续改变当前战局节奏。" % plant_name
+
+
+static func _describe_plant_ultimate(plant_def: Dictionary) -> String:
+	var prefix := ""
+	if bool(plant_def.get("gacha_only", false)):
+		prefix = "%s抽卡植物，" % _rarity_label(String(plant_def.get("rarity", "")))
+	if plant_def.has("ultimate_name"):
+		return "%s点击大招「%s」会把它的核心能力瞬间推到极限。" % [prefix, String(plant_def.get("ultimate_name", ""))]
+	return "%s能量豆会进一步放大它的主要作用。" % prefix
+
+
+static func _rarity_label(rarity: String) -> String:
+	match rarity:
+		"purple":
+			return "紫卡"
+		"orange":
+			return "橙卡"
+		"gold":
+			return "金卡"
+		_:
+			return "特殊"
 
 
 static func zombie_lines(kind: String) -> Array:

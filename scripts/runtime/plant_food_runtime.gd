@@ -625,15 +625,14 @@ func activate(row: int, col: int) -> bool:
 			})
 		"pepper_mortar":
 			plant["plant_food_mode"] = "mortar_burst"
-			plant["plant_food_timer"] = 0.4
-			game._damage_zombies_in_radius(row, center.x + 130.0, 210.0, 110.0)
-			game._damage_obstacles_in_radius(row, center.x + 130.0, 210.0, 110.0)
+			plant["plant_food_timer"] = 0.55
+			var fire_zone: Vector2i = game._spawn_pepper_mortar_fire_zone(12.0, 68.0, 1, 1, row)
 			game.effects.append({
-				"position": center + Vector2(130.0, 0.0),
-				"radius": 210.0,
-				"time": 0.4,
-				"duration": 0.4,
-				"color": Color(1.0, 0.36, 0.14, 0.5),
+				"position": game._cell_center(fire_zone.x, fire_zone.y),
+				"radius": game.CELL_SIZE.x * 1.45,
+				"time": 0.44,
+				"duration": 0.44,
+				"color": Color(1.0, 0.42, 0.16, 0.42),
 			})
 		"cactus_guard":
 			plant["health"] = float(plant["max_health"])
@@ -643,16 +642,15 @@ func activate(row: int, col: int) -> bool:
 			plant["plant_food_timer"] = 9999.0
 		"pulse_bulb":
 			plant["plant_food_mode"] = "pulse_burst"
-			plant["plant_food_timer"] = 0.4
-			var burst_radius = float(Defs.PLANTS["pulse_bulb"].get("radius", 175.0)) + 70.0
-			game._damage_zombies_in_circle(center, burst_radius, 120.0)
-			game._damage_obstacles_in_circle(center, burst_radius, 120.0)
+			plant["plant_food_timer"] = 0.5
+			game._apply_pulse_bulb_push_zone(row, col, 2, 92.0, 0.55, 2.4)
 			game.effects.append({
+				"shape": "pulse_bulb_wave",
 				"position": center,
-				"radius": burst_radius,
-				"time": 0.38,
-				"duration": 0.38,
-				"color": Color(0.98, 0.98, 0.42, 0.46),
+				"radius": game.CELL_SIZE.x * 2.85,
+				"time": 0.42,
+				"duration": 0.42,
+				"color": Color(0.9, 0.98, 1.0, 0.46),
 			})
 		"spikeweed":
 			plant["plant_food_mode"] = "spike_storm"
@@ -696,7 +694,7 @@ func activate(row: int, col: int) -> bool:
 			plant["plant_food_mode"] = "fume_burst"
 			plant["plant_food_timer"] = 1.8
 			plant["plant_food_interval"] = 0.01
-			var fume_range = float(Defs.PLANTS["fume_shroom"]["range"]) + 70.0
+			var fume_range = float(Defs.PLANTS["fume_shroom"]["range"]) + game.CELL_SIZE.x + 70.0
 			var fume_damage = 160.0
 			for i in range(game.zombies.size()):
 				var fume_zombie = game.zombies[i]
@@ -815,7 +813,7 @@ func activate(row: int, col: int) -> bool:
 			plant["plant_food_mode"] = "meteor_burst"
 			plant["plant_food_timer"] = 0.45
 			for _i in range(3):
-				var impact_target = game._find_global_frontmost_target()
+				var impact_target = game._find_global_rearmost_target()
 				if int(impact_target["row"]) == -1:
 					break
 				var impact = Vector2(float(impact_target["x"]) + game.rng.randf_range(-16.0, 16.0), game._row_center_y(int(impact_target["row"])))

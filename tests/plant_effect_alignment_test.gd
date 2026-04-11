@@ -13,10 +13,15 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed := false
+	failed = not _test_amber_shooter_doubles_damage_against_armored_zombies() or failed
+	failed = not _test_amber_shooter_emits_amber_splash_on_hit() or failed
+	failed = not _test_vine_lasher_reaches_an_extra_tile() or failed
 	failed = not _test_vine_lasher_emits_range_effect() or failed
+	failed = not _test_puff_shroom_reaches_an_extra_tile() or failed
 	failed = not _test_prism_grass_effect_reaches_configured_range() or failed
 	failed = not _test_lane_spray_visual_geometry_stays_at_configured_extent() or failed
 	failed = not _test_circle_effect_visual_geometry_stays_at_configured_extent() or failed
+	failed = not _test_pulse_bulb_emits_unique_pulse_wave() or failed
 	failed = not _test_wind_orchid_effect_reaches_lane_end() or failed
 	failed = not _test_pepper_mortar_locks_frontmost_zombie_with_beam() or failed
 	failed = not _test_pepper_mortar_plant_food_effect_matches_damage_radius() or failed
@@ -24,6 +29,7 @@ func _run() -> void:
 	failed = not _test_jalapeno_effect_is_a_full_lane_blast() or failed
 	failed = not _test_torchwood_fire_pea_splashes_nearby_zombies() or failed
 	failed = not _test_boomerang_shooter_fires_for_any_zombie_ahead() or failed
+	failed = not _test_boomerang_shooter_does_not_double_hit_armored_targets() or failed
 	failed = not _test_boomerang_shooter_hits_three_targets_then_returns() or failed
 	failed = not _test_sakura_shooter_fires_for_any_zombie_ahead() or failed
 	failed = not _test_sakura_shooter_petals_split_on_hit() or failed
@@ -34,6 +40,13 @@ func _run() -> void:
 	failed = not _test_frost_fan_spreads_slow_across_three_lanes() or failed
 	failed = not _test_mist_orchid_fires_for_any_zombie_ahead() or failed
 	failed = not _test_storm_reed_hits_midfield_intruders() or failed
+	failed = not _test_moon_lotus_produces_two_suns_at_night() or failed
+	failed = not _test_fume_shroom_reaches_one_extra_tile() or failed
+	failed = not _test_prism_grass_uses_rainbow_beam_and_extra_range() or failed
+	failed = not _test_heather_shooter_fires_for_any_enemy_in_lane() or failed
+	failed = not _test_meteor_gourd_targets_the_rearmost_enemy() or failed
+	failed = not _test_thunder_pine_emits_a_sky_strike_effect() or failed
+	failed = not _test_dream_drum_emits_a_unique_wave_effect() or failed
 	quit(1 if failed else 0)
 
 
@@ -87,7 +100,8 @@ func _make_game() -> Control:
 
 func _effect_forward_extent(effect: Dictionary) -> float:
 	var position = Vector2(effect["position"])
-	if String(effect.get("shape", "circle")) == "lane_spray":
+	var shape = String(effect.get("shape", "circle"))
+	if shape == "lane_spray" or shape == "wind_gust_lane" or shape == "rainbow_beam":
 		return position.x + float(effect.get("length", 0.0))
 	return position.x + float(effect.get("radius", 0.0))
 
@@ -96,6 +110,82 @@ func _free_game(game: Control) -> void:
 	if is_instance_valid(game.toast_label):
 		game.toast_label.free()
 	game.free()
+
+
+func _advance_projectiles(game: Control, steps: int = 18, delta: float = 0.05) -> void:
+	for _step in range(steps):
+		if game.projectiles.is_empty():
+			return
+		game._update_projectiles(delta)
+
+
+func _zombie_effective_health(zombie: Dictionary) -> float:
+	return float(zombie.get("health", 0.0)) + float(zombie.get("shield_health", 0.0))
+
+
+func _effect_log_contains_shape(game: Control, shape_name: String) -> bool:
+	for effect_variant in game.effects:
+		if String(Dictionary(effect_variant).get("shape", "")) == shape_name:
+			return true
+	return false
+
+
+func _amber_shooter_damage_delta(zombie_kind: String) -> float:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	var plant = game._create_plant("amber_shooter", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at(zombie_kind, row, center.x + 132.0)
+	var before = _zombie_effective_health(game.zombies[0])
+	game._update_plants(0.1)
+	_advance_projectiles(game)
+	var after = _zombie_effective_health(game.zombies[0])
+	_free_game(game)
+	return before - after
+
+
+func _test_amber_shooter_doubles_damage_against_armored_zombies() -> bool:
+	var normal_delta = _amber_shooter_damage_delta("normal")
+	var bucket_delta = _amber_shooter_damage_delta("buckethead")
+	var screen_door_delta = _amber_shooter_damage_delta("screen_door")
+	return _assert_true(normal_delta > 0.0, "amber_shooter should damage a normal zombie with a basic shot") \
+		and _assert_float_gte(bucket_delta, normal_delta * 1.9, "amber_shooter should deal roughly double damage to buckethead armor targets") \
+		and _assert_float_gte(screen_door_delta, normal_delta * 1.9, "amber_shooter should deal roughly double damage to shielded armor targets")
+
+
+func _test_amber_shooter_emits_amber_splash_on_hit() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	var plant = game._create_plant("amber_shooter", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("buckethead", row, center.x + 128.0)
+	game._update_plants(0.1)
+	_advance_projectiles(game)
+	var passed = _assert_true(_effect_log_contains_shape(game, "amber_splash"), "amber_shooter should emit an amber_splash impact effect when its shot lands")
+	_free_game(game)
+	return passed
+
+
+func _test_vine_lasher_reaches_an_extra_tile() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	game._spawn_zombie_at("normal", row, center.x + 292.0)
+	var before = float(game.zombies[0].get("health", 0.0))
+	var plant = game._create_plant("vine_lasher", row, col)
+	plant["attack_timer"] = 0.0
+	game._update_vine_lasher(plant, 0.1, row, col)
+	var after = float(game.zombies[0].get("health", 0.0))
+	var passed = _assert_true(after < before, "vine_lasher should now hit one extra tile farther than before")
+	_free_game(game)
+	return passed
 
 
 func _test_vine_lasher_emits_range_effect() -> bool:
@@ -114,6 +204,24 @@ func _test_vine_lasher_emits_range_effect() -> bool:
 	var effect = Dictionary(game.effects[game.effects.size() - 1])
 	var passed = _assert_true(String(effect.get("shape", "")) == "lane_spray", "vine_lasher effect should be directional along the lane") \
 		and _assert_float_gte(_effect_forward_extent(effect), center.x + range_limit - 4.0, "vine_lasher effect should cover its configured attack range")
+	_free_game(game)
+	return passed
+
+
+func _test_puff_shroom_reaches_an_extra_tile() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	var plant = game._create_plant("puff_shroom", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, center.x + 322.0)
+	var before = float(game.zombies[0].get("health", 0.0))
+	game._update_plants(0.1)
+	_advance_projectiles(game)
+	var after = float(game.zombies[0].get("health", 0.0))
+	var passed = _assert_true(after < before, "puff_shroom should now fire one extra tile farther than before")
 	_free_game(game)
 	return passed
 
@@ -195,8 +303,26 @@ func _test_wind_orchid_effect_reaches_lane_end() -> bool:
 		return false
 	var effect = Dictionary(game.effects[game.effects.size() - 1])
 	var lane_end_x = game.BOARD_ORIGIN.x + game.board_size.x - 8.0
-	var passed = _assert_true(String(effect.get("shape", "")) == "lane_spray", "wind_orchid effect should be a lane gust instead of a short circle pulse") \
+	var passed = _assert_true(String(effect.get("shape", "")) == "wind_gust_lane", "wind_orchid effect should use a dedicated wind_gust_lane effect instead of the shared lane_spray template") \
 		and _assert_float_gte(_effect_forward_extent(effect), lane_end_x, "wind_orchid gust effect should visually reach the end of the lane it affects")
+	_free_game(game)
+	return passed
+
+
+func _test_pulse_bulb_emits_unique_pulse_wave() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	game._spawn_zombie_at("normal", row, center.x + 64.0)
+	var plant = game._create_plant("pulse_bulb", row, col)
+	plant["pulse_timer"] = 0.0
+	game._update_pulse_bulb(plant, 0.1, row, col)
+	if not _assert_true(not game.effects.is_empty(), "pulse_bulb should emit an effect when it pulses"):
+		_free_game(game)
+		return false
+	var effect = Dictionary(game.effects[game.effects.size() - 1])
+	var passed = _assert_true(String(effect.get("shape", "")) == "pulse_bulb_wave", "pulse_bulb should use a dedicated pulse_bulb_wave effect instead of the default circle pulse")
 	_free_game(game)
 	return passed
 
@@ -232,17 +358,29 @@ func _test_pepper_mortar_plant_food_effect_matches_damage_radius() -> bool:
 	var game = _make_game()
 	var row := 2
 	var col := 2
+	var target_row := 2
+	var target_col := 6
 	var plant = game._create_plant("pepper_mortar", row, col)
 	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", target_row, game._cell_center(target_row, target_col).x)
 	var activated = game._activate_plant_food(row, col)
 	if not _assert_true(activated, "pepper_mortar plant food should activate on a planted mortar"):
 		_free_game(game)
 		return false
-	if not _assert_true(not game.effects.is_empty(), "pepper_mortar plant food should emit an area effect"):
+	if not _assert_true(not game.effects.is_empty(), "pepper_mortar plant food should emit magma ground effects"):
 		_free_game(game)
 		return false
-	var effect = Dictionary(game.effects[game.effects.size() - 2])
-	var passed = _assert_float_eq(float(effect.get("radius", 0.0)), 210.0, "pepper_mortar plant food effect radius should match its damage radius")
+	var patch_count := 0
+	var duration_ok := true
+	for patch_row in range(target_row - 1, target_row + 2):
+		for patch_col in range(target_col - 1, target_col + 2):
+			var effect_index := int(game._cell_effect_index("magma_patch", patch_row, patch_col))
+			if effect_index == -1:
+				continue
+			patch_count += 1
+			duration_ok = duration_ok and is_equal_approx(float(game.effects[effect_index].get("duration", 0.0)), 12.0)
+	var passed = _assert_true(patch_count == 9, "pepper_mortar plant food should paint a 3x3 magma zone around the frontmost target") \
+		and _assert_true(duration_ok, "pepper_mortar plant food magma zone should last 12 seconds")
 	_free_game(game)
 	return passed
 
@@ -326,6 +464,26 @@ func _test_boomerang_shooter_fires_for_any_zombie_ahead() -> bool:
 	game._spawn_zombie_at("normal", row, game.BOARD_ORIGIN.x + game.board_size.x - 18.0)
 	game._update_boomerang_shooter(plant, 0.1, row, col)
 	var passed = _assert_true(not game.projectiles.is_empty(), "boomerang_shooter should fire when any zombie exists anywhere ahead in its lane")
+	_free_game(game)
+	return passed
+
+
+func _test_boomerang_shooter_does_not_double_hit_armored_targets() -> bool:
+	if not _assert_true(Defs.PLANTS.has("boomerang_shooter"), "expected boomerang_shooter plant definition to exist"):
+		return false
+	var game = _make_game()
+	var row := 2
+	var zombie_x = game._cell_center(row, 5).x
+	game._spawn_zombie_at("screen_door", row, zombie_x)
+	game.zombies[0]["shield_health"] = 8.0
+	var shield_before = float(game.zombies[0].get("shield_health", 0.0))
+	var health_before = float(game.zombies[0].get("health", 0.0))
+	game._spawn_boomerang_projectile(row, Vector2(zombie_x - 8.0, game._row_center_y(row) - 10.0), zombie_x - 140.0, float(Defs.PLANTS["boomerang_shooter"]["damage"]), int(Defs.PLANTS["boomerang_shooter"]["max_targets"]))
+	game._update_projectiles(0.05)
+	var shield_after = float(game.zombies[0].get("shield_health", 0.0))
+	var health_after = float(game.zombies[0].get("health", 0.0))
+	var passed = _assert_true(shield_after < shield_before, "boomerang_shooter should still damage armored zombie shields") \
+		and _assert_true(is_equal_approx(health_after, health_before), "boomerang_shooter should not spill the same hit from a nearly-broken shield onto the body")
 	_free_game(game)
 	return passed
 
@@ -543,5 +701,140 @@ func _test_storm_reed_hits_midfield_intruders() -> bool:
 	game._update_plants(0.12)
 	var passed = _assert_true(float(game.zombies[0]["health"]) < before, "storm_reed should immediately strike zombies that enter the right-side trigger zone") \
 		and _assert_true(not game.effects.is_empty(), "storm_reed should emit a visible strike effect when it fires")
+	_free_game(game)
+	return passed
+
+
+func _test_moon_lotus_produces_two_suns_at_night() -> bool:
+	var game = _make_game()
+	game.current_level = {"id": "2-1", "terrain": "night", "events": []}
+	var row := 2
+	var col := 2
+	var plant = game._create_plant("moon_lotus", row, col)
+	plant["sun_timer"] = 0.0
+	plant["support_timer"] = 999.0
+	game.grid[row][col] = plant
+	game._update_plants(0.1)
+	var passed = _assert_true(game.suns.size() == 2, "moon_lotus should produce two suns per cycle at night")
+	_free_game(game)
+	return passed
+
+
+func _test_fume_shroom_reaches_one_extra_tile() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	var extended_distance = float(Defs.PLANTS["fume_shroom"]["range"]) + game.CELL_SIZE.x - 12.0
+	game._spawn_zombie_at("normal", row, center.x + extended_distance)
+	var before = float(game.zombies[0].get("health", 0.0))
+	var plant = game._create_plant("fume_shroom", row, col)
+	plant["attack_timer"] = 0.0
+	game._update_fume_shroom(plant, 0.1, row, col)
+	if not _assert_true(not game.effects.is_empty(), "fume_shroom should emit an attack effect when it reaches its target"):
+		_free_game(game)
+		return false
+	var effect = Dictionary(game.effects[game.effects.size() - 1])
+	var after = float(game.zombies[0].get("health", 0.0))
+	var passed = _assert_true(after < before, "fume_shroom should damage zombies one extra tile farther than before") \
+		and _assert_float_gte(_effect_forward_extent(effect), center.x + extended_distance - 4.0, "fume_shroom effect should visually cover its extra tile of range")
+	_free_game(game)
+	return passed
+
+
+func _test_prism_grass_uses_rainbow_beam_and_extra_range() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	var extended_distance = float(Defs.PLANTS["prism_grass"]["range"]) + game.CELL_SIZE.x - 10.0
+	game._spawn_zombie_at("normal", row, center.x + extended_distance)
+	var before = float(game.zombies[0].get("health", 0.0))
+	var plant = game._create_plant("prism_grass", row, col)
+	plant["attack_timer"] = 0.0
+	game._update_prism_grass(plant, 0.1, row, col)
+	if not _assert_true(not game.effects.is_empty(), "prism_grass should emit an attack effect when it fires"):
+		_free_game(game)
+		return false
+	var effect = Dictionary(game.effects[game.effects.size() - 1])
+	var after = float(game.zombies[0].get("health", 0.0))
+	var passed = _assert_true(String(effect.get("shape", "")) == "rainbow_beam", "prism_grass should use a dedicated rainbow_beam effect instead of the generic lane spray") \
+		and _assert_true(after < before, "prism_grass should damage targets one extra tile farther away") \
+		and _assert_float_gte(_effect_forward_extent(effect), center.x + extended_distance - 4.0, "prism_grass rainbow beam should visually cover the extra tile of range")
+	_free_game(game)
+	return passed
+
+
+func _test_heather_shooter_fires_for_any_enemy_in_lane() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	var far_x = center.x + float(Defs.PLANTS["heather_shooter"]["range"]) + 150.0
+	var plant = game._create_plant("heather_shooter", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, far_x)
+	game._update_plants(0.12)
+	var passed = _assert_true(not game.projectiles.is_empty(), "heather_shooter should fire as long as any enemy exists ahead in its lane")
+	_free_game(game)
+	return passed
+
+
+func _test_meteor_gourd_targets_the_rearmost_enemy() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var front_row := 1
+	var rear_row := 3
+	var front_x = game._cell_center(front_row, 7).x
+	var rear_x = game._cell_center(rear_row, 2).x
+	game._spawn_zombie_at("normal", front_row, front_x)
+	game._spawn_zombie_at("normal", rear_row, rear_x)
+	var front_before = float(game.zombies[0].get("health", 0.0))
+	var rear_before = float(game.zombies[1].get("health", 0.0))
+	var plant = game._create_plant("meteor_gourd", row, col)
+	plant["attack_timer"] = 0.0
+	game._update_meteor_gourd(plant, 0.1, row, col)
+	if not _assert_true(not game.effects.is_empty(), "meteor_gourd should emit an impact effect when it fires"):
+		_free_game(game)
+		return false
+	var effect = Dictionary(game.effects[game.effects.size() - 1])
+	var front_after = float(game.zombies[0].get("health", 0.0))
+	var rear_after = float(game.zombies[1].get("health", 0.0))
+	var passed = _assert_float_eq(Vector2(effect.get("position", Vector2.ZERO)).x, rear_x, "meteor_gourd should impact the rearmost zombie position") \
+		and _assert_true(rear_after < rear_before, "meteor_gourd should damage the rearmost zombie first") \
+		and _assert_float_eq(front_after, front_before, "meteor_gourd should stop prioritizing the frontmost zombie")
+	_free_game(game)
+	return passed
+
+
+func _test_thunder_pine_emits_a_sky_strike_effect() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var plant = game._create_plant("thunder_pine", row, col)
+	plant["attack_timer"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 6).x)
+	var before = float(game.zombies[0].get("health", 0.0))
+	game._update_plants(0.12)
+	var after = float(game.zombies[0].get("health", 0.0))
+	var passed = _assert_true(after < before, "thunder_pine should still damage its target when striking") \
+		and _assert_true(_effect_log_contains_shape(game, "sky_thunder_strike"), "thunder_pine should emit a dedicated sky_thunder_strike effect instead of a generic pulse")
+	_free_game(game)
+	return passed
+
+
+func _test_dream_drum_emits_a_unique_wave_effect() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var plant = game._create_plant("dream_drum", row, col)
+	plant["support_timer"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 3).x)
+	game._update_plants(0.12)
+	var passed = _assert_true(_effect_log_contains_shape(game, "dream_drum_wave"), "dream_drum should emit its own dream_drum_wave effect instead of a generic circle pulse")
 	_free_game(game)
 	return passed

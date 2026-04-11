@@ -10,6 +10,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed := false
+	failed = not _test_update_check_request_avoids_threaded_timeout_stalls() or failed
 	failed = not _test_update_button_labels_follow_state_and_platform() or failed
 	failed = not _test_android_install_spec_uses_file_provider_content_uri() or failed
 	failed = not _test_finalize_update_check_restores_a_downloaded_android_apk() or failed
@@ -49,6 +50,17 @@ func _free_game(game: Control) -> void:
 	if is_instance_valid(game.action_button):
 		game.action_button.free()
 	game.free()
+
+
+func _test_update_check_request_avoids_threaded_timeout_stalls() -> bool:
+	var game = _make_game()
+	game.call("_build_update_requests")
+	var passed := true
+	passed = _assert_true(game.update_check_request != null, "update flow should build the version check HTTPRequest node") and passed
+	if passed:
+		passed = _assert_true(not bool(game.update_check_request.use_threads), "update check requests should stay on the main loop path so timeout handling cannot block waiting for a worker thread to join") and passed
+	_free_game(game)
+	return passed
 
 
 func _test_update_button_labels_follow_state_and_platform() -> bool:

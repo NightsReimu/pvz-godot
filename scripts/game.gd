@@ -58,6 +58,7 @@ const PLANT_FOOD_COLLECT_SPEED := 980.0
 const SUN_VALUE := 50
 const MAX_PLANT_FOOD := 3
 const SAVE_PATH := "user://pvz_progress_save.json"
+const LEGACY_SAVE_PROJECT_NAMES := ["Codex PvZ Prototype", "[unnamed project]"]
 const MAX_SEED_SLOTS := 10
 const PREP_SELECTED_PANEL_RECT := Rect2(122.0, 110.0, 1036.0, 128.0)
 const PREP_ZOMBIE_PANEL_RECT := Rect2(122.0, 248.0, 1036.0, 52.0)
@@ -1255,7 +1256,9 @@ func _build_update_requests() -> void:
 	if update_check_request == null:
 		update_check_request = HTTPRequest.new()
 		update_check_request.accept_gzip = true
-		update_check_request.use_threads = true
+		# Threaded HTTPRequest can block the main thread on timeout while joining
+		# its worker. Keep lightweight version checks on the main-loop async path.
+		update_check_request.use_threads = false
 		update_check_request.timeout = 6.0
 		update_check_request.request_completed.connect(_on_update_check_completed)
 		add_child(update_check_request)
@@ -5042,6 +5045,16 @@ func _ultimate_profile_for_kind(kind: String) -> Dictionary:
 		return {"style": "pad_bloom", "ultimate_name": "涟漪蔓延", "ultimate_charge_time": charge_time - 6.0, "ultimate_duration": 0.8}
 	if kind == "flower_pot":
 		return {"style": "pot_bloom", "ultimate_name": "花盆蔓生", "ultimate_charge_time": charge_time - 6.0, "ultimate_duration": 0.8}
+	if kind == "pepper_mortar":
+		return {"style": "pepper_fire_wall", "ultimate_name": "熔火封锁", "ultimate_charge_time": charge_time + 4.0, "ultimate_duration": 0.9}
+	if kind == "pulse_bulb":
+		return {"style": "pulse_freeze_field", "ultimate_name": "极寒脉冲", "ultimate_charge_time": charge_time + 1.0, "ultimate_duration": 0.9}
+	if kind == "prism_grass":
+		return {"style": "rainbow_trident", "ultimate_name": "虹彩三重奏", "ultimate_charge_time": charge_time + 1.0, "ultimate_duration": 0.9}
+	if kind == "lantern_bloom":
+		return {"style": "lantern_stun_bloom", "ultimate_name": "辉灯震晕", "ultimate_charge_time": charge_time - 1.0, "ultimate_duration": 0.9}
+	if kind == "thunder_pine":
+		return {"style": "thunder_cloud_hunt", "ultimate_name": "雷云狩猎", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 8.0}
 	if PlantFoodRuntime.supported_kinds().has(kind):
 		return {"style": "plant_food_ultimate", "ultimate_name": String(data.get("ultimate_name", "植物能量")), "ultimate_charge_time": charge_time, "ultimate_duration": 0.8}
 	match kind:
@@ -5170,6 +5183,17 @@ func _execute_generic_ultimate(plant: Dictionary, kind: String, row: int, col: i
 				var lane = int(lane_variant)
 				_damage_zombies_in_row_segment(lane, center.x + 8.0, BOARD_ORIGIN.x + board_size.x + 24.0, damage, float(data.get("slow_duration", 0.0)) + 0.8)
 			effects.append({"position": center, "radius": 170.0, "time": 0.26, "duration": 0.26, "color": Color(0.86, 0.84, 0.38, 0.24)})
+		"pepper_fire_wall":
+			var wall_col := _spawn_pepper_mortar_fire_wall(10.0, maxf(float(data.get("damage", 32.0)) * 1.05, 52.0), row)
+			for active_row_variant in active_rows:
+				var wall_row = int(active_row_variant)
+				effects.append({
+					"position": _cell_center(wall_row, wall_col) + Vector2(0.0, 4.0),
+					"radius": CELL_SIZE.x * 0.42,
+					"time": 0.34,
+					"duration": 0.34,
+					"color": Color(1.0, 0.46, 0.16, 0.26),
+				})
 		"artillery_barrage":
 			var impact = _find_global_frontmost_target()
 			var impact_pos = center + Vector2(180.0, -8.0)
@@ -5220,6 +5244,66 @@ func _execute_generic_ultimate(plant: Dictionary, kind: String, row: int, col: i
 					zombie["rooted_timer"] = maxf(float(zombie.get("rooted_timer", 0.0)), 2.8)
 				zombies[zombie_index] = zombie
 			effects.append({"position": center, "radius": radius, "time": 0.3, "duration": 0.3, "color": Color(0.68, 0.92, 1.0, 0.24)})
+		"rainbow_trident":
+			var beam_damage = maxf(float(data.get("damage", 24.0)) * 3.6, 96.0)
+			var beam_slow = float(data.get("slow_duration", 0.0)) + 2.4
+			for lane in [row - 1, row, row + 1]:
+				if lane < 0 or lane >= ROWS or not _is_row_active(lane):
+					continue
+				_damage_zombies_in_row_segment(lane, center.x + 16.0, BOARD_ORIGIN.x + board_size.x + 24.0, beam_damage, beam_slow)
+				_damage_obstacles_in_radius(lane, center.x + board_size.x * 0.5, board_size.x * 0.5, beam_damage)
+				effects.append({
+					"shape": "rainbow_beam",
+					"position": _cell_center(lane, col) + Vector2(18.0, -4.0),
+					"length": board_size.x,
+					"width": 48.0,
+					"radius": board_size.x * 0.5,
+					"time": 0.28,
+					"duration": 0.28,
+					"color": Color(0.92, 0.98, 1.0, 0.32),
+				})
+		"lantern_stun_bloom":
+			var bloom_radius = maxf(float(data.get("wake_radius", data.get("radius", 180.0))), 220.0)
+			var bloom_damage = maxf(float(data.get("damage", 26.0)) * 3.2, 84.0)
+			for zombie_index in _find_closest_zombies_in_radius(center, bloom_radius, 8):
+				var zombie = zombies[zombie_index]
+				zombie = _apply_zombie_damage(zombie, bloom_damage, 0.18)
+				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 2.2)
+				zombies[zombie_index] = zombie
+			_wake_plants_in_radius(center, bloom_radius)
+			effects.append({
+				"shape": "lantern_bloom_ring",
+				"position": center,
+				"radius": bloom_radius,
+				"time": 0.34,
+				"duration": 0.34,
+				"color": Color(1.0, 0.84, 0.34, 0.28),
+			})
+		"thunder_cloud_hunt":
+			var strike_damage = maxf(float(data.get("damage", 34.0)) * 2.5, 92.0)
+			var cloud_damage = maxf(float(data.get("damage", 34.0)) * 1.7, 58.0)
+			var target_index := _find_nearest_enemy_index_to_point(center)
+			var cloud_center: Vector2 = center + Vector2(0.0, -88.0)
+			if target_index != -1:
+				var zombie = zombies[target_index]
+				var strike_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0)
+				zombie = _apply_zombie_damage(zombie, strike_damage, 0.18, 1.8)
+				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.35)
+				zombies[target_index] = zombie
+				_spawn_sky_thunder_strike(strike_center, 64.0, 0.24, Color(0.96, 0.98, 0.74, 0.36))
+				cloud_center = strike_center + Vector2(0.0, -84.0)
+			_spawn_thunder_cloud(cloud_center, 8.0, cloud_damage, 0.55)
+			_trigger_screen_shake(5.0)
+		"pulse_freeze_field":
+			_apply_pulse_bulb_freeze_zone(row, col, 2, 1.5, 4.5, 1.5)
+			effects.append({
+				"shape": "pulse_bulb_wave",
+				"position": center,
+				"radius": CELL_SIZE.x * 2.8,
+				"time": 0.42,
+				"duration": 0.42,
+				"color": Color(0.66, 0.96, 1.0, 0.42),
+			})
 		"gale_force":
 			var push_rows: Array = active_rows.duplicate()
 			if kind != "blover":
@@ -6042,6 +6126,10 @@ func _update_wind_orchid(plant: Dictionary, delta: float, row: int, col: int) ->
 
 func _spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color, damage: float, slow_duration: float, speed: float = 460.0, radius: float = 8.0) -> void:
 	_ensure_projectile_runtime().spawn_projectile(row, spawn_position, projectile_color, damage, slow_duration, speed, radius)
+
+
+func _spawn_amber_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 480.0, radius: float = 8.5) -> void:
+	_ensure_projectile_runtime().spawn_amber_projectile(row, spawn_position, damage, speed, radius)
 
 
 func _spawn_fire_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 500.0, radius: float = 9.0) -> void:
@@ -7300,6 +7388,28 @@ func _update_effects(delta: float) -> void:
 					if _is_mechanical_zombie_kind(String(zombie.get("kind", ""))):
 						zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.16)
 				zombies[zombie_index] = zombie
+		elif shape == "thunder_cloud":
+			var cloud_center = Vector2(effect.get("position", Vector2.ZERO))
+			var target_index := _find_nearest_enemy_index_to_point(cloud_center)
+			if target_index != -1:
+				var target_zombie = zombies[target_index]
+				var desired = Vector2(float(target_zombie["x"]), _row_center_y(int(target_zombie["row"])) - 86.0)
+				var to_target = desired - cloud_center
+				var step = minf(float(effect.get("move_speed", 240.0)) * delta, to_target.length())
+				if step > 0.0:
+					cloud_center += to_target.normalized() * step
+				effect["position"] = cloud_center
+				effect["target"] = desired + Vector2(0.0, 84.0)
+			effect["strike_timer"] = float(effect.get("strike_timer", float(effect.get("strike_interval", 0.6)))) - delta
+			if float(effect["strike_timer"]) <= 0.0 and target_index != -1:
+				var strike_zombie = zombies[target_index]
+				var strike_center = Vector2(float(strike_zombie["x"]), _row_center_y(int(strike_zombie["row"])) - 12.0)
+				strike_zombie = _apply_zombie_damage(strike_zombie, float(effect.get("strike_damage", 60.0)), 0.18, 1.6)
+				strike_zombie["special_pause_timer"] = maxf(float(strike_zombie.get("special_pause_timer", 0.0)), 0.3)
+				zombies[target_index] = strike_zombie
+				_spawn_sky_thunder_strike(strike_center, 58.0, 0.2, Color(0.96, 0.98, 0.76, 0.32))
+				effect["target"] = strike_center
+				effect["strike_timer"] = float(effect.get("strike_interval", 0.6))
 		effects[i] = effect
 
 
@@ -7906,6 +8016,147 @@ func _find_global_frontmost_target() -> Dictionary:
 			obstacle_x = float(spear["x"])
 			obstacle_row = int(spear["row"])
 	return {"row": obstacle_row, "x": obstacle_x}
+
+
+func _find_global_rearmost_target() -> Dictionary:
+	var best_row := -1
+	var best_x := 999999.0
+	for zombie in zombies:
+		if bool(zombie.get("jumping", false)) or not _is_enemy_zombie(zombie):
+			continue
+		if float(zombie["x"]) < best_x:
+			best_x = float(zombie["x"])
+			best_row = int(zombie["row"])
+	if best_row != -1:
+		return {"row": best_row, "x": best_x}
+	var obstacle_row := -1
+	var obstacle_x := 999999.0
+	for weed in weeds:
+		if float(weed["x"]) < obstacle_x:
+			obstacle_x = float(weed["x"])
+			obstacle_row = int(weed["row"])
+	for spear in spears:
+		if float(spear["x"]) < obstacle_x:
+			obstacle_x = float(spear["x"])
+			obstacle_row = int(spear["row"])
+	return {"row": obstacle_row, "x": obstacle_x}
+
+
+func _find_nearest_enemy_index_to_point(point: Vector2) -> int:
+	var best_index := -1
+	var best_distance := 999999.0
+	for i in range(zombies.size()):
+		var zombie = zombies[i]
+		if not _is_enemy_zombie(zombie) or bool(zombie.get("jumping", false)):
+			continue
+		var zombie_point = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 10.0)
+		var distance = zombie_point.distance_to(point)
+		if distance < best_distance:
+			best_distance = distance
+			best_index = i
+	return best_index
+
+
+func _frontmost_target_cell(fallback_row: int = -1) -> Vector2i:
+	var target = _find_global_frontmost_target()
+	var target_row = int(target.get("row", -1))
+	var target_col = COLS - 1
+	if target_row != -1:
+		target_col = _zombie_cell_col(float(target.get("x", _cell_center(target_row, COLS - 1).x)))
+	else:
+		if fallback_row >= 0 and fallback_row < ROWS:
+			target_row = fallback_row
+		elif not active_rows.is_empty():
+			target_row = int(active_rows[0])
+		else:
+			target_row = 0
+	return Vector2i(target_row, target_col)
+
+
+func _spawn_pepper_mortar_fire_wall(duration: float, dps: float, fallback_row: int = -1) -> int:
+	var target_cell := _frontmost_target_cell(fallback_row)
+	for active_row_variant in active_rows:
+		_spawn_magma_patch(int(active_row_variant), target_cell.y, duration, dps)
+	return target_cell.y
+
+
+func _spawn_pepper_mortar_fire_zone(duration: float, dps: float, row_radius: int = 1, col_radius: int = 1, fallback_row: int = -1) -> Vector2i:
+	var target_cell := _frontmost_target_cell(fallback_row)
+	for patch_row in range(target_cell.x - row_radius, target_cell.x + row_radius + 1):
+		if patch_row < 0 or patch_row >= ROWS or not _is_row_active(patch_row):
+			continue
+		for patch_col in range(target_cell.y - col_radius, target_cell.y + col_radius + 1):
+			if patch_col < 0 or patch_col >= COLS:
+				continue
+			_spawn_magma_patch(patch_row, patch_col, duration, dps)
+	return target_cell
+
+
+func _spawn_sky_thunder_strike(strike_center: Vector2, radius: float = 60.0, duration: float = 0.22, color: Color = Color(0.96, 0.98, 0.74, 0.34)) -> void:
+	effects.append({
+		"shape": "sky_thunder_strike",
+		"position": strike_center,
+		"radius": radius,
+		"time": duration,
+		"duration": duration,
+		"color": color,
+	})
+
+
+func _spawn_thunder_cloud(cloud_center: Vector2, duration: float, strike_damage: float, strike_interval: float = 0.6) -> void:
+	effects.append({
+		"shape": "thunder_cloud",
+		"position": cloud_center,
+		"radius": 88.0,
+		"time": duration,
+		"duration": duration,
+		"color": Color(0.52, 0.6, 0.74, 0.34),
+		"strike_damage": strike_damage,
+		"strike_interval": strike_interval,
+		"strike_timer": strike_interval,
+		"move_speed": 240.0,
+		"target": cloud_center + Vector2(0.0, 84.0),
+	})
+
+
+func _apply_pulse_bulb_freeze_zone(center_row: int, center_col: int, tile_radius: int, pause_duration: float, slow_duration: float, freeze_duration: float) -> int:
+	var affected := 0
+	for zombie_index in range(zombies.size()):
+		var zombie = zombies[zombie_index]
+		if not _is_enemy_zombie(zombie) or bool(zombie.get("jumping", false)):
+			continue
+		var zombie_row = int(zombie["row"])
+		var zombie_col = _zombie_cell_col(float(zombie["x"]))
+		if abs(zombie_row - center_row) > tile_radius or abs(zombie_col - center_col) > tile_radius:
+			continue
+		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), pause_duration)
+		zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), slow_duration)
+		zombie["frozen_timer"] = maxf(float(zombie.get("frozen_timer", 0.0)), freeze_duration)
+		zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.18)
+		zombies[zombie_index] = zombie
+		affected += 1
+	return affected
+
+
+func _apply_pulse_bulb_push_zone(center_row: int, center_col: int, tile_radius: int, push_distance: float, pause_duration: float, slow_duration: float = 0.0) -> int:
+	var affected := 0
+	var max_x = BOARD_ORIGIN.x + board_size.x + CELL_SIZE.x * 0.35
+	for zombie_index in range(zombies.size()):
+		var zombie = zombies[zombie_index]
+		if not _is_enemy_zombie(zombie) or bool(zombie.get("jumping", false)):
+			continue
+		var zombie_row = int(zombie["row"])
+		var zombie_col = _zombie_cell_col(float(zombie["x"]))
+		if abs(zombie_row - center_row) > tile_radius or abs(zombie_col - center_col) > tile_radius:
+			continue
+		zombie["x"] = minf(float(zombie["x"]) + push_distance, max_x)
+		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), pause_duration)
+		if slow_duration > 0.0:
+			zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), slow_duration)
+		zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.2)
+		zombies[zombie_index] = zombie
+		affected += 1
+	return affected
 
 
 func _choose_adjacent_active_row(row: int) -> int:
@@ -10645,7 +10896,7 @@ func _trigger_ice_shroom(row: int, col: int, boosted: bool = false) -> void:
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		zombie["slow_timer"] = maxf(float(zombie["slow_timer"]), slow_duration + freeze_duration)
+		zombie["slow_timer"] = maxf(float(zombie["slow_timer"]), 9999.0 + slow_duration + freeze_duration)
 		zombie["flash"] = 0.22
 		zombies[i] = zombie
 
@@ -14907,6 +15158,28 @@ func _draw_projectiles() -> void:
 			draw_circle(projectile_pos + Vector2(1.0, -1.0), projectile_radius * 0.62, Color(1.0, 0.8, 0.34, 0.86))
 			draw_circle(projectile_pos + Vector2(-2.0, -2.0), projectile_radius * 0.3, Color(1.0, 0.96, 0.84, 0.54))
 			continue
+		if projectile_kind == "amber_pea":
+			for trail_index in range(4):
+				var trail_ratio = float(trail_index + 1) / 4.0
+				var trail_center = projectile_pos + Vector2(-trail_dir * trail_ratio * 10.0, sin(level_time * 9.5 + trail_ratio * 4.4) * 1.8)
+				draw_circle(trail_center, projectile_radius * (0.74 - trail_ratio * 0.1), Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.18 - trail_ratio * 0.03))
+			draw_polygon(
+				PackedVector2Array([
+					projectile_pos + Vector2(projectile_radius * 1.18, 0.0),
+					projectile_pos + Vector2(0.0, -projectile_radius * 0.82),
+					projectile_pos + Vector2(-projectile_radius * 0.92, 0.0),
+					projectile_pos + Vector2(0.0, projectile_radius * 0.82),
+				]),
+				PackedColorArray([
+					Color(1.0, 0.96, 0.82, 0.96),
+					Color(0.96, 0.7, 0.24, 0.92),
+					Color(0.76, 0.42, 0.08, 0.92),
+					Color(0.96, 0.7, 0.24, 0.92),
+				])
+			)
+			draw_line(projectile_pos + Vector2(-projectile_radius * 0.84, 0.0), projectile_pos + Vector2(projectile_radius * 0.86, 0.0), Color(1.0, 0.88, 0.58, 0.6), 1.4)
+			draw_circle(projectile_pos + Vector2(-1.0, -1.0), projectile_radius * 0.24, Color(1.0, 1.0, 0.92, 0.48))
+			continue
 		if projectile_kind == "boomerang":
 			for trail_index in range(3):
 				var trail_ratio = float(trail_index + 1) / 3.0
@@ -15767,6 +16040,114 @@ func _draw_effects() -> void:
 				draw_circle(orb_center, 8.0 + (1.0 - ratio) * 2.0, Color(0.9, 1.0, 0.92, effect_color.a * 0.74))
 			draw_circle(glow_center, float(effect["radius"]) * 0.46, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.18))
 			continue
+		if shape == "amber_splash":
+			var splash_center = Vector2(effect["position"])
+			var splash_radius = _effect_visual_radius(effect, ratio)
+			draw_circle(splash_center, splash_radius * 0.36, Color(1.0, 0.82, 0.42, effect_color.a * 0.18))
+			draw_circle(splash_center, splash_radius * 0.18, Color(1.0, 0.96, 0.84, effect_color.a * 0.24))
+			for ring_index in range(2):
+				var ring_phase = level_time * anim_speed * 0.22 + float(ring_index) * 0.78
+				draw_arc(splash_center, splash_radius * (0.42 + float(ring_index) * 0.18), ring_phase, ring_phase + PI * 1.26, 22, Color(1.0, 0.78, 0.4, effect_color.a * (0.72 - float(ring_index) * 0.14)), 2.0)
+			for shard_index in range(6):
+				var shard_angle = level_time * anim_speed * 0.14 + float(shard_index) * TAU / 6.0
+				var shard_dir = Vector2(cos(shard_angle), sin(shard_angle))
+				var shard_side = shard_dir.orthogonal() * 7.0
+				var shard_base = splash_center + shard_dir * splash_radius * (0.28 + 0.08 * sin(level_time * anim_speed + float(shard_index)))
+				var shard_tip = splash_center + shard_dir * splash_radius * 0.92
+				draw_polygon(
+					PackedVector2Array([
+						shard_tip,
+						shard_base + shard_side,
+						shard_base - shard_side,
+					]),
+					PackedColorArray([
+						Color(1.0, 0.96, 0.82, effect_color.a),
+						Color(0.94, 0.66, 0.22, effect_color.a * 0.84),
+						Color(0.8, 0.42, 0.08, effect_color.a * 0.84),
+					])
+				)
+			continue
+		if shape == "sky_thunder_strike":
+			var strike_center = Vector2(effect["position"])
+			var strike_radius = _effect_visual_radius(effect, ratio)
+			var top_y = strike_center.y - strike_radius * 2.2
+			var bolt_points := PackedVector2Array()
+			for step in range(6):
+				var step_ratio = float(step) / 5.0
+				var jitter = sin(level_time * anim_speed * 1.4 + step_ratio * TAU * 1.2) * strike_radius * 0.16
+				bolt_points.append(Vector2(strike_center.x + jitter, lerpf(top_y, strike_center.y, step_ratio)))
+			draw_polyline(bolt_points, Color(1.0, 0.98, 0.82, effect_color.a), 4.4)
+			draw_polyline(bolt_points, Color(0.76, 0.9, 1.0, effect_color.a * 0.78), 2.2)
+			draw_circle(strike_center, strike_radius * 0.26, Color(1.0, 0.96, 0.72, effect_color.a * 0.34))
+			draw_circle(strike_center, strike_radius * 0.52, Color(0.72, 0.88, 1.0, effect_color.a * 0.16))
+			continue
+		if shape == "thunder_cloud":
+			var cloud_center = Vector2(effect["position"])
+			var cloud_radius = _effect_visual_radius(effect, ratio)
+			for puff_index in range(5):
+				var puff_ratio = float(puff_index) / 4.0
+				var puff_center = cloud_center + Vector2((-0.56 + puff_ratio * 1.12) * cloud_radius, sin(level_time * anim_speed + puff_ratio * 4.0) * cloud_radius * 0.08)
+				draw_circle(puff_center, cloud_radius * (0.26 + (1.0 - puff_ratio) * 0.1), Color(0.3, 0.34, 0.42, effect_color.a * (0.76 - puff_ratio * 0.08)))
+			draw_circle(cloud_center + Vector2(0.0, cloud_radius * 0.08), cloud_radius * 0.42, Color(0.52, 0.58, 0.7, effect_color.a * 0.24))
+			var cloud_target = Vector2(effect.get("target", cloud_center + Vector2(0.0, cloud_radius)))
+			draw_line(cloud_center + Vector2(0.0, cloud_radius * 0.18), cloud_target, Color(0.98, 0.98, 0.78, effect_color.a * 0.18), 1.6)
+			continue
+		if shape == "rainbow_beam":
+			var rainbow_origin = Vector2(effect["position"])
+			var rainbow_length = _effect_visual_length(effect, ratio)
+			var rainbow_width = _effect_visual_width(effect, ratio)
+			var rainbow_colors = [
+				Color(1.0, 0.26, 0.28, effect_color.a * 0.68),
+				Color(1.0, 0.58, 0.18, effect_color.a * 0.64),
+				Color(1.0, 0.92, 0.24, effect_color.a * 0.62),
+				Color(0.36, 0.9, 0.3, effect_color.a * 0.6),
+				Color(0.28, 0.76, 1.0, effect_color.a * 0.58),
+				Color(0.44, 0.46, 1.0, effect_color.a * 0.56),
+				Color(0.86, 0.44, 1.0, effect_color.a * 0.54),
+			]
+			for band_index in range(rainbow_colors.size()):
+				var band_ratio = float(band_index) / float(max(rainbow_colors.size() - 1, 1))
+				var band_width = rainbow_width / float(rainbow_colors.size()) * 1.22
+				var band_y = lerpf(-rainbow_width * 0.5, rainbow_width * 0.5, band_ratio)
+				var sway = sin(level_time * anim_speed + band_ratio * 5.2) * rainbow_width * 0.04
+				draw_rect(
+					Rect2(rainbow_origin + Vector2(0.0, band_y + sway - band_width * 0.5), Vector2(rainbow_length, band_width)),
+					rainbow_colors[band_index],
+					true
+				)
+			draw_circle(rainbow_origin + Vector2(rainbow_length, 0.0), rainbow_width * 0.24, Color(1.0, 1.0, 1.0, effect_color.a * 0.8))
+			continue
+		if shape == "dream_drum_wave":
+			var drum_center = Vector2(effect["position"])
+			var drum_radius = _effect_visual_radius(effect, ratio)
+			for ring_index in range(4):
+				var ring_radius = drum_radius * (0.28 + float(ring_index) * 0.16)
+				draw_arc(drum_center, ring_radius, level_time * anim_speed * 0.24 + float(ring_index) * 0.4, level_time * anim_speed * 0.24 + float(ring_index) * 0.4 + PI * 1.46, 26, Color(1.0, 0.84, 0.42, effect_color.a * (0.68 - float(ring_index) * 0.1)), 2.0)
+			for note_index in range(5):
+				var note_ratio = float(note_index) / 4.0
+				var note_center = drum_center + Vector2(cos(level_time * anim_speed * 0.3 + note_ratio * TAU) * drum_radius * 0.42, sin(level_time * anim_speed * 0.4 + note_ratio * TAU) * drum_radius * 0.24)
+				draw_circle(note_center, 4.4 + (1.0 - note_ratio) * 1.4, Color(1.0, 0.94, 0.72, effect_color.a * 0.62))
+				draw_line(note_center + Vector2(3.0, 0.0), note_center + Vector2(3.0, -12.0), Color(0.66, 0.38, 0.14, effect_color.a * 0.44), 1.4)
+			draw_circle(drum_center, drum_radius * 0.18, Color(0.96, 0.86, 0.42, effect_color.a * 0.24))
+			continue
+		if shape == "pulse_bulb_wave":
+			var pulse_center = Vector2(effect["position"])
+			var pulse_radius = _effect_visual_radius(effect, ratio)
+			var spoke_count = 6
+			for ring_index in range(3):
+				var ring_radius = pulse_radius * (0.34 + float(ring_index) * 0.2)
+				draw_arc(pulse_center, ring_radius, level_time * anim_speed * 0.32 + float(ring_index) * 0.8, level_time * anim_speed * 0.32 + float(ring_index) * 0.8 + PI * 1.3, 28, Color(1.0, 0.9, 0.42, effect_color.a * (0.74 - float(ring_index) * 0.16)), 2.4 - float(ring_index) * 0.35)
+				for node_index in range(spoke_count):
+					var node_angle = level_time * anim_speed * 0.18 + float(node_index) * TAU / float(spoke_count) + float(ring_index) * 0.12
+					var node_center = pulse_center + Vector2(cos(node_angle), sin(node_angle)) * ring_radius
+					draw_circle(node_center, 3.2 + float(ring_index), Color(1.0, 0.96, 0.74, effect_color.a * 0.54))
+			for spoke_index in range(spoke_count):
+				var spoke_angle = level_time * anim_speed * 0.16 + float(spoke_index) * TAU / float(spoke_count)
+				var spoke_dir = Vector2(cos(spoke_angle), sin(spoke_angle))
+				draw_line(pulse_center + spoke_dir * 10.0, pulse_center + spoke_dir * pulse_radius * 0.78, Color(1.0, 0.84, 0.26, effect_color.a * 0.34), 1.8)
+			draw_circle(pulse_center, pulse_radius * 0.22, Color(1.0, 0.94, 0.62, effect_color.a * 0.28))
+			draw_circle(pulse_center, pulse_radius * 0.1, Color(1.0, 0.98, 0.84, effect_color.a * 0.64))
+			continue
 		if shape == "bog_pool":
 			var pool_center = Vector2(effect["position"])
 			var pool_radius = _effect_visual_radius(effect, ratio)
@@ -15826,6 +16207,28 @@ func _draw_effects() -> void:
 			var wave_radius = _effect_visual_radius(effect, ratio)
 			draw_rect(Rect2(wave_center + Vector2(-wave_radius * 0.8, -10.0), Vector2(wave_radius * 1.6, 20.0)), Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.24), true)
 			draw_circle(wave_center, wave_radius * 0.62, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.18))
+			continue
+		if shape == "wind_gust_lane":
+			var gust_origin = Vector2(effect["position"])
+			var gust_length = _effect_visual_length(effect, ratio)
+			var gust_width = _effect_visual_width(effect, ratio)
+			for ribbon_index in range(3):
+				var ribbon_points := PackedVector2Array()
+				var ribbon_offset = lerpf(-0.24, 0.24, float(ribbon_index) / 2.0) * gust_width
+				for step in range(13):
+					var ribbon_ratio = float(step) / 12.0
+					var ribbon_wave = sin(level_time * anim_speed * 1.2 + ribbon_ratio * TAU * 1.5 + float(ribbon_index) * 1.4) * gust_width * (0.08 + float(ribbon_index) * 0.02)
+					ribbon_points.append(gust_origin + Vector2(gust_length * ribbon_ratio, ribbon_offset + ribbon_wave))
+				draw_polyline(ribbon_points, Color(0.82, 0.98, 1.0, effect_color.a * (0.72 - float(ribbon_index) * 0.14)), 2.1 + float(ribbon_index) * 0.9)
+			for swirl_index in range(4):
+				var swirl_ratio = float(swirl_index + 1) / 4.0
+				var swirl_center = gust_origin + Vector2(gust_length * swirl_ratio, sin(level_time * anim_speed + swirl_ratio * 5.0) * gust_width * 0.18)
+				draw_arc(swirl_center, gust_width * (0.08 + swirl_ratio * 0.05), 0.22, PI * 1.42, 20, Color(0.9, 1.0, 1.0, effect_color.a * (0.44 - swirl_ratio * 0.06)), 1.8)
+			for mote_index in range(7):
+				var mote_ratio = float(mote_index + 1) / 7.0
+				var mote_center = gust_origin + Vector2(gust_length * mote_ratio, sin(level_time * anim_speed * 1.5 + mote_ratio * 9.0) * gust_width * 0.22)
+				draw_circle(mote_center, 2.8 + (1.0 - mote_ratio) * 1.6, Color(0.92, 1.0, 1.0, effect_color.a * (0.4 - mote_ratio * 0.03)))
+			draw_circle(gust_origin + Vector2(gust_length, 0.0), gust_width * 0.16, Color(0.94, 1.0, 1.0, effect_color.a * 0.5))
 			continue
 		if shape == "lane_spray":
 			var origin = Vector2(effect["position"])
@@ -16675,15 +17078,67 @@ func _draw_repeater(center: Vector2, size_scale: float, flash: float, alpha: flo
 
 
 func _draw_amber_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	_draw_peashooter(center, size_scale, flash, alpha)
-	draw_circle(center + Vector2(-2.0 * size_scale, -12.0 * size_scale), 10.0 * size_scale, Color(0.92, 0.68, 0.24, alpha))
+	_draw_peashooter(center + Vector2(-2.0 * size_scale, 0.0), size_scale, flash, alpha)
+	var amber_color = Color(0.94, 0.68, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var crystal_center = center + Vector2(-2.0 * size_scale, -12.0 * size_scale)
+	draw_circle(crystal_center, 10.0 * size_scale, amber_color)
+	draw_polygon(
+		PackedVector2Array([
+			crystal_center + Vector2(0.0, -14.0 * size_scale),
+			crystal_center + Vector2(-10.0 * size_scale, 0.0),
+			crystal_center + Vector2(0.0, 12.0 * size_scale),
+			crystal_center + Vector2(10.0 * size_scale, 0.0),
+		]),
+		PackedColorArray([
+			Color(1.0, 0.94, 0.72, alpha),
+			amber_color,
+			Color(0.82, 0.42, 0.08, alpha),
+			amber_color,
+		])
+	)
+	draw_circle(center + Vector2(10.0 * size_scale, -10.0 * size_scale), 4.0 * size_scale, Color(1.0, 0.86, 0.42, alpha * 0.8))
 
 
 func _draw_vine_lasher(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.53, 0.16, alpha), 7.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -10.0 * size_scale), 16.0 * size_scale, Color(0.28, 0.74, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_line(center + Vector2(-14.0 * size_scale, -6.0 * size_scale), center + Vector2(18.0 * size_scale, -18.0 * size_scale), Color(0.18, 0.58, 0.14, alpha), 4.0 * size_scale)
-	draw_circle(center + Vector2(20.0 * size_scale, -19.0 * size_scale), 5.0 * size_scale, Color(0.58, 0.92, 0.42, alpha))
+	var vine_color = Color(0.2, 0.56, 0.16, alpha)
+	var bloom_color = Color(0.6, 0.96, 0.42, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	draw_polyline(
+		PackedVector2Array([
+			center + Vector2(-2.0 * size_scale, 30.0 * size_scale),
+			center + Vector2(-6.0 * size_scale, 14.0 * size_scale),
+			center + Vector2(2.0 * size_scale, -2.0 * size_scale),
+			center + Vector2(-2.0 * size_scale, -18.0 * size_scale),
+		]),
+		vine_color,
+		6.2 * size_scale
+	)
+	draw_circle(center + Vector2(-10.0 * size_scale, 12.0 * size_scale), 10.0 * size_scale, Color(0.22, 0.72, 0.24, alpha))
+	draw_circle(center + Vector2(10.0 * size_scale, 10.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.28, alpha))
+	draw_circle(center + Vector2(-2.0 * size_scale, -12.0 * size_scale), 14.0 * size_scale, Color(0.26, 0.7, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6))
+	draw_circle(center + Vector2(-6.0 * size_scale, -13.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(center + Vector2(3.0 * size_scale, -13.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_polyline(
+		PackedVector2Array([
+			center + Vector2(0.0, -4.0 * size_scale),
+			center + Vector2(12.0 * size_scale, -18.0 * size_scale),
+			center + Vector2(28.0 * size_scale, -20.0 * size_scale),
+			center + Vector2(40.0 * size_scale, -12.0 * size_scale),
+		]),
+		Color(0.18, 0.62, 0.16, alpha),
+		4.4 * size_scale
+	)
+	var lash_tip = center + Vector2(42.0 * size_scale, -12.0 * size_scale)
+	draw_circle(lash_tip, 5.4 * size_scale, bloom_color)
+	draw_polygon(
+		PackedVector2Array([
+			lash_tip + Vector2(8.0 * size_scale, 0.0),
+			lash_tip + Vector2(0.0, -8.0 * size_scale),
+			lash_tip + Vector2(-3.0 * size_scale, 0.0),
+			lash_tip + Vector2(0.0, 8.0 * size_scale),
+		]),
+		PackedColorArray([Color(0.96, 1.0, 0.88, alpha), bloom_color, Color(0.32, 0.72, 0.2, alpha), bloom_color])
+	)
+	draw_line(lash_tip + Vector2(5.0 * size_scale, -1.0 * size_scale), lash_tip + Vector2(11.0 * size_scale, -4.0 * size_scale), Color(0.94, 1.0, 0.82, alpha), 1.6 * size_scale)
 
 
 func _draw_pepper_mortar(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -16703,9 +17158,21 @@ func _draw_cactus_guard(center: Vector2, size_scale: float, flash: float, ratio:
 
 
 func _draw_pulse_bulb(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 18.0 * size_scale, Color(0.98, 0.92, 0.34, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 9.0 * size_scale, Color(1.0, 0.72, 0.12, alpha))
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.18, alpha), 6.0 * size_scale)
+	var bulb_center = center + Vector2(0.0, -8.0 * size_scale)
+	var bulb_color = Color(0.98, 0.92, 0.34, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.9)
+	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.58, 0.18, alpha), 6.0 * size_scale)
+	draw_circle(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), 9.0 * size_scale, Color(0.26, 0.72, 0.22, alpha))
+	draw_circle(center + Vector2(8.0 * size_scale, 14.0 * size_scale), 9.0 * size_scale, Color(0.26, 0.72, 0.22, alpha))
+	draw_circle(bulb_center, 18.0 * size_scale, bulb_color)
+	draw_circle(bulb_center, 10.0 * size_scale, Color(1.0, 0.78, 0.16, alpha))
+	draw_circle(bulb_center, 5.0 * size_scale, Color(1.0, 0.98, 0.8, alpha * 0.84))
+	for petal_index in range(4):
+		var petal_angle = float(petal_index) * TAU / 4.0 + PI * 0.25
+		var petal_center = bulb_center + Vector2(cos(petal_angle), sin(petal_angle)) * 12.0 * size_scale
+		draw_circle(petal_center, 6.0 * size_scale, Color(1.0, 0.84, 0.26, alpha * 0.74))
+	for filament_index in range(3):
+		var filament_phase = level_time * 3.6 + float(filament_index) * 1.2
+		draw_arc(bulb_center, (16.0 + float(filament_index) * 5.0) * size_scale, filament_phase, filament_phase + PI * 0.88, 18, Color(1.0, 0.96, 0.72, alpha * (0.34 - float(filament_index) * 0.06)), 1.8 * size_scale)
 
 
 func _draw_sun_bean(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -16715,10 +17182,20 @@ func _draw_sun_bean(center: Vector2, size_scale: float, flash: float, alpha: flo
 
 
 func _draw_wind_orchid(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.18, alpha), 6.0 * size_scale)
-	for index in range(4):
-		var angle = TAU * float(index) / 4.0 + 0.2
-		draw_circle(center + Vector2(cos(angle), sin(angle)) * 14.0 * size_scale, 9.0 * size_scale, Color(0.74, 0.92, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	var blossom_center = center + Vector2(0.0, -8.0 * size_scale)
+	var petal_color = Color(0.76, 0.94, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.58, 0.18, alpha), 5.4 * size_scale)
+	draw_circle(center + Vector2(-8.0 * size_scale, 16.0 * size_scale), 8.5 * size_scale, Color(0.28, 0.74, 0.24, alpha))
+	draw_circle(center + Vector2(9.0 * size_scale, 14.0 * size_scale), 8.0 * size_scale, Color(0.28, 0.74, 0.24, alpha))
+	for index in range(5):
+		var angle = -PI * 0.5 + float(index) * TAU / 5.0
+		var petal_center = blossom_center + Vector2(cos(angle), sin(angle)) * 13.0 * size_scale
+		draw_circle(petal_center, 8.0 * size_scale, petal_color)
+	draw_circle(blossom_center, 7.0 * size_scale, Color(0.94, 0.98, 1.0, alpha))
+	for ribbon_index in range(3):
+		var ribbon_radius = (16.0 + float(ribbon_index) * 8.0) * size_scale
+		var ribbon_phase = level_time * (2.2 + float(ribbon_index) * 0.3) + float(ribbon_index) * 0.7
+		draw_arc(blossom_center + Vector2(8.0 * size_scale, 0.0), ribbon_radius, ribbon_phase, ribbon_phase + PI * 0.72, 18, Color(0.88, 1.0, 1.0, alpha * (0.28 - float(ribbon_index) * 0.05)), 1.8 * size_scale)
 
 
 func _draw_moon_lotus(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -21213,14 +21690,18 @@ func _update_autosave(delta: float) -> void:
 		_save_game()
 
 
-func _read_existing_save_data() -> Dictionary:
-	if not FileAccess.file_exists(SAVE_PATH):
+func _read_save_data_from_path(save_path: String) -> Dictionary:
+	if not FileAccess.file_exists(save_path):
 		return {}
-	var save_file = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var save_file = FileAccess.open(save_path, FileAccess.READ)
 	if save_file == null:
 		return {}
 	var parsed = JSON.parse_string(save_file.get_as_text())
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func _read_existing_save_data() -> Dictionary:
+	return _read_save_data_from_path(SAVE_PATH)
 
 
 func _save_data_completed_ids(save_data: Dictionary) -> Array:
@@ -21303,6 +21784,60 @@ func _merge_enhance_progress(existing_save: Dictionary, candidate_save: Dictiona
 	}
 
 
+func _merge_plant_collection_progress(existing_save: Dictionary, candidate_save: Dictionary) -> Dictionary:
+	var merged_stars: Dictionary = {}
+	var merged_fragments: Dictionary = {}
+	var existing_stars = existing_save.get("plant_stars", {})
+	if existing_stars is Dictionary:
+		for kind_variant in existing_stars.keys():
+			var kind = String(kind_variant)
+			merged_stars[kind] = max(int(merged_stars.get(kind, 0)), int(existing_stars[kind_variant]))
+	var candidate_stars = candidate_save.get("plant_stars", {})
+	if candidate_stars is Dictionary:
+		for kind_variant in candidate_stars.keys():
+			var kind = String(kind_variant)
+			merged_stars[kind] = max(int(merged_stars.get(kind, 0)), int(candidate_stars[kind_variant]))
+	var existing_fragments = existing_save.get("plant_fragments", {})
+	if existing_fragments is Dictionary:
+		for kind_variant in existing_fragments.keys():
+			var kind = String(kind_variant)
+			merged_fragments[kind] = max(int(merged_fragments.get(kind, 0)), int(existing_fragments[kind_variant]))
+	var candidate_fragments = candidate_save.get("plant_fragments", {})
+	if candidate_fragments is Dictionary:
+		for kind_variant in candidate_fragments.keys():
+			var kind = String(kind_variant)
+			merged_fragments[kind] = max(int(merged_fragments.get(kind, 0)), int(candidate_fragments[kind_variant]))
+	return {
+		"plant_stars": merged_stars,
+		"plant_fragments": merged_fragments,
+		"gacha_pity_counter": max(int(existing_save.get("gacha_pity_counter", 0)), int(candidate_save.get("gacha_pity_counter", 0))),
+		"endless_best_wave": max(int(existing_save.get("endless_best_wave", 0)), int(candidate_save.get("endless_best_wave", 0))),
+		"daily_challenge_date": String(candidate_save.get("daily_challenge_date", "")) if not String(candidate_save.get("daily_challenge_date", "")).is_empty() else String(existing_save.get("daily_challenge_date", "")),
+	}
+
+
+func _save_collection_would_regress(existing_save: Dictionary, candidate_save: Dictionary) -> bool:
+	var existing_stars = existing_save.get("plant_stars", {})
+	if existing_stars is Dictionary:
+		var candidate_stars = candidate_save.get("plant_stars", {})
+		for kind_variant in existing_stars.keys():
+			var kind = String(kind_variant)
+			if int(candidate_stars.get(kind, 0)) < int(existing_stars[kind_variant]):
+				return true
+	var existing_fragments = existing_save.get("plant_fragments", {})
+	if existing_fragments is Dictionary:
+		var candidate_fragments = candidate_save.get("plant_fragments", {})
+		for kind_variant in existing_fragments.keys():
+			var kind = String(kind_variant)
+			if int(candidate_fragments.get(kind, 0)) < int(existing_fragments[kind_variant]):
+				return true
+	if int(candidate_save.get("endless_best_wave", 0)) < int(existing_save.get("endless_best_wave", 0)):
+		return true
+	if int(candidate_save.get("gacha_pity_counter", 0)) < int(existing_save.get("gacha_pity_counter", 0)):
+		return true
+	return false
+
+
 func _merge_save_data_preserving_progress(existing_save: Dictionary, candidate_save: Dictionary) -> Dictionary:
 	var existing = _save_progress_snapshot(existing_save)
 	var candidate = _save_progress_snapshot(candidate_save)
@@ -21329,12 +21864,56 @@ func _merge_save_data_preserving_progress(existing_save: Dictionary, candidate_s
 	var enhance_progress = _merge_enhance_progress(existing_save, candidate_save)
 	merged["plant_enhance_levels"] = enhance_progress.get("plant_enhance_levels", {})
 	merged["enhance_stones"] = int(enhance_progress.get("enhance_stones", 0))
+	var collection_progress = _merge_plant_collection_progress(existing_save, candidate_save)
+	merged["plant_stars"] = collection_progress.get("plant_stars", {})
+	merged["plant_fragments"] = collection_progress.get("plant_fragments", {})
+	merged["gacha_pity_counter"] = int(collection_progress.get("gacha_pity_counter", 0))
+	merged["endless_best_wave"] = int(collection_progress.get("endless_best_wave", 0))
+	merged["daily_challenge_date"] = String(collection_progress.get("daily_challenge_date", ""))
 	if regresses:
 		merged["last_level_index"] = max(int(existing.get("last_level_index", -1)), int(candidate.get("last_level_index", -1)))
 		var existing_world = String(existing.get("current_world_key", ""))
 		var candidate_world = String(candidate.get("current_world_key", ""))
 		merged["current_world_key"] = existing_world if not existing_world.is_empty() else candidate_world
 	return merged
+
+
+func _best_legacy_save_data() -> Dictionary:
+	var current_save_path = ProjectSettings.globalize_path(SAVE_PATH)
+	if current_save_path.is_empty():
+		return {}
+	var current_dir = current_save_path.get_base_dir()
+	var app_userdata_dir = current_dir.get_base_dir()
+	if app_userdata_dir.is_empty():
+		return {}
+	var save_name = SAVE_PATH.trim_prefix("user://")
+	var candidate_paths: Array = []
+	for project_name in LEGACY_SAVE_PROJECT_NAMES:
+		var hinted_path = app_userdata_dir.path_join(project_name).path_join(save_name)
+		if hinted_path != current_save_path and FileAccess.file_exists(hinted_path):
+			candidate_paths.append(hinted_path)
+	var dir = DirAccess.open(app_userdata_dir)
+	if dir != null:
+		dir.list_dir_begin()
+		var entry = dir.get_next()
+		while entry != "":
+			if dir.current_is_dir() and not entry.begins_with("."):
+				var candidate_path = app_userdata_dir.path_join(entry).path_join(save_name)
+				if candidate_path != current_save_path and FileAccess.file_exists(candidate_path) and not candidate_paths.has(candidate_path):
+					candidate_paths.append(candidate_path)
+			entry = dir.get_next()
+		dir.list_dir_end()
+	var best: Dictionary = {}
+	for path_variant in candidate_paths:
+		var candidate = _read_save_data_from_path(String(path_variant))
+		if candidate.is_empty():
+			continue
+		if best.is_empty():
+			best = candidate
+			continue
+		if _save_would_regress_progress(best, candidate) or _save_collection_would_regress(best, candidate):
+			best = _merge_save_data_preserving_progress(candidate, best)
+	return best
 
 
 func _save_game() -> void:
@@ -21458,35 +22037,28 @@ func _load_game() -> bool:
 
 func _load_game_status() -> Dictionary:
 	var had_file = FileAccess.file_exists(SAVE_PATH)
-	if not had_file:
+	var save_data: Dictionary = _read_existing_save_data()
+	var legacy_save_data: Dictionary = _best_legacy_save_data()
+	var legacy_migrated := false
+	if not legacy_save_data.is_empty():
+		if save_data.is_empty():
+			save_data = legacy_save_data
+			legacy_migrated = true
+		elif _save_would_regress_progress(legacy_save_data, save_data) or _save_collection_would_regress(legacy_save_data, save_data):
+			save_data = _merge_save_data_preserving_progress(legacy_save_data, save_data)
+			legacy_migrated = true
+	if save_data.is_empty():
 		return {
 			"loaded": false,
-			"had_file": false,
+			"had_file": had_file,
 			"migrated": false,
 		}
 
-	var save_file = FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if save_file == null:
-		return {
-			"loaded": false,
-			"had_file": true,
-			"migrated": false,
-		}
-
-	var parsed = JSON.parse_string(save_file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return {
-			"loaded": false,
-			"had_file": true,
-			"migrated": false,
-		}
-
-	var save_data: Dictionary = parsed
-	var migrated = _apply_loaded_save_data(save_data)
-	if migrated:
+	var save_migrated = _apply_loaded_save_data(save_data)
+	if legacy_migrated or save_migrated:
 		_save_game()
 	return {
 		"loaded": true,
-		"had_file": true,
-		"migrated": migrated,
+		"had_file": had_file or not legacy_save_data.is_empty(),
+		"migrated": legacy_migrated or save_migrated,
 	}

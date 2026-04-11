@@ -27,6 +27,7 @@ func _run() -> void:
 	failed = not _test_tesla_tulip_chains_lightning() or failed
 	failed = not _test_roof_vane_pushes_entire_row() or failed
 	failed = not _test_tornado_zombie_finishes_entry_and_slows_down() or failed
+	failed = not _test_ice_shroom_permanently_slows_current_zombies() or failed
 	quit(1 if failed else 0)
 
 
@@ -399,5 +400,17 @@ func _test_tornado_zombie_finishes_entry_and_slows_down() -> bool:
 	var passed = _assert_true(entered_midfield, "tornado_zombie should rapidly relocate inward during its entry phase") \
 		and _assert_true(not bool(tornado.get("tornado_entry", true)), "tornado_zombie should finish its whirlwind entry state") \
 		and _assert_true(float(tornado.get("base_speed", 0.0)) <= 18.0, "tornado_zombie should slow down to a normal walking pace after entry")
+	_free_game(game)
+	return passed
+
+
+func _test_ice_shroom_permanently_slows_current_zombies() -> bool:
+	var game = _make_game()
+	game._spawn_zombie_at("normal", 1, game._cell_center(1, 4).x)
+	game._spawn_zombie_at("conehead", 3, game._cell_center(3, 6).x)
+	game._trigger_ice_shroom(2, 2, false)
+	var passed := true
+	for zombie in game.zombies:
+		passed = _assert_true(float(zombie.get("slow_timer", 0.0)) >= 9999.0, "ice_shroom should permanently slow every zombie currently on the field") and passed
 	_free_game(game)
 	return passed

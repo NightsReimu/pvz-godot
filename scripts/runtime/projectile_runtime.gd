@@ -2,6 +2,21 @@ extends RefCounted
 class_name ProjectileRuntime
 
 const Defs = preload("res://scripts/game_defs.gd")
+const AMBER_ARMORED_KINDS := {
+	"conehead": true,
+	"buckethead": true,
+	"football": true,
+	"dark_football": true,
+	"screen_door": true,
+	"newspaper": true,
+	"basketball": true,
+	"lifebuoy_cone": true,
+	"lifebuoy_bucket": true,
+	"qinghua": true,
+	"barrel_screen_zombie": true,
+	"ice_block": true,
+	"janitor_zombie": true,
+}
 
 var game: Control
 
@@ -30,6 +45,27 @@ func spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color
 	})
 
 
+func spawn_amber_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 480.0, radius: float = 8.5) -> void:
+	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "amber_shooter"))
+	game.projectiles.append({
+		"kind": "amber_pea",
+		"row": row,
+		"position": spawn_position,
+		"speed": speed,
+		"velocity_y": 0.0,
+		"damage": damage * damage_mult,
+		"slow_duration": 0.0,
+		"color": Color(0.96, 0.66, 0.18),
+		"radius": radius,
+		"reflected": false,
+		"fire": false,
+		"free_aim": false,
+		"anti_air": false,
+		"source_enhance_mult": damage_mult,
+		"armor_bonus_mult": 2.0,
+	})
+
+
 func spawn_fire_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 500.0, radius: float = 9.0) -> void:
 	spawn_projectile(row, spawn_position, Color(1.0, 0.54, 0.18), damage, 0.0, speed, radius)
 	if not game.projectiles.is_empty():
@@ -41,6 +77,38 @@ func find_zombie_index_by_uid(uid: int) -> int:
 		if int(game.zombies[i].get("uid", -1)) == uid:
 			return i
 	return -1
+
+
+func _is_amber_armored_target(zombie: Dictionary) -> bool:
+	if float(zombie.get("shield_health", 0.0)) > 0.0:
+		return true
+	return bool(AMBER_ARMORED_KINDS.get(String(zombie.get("kind", "")), false))
+
+
+func _projectile_hit_damage(projectile: Dictionary, zombie: Dictionary) -> float:
+	var damage = float(projectile.get("damage", 0.0))
+	if String(projectile.get("kind", "")) == "amber_pea" and _is_amber_armored_target(zombie):
+		damage *= float(projectile.get("armor_bonus_mult", 2.0))
+	return damage
+
+
+func _emit_amber_impact(impact_position: Vector2, armored: bool) -> void:
+	game.effects.append({
+		"shape": "amber_splash",
+		"position": impact_position,
+		"radius": 62.0 if armored else 50.0,
+		"time": 0.2,
+		"duration": 0.2,
+		"color": Color(1.0, 0.72, 0.24, 0.32) if armored else Color(0.96, 0.66, 0.22, 0.26),
+		"anim_speed": 6.6 if armored else 5.6,
+	})
+
+
+func _apply_boomerang_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12) -> Dictionary:
+	var shield_health = float(zombie.get("shield_health", 0.0))
+	if shield_health > 0.0:
+		return game._apply_zombie_damage(zombie, minf(damage, shield_health), flash_amount)
+	return game._apply_zombie_damage(zombie, damage, flash_amount)
 
 
 func apply_fire_projectile_splash(row: int, center_x: float, damage: float, skip_index: int) -> void:
@@ -98,7 +166,7 @@ func update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictio
 			var zombie = game.zombies[target_index]
 			var uid = int(zombie.get("uid", -1))
 			if not hit_uids.has(uid):
-				zombie = game._apply_zombie_damage(zombie, float(projectile["damage"]), 0.12)
+				zombie = _apply_boomerang_damage(zombie, float(projectile["damage"]), 0.12)
 				game.zombies[target_index] = zombie
 				hit_uids.append(uid)
 				return_markers.append({
@@ -129,7 +197,7 @@ func update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictio
 				var zombie = game.zombies[zombie_index]
 				if game._is_enemy_zombie(zombie):
 					var return_damage = float(projectile.get("return_damage", projectile["damage"]))
-					zombie = game._apply_zombie_damage(zombie, return_damage, 0.12)
+					zombie = _apply_boomerang_damage(zombie, return_damage, 0.12)
 					game.zombies[zombie_index] = zombie
 			return_hits.append(uid)
 		projectile["return_hits"] = return_hits
@@ -303,14 +371,16 @@ func update_projectiles(delta: float) -> void:
 			game.projectiles.remove_at(i)
 			continue
 
-		var hit_index = game._find_projectile_target(projectile)
+		var hit_index = -1 if projectile_kind == "boomerang" else game._find_projectile_target(projectile)
 		if hit_index != -1:
 			var zombie = game.zombies[hit_index]
+			var hit_damage = _projectile_hit_damage(projectile, zombie)
+			var amber_armored_hit = String(projectile_kind) == "amber_pea" and _is_amber_armored_target(zombie)
 			if bool(zombie.get("balloon_flying", false)) and bool(projectile.get("anti_air", false)):
 				zombie["balloon_flying"] = false
 				zombie["base_speed"] = float(Defs.ZOMBIES["balloon_zombie"]["speed"])
 				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.18)
-				zombie = game._apply_zombie_damage(zombie, float(projectile["damage"]), 0.12, float(projectile["slow_duration"]))
+				zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]))
 				game.zombies[hit_index] = zombie
 				game.effects.append({
 					"position": Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 30.0),
@@ -330,10 +400,12 @@ func update_projectiles(delta: float) -> void:
 				game.projectiles[i] = projectile
 				continue
 			if String(zombie["kind"]) == "janitor_zombie" and float(zombie.get("shield_health", 0.0)) > 0.0 and float(projectile.get("speed", 0.0)) >= 0.0:
-				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - float(projectile["damage"]))
+				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - hit_damage)
 				zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.1)
 				zombie["impact_timer"] = maxf(float(zombie.get("impact_timer", 0.0)), 0.12)
 				game.zombies[hit_index] = zombie
+				if projectile_kind == "amber_pea":
+					_emit_amber_impact(Vector2(float(zombie["x"]) - 10.0, game._row_center_y(int(zombie["row"])) - 10.0), true)
 				game.effects.append({
 					"shape": "anchor_ring",
 					"position": Vector2(float(zombie["x"]) - 12.0, game._row_center_y(int(zombie["row"])) - 10.0),
@@ -345,7 +417,7 @@ func update_projectiles(delta: float) -> void:
 				game.projectiles.remove_at(i)
 				continue
 
-			zombie = game._apply_zombie_damage(zombie, float(projectile["damage"]), 0.12, float(projectile["slow_duration"]))
+			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]))
 			if projectile_kind == "mist_bloom":
 				var reveal_duration = float(projectile.get("reveal_duration", 0.0))
 				if reveal_duration > 0.0:
@@ -360,7 +432,9 @@ func update_projectiles(delta: float) -> void:
 				game.projectiles.remove_at(i)
 				continue
 			game.zombies[hit_index] = zombie
-			if projectile_kind == "sakura_petal":
+			if projectile_kind == "amber_pea":
+				_emit_amber_impact(Vector2(float(zombie["x"]) + 2.0, game._row_center_y(int(zombie["row"])) - 8.0), amber_armored_hit)
+			elif projectile_kind == "sakura_petal":
 				spawn_sakura_split_projectiles(projectile, Vector2(float(zombie["x"]) + 8.0, projectile_pos.y))
 			elif projectile_kind == "mist_bloom":
 				game._apply_mist_bloom_splash(Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"]))), projectile, int(zombie.get("uid", -1)))
