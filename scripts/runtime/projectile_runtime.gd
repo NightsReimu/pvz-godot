@@ -66,6 +66,29 @@ func spawn_amber_projectile(row: int, spawn_position: Vector2, damage: float, sp
 	})
 
 
+func spawn_amber_ultimate_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 560.0, radius: float = 10.5, velocity_y: float = 0.0, free_aim: bool = false) -> void:
+	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "amber_shooter"))
+	game.projectiles.append({
+		"kind": "amber_ultimate_shard",
+		"row": row,
+		"position": spawn_position,
+		"speed": speed,
+		"velocity_y": velocity_y,
+		"damage": damage * damage_mult,
+		"slow_duration": 0.0,
+		"color": Color(1.0, 0.8, 0.34),
+		"radius": radius,
+		"reflected": false,
+		"fire": false,
+		"free_aim": free_aim,
+		"anti_air": false,
+		"source_enhance_mult": damage_mult,
+		"armor_bonus_mult": 2.4,
+		"pierce_left": 1,
+		"hit_uids": [],
+	})
+
+
 func spawn_fire_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 500.0, radius: float = 9.0) -> void:
 	spawn_projectile(row, spawn_position, Color(1.0, 0.54, 0.18), damage, 0.0, speed, radius)
 	if not game.projectiles.is_empty():
@@ -87,7 +110,7 @@ func _is_amber_armored_target(zombie: Dictionary) -> bool:
 
 func _projectile_hit_damage(projectile: Dictionary, zombie: Dictionary) -> float:
 	var damage = float(projectile.get("damage", 0.0))
-	if String(projectile.get("kind", "")) == "amber_pea" and _is_amber_armored_target(zombie):
+	if (String(projectile.get("kind", "")) == "amber_pea" or String(projectile.get("kind", "")) == "amber_ultimate_shard") and _is_amber_armored_target(zombie):
 		damage *= float(projectile.get("armor_bonus_mult", 2.0))
 	return damage
 
@@ -101,6 +124,18 @@ func _emit_amber_impact(impact_position: Vector2, armored: bool) -> void:
 		"duration": 0.2,
 		"color": Color(1.0, 0.72, 0.24, 0.32) if armored else Color(0.96, 0.66, 0.22, 0.26),
 		"anim_speed": 6.6 if armored else 5.6,
+	})
+
+
+func _emit_amber_ultimate_impact(impact_position: Vector2, armored: bool) -> void:
+	game.effects.append({
+		"shape": "amber_prism_burst",
+		"position": impact_position,
+		"radius": 76.0 if armored else 64.0,
+		"time": 0.24,
+		"duration": 0.24,
+		"color": Color(1.0, 0.8, 0.34, 0.36) if armored else Color(1.0, 0.74, 0.28, 0.3),
+		"anim_speed": 7.2 if armored else 6.4,
 	})
 
 
@@ -153,6 +188,30 @@ func spawn_sakura_split_projectiles(projectile: Dictionary, impact_position: Vec
 		})
 
 
+func _find_spatial_enemy_hit(projectile: Dictionary) -> int:
+	var best_index := -1
+	var best_distance := 999999.0
+	var projectile_pos = Vector2(projectile["position"])
+	var hit_radius = maxf(float(projectile.get("hit_radius", projectile.get("radius", 8.0))), 8.0)
+	var ignored_uids: Array = projectile.get("hit_uids", [])
+	for i in range(game.zombies.size()):
+		var zombie = game.zombies[i]
+		if not game._is_enemy_zombie(zombie) or bool(zombie.get("jumping", false)):
+			continue
+		if ignored_uids.has(int(zombie.get("uid", -1))):
+			continue
+		if bool(zombie.get("balloon_flying", false)) and not bool(projectile.get("anti_air", false)):
+			continue
+		var zombie_pos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 10.0)
+		var distance = zombie_pos.distance_to(projectile_pos)
+		if distance > hit_radius + 18.0:
+			continue
+		if distance < best_distance:
+			best_distance = distance
+			best_index = i
+	return best_index
+
+
 func update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictionary:
 	var projectile_pos = Vector2(projectile["position"])
 	projectile_pos.x += float(projectile["speed"]) * delta
@@ -201,6 +260,37 @@ func update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictio
 					game.zombies[zombie_index] = zombie
 			return_hits.append(uid)
 		projectile["return_hits"] = return_hits
+	return projectile
+
+
+func update_lotus_orbit_projectile(projectile: Dictionary, delta: float) -> Dictionary:
+	var orbit_center = Vector2(projectile.get("orbit_center", projectile["position"]))
+	var orbit_radius = float(projectile.get("orbit_radius", 18.0)) + float(projectile.get("radial_speed", projectile.get("speed", 0.0))) * delta
+	var angle = float(projectile.get("angle", 0.0)) + float(projectile.get("orbit_speed", 0.0)) * delta
+	projectile["orbit_radius"] = orbit_radius
+	projectile["angle"] = angle
+	projectile["spin_angle"] = float(projectile.get("spin_angle", angle)) + float(projectile.get("orbit_speed", 0.0)) * delta * 1.4
+	projectile["position"] = orbit_center + Vector2(cos(angle), sin(angle)) * orbit_radius
+	projectile["expired"] = orbit_radius >= float(projectile.get("max_radius", game.board_size.x))
+	return projectile
+
+
+func update_lotus_converge_projectile(projectile: Dictionary, delta: float) -> Dictionary:
+	var projectile_pos = Vector2(projectile["position"])
+	var target_index = find_zombie_index_by_uid(int(projectile.get("target_uid", -1)))
+	var target_pos = Vector2(projectile.get("target_position", projectile_pos))
+	if target_index != -1 and game._is_enemy_zombie(game.zombies[target_index]):
+		var zombie = game.zombies[target_index]
+		target_pos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 10.0)
+	projectile["target_position"] = target_pos
+	var to_target = target_pos - projectile_pos
+	var move_distance = float(projectile.get("speed", 0.0)) * delta
+	if to_target.length() <= move_distance:
+		projectile["position"] = target_pos
+		projectile["arrived"] = true
+	else:
+		projectile["position"] = projectile_pos + to_target.normalized() * move_distance
+	projectile["spin_angle"] = float(projectile.get("spin_angle", 0.0)) + float(projectile.get("spin_speed", 4.6)) * delta
 	return projectile
 
 
@@ -302,6 +392,12 @@ func update_projectiles(delta: float) -> void:
 		if projectile_kind == "boomerang":
 			projectile = update_boomerang_projectile(projectile, delta)
 			projectile_pos = Vector2(projectile["position"])
+		elif projectile_kind == "lotus_orbit_shot":
+			projectile = update_lotus_orbit_projectile(projectile, delta)
+			projectile_pos = Vector2(projectile["position"])
+		elif projectile_kind == "lotus_converge_shot":
+			projectile = update_lotus_converge_projectile(projectile, delta)
+			projectile_pos = Vector2(projectile["position"])
 		elif projectile.has("arc_target"):
 			var arc_origin = Vector2(projectile.get("arc_origin", projectile_pos))
 			var arc_target = Vector2(projectile.get("arc_target", projectile_pos))
@@ -322,6 +418,9 @@ func update_projectiles(delta: float) -> void:
 			projectile_pos.x += float(projectile["speed"]) * delta
 			projectile_pos.y += float(projectile.get("velocity_y", 0.0)) * delta
 			projectile["position"] = projectile_pos
+		if bool(projectile.get("expired", false)):
+			game.projectiles.remove_at(i)
+			continue
 		if projectile_kind == "prism_pea" and not bool(projectile.get("split_done", false)) and projectile_pos.x >= float(projectile.get("split_at_x", projectile_pos.x + 1.0)):
 			var fragment_count = max(1, int(projectile.get("split_count", 3)))
 			for fragment_index in range(fragment_count):
@@ -371,11 +470,12 @@ func update_projectiles(delta: float) -> void:
 			game.projectiles.remove_at(i)
 			continue
 
-		var hit_index = -1 if projectile_kind == "boomerang" else game._find_projectile_target(projectile)
+		var uses_spatial_hits = projectile_kind == "lotus_orbit_shot" or projectile_kind == "lotus_converge_shot"
+		var hit_index = -1 if projectile_kind == "boomerang" else (_find_spatial_enemy_hit(projectile) if uses_spatial_hits else game._find_projectile_target(projectile))
 		if hit_index != -1:
 			var zombie = game.zombies[hit_index]
 			var hit_damage = _projectile_hit_damage(projectile, zombie)
-			var amber_armored_hit = String(projectile_kind) == "amber_pea" and _is_amber_armored_target(zombie)
+			var amber_armored_hit = (String(projectile_kind) == "amber_pea" or String(projectile_kind) == "amber_ultimate_shard") and _is_amber_armored_target(zombie)
 			if bool(zombie.get("balloon_flying", false)) and bool(projectile.get("anti_air", false)):
 				zombie["balloon_flying"] = false
 				zombie["base_speed"] = float(Defs.ZOMBIES["balloon_zombie"]["speed"])
@@ -406,6 +506,8 @@ func update_projectiles(delta: float) -> void:
 				game.zombies[hit_index] = zombie
 				if projectile_kind == "amber_pea":
 					_emit_amber_impact(Vector2(float(zombie["x"]) - 10.0, game._row_center_y(int(zombie["row"])) - 10.0), true)
+				elif projectile_kind == "amber_ultimate_shard":
+					_emit_amber_ultimate_impact(Vector2(float(zombie["x"]) - 10.0, game._row_center_y(int(zombie["row"])) - 10.0), true)
 				game.effects.append({
 					"shape": "anchor_ring",
 					"position": Vector2(float(zombie["x"]) - 12.0, game._row_center_y(int(zombie["row"])) - 10.0),
@@ -434,12 +536,24 @@ func update_projectiles(delta: float) -> void:
 			game.zombies[hit_index] = zombie
 			if projectile_kind == "amber_pea":
 				_emit_amber_impact(Vector2(float(zombie["x"]) + 2.0, game._row_center_y(int(zombie["row"])) - 8.0), amber_armored_hit)
+			elif projectile_kind == "amber_ultimate_shard":
+				_emit_amber_ultimate_impact(Vector2(float(zombie["x"]) + 2.0, game._row_center_y(int(zombie["row"])) - 8.0), amber_armored_hit)
 			elif projectile_kind == "sakura_petal":
 				spawn_sakura_split_projectiles(projectile, Vector2(float(zombie["x"]) + 8.0, projectile_pos.y))
 			elif projectile_kind == "mist_bloom":
 				game._apply_mist_bloom_splash(Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"]))), projectile, int(zombie.get("uid", -1)))
 			elif projectile_kind == "glow_seed":
 				game._emit_glowvine_burst(Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"]))), int(zombie["row"]), float(projectile["damage"]) * 0.72)
+			elif projectile_kind == "lotus_orbit_shot" or projectile_kind == "lotus_converge_shot":
+				game.effects.append({
+					"shape": "lotus_converge_ring",
+					"position": Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 10.0),
+					"radius": 42.0,
+					"time": 0.2,
+					"duration": 0.2,
+					"color": Color(0.86, 0.74, 1.0, 0.2),
+					"anim_speed": 6.8,
+				})
 			elif bool(projectile.get("fire", false)):
 				apply_fire_projectile_splash(int(projectile["row"]), float(zombie["x"]), float(projectile["damage"]) * 0.55, hit_index)
 			if int(projectile.get("pierce_left", 0)) > 0:
@@ -454,6 +568,10 @@ func update_projectiles(delta: float) -> void:
 			game.projectiles.remove_at(i)
 			continue
 
+		if projectile_kind == "lotus_converge_shot" and bool(projectile.get("arrived", false)):
+			game.projectiles.remove_at(i)
+			continue
+
 		if projectile_kind == "boomerang":
 			if not bool(projectile.get("outbound", true)) and float(projectile_pos.x) <= float(projectile.get("anchor_x", game.BOARD_ORIGIN.x)):
 				game.projectiles.remove_at(i)
@@ -464,7 +582,7 @@ func update_projectiles(delta: float) -> void:
 			game.projectiles[i] = projectile
 			continue
 
-		if projectile_pos.x > game.BOARD_ORIGIN.x + game.board_size.x + 120.0:
+		if projectile_pos.x < game.BOARD_ORIGIN.x - 120.0 or projectile_pos.x > game.BOARD_ORIGIN.x + game.board_size.x + 120.0:
 			game.projectiles.remove_at(i)
 			continue
 		if projectile_pos.y < game.BOARD_ORIGIN.y - 120.0 or projectile_pos.y > game.BOARD_ORIGIN.y + game.board_size.y + 120.0:

@@ -173,9 +173,9 @@ func activate(row: int, col: int) -> bool:
 	var kind = String(plant["kind"])
 	match kind:
 		"peashooter", "amber_shooter", "puff_shroom", "scaredy_shroom":
-			if String(plant["plant_food_mode"]) == "pea_storm" and float(plant["plant_food_timer"]) > 0.0:
+			if (String(plant["plant_food_mode"]) == "pea_storm" or String(plant["plant_food_mode"]) == "amber_storm") and float(plant["plant_food_timer"]) > 0.0:
 				return false
-			plant["plant_food_mode"] = "pea_storm"
+			plant["plant_food_mode"] = "amber_storm" if kind == "amber_shooter" else "pea_storm"
 			plant["plant_food_timer"] = 2.5
 			if kind == "amber_shooter":
 				plant["plant_food_timer"] = 2.8
@@ -321,11 +321,19 @@ func activate(row: int, col: int) -> bool:
 			plant["plant_food_timer"] = 2.0
 			plant["plant_food_interval"] = 0.01
 		"lotus_lancer":
-			if String(plant["plant_food_mode"]) == "lancer_burst" and float(plant["plant_food_timer"]) > 0.0:
-				return false
-			plant["plant_food_mode"] = "lancer_burst"
-			plant["plant_food_timer"] = 1.4
-			plant["plant_food_interval"] = 0.01
+			var lotus_target_index = int(game.call("_find_highest_health_enemy_index"))
+			if lotus_target_index != -1:
+				game._spawn_lotus_lancer_converge_barrage(center, lotus_target_index, 24, 1.18)
+			game.effects.append({
+				"shape": "lotus_converge_ring",
+				"position": center,
+				"radius": game.CELL_SIZE.x * 0.92,
+				"time": 0.28,
+				"duration": 0.28,
+				"color": Color(0.84, 0.72, 1.0, 0.24),
+				"anim_speed": 6.8,
+			})
+			plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.18)
 		"mist_orchid":
 			if String(plant["plant_food_mode"]) == "mist_storm" and float(plant["plant_food_timer"]) > 0.0:
 				return false
@@ -382,8 +390,8 @@ func activate(row: int, col: int) -> bool:
 				var moon_impact = Vector2(float(moon_target["x"]) + game.rng.randf_range(-22.0, 22.0), game._row_center_y(int(moon_target["row"])) - 10.0)
 				game._explode_moonforge_projectile({"damage": 130.0, "splash_radius": 94.0}, moon_impact)
 		"mirror_reed":
-			plant["plant_food_mode"] = "mirror_burst"
-			plant["plant_food_timer"] = 0.35
+			game._summon_mirror_reed_sniper_support(row, col, 3, 1.08)
+			plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.18)
 			plant["support_timer"] = 0.0
 		"frost_fan":
 			if String(plant["plant_food_mode"]) == "frost_gale" and float(plant["plant_food_timer"]) > 0.0:
@@ -819,13 +827,7 @@ func activate(row: int, col: int) -> bool:
 				var impact = Vector2(float(impact_target["x"]) + game.rng.randf_range(-16.0, 16.0), game._row_center_y(int(impact_target["row"])))
 				game._damage_zombies_in_circle(impact, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 22.0, 160.0)
 				game._damage_obstacles_in_circle(impact, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 22.0, 160.0)
-				game.effects.append({
-					"position": impact,
-					"radius": float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 20.0,
-					"time": 0.34,
-					"duration": 0.34,
-					"color": Color(1.0, 0.54, 0.2, 0.34),
-				})
+				game._spawn_meteor_strike_effect(impact, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 20.0, 0.34, Color(1.0, 0.54, 0.2, 0.34))
 		"root_snare":
 			plant["plant_food_mode"] = "root_burst"
 			plant["plant_food_timer"] = 0.45
@@ -876,14 +878,15 @@ func activate(row: int, col: int) -> bool:
 					if int(game.spears[i]["row"]) == lane:
 						game.spears.remove_at(i)
 				game.effects.append({
-					"shape": "lane_spray",
+					"shape": "wind_gust_lane",
 					"position": lane_center + Vector2(14.0, -6.0),
 					"length": game.BOARD_ORIGIN.x + game.board_size.x - lane_center.x,
-					"width": game.CELL_SIZE.y * 0.76,
+					"width": game.CELL_SIZE.y * 0.82,
 					"radius": game.BOARD_ORIGIN.x + game.board_size.x - lane_center.x,
-					"time": 0.24,
-					"duration": 0.24,
-					"color": Color(0.72, 0.94, 1.0, 0.28),
+					"time": 0.28,
+					"duration": 0.28,
+					"color": Color(0.72, 0.94, 1.0, 0.32),
+					"anim_speed": 6.0,
 				})
 		"tangle_kelp":
 			var kelp_targets = game._find_closest_zombies_in_radius(center, 220.0, 3)

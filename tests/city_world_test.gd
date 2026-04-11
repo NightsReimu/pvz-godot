@@ -16,6 +16,7 @@ func _run() -> void:
 	failed = not _test_city_world_unlocks_after_5_17() or failed
 	failed = not _test_city_level_data_matches_unlock_rhythm() or failed
 	failed = not _test_city_blizzard_branch_data_exists() or failed
+	failed = not _test_city_finale_level_6_19_exists() or failed
 	failed = not _test_city_tile_and_rail_require_flower_pot_support() or failed
 	failed = not _test_begin_city_levels_initializes_runtime_state() or failed
 	failed = not _test_nether_shroom_summons_hypnotized_buckethead_in_its_column() or failed
@@ -91,13 +92,13 @@ func _test_city_world_metadata_exists() -> bool:
 	var city_world = WorldData.by_key("city")
 	return _assert_true(String(city_world.get("key", "")) == "city", "expected city world metadata to exist") \
 		and _assert_true(String(city_world.get("title", "")) == "城市世界", "city world title should be 城市世界") \
-		and _assert_true(String(city_world.get("subtitle", "")) == "Adventure 6-1 ~ 6-18", "city world subtitle should cover 6-1 to 6-18")
+		and _assert_true(String(city_world.get("subtitle", "")) == "Adventure 6-1 ~ 6-19", "city world subtitle should cover 6-1 to 6-19")
 
 
 func _test_6x_levels_route_to_city_world() -> bool:
 	var game = _make_game()
 	var passed := true
-	for level_id in ["6-1", "6-5", "6-9", "6-10", "6-11", "6-14", "6-18"]:
+	for level_id in ["6-1", "6-5", "6-9", "6-10", "6-11", "6-14", "6-18", "6-19"]:
 		passed = _assert_true(String(game.call("_world_key_for_level", {"id": level_id})) == "city", "%s should route to city world" % level_id) and passed
 	_free_game(game)
 	return passed
@@ -140,9 +141,10 @@ func _test_city_level_data_matches_unlock_rhythm() -> bool:
 		"6-16": "mamba_tree",
 		"6-17": "chambord_sniper",
 		"6-18": "dream_disc",
+		"6-19": "",
 	}
 	var passed := true
-	for level_number in range(1, 19):
+	for level_number in range(1, 20):
 		var level_id = "6-%d" % level_number
 		var level_index = _find_level_index(level_id)
 		passed = _assert_true(level_index != -1, "expected %s to exist in city progression" % level_id) and passed
@@ -160,7 +162,7 @@ func _test_city_level_data_matches_unlock_rhythm() -> bool:
 
 func _test_city_blizzard_branch_data_exists() -> bool:
 	var passed := true
-	for level_number in range(11, 19):
+	for level_number in range(11, 20):
 		var level_id = "6-%d" % level_number
 		var level_index = _find_level_index(level_id)
 		passed = _assert_true(level_index != -1, "expected %s to exist before checking blizzard branch data" % level_id) and passed
@@ -173,6 +175,56 @@ func _test_city_blizzard_branch_data_exists() -> bool:
 				wave_count += 1
 		passed = _assert_true(String(level.get("city_weather", "")) == "blizzard", "%s should enable the city blizzard weather" % level_id) and passed
 		passed = _assert_true(wave_count >= 5, "%s should schedule at least 5 waves" % level_id) and passed
+	return passed
+
+
+func _event_kinds(level: Dictionary) -> Dictionary:
+	var result := {}
+	for event in level.get("events", []):
+		var kind = String(Dictionary(event).get("kind", ""))
+		if kind != "":
+			result[kind] = true
+	return result
+
+
+func _all_non_boss_zombies() -> Dictionary:
+	var result := {}
+	for kind_variant in Defs.ZOMBIES.keys():
+		var kind = String(kind_variant)
+		if bool(Defs.ZOMBIES.get(kind, {}).get("boss", false)):
+			continue
+		result[kind] = true
+	return result
+
+
+func _test_city_finale_level_6_19_exists() -> bool:
+	var level_index = _find_level_index("6-19")
+	if not _assert_true(level_index != -1, "expected 6-19 to exist as the city finale"):
+		return false
+	var level = Defs.LEVELS[level_index]
+	var game = _make_game()
+	game.completed_levels.resize(Defs.LEVELS.size())
+	for i in range(game.completed_levels.size()):
+		game.completed_levels[i] = true
+	game.unlocked_levels = Defs.LEVELS.size()
+	var wave_count := 0
+	for event in level.get("events", []):
+		if bool(Dictionary(event).get("wave", false)):
+			wave_count += 1
+	var passed = _assert_true(String(level.get("terrain", "")) == "city", "6-19 should stay in the city world") \
+		and _assert_true(String(level.get("mode", "")) == "", "6-19 should be a manual seed-selection level instead of conveyor") \
+		and _assert_true(bool(level.get("boss_level", false)), "6-19 should be marked as a boss level") \
+		and _assert_true(String(level.get("boss_kind", "")) == "city_boss", "6-19 should use the city_boss finale") \
+		and _assert_true(wave_count == 10, "6-19 should expose exactly 10 wave markers") \
+		and _assert_true(bool(game.call("_requires_seed_selection", level)), "6-19 should enter the normal card selection flow")
+	var event_kinds = _event_kinds(level)
+	var missing: Array = []
+	for kind in _all_non_boss_zombies().keys():
+		if not event_kinds.has(String(kind)):
+			missing.append(String(kind))
+	missing.sort()
+	passed = _assert_true(missing.is_empty(), "6-19 should include every non-boss zombie in its event roster, missing: %s" % ", ".join(missing)) and passed
+	_free_game(game)
 	return passed
 
 

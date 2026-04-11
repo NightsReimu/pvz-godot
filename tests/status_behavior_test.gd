@@ -28,6 +28,7 @@ func _run() -> void:
 	failed = not _test_roof_vane_pushes_entire_row() or failed
 	failed = not _test_tornado_zombie_finishes_entry_and_slows_down() or failed
 	failed = not _test_ice_shroom_permanently_slows_current_zombies() or failed
+	failed = not _test_wake_support_plants_ignore_sleep_effects() or failed
 	quit(1 if failed else 0)
 
 
@@ -412,5 +413,23 @@ func _test_ice_shroom_permanently_slows_current_zombies() -> bool:
 	var passed := true
 	for zombie in game.zombies:
 		passed = _assert_true(float(zombie.get("slow_timer", 0.0)) >= 9999.0, "ice_shroom should permanently slow every zombie currently on the field") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_wake_support_plants_ignore_sleep_effects() -> bool:
+	var game = _make_game()
+	var row := 2
+	game.grid[row][2] = game._create_plant("moon_lotus", row, 2)
+	game.grid[row][3] = game._create_plant("dream_drum", row, 3)
+	game.grid[row][4] = game._create_plant("puff_shroom", row, 4)
+	var slept = int(game.call("_sleep_plants_in_radius", game._cell_center(row, 3), 180.0, 5.0))
+	var moon_lotus = game.grid[row][2]
+	var dream_drum = game.grid[row][3]
+	var puff = game.grid[row][4]
+	var passed = _assert_true(slept > 0, "sleep test setup should still affect at least one nearby plant") \
+		and _assert_true(float(moon_lotus.get("sleep_timer", 0.0)) <= 0.0, "wake-support plants like moon_lotus should not be put to sleep") \
+		and _assert_true(float(dream_drum.get("sleep_timer", 0.0)) <= 0.0, "wake-support plants like dream_drum should not be put to sleep") \
+		and _assert_true(float(puff.get("sleep_timer", 0.0)) > 0.0, "non-wake plants should still be affected by sleep")
 	_free_game(game)
 	return passed

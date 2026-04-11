@@ -430,6 +430,14 @@ const ZOMBIES: Dictionary = {
 		"boss": true,
 		"reward": 280,
 	},
+	"city_boss": {
+		"name": "霓虹尸王",
+		"health": 16800.0,
+		"speed": 0.0,
+		"attack_dps": 0.0,
+		"boss": true,
+		"reward": 320,
+	},
 	"rumia_boss": {
 		"name": "露米娅",
 		"health": 12800.0,

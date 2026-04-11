@@ -649,15 +649,44 @@ func update_basic_shooter(plant: Dictionary, delta: float, row: int, col: int, p
 
 func update_amber_shooter(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	var cadence_delta = game._plant_cadence_delta(delta, row, col)
+	var center = game._cell_center(row, col)
+	if String(plant.get("plant_food_mode", "")) == "amber_storm" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
+		plant["plant_food_interval"] -= cadence_delta
+		while float(plant["plant_food_interval"]) <= 0.0:
+			if not game._has_zombie_ahead(row, center.x, game.board_size.x + game.CELL_SIZE.x):
+				plant["plant_food_interval"] += 0.12
+				break
+			for shot_index in range(3):
+				var y_offset = lerpf(-10.0, 10.0, float(shot_index) / 2.0)
+				var spawn_position = center + Vector2(30.0 + float(shot_index) * 3.0, -10.0 + y_offset * 0.24)
+				game._spawn_amber_ultimate_projectile(row, spawn_position, maxf(float(Defs.PLANTS["amber_shooter"]["damage"]) * 1.3, 40.0), 600.0 + float(shot_index) * 16.0, 10.5)
+			var target_index = game._find_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
+			var burst_position = center + Vector2(game.board_size.x * 0.42, -8.0)
+			if target_index != -1:
+				var target = game.zombies[target_index]
+				burst_position = Vector2(float(target["x"]), game._row_center_y(int(target["row"])) - 8.0)
+			game.effects.append({
+				"shape": "amber_prism_burst",
+				"position": burst_position,
+				"radius": 52.0,
+				"time": 0.22,
+				"duration": 0.22,
+				"color": Color(1.0, 0.76, 0.3, 0.26),
+				"anim_speed": 6.4,
+			})
+			plant["plant_food_interval"] += 0.12
+			plant["flash"] = maxf(float(plant["flash"]), 0.18)
+			game._trigger_plant_action(plant, 0.16)
+		return
 	plant["shot_cooldown"] -= cadence_delta
 	if float(plant["shot_cooldown"]) > 0.0:
 		return
 
-	var center_x = game._cell_center(row, col).x
+	var center_x = center.x
 	if not game._has_zombie_ahead(row, center_x, game.board_size.x):
 		return
 
-	game._spawn_amber_projectile(row, game._cell_center(row, col) + Vector2(32.0, -10.0), float(Defs.PLANTS["amber_shooter"]["damage"]))
+	game._spawn_amber_projectile(row, center + Vector2(32.0, -10.0), float(Defs.PLANTS["amber_shooter"]["damage"]))
 	plant["shot_cooldown"] = float(Defs.PLANTS["amber_shooter"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.2)
 
@@ -1967,41 +1996,51 @@ func update_sakura_shooter(plant: Dictionary, delta: float, row: int, col: int) 
 func update_lotus_lancer(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	var cadence_delta = game._plant_cadence_delta(delta, row, col)
 	var center = game._cell_center(row, col)
-	var range_limit = float(Defs.PLANTS["lotus_lancer"]["range"])
-	if String(plant.get("plant_food_mode", "")) == "lancer_burst" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
-		plant["plant_food_interval"] -= cadence_delta
-		while float(plant["plant_food_interval"]) <= 0.0:
-			for lane in threepeater_rows(row):
-				game._damage_zombies_in_row_segment(int(lane), center.x + 18.0, center.x + range_limit, float(Defs.PLANTS["lotus_lancer"]["damage"]) * 1.4)
-				game.effects.append({
-					"shape": "lane_spray",
-					"position": game._cell_center(int(lane), col) + Vector2(18.0, -12.0),
-					"length": range_limit,
-					"width": 28.0,
-					"radius": range_limit,
-					"time": 0.22,
-					"duration": 0.22,
-					"color": Color(0.68, 0.96, 1.0, 0.28),
-				})
-			plant["plant_food_interval"] += 0.24
-			plant["flash"] = maxf(float(plant["flash"]), 0.16)
-			game._trigger_plant_action(plant, 0.16)
-		return
 	plant["shot_cooldown"] -= cadence_delta
 	if float(plant["shot_cooldown"]) > 0.0:
 		return
-	if not game._has_zombie_ahead(row, center.x, range_limit):
+	if game.call("_find_highest_health_enemy_index") == -1:
 		return
-	game._damage_zombies_in_row_segment(row, center.x + 18.0, center.x + range_limit, float(Defs.PLANTS["lotus_lancer"]["damage"]))
+	var lotus_data = Defs.PLANTS["lotus_lancer"]
+	var base_damage = float(lotus_data.get("damage", 24.0)) * float(game.call("_projectile_damage_multiplier_for_spawn", row, center, "lotus_lancer"))
+	var radial_speed = float(lotus_data.get("radial_speed", 210.0))
+	var orbit_speed = float(lotus_data.get("orbit_speed", 2.8))
+	var max_radius = float(lotus_data.get("range", 520.0))
+	var projectile_radius = float(lotus_data.get("projectile_radius", 9.0))
+	var orbit_phase = float(game.get("level_time")) * 0.45
+	for shot_index in range(8):
+		var angle = TAU * float(shot_index) / 8.0 + orbit_phase
+		game.projectiles.append({
+			"kind": "lotus_orbit_shot",
+			"row": row,
+			"position": center + Vector2(cos(angle), sin(angle)) * 18.0,
+			"speed": radial_speed,
+			"velocity_y": 0.0,
+			"damage": base_damage,
+			"slow_duration": 0.0,
+			"color": Color(0.84, 0.7, 1.0, 0.96),
+			"radius": projectile_radius,
+			"reflected": false,
+			"fire": false,
+			"free_aim": true,
+			"anti_air": true,
+			"orbit_center": center,
+			"angle": angle,
+			"orbit_radius": 18.0,
+			"radial_speed": radial_speed,
+			"orbit_speed": orbit_speed * (1.0 if shot_index % 2 == 0 else -1.0),
+			"max_radius": max_radius,
+			"spin_angle": angle,
+			"hit_radius": 18.0,
+		})
 	game.effects.append({
-		"shape": "lane_spray",
-		"position": center + Vector2(18.0, -12.0),
-		"length": range_limit,
-		"width": 24.0,
-		"radius": range_limit,
-		"time": 0.2,
-		"duration": 0.2,
-		"color": Color(0.62, 0.92, 1.0, 0.24),
+		"shape": "lotus_converge_ring",
+		"position": center + Vector2(0.0, -10.0),
+		"radius": game.CELL_SIZE.x * 0.78,
+		"time": 0.22,
+		"duration": 0.22,
+		"color": Color(0.82, 0.72, 1.0, 0.22),
+		"anim_speed": 6.0,
 	})
 	plant["shot_cooldown"] = float(Defs.PLANTS["lotus_lancer"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
@@ -2328,39 +2367,32 @@ func update_moonforge(plant: Dictionary, delta: float, row: int, col: int) -> vo
 
 func update_mirror_reed(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	var cadence_delta = game._plant_cadence_delta(delta, row, col)
-	var center = game._cell_center(row, col)
 	plant["support_timer"] -= cadence_delta
 	if float(plant["support_timer"]) > 0.0:
 		return
-	var reveal_radius = float(Defs.PLANTS["mirror_reed"]["reveal_radius"])
-	var damage_radius = maxf(float(Defs.PLANTS["mirror_reed"]["radius"]), reveal_radius * 0.9)
-	var damage = float(Defs.PLANTS["mirror_reed"]["damage"])
-	if String(plant.get("plant_food_mode", "")) == "mirror_burst" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
-		reveal_radius += 120.0
-		damage_radius += 90.0
-		damage *= 1.8
-		plant["plant_food_mode"] = ""
-		plant["plant_food_timer"] = 0.0
-	var did_hit = game._damage_zombies_in_circle(center, damage_radius, damage)
-	for i in range(game.zombies.size()):
-		var zombie = game.zombies[i]
-		if String(zombie.get("kind", "")) != "shouyue" or not game._is_enemy_zombie(zombie):
+	var shooter_rows: Array = []
+	for zombie in game.zombies:
+		if not game._is_enemy_zombie(zombie):
 			continue
-		var zombie_center = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
-		if zombie_center.distance_to(center) > reveal_radius:
+		var zombie_kind = String(zombie.get("kind", ""))
+		if zombie_kind != "shouyue" and zombie_kind != "flywheel_zombie" and zombie_kind != "mech_zombie":
 			continue
-		zombie["revealed_timer"] = maxf(float(zombie.get("revealed_timer", 0.0)), 3.8)
-		game.zombies[i] = zombie
-	game.effects.append({
-		"position": center,
-		"radius": reveal_radius,
-		"time": 0.28,
-		"duration": 0.28,
-		"color": Color(0.76, 0.92, 1.0, 0.22 if did_hit else 0.16),
-	})
-	plant["support_timer"] = float(Defs.PLANTS["mirror_reed"]["pulse_interval"])
-	plant["flash"] = maxf(float(plant["flash"]), 0.12)
-	game._trigger_plant_action(plant, 0.18)
+		if abs(int(zombie["row"]) - row) > 0:
+			continue
+		shooter_rows.append(int(zombie["row"]))
+	if not shooter_rows.is_empty():
+		var center = game._cell_center(row, col)
+		game.effects.append({
+			"shape": "mirror_sniper_call",
+			"position": center + Vector2(12.0, -16.0),
+			"radius": 30.0,
+			"time": 0.22,
+			"duration": 0.22,
+			"color": Color(0.82, 0.96, 1.0, 0.14),
+			"anim_speed": 5.6,
+		})
+		plant["flash"] = maxf(float(plant["flash"]), 0.08)
+	plant["support_timer"] = float(Defs.PLANTS["mirror_reed"].get("pulse_interval", 2.6))
 
 
 func update_frost_fan(plant: Dictionary, delta: float, row: int, col: int) -> void:
@@ -2908,13 +2940,7 @@ func update_meteor_gourd(plant: Dictionary, delta: float, row: int, col: int) ->
 	var impact = Vector2(float(target["x"]), game._row_center_y(int(target["row"])))
 	game._damage_zombies_in_circle(impact, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]), float(Defs.PLANTS["meteor_gourd"]["damage"]))
 	game._damage_obstacles_in_circle(impact, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]), float(Defs.PLANTS["meteor_gourd"]["damage"]))
-	game.effects.append({
-		"position": impact,
-		"radius": float(Defs.PLANTS["meteor_gourd"]["splash_radius"]),
-		"time": 0.34,
-		"duration": 0.34,
-		"color": Color(1.0, 0.54, 0.22, 0.38),
-	})
+	game._spawn_meteor_strike_effect(impact, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]), 0.34, Color(1.0, 0.54, 0.22, 0.38))
 	plant["attack_timer"] = float(Defs.PLANTS["meteor_gourd"]["attack_interval"])
 	game._trigger_plant_action(plant, 0.28)
 

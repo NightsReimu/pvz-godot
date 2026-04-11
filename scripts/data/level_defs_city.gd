@@ -1,6 +1,7 @@
 extends RefCounted
 class_name CityLevelDefs
 
+const ZombieDefs = preload("res://scripts/data/zombie_defs.gd")
 
 const ROOF_FINAL_POOL := [
 	"cabbage_pult", "flower_pot", "kernel_pult", "coffee_bean", "garlic", "umbrella_leaf", "marigold", "melon_pult",
@@ -17,6 +18,8 @@ static var CITY_STORM_POOL := CITY_FULL_POOL + [
 	"nether_shroom", "seraph_flower", "magma_stream", "orange_bloom",
 	"hive_flower", "mamba_tree", "chambord_sniper", "dream_disc",
 ]
+static var CITY_FULL_POOL_CONVEYOR := CITY_FULL_POOL.filter(func(kind): return String(kind) != "marigold")
+static var CITY_STORM_POOL_CONVEYOR := CITY_STORM_POOL.filter(func(kind): return String(kind) != "marigold")
 
 const CITY_MASK_A := [
 	["land", "city_tile", "land", "city_tile", "land", "city_tile", "land", "city_tile", "land"],
@@ -49,6 +52,65 @@ const CITY_MASK_CONVEYOR := [
 	["city_tile", "land", "city_tile", "land", "city_tile", "land", "city_tile", "land", "city_tile"],
 	["land", "city_tile", "land", "city_tile", "land", "city_tile", "land", "city_tile", "land"],
 ]
+
+const CITY_MASK_FINAL := [
+	["land", "city_tile", "land", "rail", "land", "rail", "land", "city_tile", "land"],
+	["city_tile", "land", "city_tile", "land", "rail", "land", "city_tile", "land", "city_tile"],
+	["land", "rail", "land", "city_tile", "land", "city_tile", "land", "rail", "land"],
+	["city_tile", "land", "city_tile", "rail", "city_tile", "rail", "city_tile", "land", "city_tile"],
+	["land", "city_tile", "land", "land", "rail", "land", "land", "city_tile", "land"],
+]
+
+
+static func _city_finale_zombie_roster() -> Array:
+	var roster: Array = []
+	for kind_variant in ZombieDefs.ZOMBIES.keys():
+		var kind = String(kind_variant)
+		if kind == "" or bool(ZombieDefs.ZOMBIES.get(kind, {}).get("boss", false)):
+			continue
+		roster.append(kind)
+	return roster
+
+
+static func _build_city_finale_events() -> Array:
+	var events: Array = []
+	var roster = _city_finale_zombie_roster()
+	var thresholds: Array = []
+	for wave_index in range(1, 10):
+		thresholds.append(int(ceili(float(roster.size()) * float(wave_index) / 9.0)))
+	var next_threshold_index := 0
+	var time := 6.0
+	for roster_index in range(roster.size()):
+		var kind = String(roster[roster_index])
+		events.append({
+			"time": time,
+			"kind": kind,
+		})
+		time += 2.0 + float(roster_index % 4) * 0.35
+		while next_threshold_index < thresholds.size() and roster_index + 1 >= int(thresholds[next_threshold_index]):
+			events.append({
+				"time": time + 1.2,
+				"kind": "flag",
+				"wave": true,
+			})
+			time += 5.4
+			next_threshold_index += 1
+	while next_threshold_index < thresholds.size():
+		events.append({
+			"time": time + 1.2,
+			"kind": "flag",
+			"wave": true,
+		})
+		time += 5.4
+		next_threshold_index += 1
+	events.append({
+		"time": time + 10.0,
+		"kind": "city_boss",
+		"row": 2,
+		"wave": true,
+	})
+	return events
+
 
 static var LEVELS: Array = [
 	{
@@ -256,7 +318,7 @@ static var LEVELS: Array = [
 		"description": "城市传送带终章。随机草地与瓷砖混排，必须一边补花盆一边临场换阵。",
 		"terrain": "city",
 		"mode": "conveyor",
-		"available_plants": CITY_FULL_POOL,
+		"available_plants": CITY_FULL_POOL_CONVEYOR,
 		"conveyor_plants": ["flower_pot", "flower_pot", "heather_shooter", "leyline", "holo_nut", "healing_gourd", "mango_bowling", "snow_bloom", "cluster_boomerang", "glitch_walnut", "skylight_melon", "tesla_tulip", "brick_guard", "melon_pult", "jalapeno", "cherry_bomb", "squash", "umbrella_leaf"],
 		"unlock_plant": "",
 		"start_sun": 0,
@@ -513,7 +575,7 @@ static var LEVELS: Array = [
 		"description": "暴风雪终章。整座城市被寒潮吞没，传送带会把城市后半段的全部植物一起送上前线。",
 		"terrain": "city",
 		"mode": "conveyor",
-		"available_plants": CITY_STORM_POOL,
+		"available_plants": CITY_STORM_POOL_CONVEYOR,
 		"conveyor_plants": [
 			"flower_pot", "flower_pot", "heather_shooter", "nether_shroom", "seraph_flower", "magma_stream",
 			"orange_bloom", "hive_flower", "mamba_tree", "chambord_sniper", "dream_disc", "holo_nut",
@@ -549,5 +611,22 @@ static var LEVELS: Array = [
 			{"time": 236.0, "kind": "dark_football"},
 			{"time": 258.0, "kind": "flag", "wave": true},
 		],
+	},
+	{
+		"id": "6-19",
+		"title": "城市世界 6-19",
+		"description": "城市终章。你将以正常选卡迎战霓虹尸王，十波尸潮会把全部非 Boss 僵尸混进同一场暴风雪决战里。",
+		"terrain": "city",
+		"boss_level": true,
+		"boss_kind": "city_boss",
+		"available_plants": CITY_STORM_POOL,
+		"unlock_plant": "",
+		"start_sun": 650,
+		"row_count": 5,
+		"time_scale": 0.6,
+		"city_weather": "blizzard",
+		"node_pos": Vector2(3252.0, 574.0),
+		"cell_terrain_mask": CITY_MASK_FINAL,
+		"events": _build_city_finale_events(),
 	},
 ]

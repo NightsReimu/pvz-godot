@@ -35,8 +35,8 @@ func _run() -> void:
 	failed = not _test_sakura_shooter_petals_split_on_hit() or failed
 	failed = not _test_split_pea_fires_forward_and_backward() or failed
 	failed = not _test_starfruit_spawns_five_distinct_vectors() or failed
-	failed = not _test_lotus_lancer_pierces_an_entire_lane() or failed
-	failed = not _test_mirror_reed_reveals_hidden_shouyue() or failed
+	failed = not _test_lotus_lancer_fires_rotating_radial_burst() or failed
+	failed = not _test_mirror_reed_reflects_shouyue_snipe() or failed
 	failed = not _test_frost_fan_spreads_slow_across_three_lanes() or failed
 	failed = not _test_mist_orchid_fires_for_any_zombie_ahead() or failed
 	failed = not _test_storm_reed_hits_midfield_intruders() or failed
@@ -332,8 +332,8 @@ func _test_pepper_mortar_locks_frontmost_zombie_with_beam() -> bool:
 	var row := 2
 	var col := 2
 	var plant = game._create_plant("pepper_mortar", row, col)
-	var front_x = game.BOARD_ORIGIN.x + game.board_size.x - 42.0
-	var rear_x = front_x - 60.0
+	var front_x = game._cell_center(row, 4).x
+	var rear_x = game._cell_center(row, 7).x
 	game._spawn_zombie_at("normal", row, rear_x)
 	game._spawn_zombie_at("normal", row, front_x)
 	plant["attack_timer"] = 0.0
@@ -359,9 +359,10 @@ func _test_pepper_mortar_plant_food_effect_matches_damage_radius() -> bool:
 	var row := 2
 	var col := 2
 	var target_row := 2
-	var target_col := 6
+	var target_col := 4
 	var plant = game._create_plant("pepper_mortar", row, col)
 	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", target_row, game._cell_center(target_row, 7).x)
 	game._spawn_zombie_at("normal", target_row, game._cell_center(target_row, target_col).x)
 	var activated = game._activate_plant_food(row, col)
 	if not _assert_true(activated, "pepper_mortar plant food should activate on a planted mortar"):
@@ -600,48 +601,63 @@ func _test_sakura_shooter_petals_split_on_hit() -> bool:
 	return passed
 
 
-func _test_lotus_lancer_pierces_an_entire_lane() -> bool:
+func _test_lotus_lancer_fires_rotating_radial_burst() -> bool:
 	if not _assert_true(Defs.PLANTS.has("lotus_lancer"), "expected lotus_lancer plant definition to exist"):
 		return false
 	var game = _make_game()
 	var row := 2
-	var col := 1
+	var col := 2
 	var plant = game._create_plant("lotus_lancer", row, col)
 	plant["shot_cooldown"] = 0.0
 	game.grid[row][col] = plant
-	for target_col in [4, 5, 6]:
-		game._spawn_zombie_at("normal", row, game._cell_center(row, target_col).x)
-	var before: Array = []
-	for zombie in game.zombies:
-		before.append(float(zombie["health"]))
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 6).x)
+	var before_health = float(game.zombies[0]["health"])
 	game._update_plants(0.1)
+	var radial_count := 0
+	for projectile in game.projectiles:
+		if String(projectile.get("kind", "")) == "lotus_orbit_shot":
+			radial_count += 1
+	for _step in range(16):
+		game._update_projectiles(0.12)
+	var after_health = float(game.zombies[0]["health"])
 	var passed := true
-	for zombie_index in range(game.zombies.size()):
-		passed = _assert_true(float(game.zombies[zombie_index]["health"]) < before[zombie_index], "lotus_lancer should pierce through every zombie in its lane") and passed
+	passed = _assert_true(radial_count >= 8, "lotus_lancer should fire eight outward lotus shots instead of the old single lane spear") and passed
+	passed = _assert_true(after_health < before_health, "lotus_lancer radial burst should still damage enemies on the field") and passed
 	_free_game(game)
 	return passed
 
 
-func _test_mirror_reed_reveals_hidden_shouyue() -> bool:
+func _test_mirror_reed_reflects_shouyue_snipe() -> bool:
 	if not _assert_true(Defs.PLANTS.has("mirror_reed"), "expected mirror_reed plant definition to exist"):
 		return false
 	var game = _make_game()
 	game.current_level = {"id": "3-test", "terrain": "pool", "events": []}
 	game.water_rows = [2, 3]
-	var row := 1
+	var row := 2
 	var col := 3
+	game.grid[row][1] = game._create_plant("peashooter", row, 1)
 	var plant = game._create_plant("mirror_reed", row, col)
-	plant["support_timer"] = 0.0
 	game.grid[row][col] = plant
-	game._spawn_zombie_at("shouyue", 2, game._cell_center(2, 6).x)
-	var hidden_before = bool(game._is_hidden_from_lane_attacks(game.zombies[0]))
-	var health_before = float(game.zombies[0]["health"])
-	game._update_plants(0.1)
-	var hidden_after = bool(game._is_hidden_from_lane_attacks(game.zombies[0]))
-	var health_after = float(game.zombies[0]["health"])
-	var passed = _assert_true(hidden_before, "shouyue should begin hidden before mirror_reed pulses") \
-		and _assert_true(not hidden_after, "mirror_reed pulse should reveal nearby hidden zombies") \
-		and _assert_true(health_after < health_before, "mirror_reed pulse should damage the revealed shouyue")
+	game._spawn_zombie_at("shouyue", row, game._cell_center(row, 7).x)
+	var shouyue = game.zombies[0]
+	shouyue["snipe_cooldown"] = 0.0
+	shouyue["special_pause_timer"] = 0.0
+	game.zombies[0] = shouyue
+	var target_before = float(game.grid[row][1].get("health", 0.0))
+	var shouyue_before = float(game.zombies[0].get("health", 0.0))
+	for _step in range(4):
+		game._update_zombies(0.12)
+	var target_after = float(game.grid[row][1].get("health", 0.0))
+	var shouyue_after = float(game.zombies[0].get("health", 0.0))
+	var reflect_fx := false
+	for effect_variant in game.effects:
+		var effect = Dictionary(effect_variant)
+		if String(effect.get("shape", "")) == "mirror_reflect_arc":
+			reflect_fx = true
+			break
+	var passed = _assert_true(target_after >= target_before, "mirror_reed should intercept shouyue's shot instead of letting the front plant take damage") \
+		and _assert_true(shouyue_after < shouyue_before, "mirror_reed should reflect the sniper shot back into the shooter") \
+		and _assert_true(reflect_fx, "mirror_reed reflection should emit a dedicated reflect effect")
 	_free_game(game)
 	return passed
 
@@ -787,8 +803,8 @@ func _test_meteor_gourd_targets_the_rearmost_enemy() -> bool:
 	var col := 2
 	var front_row := 1
 	var rear_row := 3
-	var front_x = game._cell_center(front_row, 7).x
-	var rear_x = game._cell_center(rear_row, 2).x
+	var front_x = game._cell_center(front_row, 4).x
+	var rear_x = game._cell_center(rear_row, 7).x
 	game._spawn_zombie_at("normal", front_row, front_x)
 	game._spawn_zombie_at("normal", rear_row, rear_x)
 	var front_before = float(game.zombies[0].get("health", 0.0))
@@ -803,6 +819,7 @@ func _test_meteor_gourd_targets_the_rearmost_enemy() -> bool:
 	var front_after = float(game.zombies[0].get("health", 0.0))
 	var rear_after = float(game.zombies[1].get("health", 0.0))
 	var passed = _assert_float_eq(Vector2(effect.get("position", Vector2.ZERO)).x, rear_x, "meteor_gourd should impact the rearmost zombie position") \
+		and _assert_true(String(effect.get("shape", "")) == "meteor_strike", "meteor_gourd should use a dedicated meteor_strike effect instead of a plain circular flash") \
 		and _assert_true(rear_after < rear_before, "meteor_gourd should damage the rearmost zombie first") \
 		and _assert_float_eq(front_after, front_before, "meteor_gourd should stop prioritizing the frontmost zombie")
 	_free_game(game)

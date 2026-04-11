@@ -14,6 +14,7 @@ func _run() -> void:
 	failed = not _test_gacha_owned_plants_enter_persistent_plant_pool() or failed
 	failed = not _test_gacha_owned_plants_enter_almanac() or failed
 	failed = not _test_seed_selection_starts_empty_for_manual_pick() or failed
+	failed = not _test_pool_reward_plants_stay_hidden_in_almanac_until_earned() or failed
 	failed = not _test_special_modes_keep_their_curated_plant_pools() or failed
 	failed = not _test_branch_progress_does_not_unlock_future_pool_levels() or failed
 	failed = not _test_sparse_v2_save_data_backfills_near_end_progress() or failed
@@ -23,6 +24,7 @@ func _run() -> void:
 	failed = not _test_save_merge_preserves_gacha_collection_progress() or failed
 	failed = not _test_loaded_enhance_progress_persists_into_battle_stats() or failed
 	failed = not _test_loaded_campaign_init_does_not_force_immediate_autosave() or failed
+	failed = not _test_autosave_waits_for_safe_flush_windows() or failed
 	quit(1 if failed else 0)
 
 
@@ -169,6 +171,33 @@ func _test_seed_selection_starts_empty_for_manual_pick() -> bool:
 	_mark_all_levels_completed(game)
 	game.call("_enter_seed_selection", level_index)
 	var passed = _assert_true(game.selection_cards.is_empty(), "seed selection should start with no preselected plants so the player can choose manually")
+	_free_game(game)
+	return passed
+
+
+func _test_pool_reward_plants_stay_hidden_in_almanac_until_earned() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_apply_loaded_save_data"), "expected _apply_loaded_save_data helper to exist for pool almanac ownership checks"):
+		_free_game(game)
+		return false
+	var migrated = bool(game.call("_apply_loaded_save_data", {
+		"version": 2,
+		"unlocked_levels": Defs.LEVELS.size(),
+		"completed_level_ids": _completed_ids_for_user_progress(),
+		"last_level_index": _find_level_index("3-10"),
+		"current_world_key": "pool",
+	}))
+	var collection: Array = game.call("_player_plant_collection")
+	var almanac_plants: Array = game.call("_visible_almanac_plants")
+	var locked_reward_kinds := ["boomerang_shooter", "sakura_shooter", "lotus_lancer", "mirror_reed", "frost_fan"]
+	var hidden_until_earned := true
+	var still_locked_out_of_pool := true
+	for kind in locked_reward_kinds:
+		hidden_until_earned = not almanac_plants.has(kind) and hidden_until_earned
+		still_locked_out_of_pool = not collection.has(kind) and still_locked_out_of_pool
+	var passed = _assert_true(not migrated, "well-formed pool progress should not trigger save migration during almanac ownership checks") \
+		and _assert_true(hidden_until_earned, "pool reward plants from 3-11 to 3-18 should stay hidden in the almanac until the player actually earns them") \
+		and _assert_true(still_locked_out_of_pool, "unearned pool reward plants should stay out of the playable selection pool")
 	_free_game(game)
 	return passed
 
@@ -432,5 +461,26 @@ func _test_loaded_campaign_init_does_not_force_immediate_autosave() -> bool:
 		and _assert_true(is_zero_approx(float(game.autosave_timer)), "successfully loading a save should not schedule an autosave writeback")
 	game.call("_finalize_campaign_init", false, false)
 	passed = _assert_true(bool(game.save_dirty), "starting from no save should still mark the campaign dirty for the first save write") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_autosave_waits_for_safe_flush_windows() -> bool:
+	var game = _make_game()
+	if not _assert_true(game.has_method("_can_flush_autosave_now"), "expected _can_flush_autosave_now helper to exist for autosave hitch prevention"):
+		_free_game(game)
+		return false
+	game.mode = game.MODE_BATTLE
+	game.battle_state = game.BATTLE_PLAYING
+	game.battle_paused = false
+	var passed = _assert_true(not bool(game.call("_can_flush_autosave_now")), "autosave should stay deferred while a battle is actively playing")
+	game.battle_paused = true
+	passed = _assert_true(bool(game.call("_can_flush_autosave_now")), "autosave should flush once the battle is paused") and passed
+	game.battle_paused = false
+	game.battle_state = game.BATTLE_WON
+	passed = _assert_true(bool(game.call("_can_flush_autosave_now")), "autosave should flush once the battle is no longer actively playing") and passed
+	game.mode = game.MODE_MAP
+	game.battle_state = game.BATTLE_PLAYING
+	passed = _assert_true(bool(game.call("_can_flush_autosave_now")), "autosave should flush freely outside battle mode") and passed
 	_free_game(game)
 	return passed
