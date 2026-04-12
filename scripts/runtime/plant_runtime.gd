@@ -2,6 +2,16 @@ extends RefCounted
 class_name PlantRuntime
 
 const Defs = preload("res://scripts/game_defs.gd")
+const MAGIC_FLOWER_PROJECTILES := [
+	"pea",
+	"amber_pea",
+	"boomerang",
+	"sakura_petal",
+	"mist_bloom",
+	"glow_seed",
+	"heather_thorn",
+	"origami_plane",
+]
 
 var game: Control
 
@@ -423,6 +433,25 @@ func find_lane_or_air_target(row: int, plant_x: float, range_limit: float) -> in
 	return best_index
 
 
+func find_magic_flower_target(row: int, plant_x: float, range_limit: float) -> int:
+	var best_index := -1
+	var best_distance := 999999.0
+	for i in range(game.zombies.size()):
+		var zombie = game.zombies[i]
+		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
+			continue
+		var balloon = bool(zombie.get("balloon_flying", false))
+		if game._is_hidden_from_lane_attacks(zombie) and not balloon:
+			continue
+		var distance = float(zombie["x"]) - plant_x
+		if distance < -8.0 or distance > range_limit:
+			continue
+		if distance < best_distance:
+			best_distance = distance
+			best_index = i
+	return best_index
+
+
 func update_cactus(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	var cadence_delta = game._plant_cadence_delta(delta, row, col)
 	if String(plant.get("plant_food_mode", "")) == "cactus_storm" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
@@ -801,17 +830,65 @@ func update_melon_pult(plant: Dictionary, delta: float, row: int, col: int) -> v
 	game._trigger_plant_action(plant, 0.24)
 
 
+func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: float = 1.0, projectile_kind: String = "", spawn_offset: Vector2 = Vector2.ZERO) -> String:
+	var chosen_kind = projectile_kind
+	if chosen_kind == "":
+		chosen_kind = String(MAGIC_FLOWER_PROJECTILES[game.rng.randi_range(0, MAGIC_FLOWER_PROJECTILES.size() - 1)])
+	var spawn_position = center + spawn_offset + Vector2(30.0 + game.rng.randf_range(-2.0, 4.0), -16.0 + game.rng.randf_range(-7.0, 7.0))
+	var base_damage = maxf(float(Defs.PLANTS["origami_blossom"]["damage"]) * damage_mult, 12.0)
+	match chosen_kind:
+		"amber_pea":
+			game._spawn_amber_projectile(row, spawn_position, base_damage * 0.96, 500.0, 8.4)
+		"boomerang":
+			spawn_boomerang_projectile(row, spawn_position, center.x, base_damage * 1.04, 3)
+		"sakura_petal":
+			spawn_sakura_projectile(row, spawn_position, base_damage * 0.94, game.rng.randf_range(-64.0, 64.0))
+		"mist_bloom":
+			spawn_mist_projectile(row, spawn_position, base_damage * 0.88, 0.85, 54.0, 1.6)
+		"glow_seed":
+			spawn_glowvine_projectile(row, spawn_position, base_damage)
+		"heather_thorn":
+			spawn_heather_projectile(row, spawn_position, base_damage * 0.92, 6.0 * damage_mult, 2.6, 0.18, game.rng.randf_range(-36.0, 36.0))
+		"origami_plane":
+			game._spawn_projectile(row, spawn_position, Color(0.96, 0.9, 0.74), base_damage, 0.0, 500.0, 7.0)
+			if not game.projectiles.is_empty():
+				game.projectiles[game.projectiles.size() - 1]["kind"] = "origami_plane"
+		_:
+			game._spawn_projectile(row, spawn_position, Color(0.96, 0.88, 0.72), base_damage, 0.0, 490.0, 7.6)
+	if not game.projectiles.is_empty():
+		game.projectiles[game.projectiles.size() - 1]["anti_air"] = true
+	return chosen_kind
+
+
+func _next_magic_flower_projectile_kind(plant: Dictionary) -> String:
+	if not plant.has("magic_cycle_seed"):
+		plant["magic_cycle_seed"] = game.rng.randi_range(0, MAGIC_FLOWER_PROJECTILES.size() - 1)
+	var cycle_seed = int(plant.get("magic_cycle_seed", 0))
+	var cycle_index = int(plant.get("magic_cycle_index", -1)) + 1
+	plant["magic_cycle_index"] = cycle_index
+	return String(MAGIC_FLOWER_PROJECTILES[(cycle_seed + cycle_index) % MAGIC_FLOWER_PROJECTILES.size()])
+
+
 func update_origami_blossom(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	var cadence_delta = game._plant_cadence_delta(delta, row, col)
 	var center = game._cell_center(row, col)
 	if String(plant.get("plant_food_mode", "")) == "origami_storm" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
 		plant["plant_food_interval"] -= cadence_delta
 		while float(plant["plant_food_interval"]) <= 0.0:
-			for y_offset in [-20.0, -6.0]:
-				game._spawn_projectile(row, center + Vector2(30.0, y_offset), Color(0.96, 0.9, 0.74), float(Defs.PLANTS["origami_blossom"]["damage"]) * 1.12, 0.0, 500.0, 7.0)
-				if not game.projectiles.is_empty():
-					game.projectiles[game.projectiles.size() - 1]["anti_air"] = true
-					game.projectiles[game.projectiles.size() - 1]["kind"] = "origami_plane"
+			if find_magic_flower_target(row, center.x, float(Defs.PLANTS["origami_blossom"]["range"])) != -1:
+				for _cast in range(3):
+					_spawn_magic_flower_projectile(row, center, 1.12, _next_magic_flower_projectile_kind(plant))
+				game.effects.append({
+					"shape": "magic_lane_barrage",
+					"position": center + Vector2(16.0, -8.0),
+					"length": game.BOARD_ORIGIN.x + game.board_size.x - center.x,
+					"width": game.CELL_SIZE.y * 0.8,
+					"radius": game.BOARD_ORIGIN.x + game.board_size.x - center.x,
+					"time": 0.24,
+					"duration": 0.24,
+					"color": Color(0.98, 0.86, 0.64, 0.28),
+					"anim_speed": 7.2,
+				})
 			plant["plant_food_interval"] += 0.11
 			plant["flash"] = maxf(float(plant["flash"]), 0.16)
 			game._trigger_plant_action(plant, 0.14)
@@ -819,13 +896,10 @@ func update_origami_blossom(plant: Dictionary, delta: float, row: int, col: int)
 	plant["shot_cooldown"] -= cadence_delta
 	if float(plant["shot_cooldown"]) > 0.0:
 		return
-	var target_index = find_lane_or_air_target(row, center.x, float(Defs.PLANTS["origami_blossom"]["range"]))
+	var target_index = find_magic_flower_target(row, center.x, float(Defs.PLANTS["origami_blossom"]["range"]))
 	if target_index == -1:
 		return
-	game._spawn_projectile(row, center + Vector2(30.0, -16.0), Color(0.96, 0.9, 0.74), float(Defs.PLANTS["origami_blossom"]["damage"]), 0.0, 480.0, 7.0)
-	if not game.projectiles.is_empty():
-		game.projectiles[game.projectiles.size() - 1]["anti_air"] = true
-		game.projectiles[game.projectiles.size() - 1]["kind"] = "origami_plane"
+	_spawn_magic_flower_projectile(row, center, 1.0, _next_magic_flower_projectile_kind(plant))
 	plant["shot_cooldown"] = float(Defs.PLANTS["origami_blossom"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.18)
 
@@ -865,7 +939,7 @@ func update_tesla_tulip(plant: Dictionary, delta: float, row: int, col: int) -> 
 			if int(storm_target.get("row", -1)) != -1:
 				var storm_index = game._find_throw_lane_target(int(storm_target["row"]), float(storm_target["x"]) - 6.0, game.board_size.x)
 				if storm_index != -1:
-					game._strike_thunder_chain(storm_index, float(Defs.PLANTS["tesla_tulip"]["damage"]) * 1.15, float(Defs.PLANTS["tesla_tulip"]["chain_damage"]) * 1.2, float(Defs.PLANTS["tesla_tulip"]["chain_range"]) + 24.0, 5)
+					game._strike_tesla_chain(center + Vector2(12.0, -24.0), storm_index, float(Defs.PLANTS["tesla_tulip"]["damage"]) * 1.15, float(Defs.PLANTS["tesla_tulip"]["chain_damage"]) * 1.2, float(Defs.PLANTS["tesla_tulip"]["chain_range"]) + 24.0, 5)
 			plant["plant_food_interval"] += 0.18
 			plant["flash"] = maxf(float(plant["flash"]), 0.18)
 			game._trigger_plant_action(plant, 0.18)
@@ -877,18 +951,8 @@ func update_tesla_tulip(plant: Dictionary, delta: float, row: int, col: int) -> 
 	if target_index == -1:
 		plant["attack_timer"] = 0.2
 		return
-	var chained = game._strike_thunder_chain(target_index, float(Defs.PLANTS["tesla_tulip"]["damage"]), float(Defs.PLANTS["tesla_tulip"]["chain_damage"]), float(Defs.PLANTS["tesla_tulip"]["chain_range"]), 3)
+	var chained = game._strike_tesla_chain(center + Vector2(12.0, -24.0), target_index, float(Defs.PLANTS["tesla_tulip"]["damage"]), float(Defs.PLANTS["tesla_tulip"]["chain_damage"]), float(Defs.PLANTS["tesla_tulip"]["chain_range"]), 3)
 	if chained > 0:
-		var strike_center = Vector2(float(game.zombies[target_index]["x"]), game._row_center_y(int(game.zombies[target_index]["row"])) - 14.0)
-		game.effects.append({
-			"shape": "storm_arc",
-			"position": center + Vector2(10.0, -20.0),
-			"target": strike_center,
-			"radius": strike_center.distance_to(center),
-			"time": 0.18,
-			"duration": 0.18,
-			"color": Color(0.96, 0.88, 0.48, 0.32),
-		})
 		game._trigger_plant_action(plant, 0.22)
 	plant["attack_timer"] = float(Defs.PLANTS["tesla_tulip"]["attack_interval"])
 
@@ -939,8 +1003,13 @@ func update_roof_vane(plant: Dictionary, delta: float, row: int, col: int) -> vo
 	var center = game._cell_center(row, col)
 	var affected_rows: Array = [row]
 	var push_distance = float(Defs.PLANTS["roof_vane"]["push_distance"])
+	var gust_damage = float(Defs.PLANTS["roof_vane"].get("damage", 14.0))
+	var gust_radius = float(Defs.PLANTS["roof_vane"].get("gust_radius", 92.0))
+	var gust_center = center + Vector2(gust_radius * 0.5, -6.0)
 	if String(plant.get("plant_food_mode", "")) == "roof_gale" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
-		push_distance *= 1.5
+		push_distance *= 1.65
+		gust_damage *= 1.7
+		gust_radius += 26.0
 		for lane in [row - 1, row + 1]:
 			if lane >= 0 and lane < game.ROWS and game._is_row_active(lane):
 				affected_rows.append(lane)
@@ -953,20 +1022,28 @@ func update_roof_vane(plant: Dictionary, delta: float, row: int, col: int) -> vo
 			var zombie = game.zombies[i]
 			if int(zombie["row"]) != lane or not game._is_enemy_zombie(zombie):
 				continue
+			var zombie_pos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 10.0)
+			var lane_gust_center = Vector2(gust_center.x, game._row_center_y(lane) - 6.0)
+			var local = zombie_pos - lane_gust_center
+			if local.x < -gust_radius * 0.58 or local.x > gust_radius * 1.06:
+				continue
+			if absf(local.y) > gust_radius * 0.82:
+				continue
+			zombie = game._apply_zombie_damage(zombie, gust_damage, 0.12, 0.4)
 			zombie["x"] += push_distance
 			zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.1)
 			game.zombies[i] = zombie
 			did_push = true
 	if did_push:
 		game.effects.append({
-			"shape": "lane_spray",
-			"position": center + Vector2(12.0, -8.0),
-			"length": game.BOARD_ORIGIN.x + game.board_size.x - center.x,
-			"width": game.CELL_SIZE.y * 0.82 * float(affected_rows.size()),
-			"radius": game.BOARD_ORIGIN.x + game.board_size.x - center.x,
-			"time": 0.22,
-			"duration": 0.22,
-			"color": Color(0.88, 0.96, 1.0, 0.34),
+			"shape": "roof_vane_ring",
+			"position": gust_center,
+			"radius": gust_radius,
+			"width": game.CELL_SIZE.y * 0.78 * float(max(affected_rows.size(), 1)),
+			"time": 0.24,
+			"duration": 0.24,
+			"color": Color(0.84, 0.98, 1.0, 0.32),
+			"anim_speed": 7.6,
 		})
 		game._trigger_plant_action(plant, 0.24)
 	plant["gust_timer"] = float(Defs.PLANTS["roof_vane"]["gust_interval"])
@@ -4059,9 +4136,7 @@ func update_chaos_shroom(plant: Dictionary, delta: float, row: int, col: int) ->
 		return
 	var data = Defs.PLANTS["chaos_shroom"]
 	var center = game._cell_center(row, col)
-	var rng = RandomNumberGenerator.new()
-	rng.randomize()
-	var effect_type = rng.randi() % 5
+	var effect_type = game.rng.randi() % 5
 	match effect_type:
 		0:
 			var target_i = game._find_highest_hp_zombie_in_range(center, 600.0)
@@ -4087,7 +4162,7 @@ func update_chaos_shroom(plant: Dictionary, delta: float, row: int, col: int) ->
 		4:
 			for i in range(5):
 				var angle = TAU * float(i) / 5.0
-				var spore_row = clampi(row + (rng.randi() % 3) - 1, 0, game.ROWS - 1)
+				var spore_row = clampi(row + (game.rng.randi() % 3) - 1, 0, game.ROWS - 1)
 				game._spawn_projectile(spore_row, center + Vector2(16.0, -8.0), Color(0.7, 0.3, 0.9), 40.0, 0.0, 440.0, 6.0)
 	game._trigger_plant_action(plant, 0.22)
 	plant["effect_timer"] = float(data["effect_interval"])

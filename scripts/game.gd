@@ -4487,12 +4487,33 @@ func _count_alive_enemy_zombies_by_kind(kind: String) -> int:
 	return count
 
 
+func _is_plant_under_signal_ivy_shield(row: int, col: int) -> bool:
+	if row < 0 or row >= ROWS or col < 0 or col >= COLS:
+		return false
+	var target_center = _cell_center(row, col)
+	var shield_radius = float(Defs.PLANTS["signal_ivy"].get("shield_radius", Defs.PLANTS["signal_ivy"].get("radius", 180.0)))
+	var burst_radius = float(Defs.PLANTS["signal_ivy"].get("reveal_radius", shield_radius))
+	for scan_row in range(ROWS):
+		for scan_col in range(COLS):
+			var plant_variant = grid[scan_row][scan_col]
+			if plant_variant == null or String(plant_variant.get("kind", "")) != "signal_ivy":
+				continue
+			if float(plant_variant.get("health", 0.0)) <= 0.0 or float(plant_variant.get("sleep_timer", 0.0)) > 0.0:
+				continue
+			var effective_radius = shield_radius
+			if String(plant_variant.get("plant_food_mode", "")) == "signal_burst" and float(plant_variant.get("plant_food_timer", 0.0)) > 0.0:
+				effective_radius = maxf(effective_radius, burst_radius)
+			if _cell_center(scan_row, scan_col).distance_to(target_center) <= effective_radius:
+				return true
+	return false
+
+
 func _plant_attack_cadence_scale(row: int, col: int) -> float:
 	var scale := 1.0
 	if _is_frozen_cell(row, col):
 		scale = maxf(scale, float(current_level.get("frozen_attack_slow", 1.3)))
 	var programmer_count = _count_alive_enemy_zombies_by_kind("programmer_zombie")
-	if programmer_count > 0:
+	if programmer_count > 0 and not _is_plant_under_signal_ivy_shield(row, col):
 		scale *= pow(2.0, programmer_count)
 	return scale
 
@@ -5076,6 +5097,12 @@ func _ultimate_profile_for_kind(kind: String) -> Dictionary:
 		return {"style": "explicit", "ultimate_name": "琥珀棱爆", "ultimate_charge_time": charge_time + 1.0, "ultimate_duration": 0.8}
 	if kind == "pulse_bulb":
 		return {"style": "pulse_freeze_field", "ultimate_name": "极寒脉冲", "ultimate_charge_time": charge_time + 1.0, "ultimate_duration": 0.9}
+	if kind == "origami_blossom":
+		return {"style": "explicit", "ultimate_name": "魔术弹幕", "ultimate_charge_time": charge_time + 1.0, "ultimate_duration": 1.0}
+	if kind == "tesla_tulip":
+		return {"style": "explicit", "ultimate_name": "Model Y 闪击", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 2.2}
+	if kind == "brick_guard":
+		return {"style": "explicit", "ultimate_name": "砖阵列墙", "ultimate_charge_time": charge_time + 5.0, "ultimate_duration": 0.9}
 	if kind == "lotus_lancer":
 		return {"style": "explicit", "ultimate_name": "莲华围杀", "ultimate_charge_time": charge_time + 1.0, "ultimate_duration": 0.8}
 	if kind == "mirror_reed":
@@ -5613,6 +5640,74 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			plant["shot_cooldown"] = 0.08
 			_set_targetable_plant(row, col, plant)
 			effects.append({"position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(1.0, 0.8, 0.46, 0.3)})
+		"origami_blossom":
+			var volley_count := 12
+			for volley_index in range(volley_count):
+				var spread = Vector2(-6.0 + float(volley_index % 3) * 8.0, -10.0 + float(volley_index % 4) * 5.0)
+				_spawn_magic_flower_projectile(row, center, 1.35, "", spread)
+			effects.append({
+				"shape": "magic_lane_barrage",
+				"position": center + Vector2(18.0, -8.0),
+				"length": board_size.x,
+				"width": CELL_SIZE.y * 0.84,
+				"radius": board_size.x,
+				"time": 0.34,
+				"duration": 0.34,
+				"color": Color(0.98, 0.86, 0.66, 0.32),
+				"anim_speed": 8.2,
+			})
+			_trigger_screen_shake(4.0)
+		"tesla_tulip":
+			effects.append({
+				"shape": "tesla_model_y",
+				"position": Vector2(BOARD_ORIGIN.x - 112.0, _row_center_y(row) + 10.0),
+				"radius": 86.0,
+				"time": 2.2,
+				"duration": 2.2,
+				"color": Color(0.84, 0.92, 1.0, 0.34),
+				"row": row,
+				"speed": 620.0,
+				"damage": maxf(float(Defs.PLANTS[kind].get("ultimate_damage", 520.0)), 420.0),
+				"hit_uids": [],
+				"anim_speed": 9.6,
+			})
+			_trigger_screen_shake(6.0)
+		"brick_guard":
+			var wall_count := 0
+			for lane_variant in active_rows:
+				var lane = int(lane_variant)
+				var terrain = _cell_terrain_kind(lane, col)
+				if terrain == "roof" or terrain == "city_tile" or terrain == "rail" or terrain == "snowfield":
+					if _support_plant_at(lane, col) == null:
+						support_grid[lane][col] = _create_plant("flower_pot", lane, col)
+						support_grid[lane][col]["flash"] = 0.16
+				elif terrain == "water":
+					if _support_plant_at(lane, col) == null:
+						support_grid[lane][col] = _create_plant("lily_pad", lane, col)
+						support_grid[lane][col]["flash"] = 0.16
+				var top_plant = _top_plant_at(lane, col)
+				if top_plant == null:
+					grid[lane][col] = _create_plant("brick_guard", lane, col)
+					grid[lane][col]["flash"] = 0.2
+					wall_count += 1
+				elif String(top_plant.get("kind", "")) == "brick_guard":
+					top_plant["health"] = float(top_plant.get("max_health", top_plant.get("health", 0.0)))
+					top_plant["flash"] = maxf(float(top_plant.get("flash", 0.0)), 0.2)
+					grid[lane][col] = top_plant
+					wall_count += 1
+			effects.append({
+				"shape": "brick_column_wall",
+				"position": _cell_center(row, col),
+				"radius": CELL_SIZE.x * 0.7,
+				"length": CELL_SIZE.y * float(active_rows.size()),
+				"width": CELL_SIZE.x * 0.76,
+				"time": 0.46,
+				"duration": 0.46,
+				"color": Color(0.82, 0.54, 0.34, 0.3),
+				"anim_speed": 6.0,
+			})
+			if wall_count > 0:
+				_trigger_screen_shake(5.0)
 		"lotus_lancer":
 			var lotus_target_index = _find_highest_health_enemy_index()
 			if lotus_target_index != -1:
@@ -6095,6 +6190,10 @@ func _threepeater_projectile_spawn_position(col: int, lane: int) -> Vector2:
 
 func _spawn_boomerang_projectile(row: int, spawn_position: Vector2, anchor_x: float, damage: float, max_targets: int) -> void:
 	_ensure_plant_runtime().spawn_boomerang_projectile(row, spawn_position, anchor_x, damage, max_targets)
+
+
+func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: float = 1.0, projectile_kind: String = "", spawn_offset: Vector2 = Vector2.ZERO) -> String:
+	return _ensure_plant_runtime()._spawn_magic_flower_projectile(row, center, damage_mult, projectile_kind, spawn_offset)
 
 
 func _spawn_sakura_projectile(row: int, spawn_position: Vector2, damage: float, velocity_y: float = 0.0) -> void:
@@ -7587,6 +7686,36 @@ func _update_effects(delta: float) -> void:
 				_spawn_sky_thunder_strike(strike_center, 58.0, 0.2, Color(0.96, 0.98, 0.76, 0.32))
 				effect["target"] = strike_center
 				effect["strike_timer"] = float(effect.get("strike_interval", 0.6))
+		elif shape == "tesla_model_y":
+			var car_pos = Vector2(effect.get("position", Vector2.ZERO))
+			car_pos.x += float(effect.get("speed", 620.0)) * delta
+			effect["position"] = car_pos
+			var hit_uids: Array = effect.get("hit_uids", [])
+			var lane = int(effect.get("row", -1))
+			for zombie_index in range(zombies.size()):
+				var zombie = zombies[zombie_index]
+				if not _is_enemy_zombie(zombie) or int(zombie["row"]) != lane:
+					continue
+				var zombie_uid = int(zombie.get("uid", -1))
+				if hit_uids.has(zombie_uid):
+					continue
+				if absf(float(zombie["x"]) - car_pos.x) > 56.0:
+					continue
+				zombie = _apply_zombie_damage(zombie, float(effect.get("damage", 520.0)), 0.28)
+				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.26)
+				zombie["x"] += 22.0
+				zombies[zombie_index] = zombie
+				hit_uids.append(zombie_uid)
+				effects.append({
+					"shape": "tesla_chain_burst",
+					"position": Vector2(float(zombie["x"]), _row_center_y(lane) - 10.0),
+					"radius": 68.0,
+					"time": 0.2,
+					"duration": 0.2,
+					"color": Color(0.98, 0.96, 0.74, 0.32),
+					"anim_speed": 9.2,
+				})
+			effect["hit_uids"] = hit_uids
 		effects[i] = effect
 
 
@@ -11746,35 +11875,23 @@ func _apply_nezha_landing(zombie: Dictionary) -> void:
 	})
 
 
-func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: float, chain_range: float, max_targets: int) -> int:
+func _collect_thunder_chain_targets(start_index: int, chain_range: float, max_targets: int) -> Array:
 	if start_index < 0 or start_index >= zombies.size():
-		return 0
+		return []
 	if not _is_enemy_zombie(zombies[start_index]):
-		return 0
-	var hit_count := 0
-	var queue: Array = [start_index]
+		return []
+	var chain_indices: Array = []
 	var used := {}
-	var current_damage = first_damage
-	while not queue.is_empty() and hit_count < max_targets:
-		var zombie_index = int(queue.pop_front())
-		if used.has(zombie_index) or zombie_index < 0 or zombie_index >= zombies.size():
-			continue
-		used[zombie_index] = true
-		var zombie = zombies[zombie_index]
-		var strike_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0)
-		zombie = _apply_zombie_damage(zombie, current_damage, 0.2)
-		zombies[zombie_index] = zombie
-		if String(zombie.get("kind", "")) == "kite_trap":
-			_damage_plant_cell(int(zombie.get("kite_target_row", -1)), int(zombie.get("kite_target_col", -1)), current_damage * 0.7, 0.2)
-		effects.append({
-			"position": strike_center,
-			"radius": 54.0,
-			"time": 0.18,
-			"duration": 0.18,
-			"color": Color(0.92, 0.92, 0.36, 0.28),
-		})
-		hit_count += 1
-		current_damage = chain_damage
+	var current_index := start_index
+	while current_index != -1 and chain_indices.size() < max_targets:
+		if used.has(current_index) or current_index < 0 or current_index >= zombies.size():
+			break
+		var zombie = zombies[current_index]
+		if not _is_enemy_zombie(zombie):
+			break
+		used[current_index] = true
+		chain_indices.append(current_index)
+		var current_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
 		var nearest_index := -1
 		var nearest_distance := 999999.0
 		for i in range(zombies.size()):
@@ -11784,15 +11901,76 @@ func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: 
 			if not _is_enemy_zombie(next_zombie):
 				continue
 			var next_center = Vector2(float(next_zombie["x"]), _row_center_y(int(next_zombie["row"])))
-			var distance = next_center.distance_to(Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"]))))
+			var distance = next_center.distance_to(current_center)
 			if distance > chain_range:
 				continue
 			if distance < nearest_distance:
 				nearest_distance = distance
 				nearest_index = i
-		if nearest_index != -1:
-			queue.append(nearest_index)
-	return hit_count
+		current_index = nearest_index
+	return chain_indices
+
+
+func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: float, chain_range: float, max_targets: int) -> int:
+	var chain_indices = _collect_thunder_chain_targets(start_index, chain_range, max_targets)
+	if chain_indices.is_empty():
+		return 0
+	for order in range(chain_indices.size()):
+		var zombie_index = int(chain_indices[order])
+		var zombie = zombies[zombie_index]
+		var damage = first_damage if order == 0 else chain_damage
+		var strike_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0)
+		zombie = _apply_zombie_damage(zombie, damage, 0.2)
+		zombies[zombie_index] = zombie
+		if String(zombie.get("kind", "")) == "kite_trap":
+			_damage_plant_cell(int(zombie.get("kite_target_row", -1)), int(zombie.get("kite_target_col", -1)), damage * 0.7, 0.2)
+		effects.append({
+			"position": strike_center,
+			"radius": 54.0,
+			"time": 0.18,
+			"duration": 0.18,
+			"color": Color(0.92, 0.92, 0.36, 0.28),
+		})
+	return chain_indices.size()
+
+
+func _strike_tesla_chain(source_position: Vector2, start_index: int, first_damage: float, chain_damage: float, chain_range: float, max_targets: int) -> int:
+	var chain_indices = _collect_thunder_chain_targets(start_index, chain_range, max_targets)
+	if chain_indices.is_empty():
+		return 0
+	var chain_mult = 1.0 + float(max(chain_indices.size() - 1, 0)) * 0.18
+	var arc_origin = source_position
+	for order in range(chain_indices.size()):
+		var zombie_index = int(chain_indices[order])
+		var zombie = zombies[zombie_index]
+		var strike_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0)
+		var damage = (first_damage if order == 0 else chain_damage) * chain_mult * (1.0 + float(order) * 0.06)
+		zombie = _apply_zombie_damage(zombie, damage, 0.24)
+		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.22)
+		zombies[zombie_index] = zombie
+		if String(zombie.get("kind", "")) == "kite_trap":
+			_damage_plant_cell(int(zombie.get("kite_target_row", -1)), int(zombie.get("kite_target_col", -1)), damage * 0.72, 0.22)
+		effects.append({
+			"shape": "tesla_chain_arc",
+			"position": arc_origin,
+			"target": strike_center,
+			"radius": strike_center.distance_to(arc_origin),
+			"time": 0.24,
+			"duration": 0.24,
+			"color": Color(0.94, 0.92, 0.62, 0.42),
+			"anim_speed": 10.4,
+		})
+		effects.append({
+			"shape": "tesla_chain_burst",
+			"position": strike_center,
+			"radius": 58.0 + float(order) * 6.0,
+			"time": 0.22,
+			"duration": 0.22,
+			"color": Color(1.0, 0.96, 0.72, 0.3),
+			"anim_speed": 8.8,
+		})
+		arc_origin = strike_center
+	return chain_indices.size()
 
 
 func _card_rect(index: int) -> Rect2:
@@ -16863,6 +17041,34 @@ func _draw_effects() -> void:
 			draw_circle(wither_center, wither_radius, Color(0.28, 0.06, 0.32, effect_color.a * 0.34))
 			draw_arc(wither_center, wither_radius * 0.7, level_time * 1.4, level_time * 1.4 + PI * 1.4, 18, Color(0.78, 0.3, 0.96, effect_color.a * 0.42), 1.6)
 			continue
+		if shape == "tesla_chain_arc":
+			var arc_origin = Vector2(effect["position"])
+			var arc_target = Vector2(effect.get("target", arc_origin))
+			var arc_dir = (arc_target - arc_origin).normalized()
+			var arc_len = arc_origin.distance_to(arc_target)
+			var normal = arc_dir.orthogonal()
+			var bolt_points := PackedVector2Array([arc_origin])
+			for step in range(1, 5):
+				var step_ratio = float(step) / 5.0
+				var jitter = sin(level_time * anim_speed + float(step) * 1.3) * (12.0 + (1.0 - ratio) * 8.0)
+				bolt_points.append(arc_origin + arc_dir * arc_len * step_ratio + normal * jitter)
+			bolt_points.append(arc_target)
+			draw_polyline(bolt_points, Color(1.0, 0.98, 0.8, effect_color.a), 4.0)
+			draw_polyline(bolt_points, Color(0.72, 0.94, 1.0, effect_color.a * 0.82), 2.0)
+			draw_circle(arc_target, 9.0, Color(1.0, 0.98, 0.84, effect_color.a * 0.48))
+			continue
+		if shape == "tesla_chain_burst":
+			var burst_center = Vector2(effect["position"])
+			var burst_radius = _effect_visual_radius(effect, ratio)
+			for ring_index in range(3):
+				var ring_radius = burst_radius * (0.24 + float(ring_index) * 0.18)
+				draw_arc(burst_center, ring_radius, level_time * anim_speed * 0.4 + float(ring_index), level_time * anim_speed * 0.4 + float(ring_index) + PI * 1.3, 20, Color(1.0, 0.96, 0.78, effect_color.a * (0.72 - float(ring_index) * 0.14)), 2.0)
+			for spark_index in range(6):
+				var spark_angle = level_time * anim_speed * 0.2 + float(spark_index) * TAU / 6.0
+				var spark_dir = Vector2(cos(spark_angle), sin(spark_angle))
+				draw_line(burst_center + spark_dir * 6.0, burst_center + spark_dir * burst_radius * 0.72, Color(0.84, 0.96, 1.0, effect_color.a * 0.56), 1.8)
+			draw_circle(burst_center, burst_radius * 0.18, Color(1.0, 0.98, 0.84, effect_color.a * 0.42))
+			continue
 		if shape == "storm_arc":
 			var arc_origin = Vector2(effect["position"])
 			var arc_target = Vector2(effect.get("target", arc_origin))
@@ -16913,6 +17119,73 @@ func _draw_effects() -> void:
 				var mote_center = gust_origin + Vector2(gust_length * mote_ratio, sin(level_time * anim_speed * 1.5 + mote_ratio * 9.0) * gust_width * 0.22)
 				draw_circle(mote_center, 2.8 + (1.0 - mote_ratio) * 1.6, Color(0.92, 1.0, 1.0, effect_color.a * (0.4 - mote_ratio * 0.03)))
 			draw_circle(gust_origin + Vector2(gust_length, 0.0), gust_width * 0.16, Color(0.94, 1.0, 1.0, effect_color.a * 0.5))
+			continue
+		if shape == "roof_vane_ring":
+			var gust_center = Vector2(effect["position"])
+			var gust_radius = _effect_visual_radius(effect, ratio)
+			for ring_index in range(3):
+				var ring_ratio = 0.42 + float(ring_index) * 0.2
+				draw_arc(gust_center, gust_radius * ring_ratio, level_time * anim_speed * 0.24 + float(ring_index) * 0.6, level_time * anim_speed * 0.24 + float(ring_index) * 0.6 + PI * 1.5, 24, Color(0.86, 0.98, 1.0, effect_color.a * (0.58 - float(ring_index) * 0.12)), 2.2)
+			for swirl_index in range(8):
+				var swirl_angle = level_time * anim_speed * 0.18 + float(swirl_index) * TAU / 8.0
+				var swirl_center = gust_center + Vector2(cos(swirl_angle) * gust_radius * 0.48, sin(swirl_angle * 1.2) * gust_radius * 0.34)
+				draw_circle(swirl_center, 4.0 + float(swirl_index % 3), Color(0.94, 1.0, 1.0, effect_color.a * 0.28))
+			draw_circle(gust_center, gust_radius * 0.18, Color(0.88, 0.98, 1.0, effect_color.a * 0.14))
+			continue
+		if shape == "magic_lane_barrage":
+			var barrage_origin = Vector2(effect["position"])
+			var barrage_length = _effect_visual_length(effect, ratio)
+			var barrage_width = _effect_visual_width(effect, ratio)
+			for card_index in range(10):
+				var card_ratio = float(card_index) / 9.0
+				var card_center = barrage_origin + Vector2(barrage_length * card_ratio, sin(level_time * anim_speed + card_ratio * 8.0) * barrage_width * 0.22)
+				var angle = sin(level_time * anim_speed * 0.6 + card_ratio * 5.0) * 0.3
+				draw_set_transform(card_center, angle, Vector2.ONE)
+				draw_rect(Rect2(Vector2(-8.0, -12.0), Vector2(16.0, 24.0)), Color(0.96, 0.88, 0.76, effect_color.a * (0.34 + (1.0 - card_ratio) * 0.16)), true)
+				draw_rect(Rect2(Vector2(-5.0, -8.0), Vector2(10.0, 16.0)), Color(1.0, 0.72, 0.32, effect_color.a * 0.28), false, 1.6)
+				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			for star_index in range(8):
+				var star_ratio = float(star_index + 1) / 8.0
+				var star_center = barrage_origin + Vector2(barrage_length * star_ratio, sin(level_time * anim_speed * 1.3 + star_ratio * 7.0) * barrage_width * 0.32)
+				draw_circle(star_center, 3.2 + (1.0 - star_ratio) * 1.2, Color(1.0, 0.96, 0.82, effect_color.a * (0.52 - star_ratio * 0.04)))
+			continue
+		if shape == "brick_column_wall":
+			var wall_center = Vector2(effect["position"])
+			var brick_width = maxf(_effect_visual_width(effect, ratio), 52.0)
+			var brick_height = CELL_SIZE.y * 0.44
+			for brick_index in range(5):
+				var brick_center = wall_center + Vector2(0.0, (-2.0 + float(brick_index)) * brick_height * 0.72)
+				var brick_size = Vector2(brick_width, brick_height)
+				draw_rect(Rect2(brick_center - brick_size * 0.5, brick_size), Color(0.76, 0.42, 0.28, effect_color.a * 0.72), true)
+				draw_rect(Rect2(brick_center - brick_size * Vector2(0.5, 0.5) + Vector2(4.0, 4.0), brick_size - Vector2(8.0, 8.0)), Color(0.9, 0.78, 0.64, effect_color.a * 0.2), false, 1.4)
+			continue
+		if shape == "tesla_model_y":
+			var car_center = Vector2(effect["position"])
+			var body = Rect2(car_center + Vector2(-42.0, -16.0), Vector2(84.0, 26.0))
+			draw_rect(body, Color(0.82, 0.92, 0.98, effect_color.a * 0.84), true)
+			draw_polygon(
+				PackedVector2Array([
+					car_center + Vector2(-24.0, -16.0),
+					car_center + Vector2(-8.0, -30.0),
+					car_center + Vector2(20.0, -30.0),
+					car_center + Vector2(34.0, -16.0),
+				]),
+				PackedColorArray([
+					Color(0.88, 0.96, 1.0, effect_color.a * 0.92),
+					Color(0.74, 0.88, 0.98, effect_color.a * 0.88),
+					Color(0.74, 0.88, 0.98, effect_color.a * 0.88),
+					Color(0.88, 0.96, 1.0, effect_color.a * 0.92),
+				])
+			)
+			draw_rect(Rect2(car_center + Vector2(-10.0, -26.0), Vector2(26.0, 10.0)), Color(0.3, 0.42, 0.52, effect_color.a * 0.7), true)
+			for wheel_x in [-22.0, 24.0]:
+				draw_circle(car_center + Vector2(wheel_x, 12.0), 8.0, Color(0.12, 0.14, 0.18, effect_color.a))
+				draw_circle(car_center + Vector2(wheel_x, 12.0), 4.0, Color(0.72, 0.78, 0.86, effect_color.a * 0.72))
+			draw_circle(car_center + Vector2(42.0, -2.0), 4.8, Color(0.92, 0.98, 1.0, effect_color.a * 0.82))
+			draw_circle(car_center + Vector2(-42.0, -2.0), 4.2, Color(1.0, 0.36, 0.24, effect_color.a * 0.64))
+			for arc_index in range(3):
+				var arc_phase = level_time * anim_speed * 0.4 + float(arc_index) * 0.6
+				draw_arc(car_center + Vector2(0.0, -8.0), 34.0 + float(arc_index) * 10.0, arc_phase, arc_phase + PI * 0.88, 18, Color(0.92, 0.98, 1.0, effect_color.a * (0.34 - float(arc_index) * 0.07)), 1.8)
 			continue
 		if shape == "lane_spray":
 			var origin = Vector2(effect["position"])

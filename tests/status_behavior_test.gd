@@ -23,9 +23,10 @@ func _run() -> void:
 	failed = not _test_hive_zombie_summons_bees_when_bloodied() or failed
 	failed = not _test_turret_zombie_launches_reinforcement_into_midfield() or failed
 	failed = not _test_programmer_zombie_stacks_global_attack_slow() or failed
-	failed = not _test_origami_blossom_hits_balloon_targets() or failed
-	failed = not _test_tesla_tulip_chains_lightning() or failed
-	failed = not _test_roof_vane_pushes_entire_row() or failed
+	failed = not _test_signal_ivy_blocks_programmer_attack_slow_for_nearby_plants() or failed
+	failed = not _test_origami_blossom_launches_varied_magic_projectiles() or failed
+	failed = not _test_tesla_tulip_chain_damage_scales_with_more_targets() or failed
+	failed = not _test_roof_vane_continuous_wind_hits_front_arc() or failed
 	failed = not _test_tornado_zombie_finishes_entry_and_slows_down() or failed
 	failed = not _test_ice_shroom_permanently_slows_current_zombies() or failed
 	failed = not _test_wake_support_plants_ignore_sleep_effects() or failed
@@ -334,53 +335,92 @@ func _test_programmer_zombie_stacks_global_attack_slow() -> bool:
 	return passed
 
 
-func _test_origami_blossom_hits_balloon_targets() -> bool:
+func _test_signal_ivy_blocks_programmer_attack_slow_for_nearby_plants() -> bool:
 	var game = _make_game()
 	game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
+	var row := 2
+	var col := 2
+	game.grid[row][col] = game._create_plant("signal_ivy", row, col)
+	game._spawn_zombie_at("programmer_zombie", 1, game._cell_center(1, 7).x)
+	var protected_scale = game._plant_attack_cadence_scale(row, col + 1)
+	var unprotected_scale = game._plant_attack_cadence_scale(row, col + 4)
+	var passed = _assert_true(is_equal_approx(protected_scale, 1.0), "signal_ivy should shield nearby plants from programmer_zombie attack-speed debuffs") \
+		and _assert_true(is_equal_approx(unprotected_scale, 2.0), "signal_ivy should not remove programmer_zombie attack-speed debuffs from faraway plants")
+	_free_game(game)
+	return passed
+
+
+func _test_origami_blossom_launches_varied_magic_projectiles() -> bool:
+	var game = _make_game()
+	game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
+	game.rng.seed = 13579
 	var row := 2
 	var col := 2
 	game.grid[row][col] = game._create_plant("origami_blossom", row, col)
 	game.grid[row][col]["shot_cooldown"] = 0.0
-	game._spawn_zombie_at("balloon_zombie", row, game._cell_center(row, 6).x)
-	game._update_plants(0.2)
-	for _step in range(10):
-		game._update_projectiles(0.12)
-	var balloon = game.zombies[0]
-	var passed = _assert_true(float(balloon.get("health", 0.0)) < float(balloon.get("max_health", 1.0)), "origami_blossom should be able to damage airborne targets in its lane")
+	game._spawn_zombie_at("buckethead", row, game._cell_center(row, 6).x)
+	var projectile_kinds := {}
+	for _step in range(4):
+		var before_count = game.projectiles.size()
+		game._update_plants(1.05)
+		for projectile_index in range(before_count, game.projectiles.size()):
+			projectile_kinds[String(game.projectiles[projectile_index].get("kind", ""))] = true
+		game._update_projectiles(0.08)
+	var passed = _assert_true(String(Defs.PLANTS["origami_blossom"].get("name", "")) == "魔术花", "origami_blossom should expose its new display name 魔术花") \
+		and _assert_true(is_equal_approx(float(Defs.PLANTS["origami_blossom"].get("shoot_interval", 0.0)), 1.0), "origami_blossom should now attack once every second") \
+		and _assert_true(projectile_kinds.size() >= 3, "origami_blossom should cycle through multiple existing projectile types instead of always firing the same paper plane")
 	_free_game(game)
 	return passed
 
 
-func _test_tesla_tulip_chains_lightning() -> bool:
-	var game = _make_game()
-	game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
+func _test_tesla_tulip_chain_damage_scales_with_more_targets() -> bool:
+	var two_game = _make_game()
+	two_game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
 	var row := 2
 	var col := 2
+	two_game.grid[row][col] = two_game._create_plant("tesla_tulip", row, col)
+	two_game.grid[row][col]["attack_timer"] = 0.0
+	two_game._spawn_zombie_at("normal", row, two_game._cell_center(row, 5).x)
+	two_game._spawn_zombie_at("normal", row, two_game._cell_center(row, 5).x + 54.0)
+	two_game._update_plants(0.2)
+	var two_chain_damage = float(two_game.zombies[0].get("max_health", 0.0)) - float(two_game.zombies[0].get("health", 0.0))
+	_free_game(two_game)
+
+	var game = _make_game()
+	game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
 	game.grid[row][col] = game._create_plant("tesla_tulip", row, col)
 	game.grid[row][col]["attack_timer"] = 0.0
 	game._spawn_zombie_at("normal", row, game._cell_center(row, 5).x)
 	game._spawn_zombie_at("normal", row, game._cell_center(row, 5).x + 54.0)
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 6).x + 16.0)
 	game._update_plants(0.2)
-	var lead = game.zombies[0]
-	var chained = game.zombies[1]
-	var passed = _assert_true(float(lead.get("health", 0.0)) < float(lead.get("max_health", 1.0)), "tesla_tulip should strike the first target in its lane") \
-		and _assert_true(float(chained.get("health", 0.0)) < float(chained.get("max_health", 1.0)), "tesla_tulip should chain lightning into a nearby second target")
+	var three_chain_damage = float(game.zombies[0].get("max_health", 0.0)) - float(game.zombies[0].get("health", 0.0))
+	var passed = _assert_true(float(game.zombies[2].get("health", 0.0)) < float(game.zombies[2].get("max_health", 1.0)), "tesla_tulip should be able to chain into a third nearby target") \
+		and _assert_true(three_chain_damage > two_chain_damage, "tesla_tulip should deal more damage when its lightning chains through more zombies") \
+		and _assert_true(game.effects.any(func(effect): return String(effect.get("shape", "")) == "tesla_chain_arc"), "tesla_tulip should emit dedicated tesla_chain_arc effects instead of only the shared storm arc")
 	_free_game(game)
 	return passed
 
 
-func _test_roof_vane_pushes_entire_row() -> bool:
+func _test_roof_vane_continuous_wind_hits_front_arc() -> bool:
 	var game = _make_game()
 	game.current_level = {"id": "5-test", "terrain": "roof", "events": []}
 	var row := 2
 	var col := 2
 	game.grid[row][col] = game._create_plant("roof_vane", row, col)
 	game.grid[row][col]["gust_timer"] = 0.0
-	game._spawn_zombie_at("normal", row, game._cell_center(row, 5).x)
-	var before_x = float(game.zombies[0].get("x", 0.0))
-	game._update_plants(0.2)
-	var after_x = float(game.zombies[0].get("x", before_x))
-	var passed = _assert_true(after_x > before_x, "roof_vane should push zombies in its lane backward along the roof")
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 4).x)
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 1).x)
+	var front_before_x = float(game.zombies[0].get("x", 0.0))
+	var front_before_health = float(game.zombies[0].get("health", 0.0))
+	var rear_before_x = float(game.zombies[1].get("x", 0.0))
+	game._update_plants(0.22)
+	var front_after = game.zombies[0]
+	var rear_after = game.zombies[1]
+	var passed = _assert_true(float(front_after.get("x", 0.0)) > front_before_x, "roof_vane should continuously push enemies inside its forward wind arc") \
+		and _assert_true(float(front_after.get("health", 0.0)) < front_before_health, "roof_vane should also damage enemies caught in its wind arc") \
+		and _assert_true(is_equal_approx(float(rear_after.get("x", 0.0)), rear_before_x), "roof_vane should not hit zombies behind the plant") \
+		and _assert_true(game.effects.any(func(effect): return String(effect.get("shape", "")) == "roof_vane_ring"), "roof_vane should use a dedicated circular wind effect instead of the old shared lane spray")
 	_free_game(game)
 	return passed
 

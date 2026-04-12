@@ -27,6 +27,9 @@ func _run() -> void:
 	failed = not _test_lotus_lancer_click_ultimate_spawns_converging_lotus_barrage() or failed
 	failed = not _test_lotus_lancer_plant_food_matches_its_click_barrage() or failed
 	failed = not _test_mirror_reed_click_ultimate_summons_sniper_support() or failed
+	failed = not _test_magic_flower_click_ultimate_spawns_random_lane_barrage() or failed
+	failed = not _test_tesla_tulip_click_ultimate_summons_model_y() or failed
+	failed = not _test_brick_guard_click_ultimate_creates_column_wall() or failed
 	quit(1 if failed else 0)
 
 
@@ -108,6 +111,13 @@ func _count_projectile_kind(game: Control, kind: String) -> int:
 		if String(Dictionary(projectile_variant).get("kind", "")) == kind:
 			count += 1
 	return count
+
+
+func _unique_projectile_kind_count(game: Control) -> int:
+	var kinds := {}
+	for projectile_variant in game.projectiles:
+		kinds[String(Dictionary(projectile_variant).get("kind", ""))] = true
+	return kinds.size()
 
 
 func _test_peashooter_click_ultimate_uses_its_own_plant_food_pattern() -> bool:
@@ -501,5 +511,74 @@ func _test_mirror_reed_click_ultimate_summons_sniper_support() -> bool:
 		and _assert_true(summon_fx > 0, "mirror_reed click ultimate should summon a visible sniper support effect in front of itself") \
 		and _assert_true(beam_fx > 0, "mirror_reed click ultimate should fire a sniper beam after the summon") \
 		and _assert_true(after < before, "mirror_reed click ultimate should damage the target it snipes")
+	_free_game(game)
+	return passed
+
+
+func _test_magic_flower_click_ultimate_spawns_random_lane_barrage() -> bool:
+	var game := _make_game("roof")
+	game.rng.seed = 24680
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "origami_blossom", row, col)
+	plant["ultimate_charge"] = 1.0
+	game.grid[row][col] = plant
+	game.call("_spawn_zombie_at", "buckethead", row, game.call("_cell_center", row, 6).x)
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	var projectile_count: int = game.projectiles.size()
+	var unique_kinds: int = _unique_projectile_kind_count(game)
+	var passed := _assert_true(activated, "origami_blossom should accept click ultimate activation when fully charged") \
+		and _assert_true(projectile_count >= 8, "魔术花 click ultimate should fire a full-lane random barrage instead of the old generic multi-lane burst template") \
+		and _assert_true(unique_kinds >= 3, "魔术花 click ultimate should mix several existing projectile kinds in the barrage") \
+		and _assert_true(_count_effect_shape(game, "magic_lane_barrage") > 0, "魔术花 click ultimate should emit a dedicated magic_lane_barrage effect")
+	_free_game(game)
+	return passed
+
+
+func _test_tesla_tulip_click_ultimate_summons_model_y() -> bool:
+	var game := _make_game("roof")
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "tesla_tulip", row, col)
+	plant["ultimate_charge"] = 1.0
+	game.grid[row][col] = plant
+	game.call("_spawn_zombie_at", "buckethead", row, game.call("_cell_center", row, 5).x)
+	game.call("_spawn_zombie_at", "conehead", row, game.call("_cell_center", row, 7).x)
+	game.call("_spawn_zombie_at", "normal", row - 1, game.call("_cell_center", row - 1, 5).x)
+	var same_row_before = [
+		float(game.zombies[0].get("health", 0.0)),
+		float(game.zombies[1].get("health", 0.0)),
+	]
+	var other_row_before = float(game.zombies[2].get("health", 0.0))
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	for _step in range(16):
+		game.call("_update_effects", 0.12)
+	var same_row_damaged = float(game.zombies[0].get("health", 0.0)) < same_row_before[0] and float(game.zombies[1].get("health", 0.0)) < same_row_before[1]
+	var other_row_unchanged = is_equal_approx(float(game.zombies[2].get("health", 0.0)), other_row_before)
+	var passed := _assert_true(activated, "tesla_tulip should accept click ultimate activation when fully charged") \
+		and _assert_true(_count_effect_shape(game, "tesla_model_y") > 0, "tesla_tulip click ultimate should summon a visible tesla_model_y sweep effect") \
+		and _assert_true(same_row_damaged, "tesla_tulip click ultimate should heavily damage zombies in the Model Y lane") \
+		and _assert_true(other_row_unchanged, "tesla_tulip click ultimate should not hit zombies outside the Model Y lane")
+	_free_game(game)
+	return passed
+
+
+func _test_brick_guard_click_ultimate_creates_column_wall() -> bool:
+	var game := _make_game("roof")
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "brick_guard", row, col)
+	plant["ultimate_charge"] = 1.0
+	game.grid[row][col] = plant
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	var wall_count := 0
+	for lane_variant in game.active_rows:
+		var lane = int(lane_variant)
+		var wall = game.grid[lane][col]
+		if wall != null and String(wall.get("kind", "")) == "brick_guard":
+			wall_count += 1
+	var passed := _assert_true(activated, "brick_guard should accept click ultimate activation when fully charged") \
+		and _assert_true(wall_count == game.active_rows.size(), "brick_guard click ultimate should create a full-column wall of brick guards") \
+		and _assert_true(_count_effect_shape(game, "brick_column_wall") > 0, "brick_guard click ultimate should emit a dedicated brick_column_wall effect")
 	_free_game(game)
 	return passed

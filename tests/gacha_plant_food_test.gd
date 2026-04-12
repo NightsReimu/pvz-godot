@@ -49,6 +49,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_every_gacha_plant_can_activate_plant_food() or failed
+	failed = not _test_chaos_shroom_base_behavior_is_seed_deterministic() or failed
 	failed = not _test_every_gacha_plant_has_a_live_base_behavior() or failed
 	quit(1 if failed else 0)
 
@@ -314,3 +315,32 @@ func _test_every_gacha_plant_has_a_live_base_behavior() -> bool:
 		passed = _assert_true(_scenario_changed(kind, before, after), "%s should produce a visible base behavior during normal plant updates" % kind) and passed
 		_free_game(game)
 	return passed
+
+
+func _test_chaos_shroom_base_behavior_is_seed_deterministic() -> bool:
+	var sequences: Array = []
+	for _attempt in range(2):
+		var game := _make_game()
+		game.rng.seed = 424242
+		var row := 2
+		var col := 2
+		var plant = game.call("_create_plant", "chaos_shroom", row, col)
+		game.grid[row][col] = plant
+		_configure_gacha_runtime_scenario(game, "chaos_shroom", row, col)
+		var signature: Array = []
+		for _tick in range(6):
+			var before = _gacha_runtime_snapshot(game)
+			game.call("_update_plants", 1.9)
+			game.call("_update_projectiles", 1.2)
+			var after = _gacha_runtime_snapshot(game)
+			signature.append({
+				"suns": int(after["suns"]) - int(before["suns"]),
+				"effects": int(after["effects"]) - int(before["effects"]),
+				"projectiles": int(after["projectiles"]) - int(before["projectiles"]),
+				"zdelta": snappedf(float(before["zombie_health_sum"]) - float(after["zombie_health_sum"]), 0.01),
+				"pdelta": snappedf(float(after["plant_health_sum"]) - float(before["plant_health_sum"]), 0.01),
+				"frozen": snappedf(float(after["frozen_total"]) - float(before["frozen_total"]), 0.01),
+			})
+		sequences.append(signature)
+		_free_game(game)
+	return _assert_true(sequences[0] == sequences[1], "chaos_shroom base behavior should be reproducible under the same rng seed")
