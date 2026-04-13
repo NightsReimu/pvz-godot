@@ -94,6 +94,7 @@ const MAP_SCROLL_RIGHT_RECT := Rect2(1132.0, 32.0, 44.0, 44.0)
 const WORLD_CARD_SPACING := 470.0
 const TOUCH_DRAG_THRESHOLD := 18.0
 const TOUCH_PRIORITY_CLICK_THRESHOLD := 34.0
+const TOUCH_MOUSE_SUPPRESS_MS := 240
 const WORLD_DRAG_RELEASE_BIAS := 0.32
 const MAP_DRAG_RELEASE_MULTIPLIER := 3.4
 
@@ -347,6 +348,7 @@ var touch_navigation_selection_scroll_origin := 0.0
 var touch_navigation_dragging := false
 var touch_navigation_press_target := ""
 var touch_navigation_press_rect := Rect2()
+var touch_mouse_suppress_until_ms := 0
 
 var grid: Array = []
 var support_grid: Array = []
@@ -474,6 +476,13 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
 		if save_dirty:
 			_save_game()
+	elif what == NOTIFICATION_RESIZED:
+		_refresh_battle_layout()
+		queue_redraw()
+
+
+func _is_mobile_runtime() -> bool:
+	return OS.has_feature("android") or OS.has_feature("ios") or OS.get_name().to_lower() in ["android", "ios"]
 
 
 func _pointer_local_position() -> Vector2:
@@ -515,15 +524,26 @@ func _scene_local_position(raw_position: Vector2) -> Vector2:
 
 func _refresh_battle_layout() -> void:
 	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
+	var is_mobile = _is_mobile_runtime()
 	var width_scale = maxf(viewport.x / BASE_VIEWPORT_SIZE.x, 1.0)
 	var height_scale = maxf(viewport.y / BASE_VIEWPORT_SIZE.y, 1.0)
-	var cell_width = clampf(BASE_CELL_SIZE.x * (1.04 + (width_scale - 1.0) * 0.16), BASE_CELL_SIZE.x * 1.04, BASE_CELL_SIZE.x * 1.1)
-	var cell_height = clampf(BASE_CELL_SIZE.y * (1.02 + (height_scale - 1.0) * 0.14), BASE_CELL_SIZE.y * 1.02, BASE_CELL_SIZE.y * 1.06)
+	var width_response = 0.32 if is_mobile else 0.16
+	var height_response = 0.28 if is_mobile else 0.14
+	var max_width_scale = 1.34 if is_mobile else 1.1
+	var max_height_scale = 1.26 if is_mobile else 1.06
+	var cell_width = clampf(BASE_CELL_SIZE.x * (1.04 + (width_scale - 1.0) * width_response), BASE_CELL_SIZE.x * 1.04, BASE_CELL_SIZE.x * max_width_scale)
+	var cell_height = clampf(BASE_CELL_SIZE.y * (1.02 + (height_scale - 1.0) * height_response), BASE_CELL_SIZE.y * 1.02, BASE_CELL_SIZE.y * max_height_scale)
 	CELL_SIZE = Vector2(round(cell_width), round(cell_height))
 	var next_board_size = Vector2(COLS * CELL_SIZE.x, board_rows * CELL_SIZE.y)
-	var origin_x = minf(clampf(viewport.x * 0.16, 220.0, 336.0), viewport.x - next_board_size.x - 214.0)
-	var origin_y = minf(clampf(viewport.y * 0.16, 144.0, 176.0), viewport.y - next_board_size.y - 116.0)
-	BOARD_ORIGIN = Vector2(maxf(172.0, origin_x), maxf(128.0, origin_y))
+	var origin_x = minf(
+		clampf(viewport.x * (0.1 if is_mobile else 0.16), 84.0 if is_mobile else 220.0, 262.0 if is_mobile else 336.0),
+		viewport.x - next_board_size.x - (84.0 if is_mobile else 214.0)
+	)
+	var origin_y = minf(
+		clampf(viewport.y * (0.1 if is_mobile else 0.16), 86.0 if is_mobile else 144.0, 148.0 if is_mobile else 176.0),
+		viewport.y - next_board_size.y - (72.0 if is_mobile else 116.0)
+	)
+	BOARD_ORIGIN = Vector2(maxf(62.0 if is_mobile else 172.0, origin_x), maxf(72.0 if is_mobile else 128.0, origin_y))
 	board_size = next_board_size
 
 	var hud_left = BASE_SEED_BANK_RECT.position.x
@@ -552,6 +572,15 @@ func _reset_touch_navigation() -> void:
 	touch_navigation_dragging = false
 	touch_navigation_press_target = ""
 	touch_navigation_press_rect = Rect2()
+
+
+func _suppress_touch_generated_mouse(ms: int = TOUCH_MOUSE_SUPPRESS_MS) -> void:
+	var now = Time.get_ticks_msec()
+	touch_mouse_suppress_until_ms = maxi(touch_mouse_suppress_until_ms, now + maxi(ms, 0))
+
+
+func _is_touch_generated_mouse_suppressed() -> bool:
+	return Time.get_ticks_msec() <= touch_mouse_suppress_until_ms
 
 
 func _world_select_touch_target(position: Vector2) -> Dictionary:
@@ -650,6 +679,7 @@ func _handle_touch_navigation_tap(released_mode: String, released_pos: Vector2) 
 func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
 	if mode != MODE_WORLD_SELECT and mode != MODE_MAP and mode != MODE_SELECTION:
 		return false
+	_suppress_touch_generated_mouse()
 	touch_navigation_index = event.index
 	touch_navigation_mode = mode
 	touch_navigation_start_pos = event.position
@@ -673,6 +703,7 @@ func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
 func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 	if event.index != touch_navigation_index or touch_navigation_mode == "":
 		return false
+	_suppress_touch_generated_mouse()
 	var delta_total = event.position - touch_navigation_start_pos
 	touch_navigation_last_delta = event.relative
 	touch_navigation_release_velocity = event.velocity
@@ -712,6 +743,7 @@ func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 func _finish_touch_navigation(event: InputEventScreenTouch) -> bool:
 	if event.index != touch_navigation_index or touch_navigation_mode == "":
 		return false
+	_suppress_touch_generated_mouse()
 	var released_mode = touch_navigation_mode
 	var released_pos = event.position
 	var release_velocity = touch_navigation_release_velocity
@@ -1040,6 +1072,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			selected_tool = ""
 			queue_redraw()
 		return
+
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _is_touch_generated_mouse_suppressed():
+			return
 
 	if not (event is InputEventMouseButton) or event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
 		return
@@ -3360,6 +3396,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	batch_spawn_remaining = 0
 	batch_spawn_queue = []
 	spawn_director_timer = 2.0 * _level_time_scale()
+	if String(current_level.get("id", "")) == "每日":
+		spawn_director_timer = minf(spawn_director_timer, 0.9)
 	conveyor_spawn_timer = 0.35
 	level_end_time = float(current_level["events"].size())
 	var sky_range = Vector2(current_level.get("sky_sun_range", Vector2(999.0, 999.0)))

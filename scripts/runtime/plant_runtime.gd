@@ -4164,5 +4164,6 @@ func update_chaos_shroom(plant: Dictionary, delta: float, row: int, col: int) ->
 				var angle = TAU * float(i) / 5.0
 				var spore_row = clampi(row + (game.rng.randi() % 3) - 1, 0, game.ROWS - 1)
 				game._spawn_projectile(spore_row, center + Vector2(16.0, -8.0), Color(0.7, 0.3, 0.9), 40.0, 0.0, 440.0, 6.0)
+			game.effects.append({"position": center, "radius": 110.0, "time": 0.22, "duration": 0.22, "color": Color(0.86, 0.48, 0.96, 0.32)})
 	game._trigger_plant_action(plant, 0.22)
 	plant["effect_timer"] = float(data["effect_interval"])
