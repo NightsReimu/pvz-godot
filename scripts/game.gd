@@ -525,25 +525,29 @@ func _scene_local_position(raw_position: Vector2) -> Vector2:
 func _refresh_battle_layout() -> void:
 	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
 	var is_mobile = _is_mobile_runtime()
-	var width_scale = maxf(viewport.x / BASE_VIEWPORT_SIZE.x, 1.0)
-	var height_scale = maxf(viewport.y / BASE_VIEWPORT_SIZE.y, 1.0)
-	var width_response = 0.32 if is_mobile else 0.16
-	var height_response = 0.28 if is_mobile else 0.14
-	var max_width_scale = 1.34 if is_mobile else 1.1
-	var max_height_scale = 1.26 if is_mobile else 1.06
-	var cell_width = clampf(BASE_CELL_SIZE.x * (1.04 + (width_scale - 1.0) * width_response), BASE_CELL_SIZE.x * 1.04, BASE_CELL_SIZE.x * max_width_scale)
-	var cell_height = clampf(BASE_CELL_SIZE.y * (1.02 + (height_scale - 1.0) * height_response), BASE_CELL_SIZE.y * 1.02, BASE_CELL_SIZE.y * max_height_scale)
+	var left_margin = clampf(viewport.x * (0.06 if is_mobile else 0.09), 66.0 if is_mobile else 128.0, 126.0 if is_mobile else 188.0)
+	var right_margin = clampf(viewport.x * (0.03 if is_mobile else 0.08), 24.0 if is_mobile else 96.0, 68.0 if is_mobile else 176.0)
+	var top_margin = clampf(viewport.y * (0.16 if is_mobile else 0.18), 98.0 if is_mobile else 120.0, 152.0 if is_mobile else 182.0)
+	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 36.0 if is_mobile else 54.0, 82.0 if is_mobile else 112.0)
+	var available_w = maxf(640.0, viewport.x - left_margin - right_margin)
+	var available_h = maxf(420.0, viewport.y - top_margin - bottom_margin)
+	var width_fit_scale = available_w / (float(COLS) * BASE_CELL_SIZE.x)
+	var height_fit_scale = available_h / (float(board_rows) * BASE_CELL_SIZE.y)
+	var base_fit_scale = minf(width_fit_scale, height_fit_scale)
+	var min_scale = 1.0 if is_mobile else 0.98
+	var max_width_scale = 1.56 if is_mobile else 1.38
+	var max_height_scale = 1.3 if is_mobile else 1.16
+	var width_scale = clampf(width_fit_scale, maxf(min_scale, base_fit_scale * 0.94), max_width_scale)
+	var height_scale = clampf(height_fit_scale, maxf(min_scale, base_fit_scale * 0.92), max_height_scale)
+	var cell_width = BASE_CELL_SIZE.x * width_scale
+	var cell_height = BASE_CELL_SIZE.y * height_scale
 	CELL_SIZE = Vector2(round(cell_width), round(cell_height))
 	var next_board_size = Vector2(COLS * CELL_SIZE.x, board_rows * CELL_SIZE.y)
-	var origin_x = minf(
-		clampf(viewport.x * (0.1 if is_mobile else 0.16), 84.0 if is_mobile else 220.0, 262.0 if is_mobile else 336.0),
-		viewport.x - next_board_size.x - (84.0 if is_mobile else 214.0)
-	)
-	var origin_y = minf(
-		clampf(viewport.y * (0.1 if is_mobile else 0.16), 86.0 if is_mobile else 144.0, 148.0 if is_mobile else 176.0),
-		viewport.y - next_board_size.y - (72.0 if is_mobile else 116.0)
-	)
-	BOARD_ORIGIN = Vector2(maxf(62.0 if is_mobile else 172.0, origin_x), maxf(72.0 if is_mobile else 128.0, origin_y))
+	var horizontal_slack = maxf(0.0, available_w - next_board_size.x)
+	var vertical_slack = maxf(0.0, available_h - next_board_size.y)
+	var origin_x = left_margin + horizontal_slack * (0.18 if is_mobile else 0.24)
+	var origin_y = top_margin + vertical_slack * 0.5
+	BOARD_ORIGIN = Vector2(origin_x, origin_y)
 	board_size = next_board_size
 
 	var hud_left = BASE_SEED_BANK_RECT.position.x
@@ -641,11 +645,9 @@ func _selection_touch_target(position: Vector2) -> Dictionary:
 	var track_rect = _selection_pool_track_rect()
 	if track_rect.has_point(position):
 		return {"id": "selection_pool_track", "rect": track_rect}
-	var pool_card_kind = _selection_pool_card_at(position)
-	if pool_card_kind != "":
-		for i in range(selection_pool_cards.size()):
-			if String(selection_pool_cards[i]) == pool_card_kind:
-				return {"id": "selection_pool_card_%d" % i, "rect": _selection_pool_rect(i)}
+	var pool_card_index = _selection_pool_index_at(position)
+	if pool_card_index != -1:
+		return {"id": "selection_pool_card_%d" % pool_card_index, "rect": _selection_pool_rect(pool_card_index)}
 	if _selection_pool_view_rect().has_point(position):
 		return {"id": "selection_pool_view", "rect": _selection_pool_view_rect()}
 	if _selection_pool_panel_rect().has_point(position):
@@ -1074,6 +1076,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _is_mobile_runtime():
+			return
 		if _is_touch_generated_mouse_suppressed():
 			return
 
@@ -2651,9 +2655,16 @@ func _ensure_selection_scene_ready() -> void:
 
 
 func _selection_selected_panel_rect() -> Rect2:
+	var is_mobile = _is_mobile_runtime()
 	var rect = PREP_SELECTED_PANEL_RECT
+	if is_mobile:
+		rect.position.x = 22.0
+		rect.position.y = 126.0
+		rect.size.x = maxf(760.0, size.x - rect.position.x * 2.0)
+		rect.size.y = clampf(size.y * 0.17, 112.0, 148.0)
+		return rect
 	rect.position.y = maxf(rect.position.y, 144.0)
-	rect.size.x = maxf(760.0, minf(rect.size.x, size.x - rect.position.x - 24.0))
+	rect.size.x = maxf(760.0, minf(maxf(rect.size.x, size.x - rect.position.x - 24.0), size.x - rect.position.x - 24.0))
 	return rect
 
 
@@ -2665,11 +2676,15 @@ func _selection_zombie_panel_rect() -> Rect2:
 
 
 func _selection_pool_panel_rect() -> Rect2:
+	var is_mobile = _is_mobile_runtime()
 	var rect = PREP_POOL_PANEL_RECT
 	rect.position.y = _selection_zombie_panel_rect().end.y + 12.0
 	rect.size.x = _selection_selected_panel_rect().size.x
-	var max_height = size.y - rect.position.y - 24.0
-	rect.size.y = clampf(max_height, 188.0, 420.0)
+	var max_height = size.y - rect.position.y - (16.0 if is_mobile else 24.0)
+	if is_mobile:
+		rect.size.y = maxf(228.0, max_height)
+	else:
+		rect.size.y = clampf(max_height, 188.0, 420.0)
 	return rect
 
 
@@ -12056,7 +12071,8 @@ func _seed_bank_card_gap() -> float:
 func _selection_slot_rect(index: int) -> Rect2:
 	var selected_panel_rect = _selection_selected_panel_rect()
 	var step = (selected_panel_rect.size.x - 40.0) / float(MAX_SEED_SLOTS)
-	var width = maxf(68.0, minf(88.0, step - 8.0))
+	var slot_max_width = 104.0 if _is_mobile_runtime() else 88.0
+	var width = maxf(68.0, minf(slot_max_width, step - 8.0))
 	return Rect2(
 		Vector2(selected_panel_rect.position.x + 20.0 + index * step, selected_panel_rect.position.y + 14.0),
 		Vector2(width, 100.0)
@@ -12081,14 +12097,21 @@ func _selection_slot_at(mouse_pos: Vector2) -> int:
 
 
 func _selection_pool_card_at(mouse_pos: Vector2) -> String:
+	var card_index = _selection_pool_index_at(mouse_pos)
+	if card_index == -1:
+		return ""
+	return String(selection_pool_cards[card_index])
+
+
+func _selection_pool_index_at(mouse_pos: Vector2) -> int:
 	var view_rect = _selection_pool_view_rect()
 	if not view_rect.has_point(mouse_pos):
-		return ""
+		return -1
 	for i in range(selection_pool_cards.size()):
 		var rect = _selection_pool_rect(i)
 		if view_rect.intersects(rect) and rect.has_point(mouse_pos):
-			return String(selection_pool_cards[i])
-	return ""
+			return i
+	return -1
 
 
 func _selection_pool_view_rect() -> Rect2:
@@ -13625,9 +13648,11 @@ func _draw_seed_selection_scene() -> void:
 	draw_rect(Rect2(Vector2(0.0, 610.0), Vector2(size.x, 110.0)), Color(0.58, 0.42, 0.24), true)
 	draw_rect(Rect2(Vector2(0.0, 148.0), Vector2(size.x, 44.0)), Color(1.0, 1.0, 1.0, 0.06), true)
 	draw_rect(Rect2(Vector2(0.0, 566.0), Vector2(size.x, 30.0)), Color(0.0, 0.0, 0.0, 0.08), true)
-	_draw_panel_shell(Rect2(Vector2(44.0, 182.0), Vector2(214.0, 392.0)), Color(0.86, 0.78, 0.58), Color(0.54, 0.38, 0.18))
-	_draw_panel_shell(Rect2(Vector2(66.0, 238.0), Vector2(170.0, 164.0)), Color(0.93, 0.88, 0.74), Color(0.58, 0.42, 0.2), 0.12, 0.08)
-	draw_rect(Rect2(Vector2(96.0, 192.0), Vector2(110.0, 62.0)), Color(0.79, 0.28, 0.21), true)
+	var is_mobile = _is_mobile_runtime()
+	if not is_mobile:
+		_draw_panel_shell(Rect2(Vector2(44.0, 182.0), Vector2(214.0, 392.0)), Color(0.86, 0.78, 0.58), Color(0.54, 0.38, 0.18))
+		_draw_panel_shell(Rect2(Vector2(66.0, 238.0), Vector2(170.0, 164.0)), Color(0.93, 0.88, 0.74), Color(0.58, 0.42, 0.2), 0.12, 0.08)
+		draw_rect(Rect2(Vector2(96.0, 192.0), Vector2(110.0, 62.0)), Color(0.79, 0.28, 0.21), true)
 	var selected_panel_rect = _selection_selected_panel_rect()
 	var zombie_panel_rect = _selection_zombie_panel_rect()
 	var pool_panel_rect = _selection_pool_panel_rect()
@@ -13640,9 +13665,10 @@ func _draw_seed_selection_scene() -> void:
 	_draw_panel_shell(pool_panel_rect, Color(0.95, 0.92, 0.84), Color(0.48, 0.35, 0.16), 0.14, 0.08)
 	var required_count = _required_seed_count(current_level)
 
-	_draw_text(String(current_level["title"]), Vector2(122.0, 56.0), 34, Color(0.23, 0.15, 0.05))
-	_draw_text("植物超过 10 张时必须先选满 %d 张再开战" % max(required_count, 1), Vector2(122.0, 88.0), 18, Color(0.26, 0.18, 0.08))
-	_draw_text_block(String(current_level["description"]), Rect2(Vector2(122.0, 98.0), Vector2(820.0, 44.0)), 16, Color(0.32, 0.24, 0.1), 3.0, 2)
+	var title_x = selected_panel_rect.position.x
+	_draw_text(String(current_level["title"]), Vector2(title_x, 56.0), 34, Color(0.23, 0.15, 0.05))
+	_draw_text("植物超过 10 张时必须先选满 %d 张再开战" % max(required_count, 1), Vector2(title_x, 88.0), 18, Color(0.26, 0.18, 0.08))
+	_draw_text_block(String(current_level["description"]), Rect2(Vector2(title_x, 98.0), Vector2(minf(selected_panel_rect.size.x, 980.0), 44.0)), 16, Color(0.32, 0.24, 0.1), 3.0, 2)
 	_draw_text("已选 %d/10" % selection_cards.size(), selected_panel_rect.position + Vector2(20.0, 30.0), 24, Color(0.2, 0.32, 0.08))
 	_draw_text("本关僵尸", zombie_panel_rect.position + Vector2(18.0, 32.0), 18, Color(0.24, 0.16, 0.06))
 	_draw_text("可选植物", pool_panel_rect.position + Vector2(18.0, 30.0), 22, Color(0.24, 0.16, 0.06))
