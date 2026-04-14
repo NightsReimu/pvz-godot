@@ -525,9 +525,10 @@ func _scene_local_position(raw_position: Vector2) -> Vector2:
 func _refresh_battle_layout() -> void:
 	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
 	var is_mobile = _is_mobile_runtime()
-	var left_margin = clampf(viewport.x * (0.06 if is_mobile else 0.09), 66.0 if is_mobile else 128.0, 126.0 if is_mobile else 188.0)
-	var right_margin = clampf(viewport.x * (0.03 if is_mobile else 0.08), 24.0 if is_mobile else 96.0, 68.0 if is_mobile else 176.0)
-	var top_margin = clampf(viewport.y * (0.16 if is_mobile else 0.18), 98.0 if is_mobile else 120.0, 152.0 if is_mobile else 182.0)
+	var left_margin = clampf(viewport.x * (0.04 if is_mobile else 0.09), 38.0 if is_mobile else 128.0, 88.0 if is_mobile else 188.0)
+	var right_margin = clampf(viewport.x * (0.02 if is_mobile else 0.08), 18.0 if is_mobile else 96.0, 48.0 if is_mobile else 176.0)
+	var hud_bottom = BASE_SEED_BANK_RECT.position.y + BASE_SEED_BANK_RECT.size.y + 20.0
+	var top_margin = maxf(hud_bottom, clampf(viewport.y * (0.18 if is_mobile else 0.18), 128.0 if is_mobile else 120.0, 206.0 if is_mobile else 182.0))
 	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 36.0 if is_mobile else 54.0, 82.0 if is_mobile else 112.0)
 	var available_w = maxf(640.0, viewport.x - left_margin - right_margin)
 	var available_h = maxf(420.0, viewport.y - top_margin - bottom_margin)
@@ -989,101 +990,7 @@ func _update_page_transition(delta: float) -> void:
 	queue_redraw()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if startup_loading_active or page_transition_active:
-		return
-
-	var mouse_pos = _event_local_position(event)
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE or event.is_action_pressed("ui_cancel"):
-			if mode == MODE_ALMANAC and almanac_return_mode == MODE_BATTLE:
-				_handle_almanac_click(ALMANAC_CLOSE_RECT.get_center())
-				return
-			if mode == MODE_BATTLE and battle_state == BATTLE_PLAYING:
-				_toggle_battle_pause()
-				return
-	if event is InputEventScreenTouch:
-		if event.pressed:
-			if _begin_touch_navigation(event):
-				return
-		elif _finish_touch_navigation(event):
-			queue_redraw()
-			return
-	if event is InputEventScreenDrag:
-		if _handle_touch_navigation_drag(event):
-			queue_redraw()
-			return
-	if event is InputEventPanGesture:
-		if mode == MODE_WORLD_SELECT and absf(event.delta.x) > absf(event.delta.y):
-			if event.delta.x >= 0.35:
-				_shift_world_select(-1)
-			elif event.delta.x <= -0.35:
-				_shift_world_select(1)
-			queue_redraw()
-			return
-		if mode == MODE_MAP and absf(event.delta.x) > absf(event.delta.y):
-			_nudge_map_scroll(-float(event.delta.x) * 140.0)
-			queue_redraw()
-			return
-		if _handle_scroll_input(float(event.delta.y) * 32.0, mouse_pos):
-			queue_redraw()
-			return
-
-	if event is InputEventMouseButton and event.pressed and mode == MODE_WORLD_SELECT:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_shift_world_select(-1)
-			queue_redraw()
-			return
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_shift_world_select(1)
-			queue_redraw()
-			return
-
-	if event is InputEventMouseButton and event.pressed and mode == MODE_SELECTION:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			if _handle_scroll_input(-PREP_POOL_STEP.y, mouse_pos):
-				queue_redraw()
-			return
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			if _handle_scroll_input(PREP_POOL_STEP.y, mouse_pos):
-				queue_redraw()
-			return
-
-	if event is InputEventMouseButton and event.pressed and mode == MODE_GACHA:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			gacha_mode_scroll = maxf(0.0, gacha_mode_scroll - 60.0)
-			queue_redraw()
-			return
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			gacha_mode_scroll += 60.0
-			queue_redraw()
-			return
-
-	if event is InputEventMouseButton and event.pressed and mode == MODE_ALMANAC:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			if _handle_scroll_input(-ALMANAC_GRID_STEP.y, mouse_pos):
-				queue_redraw()
-			return
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			if _handle_scroll_input(ALMANAC_GRID_STEP.y, mouse_pos):
-				queue_redraw()
-			return
-
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		if mode == MODE_BATTLE and battle_state == BATTLE_PLAYING and not battle_paused:
-			selected_tool = ""
-			queue_redraw()
-		return
-
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if _is_mobile_runtime():
-			return
-		if _is_touch_generated_mouse_suppressed():
-			return
-
-	if not (event is InputEventMouseButton) or event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
-		return
-
+func _handle_primary_click(mouse_pos: Vector2) -> void:
 	if mode == MODE_WORLD_SELECT:
 		_handle_world_select_click(mouse_pos)
 		return
@@ -1151,6 +1058,106 @@ func _unhandled_input(event: InputEvent) -> void:
 	var cell = _mouse_to_cell(mouse_pos)
 	if cell.x != -1:
 		_handle_board_click(cell)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if startup_loading_active or page_transition_active:
+		return
+
+	var mouse_pos = _event_local_position(event)
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE or event.is_action_pressed("ui_cancel"):
+			if mode == MODE_ALMANAC and almanac_return_mode == MODE_BATTLE:
+				_handle_almanac_click(ALMANAC_CLOSE_RECT.get_center())
+				return
+			if mode == MODE_BATTLE and battle_state == BATTLE_PLAYING:
+				_toggle_battle_pause()
+				return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_suppress_touch_generated_mouse()
+			if _begin_touch_navigation(event):
+				return
+		else:
+			_suppress_touch_generated_mouse()
+			if _finish_touch_navigation(event):
+				queue_redraw()
+				return
+			_handle_primary_click(mouse_pos)
+			return
+	if event is InputEventScreenDrag:
+		if _handle_touch_navigation_drag(event):
+			queue_redraw()
+			return
+	if event is InputEventPanGesture:
+		if mode == MODE_WORLD_SELECT and absf(event.delta.x) > absf(event.delta.y):
+			if event.delta.x >= 0.35:
+				_shift_world_select(-1)
+			elif event.delta.x <= -0.35:
+				_shift_world_select(1)
+			queue_redraw()
+			return
+		if mode == MODE_MAP and absf(event.delta.x) > absf(event.delta.y):
+			_nudge_map_scroll(-float(event.delta.x) * 140.0)
+			queue_redraw()
+			return
+		if _handle_scroll_input(float(event.delta.y) * 32.0, mouse_pos):
+			queue_redraw()
+			return
+
+	if event is InputEventMouseButton and event.pressed and mode == MODE_WORLD_SELECT:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_shift_world_select(-1)
+			queue_redraw()
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_shift_world_select(1)
+			queue_redraw()
+			return
+
+	if event is InputEventMouseButton and event.pressed and mode == MODE_SELECTION:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			if _handle_scroll_input(-_selection_pool_step().y, mouse_pos):
+				queue_redraw()
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if _handle_scroll_input(_selection_pool_step().y, mouse_pos):
+				queue_redraw()
+			return
+
+	if event is InputEventMouseButton and event.pressed and mode == MODE_GACHA:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			gacha_mode_scroll = maxf(0.0, gacha_mode_scroll - 60.0)
+			queue_redraw()
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			gacha_mode_scroll += 60.0
+			queue_redraw()
+			return
+
+	if event is InputEventMouseButton and event.pressed and mode == MODE_ALMANAC:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			if _handle_scroll_input(-ALMANAC_GRID_STEP.y, mouse_pos):
+				queue_redraw()
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if _handle_scroll_input(ALMANAC_GRID_STEP.y, mouse_pos):
+				queue_redraw()
+			return
+
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		if mode == MODE_BATTLE and battle_state == BATTLE_PLAYING and not battle_paused:
+			selected_tool = ""
+			queue_redraw()
+		return
+
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _is_touch_generated_mouse_suppressed():
+			return
+
+	if not (event is InputEventMouseButton) or event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+		return
+	_handle_primary_click(mouse_pos)
 
 
 func _build_font() -> void:
@@ -1504,7 +1511,11 @@ func _start_update_download() -> void:
 		_set_update_error("无法创建更新下载目录")
 		return
 	update_manager.clear_update_receipt()
-	update_download_target_path = update_manager.downloaded_asset_path(asset_name)
+	var latest_version = String(update_release_info.get("latest_version", ""))
+	update_download_target_path = update_manager.downloaded_asset_path(asset_name, latest_version)
+	var legacy_download_path = update_manager.downloaded_asset_path(asset_name)
+	if legacy_download_path != update_download_target_path and FileAccess.file_exists(legacy_download_path):
+		update_manager.remove_recursive_absolute(legacy_download_path)
 	if FileAccess.file_exists(update_download_target_path):
 		update_manager.remove_recursive_absolute(update_download_target_path)
 	update_download_request.download_file = update_download_target_path
@@ -12079,13 +12090,28 @@ func _selection_slot_rect(index: int) -> Rect2:
 	)
 
 
+func _selection_pool_columns() -> int:
+	return 5 if _is_mobile_runtime() else PREP_POOL_COLUMNS
+
+
+func _selection_pool_step() -> Vector2:
+	return Vector2(124.0, 132.0) if _is_mobile_runtime() else PREP_POOL_STEP
+
+
+func _selection_pool_card_size() -> Vector2:
+	return Vector2(112.0, 122.0) if _is_mobile_runtime() else Vector2(96.0, 108.0)
+
+
 func _selection_pool_rect(index: int) -> Rect2:
 	var view_rect = _selection_pool_view_rect()
-	var col = index % PREP_POOL_COLUMNS
-	var row = int(floor(float(index) / float(PREP_POOL_COLUMNS)))
+	var pool_columns = _selection_pool_columns()
+	var pool_step = _selection_pool_step()
+	var pool_card_size = _selection_pool_card_size()
+	var col = index % pool_columns
+	var row = int(floor(float(index) / float(pool_columns)))
 	return Rect2(
-		Vector2(view_rect.position.x + col * PREP_POOL_STEP.x, view_rect.position.y + row * PREP_POOL_STEP.y - selection_pool_scroll),
-		Vector2(96.0, 108.0)
+		Vector2(view_rect.position.x + col * pool_step.x, view_rect.position.y + row * pool_step.y - selection_pool_scroll),
+		pool_card_size
 	)
 
 
@@ -12141,10 +12167,13 @@ func _selection_pool_track_rect() -> Rect2:
 
 
 func _selection_pool_content_height() -> float:
-	var row_count = int(ceil(float(selection_pool_cards.size()) / float(PREP_POOL_COLUMNS)))
+	var pool_columns = _selection_pool_columns()
+	var pool_step = _selection_pool_step()
+	var pool_card_size = _selection_pool_card_size()
+	var row_count = int(ceil(float(selection_pool_cards.size()) / float(pool_columns)))
 	if row_count <= 0:
 		return 0.0
-	return 108.0 + float(max(row_count - 1, 0)) * PREP_POOL_STEP.y
+	return pool_card_size.y + float(max(row_count - 1, 0)) * pool_step.y
 
 
 func _selection_pool_max_scroll() -> float:

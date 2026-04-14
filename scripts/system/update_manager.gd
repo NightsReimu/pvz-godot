@@ -224,8 +224,12 @@ func helper_script_path(platform: String) -> String:
 	return updates_root_path().path_join(file_name)
 
 
-func downloaded_asset_path(asset_name: String) -> String:
-	return downloads_root_path().path_join(asset_name)
+func downloaded_asset_path(asset_name: String, version: String = "") -> String:
+	var final_name = asset_name
+	var normalized_version = normalize_version(version)
+	if normalized_version != "":
+		final_name = "%s-%s" % [normalized_version, asset_name]
+	return downloads_root_path().path_join(final_name)
 
 
 func update_receipt_path() -> String:
