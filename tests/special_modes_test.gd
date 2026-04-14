@@ -18,6 +18,7 @@ func _run() -> void:
 	failed = not _test_daily_challenge_selection_preview_uses_valid_zombie_keys() or failed
 	failed = not _test_selection_buttons_stay_visible_on_smaller_viewports() or failed
 	failed = not _test_selection_layout_keeps_two_rows_visible_on_768p() or failed
+	failed = not _test_mobile_selection_layout_stays_inside_small_landscape_viewport() or failed
 	failed = not _test_selection_pool_recovery_uses_player_collection_fallback() or failed
 	failed = not _test_custom_daily_levels_do_not_inherit_stage_specific_template_fields() or failed
 	failed = not _test_enhance_button_click_is_not_shadowed_by_hidden_grid_cells() or failed
@@ -66,6 +67,7 @@ func _make_game() -> Control:
 
 
 func _free_game(game: Control) -> void:
+	game.save_dirty = false
 	if is_instance_valid(game.toast_label):
 		game.toast_label.free()
 	if is_instance_valid(game.banner_label):
@@ -233,6 +235,31 @@ func _test_selection_layout_keeps_two_rows_visible_on_768p() -> bool:
 	var view_rect: Rect2 = game.call("_selection_pool_view_rect")
 	var second_row_card_rect: Rect2 = game.call("_selection_pool_rect", 6)
 	var passed = _assert_true(view_rect.encloses(second_row_card_rect), "selection layout should keep the second card row fully visible on a 1365x768 window")
+	_free_game(game)
+	return passed
+
+
+func _test_mobile_selection_layout_stays_inside_small_landscape_viewport() -> bool:
+	var game := _make_game()
+	game.mobile_runtime_override = 1
+	game.size = Vector2(896.0, 414.0)
+	game.mode = game.MODE_SELECTION
+	game.current_level = {"id": "mobile-layout-test", "terrain": "day", "events": [], "mode": ""}
+	game.selection_pool_cards = game.call("_player_plant_collection")
+	var viewport_rect := Rect2(Vector2.ZERO, game.size)
+	var selected_rect: Rect2 = game.call("_selection_selected_panel_rect")
+	var zombie_rect: Rect2 = game.call("_selection_zombie_panel_rect")
+	var pool_rect: Rect2 = game.call("_selection_pool_panel_rect")
+	var back_rect: Rect2 = game.call("_selection_back_rect")
+	var start_rect: Rect2 = game.call("_selection_start_rect")
+	var second_row_card_rect: Rect2 = game.call("_selection_pool_rect", 4)
+	var pool_view_rect: Rect2 = game.call("_selection_pool_view_rect")
+	var passed = _assert_true(viewport_rect.encloses(selected_rect), "mobile selection top panel should stay inside a short landscape viewport") \
+		and _assert_true(viewport_rect.encloses(zombie_rect), "mobile selection zombie preview should stay inside a short landscape viewport") \
+		and _assert_true(viewport_rect.encloses(pool_rect), "mobile selection plant pool should stay inside a short landscape viewport") \
+		and _assert_true(viewport_rect.encloses(back_rect), "mobile selection back button should stay inside a short landscape viewport") \
+		and _assert_true(viewport_rect.encloses(start_rect), "mobile selection start button should stay inside a short landscape viewport") \
+		and _assert_true(pool_view_rect.intersects(second_row_card_rect), "mobile selection should still expose more than one row of cards on a short landscape screen")
 	_free_game(game)
 	return passed
 

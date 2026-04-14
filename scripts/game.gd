@@ -95,6 +95,7 @@ const WORLD_CARD_SPACING := 470.0
 const TOUCH_DRAG_THRESHOLD := 18.0
 const TOUCH_PRIORITY_CLICK_THRESHOLD := 34.0
 const TOUCH_MOUSE_SUPPRESS_MS := 240
+const TOUCH_MOUSE_PENDING_CLICK_MS := 1200
 const WORLD_DRAG_RELEASE_BIAS := 0.32
 const MAP_DRAG_RELEASE_MULTIPLIER := 3.4
 
@@ -349,6 +350,9 @@ var touch_navigation_dragging := false
 var touch_navigation_press_target := ""
 var touch_navigation_press_rect := Rect2()
 var touch_mouse_suppress_until_ms := 0
+var touch_mouse_pending_left_click := false
+var touch_mouse_last_event_ms := 0
+var mobile_runtime_override := -1
 
 var grid: Array = []
 var support_grid: Array = []
@@ -482,7 +486,31 @@ func _notification(what: int) -> void:
 
 
 func _is_mobile_runtime() -> bool:
+	if mobile_runtime_override == 0:
+		return false
+	if mobile_runtime_override > 0:
+		return true
 	return OS.has_feature("android") or OS.has_feature("ios") or OS.get_name().to_lower() in ["android", "ios"]
+
+
+func _viewport_safe_rect() -> Rect2:
+	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
+	if not _is_mobile_runtime():
+		return Rect2(Vector2.ZERO, viewport)
+	var safe_area := DisplayServer.get_display_safe_area()
+	var safe_rect := Rect2(
+		Vector2(float(safe_area.position.x), float(safe_area.position.y)),
+		Vector2(float(safe_area.size.x), float(safe_area.size.y))
+	)
+	if safe_rect.size.x <= 1.0 or safe_rect.size.y <= 1.0:
+		return Rect2(Vector2.ZERO, viewport)
+	safe_rect.position.x = clampf(safe_rect.position.x, 0.0, viewport.x)
+	safe_rect.position.y = clampf(safe_rect.position.y, 0.0, viewport.y)
+	safe_rect.size.x = clampf(safe_rect.size.x, 0.0, viewport.x - safe_rect.position.x)
+	safe_rect.size.y = clampf(safe_rect.size.y, 0.0, viewport.y - safe_rect.position.y)
+	if safe_rect.size.x < viewport.x * 0.6 or safe_rect.size.y < viewport.y * 0.6:
+		return Rect2(Vector2.ZERO, viewport)
+	return safe_rect
 
 
 func _pointer_local_position() -> Vector2:
@@ -525,10 +553,13 @@ func _scene_local_position(raw_position: Vector2) -> Vector2:
 func _refresh_battle_layout() -> void:
 	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
 	var is_mobile = _is_mobile_runtime()
-	var left_margin = clampf(viewport.x * (0.04 if is_mobile else 0.09), 38.0 if is_mobile else 128.0, 88.0 if is_mobile else 188.0)
-	var right_margin = clampf(viewport.x * (0.02 if is_mobile else 0.08), 18.0 if is_mobile else 96.0, 48.0 if is_mobile else 176.0)
-	var hud_bottom = BASE_SEED_BANK_RECT.position.y + BASE_SEED_BANK_RECT.size.y + 20.0
-	var top_margin = maxf(hud_bottom, clampf(viewport.y * (0.18 if is_mobile else 0.18), 128.0 if is_mobile else 120.0, 206.0 if is_mobile else 182.0))
+	var safe_rect = _viewport_safe_rect()
+	var left_margin = safe_rect.position.x + clampf(safe_rect.size.x * (0.035 if is_mobile else 0.09), 18.0 if is_mobile else 128.0, 64.0 if is_mobile else 188.0)
+	var right_margin = (viewport.x - safe_rect.end.x) + clampf(safe_rect.size.x * (0.018 if is_mobile else 0.08), 12.0 if is_mobile else 96.0, 38.0 if is_mobile else 176.0)
+	var hud_top = safe_rect.position.y + (14.0 if is_mobile else BASE_SEED_BANK_RECT.position.y)
+	var hud_left = safe_rect.position.x + (16.0 if is_mobile else BASE_SEED_BANK_RECT.position.x)
+	var hud_bottom = hud_top + BASE_SEED_BANK_RECT.size.y + 16.0
+	var top_margin = maxf(hud_bottom, clampf(safe_rect.size.y * (0.16 if is_mobile else 0.18), 108.0 if is_mobile else 120.0, 176.0 if is_mobile else 182.0) + safe_rect.position.y)
 	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 36.0 if is_mobile else 54.0, 82.0 if is_mobile else 112.0)
 	var available_w = maxf(640.0, viewport.x - left_margin - right_margin)
 	var available_h = maxf(420.0, viewport.y - top_margin - bottom_margin)
@@ -551,18 +582,16 @@ func _refresh_battle_layout() -> void:
 	BOARD_ORIGIN = Vector2(origin_x, origin_y)
 	board_size = next_board_size
 
-	var hud_left = BASE_SEED_BANK_RECT.position.x
-	var hud_top = BASE_SEED_BANK_RECT.position.y
-	var seed_width = minf(maxf(BASE_SEED_BANK_RECT.size.x, viewport.x - 520.0), 1080.0)
+	var seed_width = minf(maxf(BASE_SEED_BANK_RECT.size.x, safe_rect.size.x - (360.0 if is_mobile else 520.0)), minf(1080.0, safe_rect.size.x - 180.0))
 	SEED_BANK_RECT = Rect2(hud_left, hud_top, seed_width, BASE_SEED_BANK_RECT.size.y)
 	SUN_METER_RECT = Rect2(hud_left + 8.0, hud_top + 6.0, BASE_SUN_METER_RECT.size.x, BASE_SUN_METER_RECT.size.y)
 	var wave_width = clampf(viewport.x * 0.23, BASE_WAVE_BAR_RECT.size.x, 420.0)
-	var wave_x = maxf(SEED_BANK_RECT.position.x + SEED_BANK_RECT.size.x + 28.0, viewport.x - wave_width - 332.0)
-	WAVE_BAR_RECT = Rect2(wave_x, BASE_WAVE_BAR_RECT.position.y, wave_width, BASE_WAVE_BAR_RECT.size.y)
-	PLANT_FOOD_RECT = Rect2(WAVE_BAR_RECT.position.x, BASE_PLANT_FOOD_RECT.position.y, 96.0, BASE_PLANT_FOOD_RECT.size.y)
-	BACK_BUTTON_RECT = Rect2(viewport.x - BASE_BACK_BUTTON_RECT.size.x - 44.0, BASE_BACK_BUTTON_RECT.position.y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
-	PAUSE_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_PAUSE_BUTTON_RECT.size.x - 14.0, BASE_PAUSE_BUTTON_RECT.position.y, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
-	COIN_METER_RECT = Rect2(PAUSE_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, BASE_COIN_METER_RECT.position.y, BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
+	var wave_x = maxf(SEED_BANK_RECT.position.x + SEED_BANK_RECT.size.x + 20.0, safe_rect.end.x - wave_width - (220.0 if is_mobile else 332.0))
+	WAVE_BAR_RECT = Rect2(wave_x, hud_top, wave_width, BASE_WAVE_BAR_RECT.size.y)
+	PLANT_FOOD_RECT = Rect2(WAVE_BAR_RECT.position.x, hud_top + (BASE_PLANT_FOOD_RECT.position.y - BASE_WAVE_BAR_RECT.position.y), 96.0, BASE_PLANT_FOOD_RECT.size.y)
+	BACK_BUTTON_RECT = Rect2(safe_rect.end.x - BASE_BACK_BUTTON_RECT.size.x - (20.0 if is_mobile else 44.0), hud_top, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
+	PAUSE_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_PAUSE_BUTTON_RECT.size.x - 14.0, hud_top, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
+	COIN_METER_RECT = Rect2(PAUSE_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, hud_top + (BASE_COIN_METER_RECT.position.y - BASE_PAUSE_BUTTON_RECT.position.y), BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
 
 
 func _reset_touch_navigation() -> void:
@@ -581,11 +610,22 @@ func _reset_touch_navigation() -> void:
 
 func _suppress_touch_generated_mouse(ms: int = TOUCH_MOUSE_SUPPRESS_MS) -> void:
 	var now = Time.get_ticks_msec()
+	touch_mouse_last_event_ms = now
 	touch_mouse_suppress_until_ms = maxi(touch_mouse_suppress_until_ms, now + maxi(ms, 0))
+	touch_mouse_pending_left_click = true
 
 
 func _is_touch_generated_mouse_suppressed() -> bool:
-	return Time.get_ticks_msec() <= touch_mouse_suppress_until_ms
+	var now = Time.get_ticks_msec()
+	if now <= touch_mouse_suppress_until_ms:
+		touch_mouse_pending_left_click = false
+		return true
+	if touch_mouse_pending_left_click and now - touch_mouse_last_event_ms <= TOUCH_MOUSE_PENDING_CLICK_MS:
+		touch_mouse_pending_left_click = false
+		return true
+	if touch_mouse_pending_left_click and now - touch_mouse_last_event_ms > TOUCH_MOUSE_PENDING_CLICK_MS:
+		touch_mouse_pending_left_click = false
+	return false
 
 
 func _world_select_touch_target(position: Vector2) -> Dictionary:
@@ -2667,12 +2707,13 @@ func _ensure_selection_scene_ready() -> void:
 
 func _selection_selected_panel_rect() -> Rect2:
 	var is_mobile = _is_mobile_runtime()
+	var safe_rect = _viewport_safe_rect()
 	var rect = PREP_SELECTED_PANEL_RECT
 	if is_mobile:
-		rect.position.x = 22.0
-		rect.position.y = 126.0
-		rect.size.x = maxf(760.0, size.x - rect.position.x * 2.0)
-		rect.size.y = clampf(size.y * 0.17, 112.0, 148.0)
+		rect.position.x = safe_rect.position.x + 16.0
+		rect.position.y = safe_rect.position.y + clampf(safe_rect.size.y * 0.055, 18.0, 54.0)
+		rect.size.x = maxf(320.0, safe_rect.size.x - 32.0)
+		rect.size.y = clampf(safe_rect.size.y * 0.2, 92.0, 132.0)
 		return rect
 	rect.position.y = maxf(rect.position.y, 144.0)
 	rect.size.x = maxf(760.0, minf(maxf(rect.size.x, size.x - rect.position.x - 24.0), size.x - rect.position.x - 24.0))
@@ -2681,19 +2722,25 @@ func _selection_selected_panel_rect() -> Rect2:
 
 func _selection_zombie_panel_rect() -> Rect2:
 	var rect = PREP_ZOMBIE_PANEL_RECT
+	var is_mobile = _is_mobile_runtime()
 	rect.position.y = _selection_selected_panel_rect().end.y + 10.0
+	rect.position.x = _selection_selected_panel_rect().position.x
 	rect.size.x = _selection_selected_panel_rect().size.x
+	if is_mobile:
+		rect.size.y = clampf(_viewport_safe_rect().size.y * 0.072, 40.0, 56.0)
 	return rect
 
 
 func _selection_pool_panel_rect() -> Rect2:
 	var is_mobile = _is_mobile_runtime()
+	var safe_rect = _viewport_safe_rect()
 	var rect = PREP_POOL_PANEL_RECT
+	rect.position.x = _selection_selected_panel_rect().position.x
 	rect.position.y = _selection_zombie_panel_rect().end.y + 12.0
 	rect.size.x = _selection_selected_panel_rect().size.x
-	var max_height = size.y - rect.position.y - (16.0 if is_mobile else 24.0)
+	var max_height = safe_rect.end.y - rect.position.y - (12.0 if is_mobile else 24.0)
 	if is_mobile:
-		rect.size.y = maxf(228.0, max_height)
+		rect.size.y = clampf(max_height, 124.0, 520.0)
 	else:
 		rect.size.y = clampf(max_height, 188.0, 420.0)
 	return rect
@@ -12084,22 +12131,42 @@ func _selection_slot_rect(index: int) -> Rect2:
 	var step = (selected_panel_rect.size.x - 40.0) / float(MAX_SEED_SLOTS)
 	var slot_max_width = 104.0 if _is_mobile_runtime() else 88.0
 	var width = maxf(68.0, minf(slot_max_width, step - 8.0))
+	var height = clampf(selected_panel_rect.size.y - 28.0, 78.0, 100.0)
+	var y_offset = clampf((selected_panel_rect.size.y - height) * 0.5, 8.0, 16.0)
 	return Rect2(
-		Vector2(selected_panel_rect.position.x + 20.0 + index * step, selected_panel_rect.position.y + 14.0),
-		Vector2(width, 100.0)
+		Vector2(selected_panel_rect.position.x + 20.0 + index * step, selected_panel_rect.position.y + y_offset),
+		Vector2(width, height)
 	)
 
 
 func _selection_pool_columns() -> int:
-	return 5 if _is_mobile_runtime() else PREP_POOL_COLUMNS
+	if not _is_mobile_runtime():
+		return PREP_POOL_COLUMNS
+	var view_width = _selection_pool_view_rect().size.x
+	if view_width < 420.0:
+		return 3
+	if view_width < 700.0:
+		return 4
+	return 5
 
 
 func _selection_pool_step() -> Vector2:
-	return Vector2(124.0, 132.0) if _is_mobile_runtime() else PREP_POOL_STEP
+	if not _is_mobile_runtime():
+		return PREP_POOL_STEP
+	var card_size = _selection_pool_card_size()
+	return Vector2(card_size.x + 12.0, card_size.y + 12.0)
 
 
 func _selection_pool_card_size() -> Vector2:
-	return Vector2(112.0, 122.0) if _is_mobile_runtime() else Vector2(96.0, 108.0)
+	if not _is_mobile_runtime():
+		return Vector2(96.0, 108.0)
+	var view_rect = _selection_pool_view_rect()
+	var columns = _selection_pool_columns()
+	var gap_x = 12.0
+	var width = floor((view_rect.size.x - float(max(columns - 1, 0)) * gap_x - 8.0) / float(columns))
+	width = clampf(width, 88.0, 116.0)
+	var height = clampf(width * 1.1, 98.0, 126.0)
+	return Vector2(width, height)
 
 
 func _selection_pool_rect(index: int) -> Rect2:

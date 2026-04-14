@@ -15,6 +15,8 @@ func _run() -> void:
 	failed = not _test_selection_screen_supports_vertical_touch_drag_scroll() or failed
 	failed = not _test_selection_cards_keep_tap_priority_during_small_touch_motion() or failed
 	failed = not _test_selection_drag_does_not_trigger_card_click() or failed
+	failed = not _test_selection_touch_does_not_toggle_back_off_from_delayed_mouse_emulation() or failed
+	failed = not _test_battle_touch_can_select_card_and_place_plant() or failed
 	quit(1 if failed else 0)
 
 
@@ -47,6 +49,7 @@ func _make_game() -> Control:
 
 
 func _free_game(game: Control) -> void:
+	game.save_dirty = false
 	if is_instance_valid(game.toast_label):
 		game.toast_label.free()
 	if is_instance_valid(game.banner_label):
@@ -62,6 +65,7 @@ func _free_game(game: Control) -> void:
 
 func _prepare_selection_game() -> Control:
 	var game := _make_game()
+	game.mobile_runtime_override = 1
 	game.mode = game.MODE_SELECTION
 	game.current_level = {
 		"id": "selection-touch-test",
@@ -73,6 +77,24 @@ func _prepare_selection_game() -> Control:
 	game.selection_pool_cards = game.call("_player_plant_collection")
 	game.selection_cards = []
 	game.selection_pool_scroll = 0.0
+	return game
+
+
+func _prepare_battle_game() -> Control:
+	var game := _make_game()
+	game.mobile_runtime_override = 1
+	game.size = Vector2(896.0, 414.0)
+	var level := {
+		"id": "touch-battle-test",
+		"terrain": "day",
+		"events": [],
+		"mode": "",
+		"start_sun": 999,
+		"title": "touch battle",
+		"description": "",
+		"available_plants": ["peashooter"],
+	}
+	game.call("_begin_level", -1, ["peashooter"], level)
 	return game
 
 
@@ -89,6 +111,14 @@ func _screen_drag(position: Vector2, relative: Vector2, index: int = 0) -> Input
 	event.index = index
 	event.position = position
 	event.relative = relative
+	return event
+
+
+func _mouse_button(position: Vector2, pressed: bool, button_index: MouseButton = MOUSE_BUTTON_LEFT) -> InputEventMouseButton:
+	var event := InputEventMouseButton.new()
+	event.position = position
+	event.pressed = pressed
+	event.button_index = button_index
 	return event
 
 
@@ -183,5 +213,38 @@ func _test_selection_drag_does_not_trigger_card_click() -> bool:
 	game._unhandled_input(_screen_touch(start + Vector2(4.0, -220.0), false))
 	var passed = _assert_true(game.selection_cards.is_empty(), "dragging a selection card should scroll instead of accidentally selecting it") \
 		and _assert_true(float(game.selection_pool_scroll) > 100.0, "dragging from a card should still move the selection pool when the gesture is vertical")
+	_free_game(game)
+	return passed
+
+
+func _test_selection_touch_does_not_toggle_back_off_from_delayed_mouse_emulation() -> bool:
+	var game := _prepare_selection_game()
+	var card_rect: Rect2 = game.call("_selection_pool_rect", 0)
+	var tap_pos = card_rect.get_center()
+	game._unhandled_input(_screen_touch(tap_pos, true))
+	game._unhandled_input(_screen_touch(tap_pos, false))
+	game.touch_mouse_suppress_until_ms = 0
+	game._unhandled_input(_mouse_button(tap_pos, true))
+	var passed = _assert_true(game.selection_cards.size() == 1, "a touch-selected plant should not be toggled back off by a delayed emulated mouse click") \
+		and _assert_true(String(game.selection_cards[0]) == String(game.selection_pool_cards[0]), "touch selection should preserve the touched card even if Android emits a follow-up mouse press")
+	_free_game(game)
+	return passed
+
+
+func _test_battle_touch_can_select_card_and_place_plant() -> bool:
+	var game := _prepare_battle_game()
+	var card_rect: Rect2 = game.call("_card_rect", 0)
+	var card_pos = card_rect.get_center()
+	game._unhandled_input(_screen_touch(card_pos, true))
+	game._unhandled_input(_screen_touch(card_pos, false))
+	var selected_ok = _assert_true(String(game.selected_tool) == "peashooter", "touching a seed card in battle should select it on mobile")
+	var cell = Vector2i(2, 2)
+	var cell_pos: Vector2 = game.call("_cell_center", cell.x, cell.y)
+	game._unhandled_input(_screen_touch(cell_pos, true))
+	game._unhandled_input(_screen_touch(cell_pos, false))
+	var planted = game.grid[cell.x][cell.y] != null and String(game.grid[cell.x][cell.y].get("kind", "")) == "peashooter"
+	var passed = selected_ok \
+		and _assert_true(planted, "after a mobile touch selects a card, a second touch on the lawn should plant it") \
+		and _assert_true(String(game.selected_tool) == "", "successful touch planting should clear the selected tool")
 	_free_game(game)
 	return passed
