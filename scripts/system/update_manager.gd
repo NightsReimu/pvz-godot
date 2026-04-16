@@ -49,7 +49,16 @@ func build_update_parse_error_message() -> String:
 	return "版本检查失败: 无法解析版本信息"
 
 
-func default_update_sources() -> Array:
+func default_update_sources(platform: String = "") -> Array:
+	var resolved_platform = platform.to_lower()
+	if resolved_platform == "":
+		resolved_platform = platform_key_for_runtime()
+	if resolved_platform == "web":
+		return [
+			{"kind": "project_settings", "url": project_settings_cdn_url()},
+			{"kind": "project_settings", "url": project_settings_raw_url()},
+			{"kind": "api", "url": latest_release_api_url()},
+		]
 	return [
 		{"kind": "release_page", "url": latest_release_page_url()},
 		{"kind": "api", "url": latest_release_api_url()},

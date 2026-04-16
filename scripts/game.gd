@@ -26,6 +26,7 @@ const MODE_DAILY := "daily"
 const BATTLE_PLAYING := "playing"
 const BATTLE_WON := "won"
 const BATTLE_LOST := "lost"
+const UI_FONT_PATH := "res://art/fonts/NotoSansCJKsc-Regular.otf"
 
 const BASE_VIEWPORT_SIZE := Vector2(1600.0, 900.0)
 const BASE_BOARD_ORIGIN := Vector2(250.0, 160.0)
@@ -210,7 +211,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 ]
 
 var rng = RandomNumberGenerator.new()
-var ui_font: SystemFont
+var ui_font: Font
 
 var mode := MODE_WORLD_SELECT
 var battle_state := BATTLE_PLAYING
@@ -1221,13 +1222,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _build_font() -> void:
-	ui_font = SystemFont.new()
-	ui_font.font_names = PackedStringArray([
+	var bundled_font = load(UI_FONT_PATH)
+	if bundled_font is Font:
+		ui_font = bundled_font
+		return
+	var fallback_font := SystemFont.new()
+	fallback_font.font_names = PackedStringArray([
 		"Arial Unicode MS",
 		"STHeiti",
 		"PingFang SC",
 		"Songti SC",
 	])
+	ui_font = fallback_font
 
 
 func _build_overlay_ui() -> void:
@@ -2150,14 +2156,21 @@ func _load_single_boss_frame(kind: String, frame_index: int, face_left: bool) ->
 	var resource_path = _boss_frame_resource_path(kind, frame_index)
 	if resource_path == "":
 		return null
-	var image = Image.new()
-	var path = ProjectSettings.globalize_path(resource_path)
-	if image.load(path) != OK:
+	var texture = load(resource_path)
+	if not (texture is Texture2D):
 		return null
+	var source_texture: Texture2D = texture
 	if _boss_assets_are_preprocessed(kind):
-		if face_left:
-			image.flip_x()
-		return ImageTexture.create_from_image(image)
+		if not face_left:
+			return source_texture
+		var mirrored_image = source_texture.get_image()
+		if mirrored_image == null or mirrored_image.is_empty():
+			return source_texture
+		mirrored_image.flip_x()
+		return ImageTexture.create_from_image(mirrored_image)
+	var image = source_texture.get_image()
+	if image == null or image.is_empty():
+		return source_texture
 	return ImageTexture.create_from_image(_prepare_boss_frame_image(image, face_left))
 
 

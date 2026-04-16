@@ -11,6 +11,7 @@ func _run() -> void:
 	failed = not _test_project_settings_release_payload_builds_stable_asset_links() or failed
 	failed = not _test_release_page_html_builds_release_payload() or failed
 	failed = not _test_default_update_sources_prioritize_release_sources() or failed
+	failed = not _test_web_update_sources_avoid_release_page_cors() or failed
 	failed = not _test_prefer_release_info_uses_the_highest_version() or failed
 	failed = not _test_update_failure_messages_use_readable_copy() or failed
 	failed = not _test_resolve_release_for_each_supported_platform() or failed
@@ -116,6 +117,22 @@ func _test_default_update_sources_prioritize_release_sources() -> bool:
 		passed = _assert_true(String(Dictionary(sources[2]).get("kind", "")) == "project_settings", "third update source should fall back to static manifests only after release sources") and passed
 		passed = _assert_true(String(Dictionary(sources[2]).get("url", "")).contains("cdn.jsdelivr.net"), "third update source should keep jsDelivr as the mirror fallback") and passed
 		passed = _assert_true(String(Dictionary(sources[3]).get("kind", "")) == "project_settings", "fourth update source should keep a direct raw manifest as the final fallback") and passed
+	return passed
+
+
+func _test_web_update_sources_avoid_release_page_cors() -> bool:
+	var manager = _manager()
+	if manager == null:
+		return false
+	var sources: Array = manager.default_update_sources("web")
+	var passed := true
+	passed = _assert_true(sources.size() >= 2, "web update checks should still expose fallback sources") and passed
+	if passed:
+		passed = _assert_true(String(Dictionary(sources[0]).get("kind", "")) == "project_settings", "web update checks should start from static manifests that do not hit GitHub release page CORS") and passed
+		passed = _assert_true(not String(Dictionary(sources[0]).get("url", "")).contains("/releases/latest"), "web update checks should not start from the GitHub release landing page") and passed
+		for source_variant in sources:
+			var source = Dictionary(source_variant)
+			passed = _assert_true(String(source.get("kind", "")) != "release_page", "web update checks should skip the release page source to avoid browser CORS failures") and passed
 	return passed
 
 
