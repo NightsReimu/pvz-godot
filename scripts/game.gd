@@ -546,8 +546,28 @@ func _spring_ui_value(current: float, target: float, velocity: float, delta: flo
 	return {"value": current, "velocity": velocity}
 
 
+func _is_ui_scaled_mode(m: String) -> bool:
+	return m != MODE_BATTLE and m != MODE_ENDLESS and m != MODE_DAILY
+
+
+func _ui_scale() -> float:
+	if size.x <= 0.0 or size.y <= 0.0:
+		return 1.0
+	return minf(size.x / BASE_VIEWPORT_SIZE.x, size.y / BASE_VIEWPORT_SIZE.y)
+
+
+func _ui_offset() -> Vector2:
+	var s = _ui_scale()
+	return (size - BASE_VIEWPORT_SIZE * s) * 0.5
+
+
 func _scene_local_position(raw_position: Vector2) -> Vector2:
-	return raw_position
+	if not _is_ui_scaled_mode(mode):
+		return raw_position
+	var s = _ui_scale()
+	if s <= 0.0:
+		return raw_position
+	return (raw_position - _ui_offset()) / s
 
 
 func _refresh_battle_layout() -> void:
@@ -2521,17 +2541,17 @@ func _handle_gacha_click(mouse_pos: Vector2) -> void:
 		_enter_world_select_mode()
 		return
 	# Standard single draw
-	var single_rect = Rect2(size.x * 0.5 - 360.0, 140.0, 220.0, 72.0)
+	var single_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 360.0, 140.0, 220.0, 72.0)
 	if single_rect.has_point(mouse_pos):
 		_do_gacha_draw(1)
 		return
 	# Premium single draw
-	var premium_rect = Rect2(size.x * 0.5 - 110.0, 140.0, 220.0, 72.0)
+	var premium_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 110.0, 140.0, 220.0, 72.0)
 	if premium_rect.has_point(mouse_pos):
 		_do_gacha_draw(1)
 		return
 	# Multi draw
-	var multi_rect = Rect2(size.x * 0.5 + 140.0, 140.0, 220.0, 72.0)
+	var multi_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 + 140.0, 140.0, 220.0, 72.0)
 	if multi_rect.has_point(mouse_pos):
 		_do_gacha_draw(10)
 		return
@@ -2543,7 +2563,7 @@ func _handle_gacha_click(mouse_pos: Vector2) -> void:
 
 
 func _enhance_panel_rect() -> Rect2:
-	return Rect2(size.x - 380.0, 130.0, 340.0, 520.0)
+	return Rect2(BASE_VIEWPORT_SIZE.x - 380.0, 130.0, 340.0, 520.0)
 
 
 func _enhance_owned_plants() -> Array:
@@ -2798,7 +2818,6 @@ func _handle_enhance_click(mouse_pos: Vector2) -> void:
 			enhance_selected_plant = String(owned_plants[i])
 			queue_redraw()
 			return
-
 
 func _enter_enhance_mode() -> void:
 	enhance_selected_plant = ""
@@ -3361,22 +3380,22 @@ func _draw_enhancement_aura(center: Vector2, kind: String) -> void:
 
 
 func _draw_enhance_scene() -> void:
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.08, 0.06, 0.14), Color(0.04, 0.03, 0.08))
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.08, 0.06, 0.14), Color(0.04, 0.03, 0.08))
 	# Title
-	var title_rect = Rect2(size.x * 0.5 - 180.0, 30.0, 360.0, 72.0)
+	var title_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 180.0, 30.0, 360.0, 72.0)
 	_draw_panel_shell(title_rect, Color(0.62, 0.36, 0.82, 0.96), Color(0.38, 0.18, 0.52), 0.2, 0.12)
 	_draw_text("植物强化", title_rect.position + Vector2(112.0, 46.0), 32, Color(1.0, 0.96, 1.0))
 	# Coin + stone display
-	_draw_panel_shell(Rect2(size.x - 280.0, 40.0, 240.0, 52.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.12, 0.06)
-	_draw_text("金币: %d" % coins_total, Vector2(size.x - 256.0, 72.0), 20, Color(0.33, 0.21, 0.04))
-	_draw_text("强化石: %d" % enhance_stones, Vector2(size.x - 256.0, 92.0), 16, Color(0.33, 0.21, 0.04))
+	_draw_panel_shell(Rect2(BASE_VIEWPORT_SIZE.x - 280.0, 40.0, 240.0, 52.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.12, 0.06)
+	_draw_text("金币: %d" % coins_total, Vector2(BASE_VIEWPORT_SIZE.x - 256.0, 72.0), 20, Color(0.33, 0.21, 0.04))
+	_draw_text("强化石: %d" % enhance_stones, Vector2(BASE_VIEWPORT_SIZE.x - 256.0, 92.0), 16, Color(0.33, 0.21, 0.04))
 	# Plant grid
 	var layout = _enhance_grid_layout()
 	var owned_plants = _enhance_owned_plants()
 	for i in range(owned_plants.size()):
 		var pk = String(owned_plants[i])
 		var cell_rect = _enhance_cell_rect(i)
-		if cell_rect.position.y > size.y - 80.0:
+		if cell_rect.position.y > BASE_VIEWPORT_SIZE.y - 80.0:
 			continue
 		var is_selected = pk == enhance_selected_plant
 		var border_color = Color(0.82, 0.62, 0.18) if is_selected else Color(0.38, 0.32, 0.48)
@@ -13192,7 +13211,11 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 	var shake_offset = Vector2.ZERO
 	if draw_mode == MODE_BATTLE and screen_shake_amount > 0.5:
 		shake_offset = Vector2(sin(ui_time * 67.3) * screen_shake_amount, cos(ui_time * 53.7) * screen_shake_amount * 0.6)
-	draw_set_transform(offset + shake_offset, 0.0, Vector2.ONE)
+	if _is_ui_scaled_mode(draw_mode):
+		var s = _ui_scale()
+		draw_set_transform(offset + _ui_offset(), 0.0, Vector2(s, s))
+	else:
+		draw_set_transform(offset + shake_offset, 0.0, Vector2.ONE)
 	if draw_mode == MODE_WORLD_SELECT:
 		_draw_world_select_scene()
 	elif draw_mode == MODE_MAP:
@@ -13216,31 +13239,31 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 
 func _draw_gacha_scene() -> void:
 	# Background gradient
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.12, 0.08, 0.22), Color(0.06, 0.04, 0.14))
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.12, 0.08, 0.22), Color(0.06, 0.04, 0.14))
 	# Floating card silhouettes
 	for i in range(8):
 		var seed_val = float(i) * 47.3
-		var x = fmod(ui_time * (12.0 + fmod(seed_val, 8.0)) + seed_val * 5.1, size.x + 100.0) - 50.0
-		var y = fmod(seed_val * 3.7 + sin(ui_time * 0.3 + seed_val) * 60.0, size.y)
+		var x = fmod(ui_time * (12.0 + fmod(seed_val, 8.0)) + seed_val * 5.1, BASE_VIEWPORT_SIZE.x + 100.0) - 50.0
+		var y = fmod(seed_val * 3.7 + sin(ui_time * 0.3 + seed_val) * 60.0, BASE_VIEWPORT_SIZE.y)
 		var rot = sin(ui_time * 0.5 + seed_val) * 0.3
 		draw_rect(Rect2(Vector2(x - 20.0, y - 28.0), Vector2(40.0, 56.0)), Color(0.8, 0.7, 0.4, 0.04), true)
 
 	# Title
-	var title_rect = Rect2(size.x * 0.5 - 200.0, 30.0, 400.0, 80.0)
+	var title_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 200.0, 30.0, 400.0, 80.0)
 	_draw_panel_shell(title_rect, Color(0.82, 0.62, 0.18, 0.96), Color(0.52, 0.36, 0.08), 0.2, 0.12)
 	_draw_text("抽卡系统", title_rect.position + Vector2(128.0, 50.0), 36, Color(1.0, 0.96, 0.86))
 
 	# Coin display
-	_draw_panel_shell(Rect2(size.x - 280.0, 40.0, 240.0, 52.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.12, 0.06)
-	_draw_text("金币: %d" % coins_total, Vector2(size.x - 256.0, 76.0), 26, Color(0.33, 0.21, 0.04))
+	_draw_panel_shell(Rect2(BASE_VIEWPORT_SIZE.x - 280.0, 40.0, 240.0, 52.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.12, 0.06)
+	_draw_text("金币: %d" % coins_total, Vector2(BASE_VIEWPORT_SIZE.x - 256.0, 76.0), 26, Color(0.33, 0.21, 0.04))
 
 	# Pity counter
 	_draw_text("保底计数: %d/50" % gacha_pity_counter, Vector2(60.0, 76.0), 18, Color(0.72, 0.68, 0.82))
 
 	# Draw buttons
-	var single_rect = Rect2(size.x * 0.5 - 360.0, 140.0, 220.0, 72.0)
-	var premium_rect = Rect2(size.x * 0.5 - 110.0, 140.0, 220.0, 72.0)
-	var multi_rect = Rect2(size.x * 0.5 + 140.0, 140.0, 220.0, 72.0)
+	var single_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 360.0, 140.0, 220.0, 72.0)
+	var premium_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 110.0, 140.0, 220.0, 72.0)
+	var multi_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 + 140.0, 140.0, 220.0, 72.0)
 	_draw_panel_shell(single_rect, Color(0.42, 0.56, 0.42), Color(0.22, 0.32, 0.22), 0.18, 0.1)
 	_draw_panel_shell(premium_rect, Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 0.2, 0.12)
 	_draw_panel_shell(multi_rect, Color(0.86, 0.52, 0.18), Color(0.52, 0.28, 0.08), 0.2, 0.12)
@@ -13258,7 +13281,7 @@ func _draw_gacha_scene() -> void:
 		var card_h = 168.0
 		var gap = 12.0
 		var total_w = float(gacha_draw_results.size()) * (card_w + gap) - gap
-		var start_x = (size.x - total_w) * 0.5
+		var start_x = (BASE_VIEWPORT_SIZE.x - total_w) * 0.5
 		for i in range(gacha_draw_results.size()):
 			var result = gacha_draw_results[i]
 			var card_x = start_x + float(i) * (card_w + gap)
@@ -13313,14 +13336,14 @@ func _draw_gacha_scene() -> void:
 
 	# Collection grid (scrollable)
 	var collection_y = 440.0
-	_draw_panel_shell(Rect2(40.0, collection_y - 10.0, size.x - 80.0, 420.0), Color(0.14, 0.1, 0.24, 0.92), Color(0.38, 0.28, 0.52), 0.14, 0.06)
+	_draw_panel_shell(Rect2(40.0, collection_y - 10.0, BASE_VIEWPORT_SIZE.x - 80.0, 420.0), Color(0.14, 0.1, 0.24, 0.92), Color(0.38, 0.28, 0.52), 0.14, 0.06)
 	_draw_text("植物收藏", Vector2(60.0, collection_y + 24.0), 22, Color(0.82, 0.78, 0.92))
 	var col_x = 60.0
 	var col_y = collection_y + 40.0
 	var col_w = 86.0
 	var col_h = 96.0
 	var col_gap = 8.0
-	var cols_per_row = int((size.x - 120.0) / (col_w + col_gap))
+	var cols_per_row = int((BASE_VIEWPORT_SIZE.x - 120.0) / (col_w + col_gap))
 	var plant_keys = Defs.PLANTS.keys()
 	for i in range(plant_keys.size()):
 		var pk = String(plant_keys[i])
@@ -13369,7 +13392,7 @@ func _path_midpoint(from: Vector2, to: Vector2, index: int) -> Vector2:
 
 
 func _world_card_rect(index: int) -> Rect2:
-	var center_x = size.x * 0.5 + (float(index) - world_select_scroll) * WORLD_CARD_SPACING
+	var center_x = BASE_VIEWPORT_SIZE.x * 0.5 + (float(index) - world_select_scroll) * WORLD_CARD_SPACING
 	var delta = absf(float(index) - world_select_scroll)
 	var card_scale = clampf(1.0 - delta * 0.12, 0.84, 1.0)
 	var card_size = Vector2(460.0, 560.0) * card_scale
@@ -13380,8 +13403,8 @@ func _draw_world_select_scene() -> void:
 	var blend = clampf(world_select_scroll / float(max(WorldDataLib.all().size() - 1, 1)), 0.0, 1.0)
 	var sky_night = blend >= 0.5
 	_draw_world_sky(sky_night)
-	draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, 120.0)), Color(0.08, 0.12, 0.2, 0.12) if sky_night else Color(1.0, 1.0, 1.0, 0.12), true)
-	draw_rect(Rect2(Vector2(0.0, size.y - 142.0), Vector2(size.x, 142.0)), Color(0.12, 0.1, 0.08, 0.22), true)
+	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 120.0)), Color(0.08, 0.12, 0.2, 0.12) if sky_night else Color(1.0, 1.0, 1.0, 0.12), true)
+	draw_rect(Rect2(Vector2(0.0, BASE_VIEWPORT_SIZE.y - 142.0), Vector2(BASE_VIEWPORT_SIZE.x, 142.0)), Color(0.12, 0.1, 0.08, 0.22), true)
 
 	var title_rect = Rect2(58.0, 34.0, 616.0, 102.0)
 	_draw_panel_shell(title_rect, Color(0.98, 0.94, 0.82, 0.95) if not sky_night else Color(0.16, 0.2, 0.32, 0.95), Color(0.54, 0.4, 0.16) if not sky_night else Color(0.58, 0.68, 0.88), 0.2, 0.12)
@@ -13528,7 +13551,7 @@ func _draw_map_scene() -> void:
 
 func _draw_almanac_scene() -> void:
 	_draw_world_sky(false)
-	draw_rect(Rect2(Vector2(0.0, 164.0), Vector2(size.x, size.y - 164.0)), Color(0.71, 0.82, 0.58), true)
+	draw_rect(Rect2(Vector2(0.0, 164.0), Vector2(BASE_VIEWPORT_SIZE.x, BASE_VIEWPORT_SIZE.y - 164.0)), Color(0.71, 0.82, 0.58), true)
 	_draw_panel_shell(ALMANAC_BOOK_RECT, Color(0.93, 0.88, 0.75), Color(0.46, 0.34, 0.16), 0.16, 0.08)
 	draw_line(ALMANAC_BOOK_RECT.position + Vector2(ALMANAC_BOOK_RECT.size.x * 0.38, 18.0), ALMANAC_BOOK_RECT.position + Vector2(ALMANAC_BOOK_RECT.size.x * 0.38, ALMANAC_BOOK_RECT.size.y - 18.0), Color(0.78, 0.68, 0.52), 3.0)
 
@@ -13740,10 +13763,10 @@ func _draw_map_info_panel() -> void:
 func _draw_seed_selection_scene() -> void:
 	_ensure_selection_scene_ready()
 	_draw_world_sky(false)
-	draw_rect(Rect2(Vector2(0.0, 148.0), Vector2(size.x, size.y - 148.0)), Color(0.68, 0.82, 0.5), true)
-	draw_rect(Rect2(Vector2(0.0, 610.0), Vector2(size.x, 110.0)), Color(0.58, 0.42, 0.24), true)
-	draw_rect(Rect2(Vector2(0.0, 148.0), Vector2(size.x, 44.0)), Color(1.0, 1.0, 1.0, 0.06), true)
-	draw_rect(Rect2(Vector2(0.0, 566.0), Vector2(size.x, 30.0)), Color(0.0, 0.0, 0.0, 0.08), true)
+	draw_rect(Rect2(Vector2(0.0, 148.0), Vector2(BASE_VIEWPORT_SIZE.x, BASE_VIEWPORT_SIZE.y - 148.0)), Color(0.68, 0.82, 0.5), true)
+	draw_rect(Rect2(Vector2(0.0, 610.0), Vector2(BASE_VIEWPORT_SIZE.x, 110.0)), Color(0.58, 0.42, 0.24), true)
+	draw_rect(Rect2(Vector2(0.0, 148.0), Vector2(BASE_VIEWPORT_SIZE.x, 44.0)), Color(1.0, 1.0, 1.0, 0.06), true)
+	draw_rect(Rect2(Vector2(0.0, 566.0), Vector2(BASE_VIEWPORT_SIZE.x, 30.0)), Color(0.0, 0.0, 0.0, 0.08), true)
 	var is_mobile = _is_mobile_runtime()
 	if not is_mobile:
 		_draw_panel_shell(Rect2(Vector2(44.0, 182.0), Vector2(214.0, 392.0)), Color(0.86, 0.78, 0.58), Color(0.54, 0.38, 0.18))

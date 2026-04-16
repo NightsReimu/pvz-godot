@@ -386,6 +386,23 @@ jobs:
           cd build/releases/web
           zip -r "../../../dist/${{ matrix.asset_name }}" .
 
+      - name: Prepare GitHub Pages artifact
+        if: matrix.target == 'web'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/releases/pages
+          mkdir -p build/releases/pages
+          unzip -q "dist/${{ matrix.asset_name }}" -d build/releases/pages
+          touch build/releases/pages/.nojekyll
+          test -f build/releases/pages/index.html
+
+      - name: Upload GitHub Pages artifact
+        if: matrix.target == 'web'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/releases/pages
+
       - name: Package artifact
         if: matrix.target == 'android'
         shell: bash
@@ -432,3 +449,20 @@ jobs:
           fi
 
           gh release upload "$tag" dist/* --clobber
+
+  deploy_pages:
+    name: Deploy GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release_tag != ''
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
