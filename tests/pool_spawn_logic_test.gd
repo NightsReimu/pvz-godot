@@ -20,6 +20,7 @@ func _run() -> void:
 	failed = not _test_shouyue_fires_sniper_beam_after_charge() or failed
 	failed = not _test_shouyue_snipes_the_front_plant() or failed
 	failed = not _test_ice_block_leaves_ice_tile_after_skill_cycle() or failed
+	failed = not _test_ice_tile_auto_melts_after_twenty_seconds() or failed
 	failed = not _test_dragon_boat_glides_instead_of_teleporting() or failed
 	failed = not _test_dragon_boat_stroke_stays_slow_through_point_eight_seconds() or failed
 	failed = not _test_dragon_boat_visual_state_stays_local_to_draw_center() or failed
@@ -219,6 +220,18 @@ func _test_ice_block_leaves_ice_tile_after_skill_cycle() -> bool:
 	game._update_zombies(0.2)
 	var ice_col = game._zombie_cell_col(float(game.zombies[0]["x"]))
 	var passed = _assert_true(game._has_ice_tile(2, ice_col), "ice_block should leave an ice tile under itself when its skill triggers")
+	game.free()
+	return passed
+
+
+func _test_ice_tile_auto_melts_after_twenty_seconds() -> bool:
+	var game = _make_game()
+	game._set_ice_tile(2, 4)
+	var placed = game._has_ice_tile(2, 4)
+	game._update_effects(20.1)
+	var melted = not game._has_ice_tile(2, 4)
+	var passed = _assert_true(placed, "test setup should create an ice tile before checking melt timing") \
+		and _assert_true(melted, "ice tiles should auto-clear after twenty seconds even without jalapeno")
 	game.free()
 	return passed
 

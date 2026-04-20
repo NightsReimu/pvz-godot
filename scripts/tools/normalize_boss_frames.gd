@@ -64,6 +64,13 @@ const TARGETS := {
 			Vector2i(0, 3), Vector2i(2, 3),
 		],
 	},
+	"flandre_boss": {
+		"output_folder": "res://art/flandre",
+		"frame_count": 8,
+		"sheet_path": "/Users/hecrereed/Downloads/芙兰朵露.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+	},
 }
 
 const WHITE_THRESHOLD := 0.93
@@ -108,15 +115,16 @@ func _normalize_target(kind: String, config: Dictionary) -> bool:
 	var output_dir = ProjectSettings.globalize_path(folder)
 	DirAccess.make_dir_recursive_absolute(output_dir)
 	var frames: Array = []
+	var flip_x = bool(config.get("flip_x", true))
 	if config.has("sheet_path"):
 		var sheet_path = String(config.get("sheet_path", ""))
 		var sheet = _load_image(sheet_path)
 		if sheet == null:
 			push_error("failed to load source sheet for %s: %s" % [kind, sheet_path])
 			return false
-		frames = _extract_sheet_frames(sheet, Vector2i(config.get("grid", Vector2i.ONE)), config.get("cells", []))
+		frames = _extract_sheet_frames(sheet, Vector2i(config.get("grid", Vector2i.ONE)), config.get("cells", []), flip_x)
 	else:
-		frames = _normalize_existing_frames(folder, int(config.get("frame_count", 0)))
+		frames = _normalize_existing_frames(folder, int(config.get("frame_count", 0)), flip_x)
 	var expected_count = int(config.get("frame_count", 0))
 	if frames.size() != expected_count:
 		push_error("%s expected %d frames, got %d" % [kind, expected_count, frames.size()])
@@ -134,7 +142,7 @@ func _normalize_target(kind: String, config: Dictionary) -> bool:
 	return true
 
 
-func _normalize_existing_frames(folder: String, frame_count: int) -> Array:
+func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool = true) -> Array:
 	var frames: Array = []
 	for frame_index in range(frame_count):
 		var resource_path = "%s/frame_%02d.png" % [folder, frame_index]
@@ -143,7 +151,7 @@ func _normalize_existing_frames(folder: String, frame_count: int) -> Array:
 		if image == null:
 			push_error("failed to load frame for offline normalization: %s" % resource_path)
 			continue
-		var normalized = _extract_trimmed_image(image)
+		var normalized = _extract_trimmed_image(image, Rect2i(), flip_x)
 		if normalized == null:
 			push_error("frame has no detectable sprite pixels after cleanup: %s" % resource_path)
 			continue
@@ -151,13 +159,13 @@ func _normalize_existing_frames(folder: String, frame_count: int) -> Array:
 	return frames
 
 
-func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array) -> Array:
+func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array, flip_x: bool = true) -> Array:
 	var frames: Array = []
 	if not cells.is_empty():
 		for cell_variant in cells:
 			var cell = Vector2i(cell_variant)
 			var cell_rect = _sheet_cell_rect(sheet, grid, cell.x, cell.y)
-			var frame = _extract_trimmed_image(sheet, cell_rect)
+			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x)
 			if frame == null:
 				continue
 			frames.append(frame)
@@ -165,7 +173,7 @@ func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array) -> Array:
 	for row in range(grid.y):
 		for col in range(grid.x):
 			var cell_rect = _sheet_cell_rect(sheet, grid, col, row)
-			var frame = _extract_trimmed_image(sheet, cell_rect)
+			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x)
 			if frame == null:
 				continue
 			frames.append(frame)
@@ -180,7 +188,7 @@ func _sheet_cell_rect(image: Image, grid: Vector2i, col: int, row: int) -> Rect2
 	return Rect2i(x0, y0, x1 - x0, y1 - y0)
 
 
-func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i()) -> Image:
+func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_x: bool = true) -> Image:
 	var rect = source_rect
 	if rect.size == Vector2i.ZERO:
 		rect = Rect2i(0, 0, source.get_width(), source.get_height())
@@ -221,7 +229,8 @@ func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i()) -> Im
 			if _is_foreground(pixel):
 				out.set_pixel(x + SAFE_MARGIN, y + SAFE_MARGIN, pixel)
 	_clear_border_connected_halo(out)
-	out.flip_x()
+	if flip_x:
+		out.flip_x()
 	return out
 
 

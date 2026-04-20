@@ -19,6 +19,10 @@ func _run() -> void:
 	failed = not _test_selection_buttons_stay_visible_on_smaller_viewports() or failed
 	failed = not _test_selection_layout_keeps_two_rows_visible_on_768p() or failed
 	failed = not _test_mobile_selection_layout_stays_inside_small_landscape_viewport() or failed
+	failed = not _test_mobile_selection_scene_skips_legacy_global_ui_scaling() or failed
+	failed = not _test_mobile_portrait_world_select_shows_rotate_prompt() or failed
+	failed = not _test_mobile_landscape_world_select_hides_rotate_prompt() or failed
+	failed = not _test_mobile_landscape_world_select_uses_full_width_scaling() or failed
 	failed = not _test_selection_pool_recovery_uses_player_collection_fallback() or failed
 	failed = not _test_custom_daily_levels_do_not_inherit_stage_specific_template_fields() or failed
 	failed = not _test_enhance_button_click_is_not_shadowed_by_hidden_grid_cells() or failed
@@ -260,6 +264,49 @@ func _test_mobile_selection_layout_stays_inside_small_landscape_viewport() -> bo
 		and _assert_true(viewport_rect.encloses(back_rect), "mobile selection back button should stay inside a short landscape viewport") \
 		and _assert_true(viewport_rect.encloses(start_rect), "mobile selection start button should stay inside a short landscape viewport") \
 		and _assert_true(pool_view_rect.intersects(second_row_card_rect), "mobile selection should still expose more than one row of cards on a short landscape screen")
+	_free_game(game)
+	return passed
+
+
+func _test_mobile_selection_scene_skips_legacy_global_ui_scaling() -> bool:
+	var game := _make_game()
+	game.mobile_runtime_override = 1
+	game.size = Vector2(896.0, 414.0)
+	game.mode = game.MODE_SELECTION
+	var sample = Vector2(240.0, 160.0)
+	var local = Vector2(game.call("_scene_local_position", sample))
+	var passed = _assert_true(local.is_equal_approx(sample), "mobile selection should use viewport-space coordinates directly instead of applying the desktop global UI scale a second time")
+	_free_game(game)
+	return passed
+
+
+func _test_mobile_portrait_world_select_shows_rotate_prompt() -> bool:
+	var game := _make_game()
+	game.mobile_runtime_override = 1
+	game.size = Vector2(390.0, 844.0)
+	game.mode = game.MODE_WORLD_SELECT
+	var passed = _assert_true(bool(game.call("_should_show_mobile_rotate_prompt", game.MODE_WORLD_SELECT)), "portrait mobile world select should show a rotate-device prompt instead of rendering the desktop layout shrunken at the bottom")
+	_free_game(game)
+	return passed
+
+
+func _test_mobile_landscape_world_select_hides_rotate_prompt() -> bool:
+	var game := _make_game()
+	game.mobile_runtime_override = 1
+	game.size = Vector2(844.0, 390.0)
+	game.mode = game.MODE_WORLD_SELECT
+	var passed = _assert_true(not bool(game.call("_should_show_mobile_rotate_prompt", game.MODE_WORLD_SELECT)), "landscape mobile world select should render normally without the rotate-device prompt")
+	_free_game(game)
+	return passed
+
+
+func _test_mobile_landscape_world_select_uses_full_width_scaling() -> bool:
+	var game := _make_game()
+	game.mobile_runtime_override = 1
+	game.size = Vector2(844.0, 390.0)
+	game.mode = game.MODE_WORLD_SELECT
+	var offset = Vector2(game.call("_ui_offset"))
+	var passed = _assert_true(absf(offset.x) <= 0.01 and absf(offset.y) <= 0.01, "landscape mobile world select should use full-width scaling instead of leaving desktop letterboxing margins on both sides")
 	_free_game(game)
 	return passed
 

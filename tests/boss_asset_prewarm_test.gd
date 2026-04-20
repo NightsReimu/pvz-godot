@@ -74,6 +74,9 @@ func _snapshot_shared_state() -> Dictionary:
 		"remilia_frames": GameScript.shared_remilia_frames.duplicate(),
 		"remilia_loaded": GameScript.shared_remilia_frames_loaded,
 		"remilia_face_left": GameScript.shared_remilia_frames_face_left,
+		"flandre_frames": GameScript.shared_flandre_frames.duplicate(),
+		"flandre_loaded": GameScript.shared_flandre_frames_loaded,
+		"flandre_face_left": GameScript.shared_flandre_frames_face_left,
 	}
 
 
@@ -103,6 +106,9 @@ func _restore_shared_state(snapshot: Dictionary) -> void:
 	GameScript.shared_remilia_frames = Array(snapshot["remilia_frames"]).duplicate()
 	GameScript.shared_remilia_frames_loaded = bool(snapshot["remilia_loaded"])
 	GameScript.shared_remilia_frames_face_left = snapshot["remilia_face_left"]
+	GameScript.shared_flandre_frames = Array(snapshot["flandre_frames"]).duplicate()
+	GameScript.shared_flandre_frames_loaded = bool(snapshot["flandre_loaded"])
+	GameScript.shared_flandre_frames_face_left = snapshot["flandre_face_left"]
 
 
 func _reset_boss_caches() -> void:
@@ -131,6 +137,9 @@ func _reset_boss_caches() -> void:
 	GameScript.shared_remilia_frames = []
 	GameScript.shared_remilia_frames_loaded = false
 	GameScript.shared_remilia_frames_face_left = null
+	GameScript.shared_flandre_frames = []
+	GameScript.shared_flandre_frames_loaded = false
+	GameScript.shared_flandre_frames_face_left = null
 
 
 func _test_try_get_boss_frame_texture_queues_without_sync_loading() -> bool:
@@ -168,6 +177,8 @@ func _test_entering_zombie_almanac_queues_boss_assets() -> bool:
 		passed = _assert_true(bool(GameScript.shared_meiling_frames_loaded), "zombie almanac prewarm should populate Meiling art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_sakuya_frames_loaded), "zombie almanac prewarm should populate Sakuya art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_remilia_frames_loaded), "zombie almanac prewarm should populate Remilia art into the shared cache") and passed
+		var flandre_texture = game.call("_try_get_boss_frame_texture", "flandre_boss", 0)
+		passed = _assert_true(flandre_texture is Texture2D, "zombie almanac prewarm should warm Flandre art before the user scrolls to her entry") and passed
 	_free_game(game)
 	_restore_shared_state(snapshot)
 	return passed
@@ -190,6 +201,8 @@ func _test_switching_to_zombie_almanac_queues_boss_assets() -> bool:
 		passed = _assert_true(bool(GameScript.shared_meiling_frames_loaded), "switching to the zombie almanac should warm Meiling art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_sakuya_frames_loaded), "switching to the zombie almanac should warm Sakuya art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_remilia_frames_loaded), "switching to the zombie almanac should warm Remilia art into the shared cache") and passed
+		var flandre_texture = game.call("_try_get_boss_frame_texture", "flandre_boss", 0)
+		passed = _assert_true(flandre_texture is Texture2D, "switching to the zombie almanac should warm Flandre art before the user scrolls to her entry") and passed
 	_free_game(game)
 	_restore_shared_state(snapshot)
 	return passed
@@ -217,6 +230,8 @@ func _test_entering_day_map_queues_special_boss_assets() -> bool:
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/sakuya_boss.mp3"), "day map prewarm should decode the Sakuya boss BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/remilia_intro.mp3"), "day map prewarm should decode the Remilia intro BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/remilia_boss.mp3"), "day map prewarm should decode the Remilia boss BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/flandre_intro.mp3"), "day map prewarm should decode the Flandre intro BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/flandre_boss.mp3"), "day map prewarm should decode the Flandre boss BGM ahead of the click path") and passed
 		passed = _assert_true(bool(GameScript.shared_rumia_frames_loaded), "day map prewarm should populate Rumia art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_daiyousei_frames_loaded), "day map prewarm should populate Daiyousei art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_cirno_frames_loaded), "day map prewarm should populate Cirno art into the shared cache") and passed
@@ -225,6 +240,8 @@ func _test_entering_day_map_queues_special_boss_assets() -> bool:
 		passed = _assert_true(bool(GameScript.shared_patchouli_frames_loaded), "day map prewarm should populate Patchouli art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_sakuya_frames_loaded), "day map prewarm should populate Sakuya art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_remilia_frames_loaded), "day map prewarm should populate Remilia art into the shared cache") and passed
+		var flandre_texture = game.call("_try_get_boss_frame_texture", "flandre_boss", 0)
+		passed = _assert_true(flandre_texture is Texture2D, "day map prewarm should populate Flandre art before the player clicks 1-23") and passed
 	_free_game(game)
 	_restore_shared_state(snapshot)
 	return passed

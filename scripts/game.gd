@@ -54,6 +54,7 @@ var BACK_BUTTON_RECT := BASE_BACK_BUTTON_RECT
 
 const MOWER_SPEED := 760.0
 const SUN_COLLECT_SPEED := 920.0
+const ICE_TILE_DURATION := 20.0
 const COIN_COLLECT_SPEED := 980.0
 const PLANT_FOOD_COLLECT_SPEED := 980.0
 const SUN_VALUE := 50
@@ -108,6 +109,7 @@ const KOAKUMA_FRAME_COUNT := 8
 const PATCHOULI_FRAME_COUNT := 8
 const SAKUYA_FRAME_COUNT := 8
 const REMILIA_FRAME_COUNT := 8
+const FLANDRE_FRAME_COUNT := 8
 
 static var shared_audio_stream_cache := {}
 static var shared_rumia_frames: Array = []
@@ -134,6 +136,9 @@ static var shared_sakuya_frames_face_left = null
 static var shared_remilia_frames: Array = []
 static var shared_remilia_frames_loaded := false
 static var shared_remilia_frames_face_left = null
+static var shared_flandre_frames: Array = []
+static var shared_flandre_frames_loaded := false
+static var shared_flandre_frames_face_left = null
 
 const ZOMBIE_ALMANAC_ORDER := [
 	"normal",
@@ -208,6 +213,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"patchouli_boss",
 	"sakuya_boss",
 	"remilia_boss",
+	"flandre_boss",
 ]
 
 var rng = RandomNumberGenerator.new()
@@ -440,6 +446,9 @@ var sakuya_frames_face_left = null
 var remilia_frames: Array = []
 var remilia_frames_loaded := false
 var remilia_frames_face_left = null
+var flandre_frames: Array = []
+var flandre_frames_loaded := false
+var flandre_frames_face_left = null
 var frozen_branch_midboss_spawned := false
 var frozen_branch_midboss_cleared := false
 var frozen_branch_progress_locked := false
@@ -548,27 +557,129 @@ func _spring_ui_value(current: float, target: float, velocity: float, delta: flo
 
 
 func _is_ui_scaled_mode(m: String) -> bool:
-	return m != MODE_BATTLE and m != MODE_ENDLESS and m != MODE_DAILY
+	return m != MODE_BATTLE and m != MODE_ENDLESS and m != MODE_DAILY and m != MODE_SELECTION
+
+
+func _uses_legacy_landscape_ui_mode(m: String) -> bool:
+	return m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_ENHANCE
+
+
+func _uses_mobile_fill_ui_scaling(target_mode: String = mode) -> bool:
+	if not _is_mobile_runtime():
+		return false
+	if not _uses_legacy_landscape_ui_mode(target_mode):
+		return false
+	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
+	return viewport.x > viewport.y
+
+
+func _should_show_mobile_rotate_prompt(target_mode: String = mode) -> bool:
+	if not _is_mobile_runtime():
+		return false
+	if not _uses_legacy_landscape_ui_mode(target_mode):
+		return false
+	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
+	return viewport.y > viewport.x
+
+
+func _mode_mobile_prompt_title(target_mode: String) -> String:
+	match target_mode:
+		MODE_WORLD_SELECT:
+			return "世界选择"
+		MODE_MAP:
+			return "关卡地图"
+		MODE_ALMANAC:
+			return "图鉴"
+		MODE_GACHA:
+			return "抽卡"
+		MODE_ENHANCE:
+			return "强化"
+		_:
+			return "菜单"
+
+
+func _draw_mobile_rotate_prompt(target_mode: String = mode) -> void:
+	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
+	var safe_rect = _viewport_safe_rect()
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, viewport), Color(0.08, 0.05, 0.06), Color(0.14, 0.08, 0.12))
+	for i in range(6):
+		var orbit = ui_time * (0.18 + float(i) * 0.03) + float(i) * 0.9
+		var glow_center = viewport * 0.5 + Vector2(cos(orbit) * (54.0 + float(i) * 18.0), sin(orbit * 1.12) * (82.0 + float(i) * 12.0))
+		draw_circle(glow_center, 46.0 + float(i) * 10.0, Color(0.92, 0.18 + float(i) * 0.05, 0.22, 0.04))
+	var panel_size = Vector2(
+		clampf(safe_rect.size.x - 32.0, 280.0, 560.0),
+		clampf(safe_rect.size.y - 64.0, 280.0, 420.0)
+	)
+	var panel_rect = Rect2(safe_rect.get_center() - panel_size * 0.5, panel_size)
+	_draw_panel_shell(panel_rect, Color(0.16, 0.11, 0.12, 0.96), Color(0.78, 0.32, 0.28), 0.22, 0.14)
+	var phone_rect = Rect2(panel_rect.position + Vector2(panel_rect.size.x * 0.5 - 48.0, 42.0), Vector2(96.0, 146.0))
+	draw_set_transform(phone_rect.get_center(), -PI * 0.5, Vector2.ONE)
+	_draw_panel_shell(Rect2(Vector2(-48.0, -73.0), phone_rect.size), Color(0.11, 0.1, 0.12), Color(0.96, 0.76, 0.54), 0.12, 0.08)
+	draw_rect(Rect2(Vector2(-36.0, -58.0), Vector2(72.0, 104.0)), Color(0.26, 0.18, 0.22), true)
+	draw_circle(Vector2(0.0, 56.0), 5.0, Color(0.94, 0.84, 0.66))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var arrow_center = phone_rect.get_center() + Vector2(0.0, 6.0)
+	var arrow_radius = 72.0
+	draw_arc(arrow_center, arrow_radius, -0.25 * PI, 0.85 * PI, 40, Color(1.0, 0.66, 0.28, 0.86), 5.0)
+	var arrow_tip = arrow_center + Vector2(cos(0.85 * PI), sin(0.85 * PI)) * arrow_radius
+	draw_polygon(PackedVector2Array([
+		arrow_tip,
+		arrow_tip + Vector2(-14.0, -6.0),
+		arrow_tip + Vector2(-2.0, -18.0),
+	]), PackedColorArray([
+		Color(1.0, 0.74, 0.34, 0.96),
+		Color(1.0, 0.74, 0.34, 0.96),
+		Color(1.0, 0.74, 0.34, 0.96),
+	]))
+	var title = "请横屏体验%s" % _mode_mobile_prompt_title(target_mode)
+	_draw_text(title, panel_rect.position + Vector2(32.0, 234.0), 34, Color(1.0, 0.95, 0.9))
+	_draw_text_block(
+		"当前手机竖屏会压缩旧版横向菜单布局。旋转设备后继续，可以获得正常的关卡地图、图鉴和按钮命中区域。",
+		Rect2(panel_rect.position + Vector2(32.0, 256.0), Vector2(panel_rect.size.x - 64.0, 92.0)),
+		20,
+		Color(0.95, 0.87, 0.82),
+		7.0
+	)
+	var hint_rect = Rect2(panel_rect.position + Vector2(32.0, panel_rect.size.y - 76.0), Vector2(panel_rect.size.x - 64.0, 42.0))
+	_draw_panel_shell(hint_rect, Color(0.28, 0.16, 0.12, 0.94), Color(0.94, 0.56, 0.24), 0.1, 0.06)
+	_draw_text("横屏后自动恢复，无需重启游戏。", hint_rect.position + Vector2(22.0, 28.0), 18, Color(1.0, 0.94, 0.84))
 
 
 func _ui_scale() -> float:
+	var scale = _ui_scale_vector()
+	return minf(scale.x, scale.y)
+
+
+func _ui_scale_vector(target_mode: String = mode) -> Vector2:
 	if size.x <= 0.0 or size.y <= 0.0:
-		return 1.0
-	return minf(size.x / BASE_VIEWPORT_SIZE.x, size.y / BASE_VIEWPORT_SIZE.y)
+		return Vector2.ONE
+	if _uses_mobile_fill_ui_scaling(target_mode):
+		return Vector2(size.x / BASE_VIEWPORT_SIZE.x, size.y / BASE_VIEWPORT_SIZE.y)
+	var uniform_scale = minf(size.x / BASE_VIEWPORT_SIZE.x, size.y / BASE_VIEWPORT_SIZE.y)
+	return Vector2(uniform_scale, uniform_scale)
 
 
-func _ui_offset() -> Vector2:
-	var s = _ui_scale()
-	return (size - BASE_VIEWPORT_SIZE * s) * 0.5
+func _ui_offset(target_mode: String = mode) -> Vector2:
+	if _uses_mobile_fill_ui_scaling(target_mode):
+		return Vector2.ZERO
+	var scale = _ui_scale_vector(target_mode)
+	return Vector2(
+		(size.x - BASE_VIEWPORT_SIZE.x * scale.x) * 0.5,
+		(size.y - BASE_VIEWPORT_SIZE.y * scale.y) * 0.5
+	)
 
 
 func _scene_local_position(raw_position: Vector2) -> Vector2:
 	if not _is_ui_scaled_mode(mode):
 		return raw_position
-	var s = _ui_scale()
-	if s <= 0.0:
+	var scale = _ui_scale_vector(mode)
+	if scale.x <= 0.0 or scale.y <= 0.0:
 		return raw_position
-	return (raw_position - _ui_offset()) / s
+	var offset = _ui_offset(mode)
+	return Vector2(
+		(raw_position.x - offset.x) / scale.x,
+		(raw_position.y - offset.y) / scale.y
+	)
 
 
 func _refresh_battle_layout() -> void:
@@ -610,9 +721,15 @@ func _refresh_battle_layout() -> void:
 	var wave_x = maxf(SEED_BANK_RECT.position.x + SEED_BANK_RECT.size.x + 20.0, safe_rect.end.x - wave_width - (220.0 if is_mobile else 332.0))
 	WAVE_BAR_RECT = Rect2(wave_x, hud_top, wave_width, BASE_WAVE_BAR_RECT.size.y)
 	PLANT_FOOD_RECT = Rect2(WAVE_BAR_RECT.position.x, hud_top + (BASE_PLANT_FOOD_RECT.position.y - BASE_WAVE_BAR_RECT.position.y), 96.0, BASE_PLANT_FOOD_RECT.size.y)
-	BACK_BUTTON_RECT = Rect2(safe_rect.end.x - BASE_BACK_BUTTON_RECT.size.x - (20.0 if is_mobile else 44.0), hud_top, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
-	PAUSE_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_PAUSE_BUTTON_RECT.size.x - 14.0, hud_top, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
-	COIN_METER_RECT = Rect2(PAUSE_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, hud_top + (BASE_COIN_METER_RECT.position.y - BASE_PAUSE_BUTTON_RECT.position.y), BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
+	var button_row_y = hud_top
+	BACK_BUTTON_RECT = Rect2(safe_rect.end.x - BASE_BACK_BUTTON_RECT.size.x - (20.0 if is_mobile else 44.0), button_row_y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
+	PAUSE_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_PAUSE_BUTTON_RECT.size.x - 14.0, button_row_y, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
+	COIN_METER_RECT = Rect2(PAUSE_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, button_row_y + (BASE_COIN_METER_RECT.position.y - BASE_PAUSE_BUTTON_RECT.position.y), BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
+	if not is_mobile and (WAVE_BAR_RECT.intersects(COIN_METER_RECT) or WAVE_BAR_RECT.intersects(PAUSE_BUTTON_RECT) or WAVE_BAR_RECT.intersects(BACK_BUTTON_RECT)):
+		button_row_y = PLANT_FOOD_RECT.position.y
+		BACK_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x, button_row_y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
+		PAUSE_BUTTON_RECT = Rect2(PAUSE_BUTTON_RECT.position.x, button_row_y, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
+		COIN_METER_RECT = Rect2(COIN_METER_RECT.position.x, button_row_y + (BASE_COIN_METER_RECT.position.y - BASE_PAUSE_BUTTON_RECT.position.y), BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
 
 
 func _reset_touch_navigation() -> void:
@@ -1123,6 +1240,11 @@ func _handle_primary_click(mouse_pos: Vector2) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if startup_loading_active or page_transition_active:
+		return
+	if _should_show_mobile_rotate_prompt():
+		_reset_touch_navigation()
+		if event is InputEventScreenTouch and event.pressed:
+			_suppress_touch_generated_mouse()
 		return
 
 	var mouse_pos = _event_local_position(event)
@@ -1858,6 +1980,8 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 			return SAKUYA_FRAME_COUNT
 		"remilia_boss":
 			return REMILIA_FRAME_COUNT
+		"flandre_boss":
+			return FLANDRE_FRAME_COUNT
 		_:
 			return 0
 
@@ -1880,6 +2004,8 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 			return "res://art/sakuya"
 		"remilia_boss":
 			return "res://art/remilia"
+		"flandre_boss":
+			return "res://art/flandre"
 		_:
 			return ""
 
@@ -1892,7 +2018,7 @@ func _boss_frame_resource_path(kind: String, frame_index: int) -> String:
 
 
 func _boss_assets_are_preprocessed(kind: String) -> bool:
-	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss"
+	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "flandre_boss"
 
 
 func _is_image_backed_hover_boss(kind: String) -> bool:
@@ -1917,6 +2043,8 @@ func _shared_boss_frames_for_kind(kind: String) -> Array:
 			return shared_sakuya_frames
 		"remilia_boss":
 			return shared_remilia_frames
+		"flandre_boss":
+			return shared_flandre_frames
 		_:
 			return []
 
@@ -1939,6 +2067,8 @@ func _shared_boss_frames_face_left_for_kind(kind: String):
 			return shared_sakuya_frames_face_left
 		"remilia_boss":
 			return shared_remilia_frames_face_left
+		"flandre_boss":
+			return shared_flandre_frames_face_left
 		_:
 			return null
 
@@ -1977,6 +2107,10 @@ func _set_shared_boss_frames_for_kind(kind: String, frames: Array, loaded: bool,
 			shared_remilia_frames = frames
 			shared_remilia_frames_loaded = loaded
 			shared_remilia_frames_face_left = face_left
+		"flandre_boss":
+			shared_flandre_frames = frames
+			shared_flandre_frames_loaded = loaded
+			shared_flandre_frames_face_left = face_left
 
 
 func _instance_boss_frames_for_kind(kind: String) -> Array:
@@ -1997,6 +2131,8 @@ func _instance_boss_frames_for_kind(kind: String) -> Array:
 			return sakuya_frames
 		"remilia_boss":
 			return remilia_frames
+		"flandre_boss":
+			return flandre_frames
 		_:
 			return []
 
@@ -2019,6 +2155,8 @@ func _instance_boss_frames_face_left_for_kind(kind: String):
 			return sakuya_frames_face_left
 		"remilia_boss":
 			return remilia_frames_face_left
+		"flandre_boss":
+			return flandre_frames_face_left
 		_:
 			return null
 
@@ -2057,6 +2195,10 @@ func _set_instance_boss_frames_for_kind(kind: String, frames: Array, loaded: boo
 			remilia_frames = frames
 			remilia_frames_loaded = loaded
 			remilia_frames_face_left = face_left
+		"flandre_boss":
+			flandre_frames = frames
+			flandre_frames_loaded = loaded
+			flandre_frames_face_left = face_left
 
 
 func _boss_frame_array_is_complete(frames: Array, expected_count: int) -> bool:
@@ -2148,7 +2290,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	var target_tab = tab if tab != "" else almanac_tab
 	if target_tab != "zombies":
 		return
-	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss"]:
+	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "flandre_boss"]:
 		_queue_boss_frame_set_prewarm(kind)
 
 
@@ -2156,10 +2298,15 @@ func _load_single_boss_frame(kind: String, frame_index: int, face_left: bool) ->
 	var resource_path = _boss_frame_resource_path(kind, frame_index)
 	if resource_path == "":
 		return null
-	var texture = load(resource_path)
-	if not (texture is Texture2D):
+	var source_texture: Texture2D = null
+	if FileAccess.file_exists("%s.import" % resource_path):
+		source_texture = load(resource_path) as Texture2D
+	if source_texture == null:
+		var fallback_image = Image.load_from_file(resource_path)
+		if fallback_image != null and not fallback_image.is_empty():
+			source_texture = ImageTexture.create_from_image(fallback_image)
+	if source_texture == null:
 		return null
-	var source_texture: Texture2D = texture
 	if _boss_assets_are_preprocessed(kind):
 		if not face_left:
 			return source_texture
@@ -4068,14 +4215,14 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		var ski = zombies[ski_index]
 		ski["special_pause_timer"] = 0.0
 		zombies[ski_index] = ski
-	if kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss":
+	if kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "flandre_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
 		boss_unit["x"] = _boss_anchor_x(kind)
 		boss_unit["hover_direction"] = -1 if row >= int(round(float(active_rows.size() - 1) * 0.5)) else 1
 		boss_unit["rumia_move_from_y"] = _row_center_y(int(boss_unit["row"]))
 		boss_unit["rumia_move_to_y"] = _row_center_y(int(boss_unit["row"]))
-		boss_unit["rumia_reinforcement_timer"] = 4.8 if kind == "rumia_boss" else (4.2 if kind == "cirno_boss" else (4.0 if kind == "patchouli_boss" else (3.9 if kind == "sakuya_boss" else (3.7 if kind == "remilia_boss" else 4.6))))
+		boss_unit["rumia_reinforcement_timer"] = 4.8 if kind == "rumia_boss" else (4.2 if kind == "cirno_boss" else (4.0 if kind == "patchouli_boss" else (3.9 if kind == "sakuya_boss" else (3.7 if kind == "remilia_boss" else (3.6 if kind == "flandre_boss" else 4.6)))))
 		boss_unit["hover_shift_timer"] = _roll_hover_shift_interval(kind, 0)
 		boss_unit["sakuya_time_stop_charge"] = 0.0
 		boss_unit["sakuya_mark_timer"] = 0.0
@@ -4099,7 +4246,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		elif kind == "koakuma_boss":
 			_show_banner("小恶魔出现了！", 2.2)
 		elif kind == "patchouli_boss":
-			if String(current_level.get("boss_bgm", "")) != "":
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("帕秋莉出现了！", 2.5)
 		elif kind == "sakuya_boss":
@@ -4110,6 +4257,10 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("蕾米莉亚出现了！", 2.7)
+		elif kind == "flandre_boss":
+			if String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.get("boss_bgm", "")))
+			_show_banner("芙兰朵露出现了！", 2.8)
 	elif kind == "pool_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
@@ -4274,6 +4425,10 @@ func _is_roof_level() -> bool:
 	return String(current_level.get("terrain", "")) == "roof"
 
 
+func _is_blood_toy_roof_level() -> bool:
+	return String(current_level.get("terrain", "")) == "blood_toy_roof"
+
+
 func _is_city_level() -> bool:
 	return String(current_level.get("terrain", "")) == "city"
 
@@ -4359,6 +4514,24 @@ func _choose_random_active_row_for_kind(kind: String, current_row: int) -> int:
 	if candidates.is_empty():
 		return current_row
 	return int(candidates[rng.randi_range(0, candidates.size() - 1)])
+
+
+func _pick_random_active_cells(count: int, min_col: int = 2, max_col: int = COLS - 1) -> Array:
+	var cells: Array = []
+	var clamped_min_col = clampi(min_col, 0, COLS - 1)
+	var clamped_max_col = clampi(max_col, clamped_min_col, COLS - 1)
+	for _i in range(max(1, count) * 5):
+		if cells.size() >= count:
+			break
+		if active_rows.is_empty():
+			break
+		var row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)])
+		var col = rng.randi_range(clamped_min_col, clamped_max_col)
+		var cell = Vector2i(row, col)
+		if cells.has(cell):
+			continue
+		cells.append(cell)
+	return cells
 
 
 func _is_mechanical_zombie_kind(kind: String) -> bool:
@@ -4521,11 +4694,16 @@ func _row_has_ice(row: int) -> bool:
 func _set_ice_tile(row: int, col: int) -> void:
 	if row < 0 or row >= ROWS or col < 0 or col >= COLS:
 		return
-	if _ice_index_at(row, col) != -1:
+	var ice_index = _ice_index_at(row, col)
+	if ice_index != -1:
+		ice_tiles[ice_index]["time"] = maxf(float(ice_tiles[ice_index].get("time", 0.0)), ICE_TILE_DURATION)
+		ice_tiles[ice_index]["duration"] = maxf(float(ice_tiles[ice_index].get("duration", 0.0)), ICE_TILE_DURATION)
 		return
 	ice_tiles.append({
 		"row": row,
 		"col": col,
+		"time": ICE_TILE_DURATION,
+		"duration": ICE_TILE_DURATION,
 	})
 
 
@@ -7197,6 +7375,9 @@ func _update_zombies(delta: float) -> void:
 					"remilia_boss":
 						cycle_length = 10
 						base_interval = 5.9
+					"flandre_boss":
+						cycle_length = 11
+						base_interval = 5.6
 				zombie["boss_skill_cycle"] = (int(zombie["boss_skill_cycle"]) + 1) % cycle_length
 				zombie["boss_skill_timer"] = maxf(3.6, base_interval - float(zombie["boss_phase"]) * 0.8)
 				zombie["boss_pause_timer"] = 1.3
@@ -7768,6 +7949,13 @@ func _update_plant_food_pickups(delta: float) -> void:
 
 
 func _update_effects(delta: float) -> void:
+	for i in range(ice_tiles.size() - 1, -1, -1):
+		var ice_tile = ice_tiles[i]
+		ice_tile["time"] = maxf(0.0, float(ice_tile.get("time", ICE_TILE_DURATION)) - delta)
+		if float(ice_tile["time"]) <= 0.0:
+			ice_tiles.remove_at(i)
+			continue
+		ice_tiles[i] = ice_tile
 	for i in range(porcelain_shards.size() - 1, -1, -1):
 		var shard = porcelain_shards[i]
 		shard["time"] = maxf(0.0, float(shard.get("time", 0.0)) - delta)
@@ -9118,7 +9306,7 @@ func _boss_anchor_x(_kind: String) -> float:
 
 
 func _is_hovering_boss_kind(kind: String) -> bool:
-	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss"
+	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "flandre_boss"
 
 
 func _next_active_row(current_row: int, direction: int) -> Dictionary:
@@ -9177,6 +9365,10 @@ func _roll_hover_shift_interval(kind: String, phase: int) -> float:
 			var min_interval = maxf(3.0, 4.1 - float(phase) * 0.14)
 			var max_interval = maxf(min_interval + 0.6, 5.1 - float(phase) * 0.1)
 			return rng.randf_range(min_interval, max_interval)
+		"flandre_boss":
+			var min_interval = maxf(2.4, 3.4 - float(phase) * 0.16)
+			var max_interval = maxf(min_interval + 0.54, 4.5 - float(phase) * 0.12)
+			return rng.randf_range(min_interval, max_interval)
 		_:
 			return _roll_rumia_hover_interval(phase)
 
@@ -9210,6 +9402,8 @@ func _hover_boss_effect_tint(kind: String) -> Color:
 			return Color(0.82, 0.9, 1.0, 0.26)
 		"remilia_boss":
 			return Color(0.94, 0.2, 0.26, 0.28)
+		"flandre_boss":
+			return Color(0.98, 0.42, 0.2, 0.28)
 		_:
 			return Color(0.94, 0.08, 0.18, 0.22)
 
@@ -9228,6 +9422,8 @@ func _hover_boss_move_duration(kind: String) -> float:
 			return 0.9
 		"remilia_boss":
 			return 0.84
+		"flandre_boss":
+			return 0.76
 		_:
 			return 0.52
 
@@ -9319,6 +9515,7 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 	if kind == "rumia_boss":
 		_spawn_rumia_reinforcement(phase)
 		return
+	var level_id = String(current_level.get("id", ""))
 	var pools: Array = []
 	var tint = Color(0.76, 0.94, 1.0, 0.22)
 	match kind:
@@ -9351,11 +9548,18 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 			]
 			tint = Color(0.98, 0.2, 0.3, 0.22)
 		"patchouli_boss":
-			pools = [
-				["conehead", "screen_door", "football", "newspaper", "snorkel"],
-				["dancing", "basketball", "ninja", "qinghua", "lifebuoy_bucket", "dragon_boat"],
-				["dark_football", "dragon_dance", "shouyue", "ice_block", "football", "screen_door"],
-			]
+			if level_id == "1-23":
+				pools = [
+					["conehead", "screen_door", "football", "newspaper", "buckethead"],
+					["dancing", "screen_door", "ninja", "qinghua", "shouyue"],
+					["dark_football", "dragon_dance", "shouyue", "ice_block", "football", "screen_door"],
+				]
+			else:
+				pools = [
+					["conehead", "screen_door", "football", "newspaper", "snorkel"],
+					["dancing", "basketball", "ninja", "qinghua", "lifebuoy_bucket", "dragon_boat"],
+					["dark_football", "dragon_dance", "shouyue", "ice_block", "football", "screen_door"],
+				]
 			tint = Color(0.76, 0.58, 1.0, 0.24)
 		"sakuya_boss":
 			pools = [
@@ -9371,6 +9575,13 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["dark_football", "dragon_dance", "basketball", "football", "ninja", "screen_door", "snorkel"],
 			]
 			tint = Color(0.96, 0.24, 0.3, 0.28)
+		"flandre_boss":
+			pools = [
+				["football", "buckethead", "screen_door", "ninja", "barrel_screen_zombie", "qinghua"],
+				["dark_football", "dragon_dance", "qinghua", "shouyue", "tornado_zombie", "turret_zombie", "programmer_zombie"],
+				["gargantuar", "wizard_zombie", "subway_zombie", "barrel_screen_zombie", "excavator_zombie", "dragon_dance", "dark_football", "tornado_zombie"],
+			]
+			tint = Color(1.0, 0.38, 0.24, 0.3)
 		"pool_boss":
 			pools = [
 				["lifebuoy_normal", "qinghua", "ice_block"],
@@ -9444,6 +9655,8 @@ func _update_boss_reinforcements(zombie: Dictionary, delta: float) -> Dictionary
 			default_interval = maxf(2.6, 4.1 - float(phase) * 0.34)
 		"remilia_boss":
 			default_interval = maxf(2.4, 3.9 - float(phase) * 0.32)
+		"flandre_boss":
+			default_interval = maxf(2.2, 3.6 - float(phase) * 0.28)
 		_:
 			return zombie
 	zombie["rumia_reinforcement_timer"] = float(zombie.get("rumia_reinforcement_timer", default_interval)) - delta
@@ -10352,6 +10565,259 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 			return _set_rumia_state(zombie, "meister", 0.72)
 
 
+func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
+	var data = Defs.ZOMBIES["flandre_boss"]
+	var row = int(zombie.get("row", 0))
+	var phase = int(zombie.get("boss_phase", 0))
+	var anchor_x = _boss_anchor_x("flandre_boss")
+	var center = Vector2(anchor_x - 102.0, _row_center_y(row) - 12.0)
+	match int(zombie.get("boss_skill_cycle", 0)):
+		0:
+			var burn_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
+			var burn_hit := false
+			var beam_start = BOARD_ORIGIN.x + board_size.x * 0.22
+			for burn_row_variant in burn_rows:
+				burn_hit = _damage_plants_in_row_segment(
+					int(burn_row_variant),
+					beam_start,
+					anchor_x,
+					float(data.get("beam_damage", 92.0)) + phase * 18.0
+				) or burn_hit
+			effects.append({
+				"shape": "flandre_laevatein",
+				"position": Vector2(beam_start, _row_center_y(row) - 10.0),
+				"length": anchor_x - beam_start,
+				"width": CELL_SIZE.y * 1.9,
+				"radius": 260.0,
+				"time": 0.56,
+				"duration": 0.56,
+				"anim_speed": 7.0,
+				"color": Color(1.0, 0.36, 0.22, 0.34 if burn_hit else 0.18),
+			})
+			_show_banner("Taboo \"Laevatein\"", 1.2)
+			return _set_rumia_state(zombie, "laevatein", 0.62)
+		1:
+			var clone_cells = _pick_random_active_cells(4, 3, COLS - 2)
+			var clone_hit = _damage_plants_in_cells(clone_cells, float(data.get("clone_damage", 72.0)) + phase * 12.0, 1.0 + phase * 0.08)
+			var clone_points: Array = []
+			for cell_variant in clone_cells:
+				var clone_cell = Vector2i(cell_variant)
+				clone_points.append(_cell_center(clone_cell.x, clone_cell.y) + Vector2(0.0, -12.0))
+			effects.append({
+				"shape": "flandre_four_of_a_kind",
+				"position": center,
+				"points": clone_points,
+				"radius": 176.0,
+				"time": 0.52,
+				"duration": 0.52,
+				"anim_speed": 6.2,
+				"color": Color(1.0, 0.64, 0.34, 0.3 if clone_hit > 0 else 0.16),
+			})
+			_show_banner("Forbidden Barrage \"Four of a Kind\"", 1.24)
+			return _set_rumia_state(zombie, "clones", 0.58)
+		2:
+			var kagome_cells: Array = []
+			for lane_variant in active_rows:
+				var lane_row = int(lane_variant)
+				if abs(lane_row - row) > 1:
+					continue
+				for target_col in [3, 5, 7]:
+					if target_col >= COLS:
+						continue
+					kagome_cells.append(Vector2i(lane_row, target_col))
+			var kagome_hit = _damage_plants_in_cells(kagome_cells, float(data.get("ring_damage", 66.0)) + phase * 12.0, 1.1)
+			var kagome_points: Array = []
+			for kagome_cell_variant in kagome_cells:
+				var kagome_cell = Vector2i(kagome_cell_variant)
+				kagome_points.append(_cell_center(kagome_cell.x, kagome_cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "flandre_kagome_ring",
+				"position": center,
+				"points": kagome_points,
+				"radius": 214.0,
+				"time": 0.62,
+				"duration": 0.62,
+				"anim_speed": 5.8,
+				"color": Color(1.0, 0.22, 0.34, 0.3 if kagome_hit > 0 else 0.16),
+			})
+			_show_banner("Taboo \"Kagome, Kagome\"", 1.24)
+			return _set_rumia_state(zombie, "kagome", 0.62)
+		3:
+			var star_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
+			var star_hit := false
+			var star_start = BOARD_ORIGIN.x + board_size.x * 0.18
+			for star_row_variant in star_rows:
+				star_hit = _damage_plants_in_row_segment(
+					int(star_row_variant),
+					star_start,
+					anchor_x,
+					float(data.get("starbow_damage", 58.0)) * (1.8 + phase * 0.15)
+				) or star_hit
+			effects.append({
+				"shape": "flandre_starbow_break",
+				"position": Vector2(star_start, _row_center_y(row) - 12.0),
+				"length": anchor_x - star_start,
+				"width": board_size.y * 0.76,
+				"radius": 286.0,
+				"time": 0.58,
+				"duration": 0.58,
+				"anim_speed": 6.8,
+				"color": Color(1.0, 0.78, 0.34, 0.32 if star_hit else 0.16),
+			})
+			_show_banner("Star Sign \"Starbow Break\"", 1.2)
+			return _set_rumia_state(zombie, "starbow", 0.58)
+		4:
+			var doll_cells = _pick_random_active_cells(3 + phase, 4, COLS - 1)
+			var doll_hit = _damage_plants_in_cells(doll_cells, float(data.get("doll_damage", 80.0)) + phase * 16.0, 1.0 + phase * 0.08)
+			for _i in range(2 + phase):
+				_spawn_hover_boss_reinforcement("flandre_boss", phase)
+			var doll_points: Array = []
+			for doll_cell_variant in doll_cells:
+				var doll_cell = Vector2i(doll_cell_variant)
+				doll_points.append(_cell_center(doll_cell.x, doll_cell.y) + Vector2(0.0, -8.0))
+			effects.append({
+				"shape": "flandre_doll_box",
+				"position": center,
+				"points": doll_points,
+				"radius": 190.0,
+				"time": 0.54,
+				"duration": 0.54,
+				"anim_speed": 6.0,
+				"color": Color(0.96, 0.44, 0.74, 0.28 if doll_hit > 0 else 0.16),
+			})
+			_show_banner("Forbidden Room \"Doll's Box\"", 1.22)
+			return _set_rumia_state(zombie, "dolls", 0.58)
+		5:
+			var crystal_cells = _pick_random_active_cells(5, 2, COLS - 2)
+			var crystal_hit = _damage_plants_in_cells(crystal_cells, float(data.get("crystal_damage", 84.0)) + phase * 14.0, 1.2 + phase * 0.1)
+			var crystal_points: Array = []
+			for crystal_cell_variant in crystal_cells:
+				var crystal_cell = Vector2i(crystal_cell_variant)
+				crystal_points.append(_cell_center(crystal_cell.x, crystal_cell.y) + Vector2(0.0, -12.0))
+			effects.append({
+				"shape": "flandre_crystal_spike",
+				"position": center,
+				"points": crystal_points,
+				"radius": 206.0,
+				"time": 0.56,
+				"duration": 0.56,
+				"anim_speed": 7.2,
+				"color": Color(0.48, 0.94, 1.0, 0.28 if crystal_hit > 0 else 0.16),
+			})
+			_show_banner("Crystal Sign \"Crystal Spike\"", 1.18)
+			return _set_rumia_state(zombie, "crystal", 0.56)
+		6:
+			var break_hit := false
+			for lane_variant in active_rows:
+				var lane_row = int(lane_variant)
+				if lane_row == row or rng.randf() < 0.6:
+					_damage_front_plant_in_row(lane_row, float(data.get("break_damage", 112.0)) + phase * 20.0)
+					break_hit = true
+			effects.append({
+				"shape": "flandre_break_switch",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.58, BOARD_ORIGIN.y + board_size.y * 0.5 - 8.0),
+				"length": board_size.x * 0.7,
+				"width": board_size.y * 0.88,
+				"radius": 248.0,
+				"time": 0.5,
+				"duration": 0.5,
+				"anim_speed": 6.6,
+				"color": Color(1.0, 0.18, 0.24, 0.28 if break_hit else 0.14),
+			})
+			_show_banner("Taboo \"Break the Hatchling\"", 1.2)
+			return _set_rumia_state(zombie, "break", 0.54)
+		7:
+			var storm_hit := false
+			for lane_variant in active_rows:
+				var lane_row = int(lane_variant)
+				storm_hit = _damage_plants_in_row_segment(
+					lane_row,
+					BOARD_ORIGIN.x + board_size.x * (0.22 + 0.08 * float(lane_row % 2)),
+					anchor_x,
+					float(data.get("storm_damage", 52.0)) * (2.0 + phase * 0.18)
+				) or storm_hit
+			effects.append({
+				"shape": "flandre_toy_storm",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.26, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
+				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.26),
+				"width": board_size.y * 0.92,
+				"radius": 320.0,
+				"time": 0.62,
+				"duration": 0.62,
+				"anim_speed": 7.0,
+				"color": Color(0.98, 0.58, 0.22, 0.32 if storm_hit else 0.16),
+			})
+			_show_banner("Toy Sign \"Toy Storm\"", 1.18)
+			return _set_rumia_state(zombie, "storm", 0.62)
+		8:
+			var secret_cells = _pick_random_active_cells(4 + phase, 4, COLS - 1)
+			var secret_hit = _damage_plants_in_cells(secret_cells, float(data.get("secret_damage", 90.0)) + phase * 15.0, 1.1 + phase * 0.08)
+			for _i in range(1 + phase):
+				_spawn_hover_boss_reinforcement("flandre_boss", phase)
+			var secret_points: Array = []
+			for secret_cell_variant in secret_cells:
+				var secret_cell = Vector2i(secret_cell_variant)
+				secret_points.append(_cell_center(secret_cell.x, secret_cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "flandre_secret_barrage",
+				"position": center,
+				"points": secret_points,
+				"radius": 220.0,
+				"time": 0.58,
+				"duration": 0.58,
+				"anim_speed": 7.4,
+				"color": Color(0.92, 0.32, 0.94, 0.28 if secret_hit > 0 else 0.16),
+			})
+			_show_banner("Secret Barrage \"And Then There Will Be None?\"", 1.28)
+			return _set_rumia_state(zombie, "secret", 0.58)
+		9:
+			var grid_cells: Array = []
+			for lane_variant in active_rows:
+				var lane_row = int(lane_variant)
+				for target_col in [2, 4, 6, 8]:
+					if target_col >= COLS:
+						continue
+					grid_cells.append(Vector2i(lane_row, target_col))
+			var grid_hit = _damage_plants_in_cells(grid_cells, float(data.get("grid_damage", 46.0)) + phase * 10.0, 0.9 + phase * 0.06)
+			var grid_points: Array = []
+			for grid_cell_variant in grid_cells:
+				var grid_cell = Vector2i(grid_cell_variant)
+				grid_points.append(_cell_center(grid_cell.x, grid_cell.y) + Vector2(0.0, -8.0))
+			effects.append({
+				"shape": "flandre_judgement_grid",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
+				"points": grid_points,
+				"length": board_size.x * 0.84,
+				"width": board_size.y * 0.92,
+				"radius": 340.0,
+				"time": 0.62,
+				"duration": 0.62,
+				"anim_speed": 6.4,
+				"color": Color(1.0, 0.4, 0.18, 0.28 if grid_hit > 0 else 0.16),
+			})
+			_show_banner("Taboo \"Judgement Grid\"", 1.2)
+			return _set_rumia_state(zombie, "judgement", 0.62)
+		_:
+			var trap_cells = _pick_random_active_cells(3 + phase, 3, COLS - 2)
+			var trap_hit = _damage_plants_in_cells(trap_cells, float(data.get("trap_damage", 96.0)) + phase * 14.0, 1.2 + phase * 0.1)
+			var trap_points: Array = []
+			for trap_cell_variant in trap_cells:
+				var trap_cell = Vector2i(trap_cell_variant)
+				trap_points.append(_cell_center(trap_cell.x, trap_cell.y) + Vector2(0.0, -8.0))
+			effects.append({
+				"shape": "flandre_cranberry_trap",
+				"position": center,
+				"points": trap_points,
+				"radius": 198.0,
+				"time": 0.56,
+				"duration": 0.56,
+				"anim_speed": 6.8,
+				"color": Color(0.98, 0.14, 0.22, 0.3 if trap_hit > 0 else 0.16),
+			})
+			_show_banner("Taboo \"Cranberry Trap\"", 1.18)
+			return _set_rumia_state(zombie, "cranberry", 0.56)
+
+
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 	if String(zombie["kind"]) == "rumia_boss":
 		return _trigger_rumia_boss_skill(zombie)
@@ -10369,6 +10835,8 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		return _trigger_sakuya_boss_skill(zombie)
 	if String(zombie["kind"]) == "remilia_boss":
 		return _trigger_remilia_boss_skill(zombie)
+	if String(zombie["kind"]) == "flandre_boss":
+		return _trigger_flandre_boss_skill(zombie)
 	if String(zombie["kind"]) == "night_boss":
 		return _trigger_night_boss_skill(zombie)
 	if String(zombie["kind"]) == "pool_boss":
@@ -11138,6 +11606,37 @@ func _trigger_remilia_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 	return _set_rumia_state(zombie, "phase", 0.78)
 
 
+func _trigger_flandre_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
+	var center = Vector2(_boss_anchor_x("flandre_boss") - 106.0, _row_center_y(int(zombie["row"])) - 12.0)
+	_show_banner("芙兰朵露进入第 %d 阶段！" % (phase + 1), 2.3)
+	effects.append({
+		"shape": "flandre_destroyer_field",
+		"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.52, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
+		"length": board_size.x * 0.88,
+		"width": board_size.y * 0.94,
+		"radius": board_size.x * 0.52,
+		"time": 0.66,
+		"duration": 0.66,
+		"anim_speed": 7.2,
+		"color": Color(1.0, 0.22, 0.18, 0.34),
+	})
+	effects.append({
+		"shape": "flandre_phase_wings",
+		"position": center,
+		"radius": 228.0 + phase * 24.0,
+		"time": 0.62,
+		"duration": 0.62,
+		"anim_speed": 6.4,
+		"color": Color(1.0, 0.74, 0.32, 0.34),
+	})
+	_damage_plants_in_circle(center, 210.0 + phase * 18.0, 58.0 + phase * 18.0)
+	_stagger_plants_in_circle(center, 218.0 + phase * 18.0, 1.2 + phase * 0.14)
+	for _i in range(2 + phase):
+		_spawn_hover_boss_reinforcement("flandre_boss", phase)
+	zombie = _heal_hover_boss(zombie, 80.0 + float(phase) * 64.0)
+	return _set_rumia_state(zombie, "phase", 0.78)
+
+
 func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 	if String(zombie["kind"]) == "rumia_boss":
 		return _trigger_rumia_boss_phase_shift(zombie, phase)
@@ -11155,6 +11654,8 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		return _trigger_sakuya_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "remilia_boss":
 		return _trigger_remilia_boss_phase_shift(zombie, phase)
+	if String(zombie["kind"]) == "flandre_boss":
+		return _trigger_flandre_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "night_boss":
 		return _trigger_night_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "pool_boss":
@@ -13047,7 +13548,7 @@ func _extra_spawn_count_for_event(event_index: int, event: Dictionary) -> int:
 	if total_events <= 8:
 		extra += 1
 	var kind = String(event["kind"])
-	if kind == "buckethead" or kind == "day_boss" or kind == "night_boss" or kind == "pool_boss" or kind == "fog_boss" or kind == "roof_boss" or kind == "city_boss" or kind == "rumia_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "football" or kind == "dark_football":
+	if kind == "buckethead" or kind == "day_boss" or kind == "night_boss" or kind == "pool_boss" or kind == "fog_boss" or kind == "roof_boss" or kind == "city_boss" or kind == "rumia_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "flandre_boss" or kind == "football" or kind == "dark_football":
 		extra = max(extra - 2, 2)
 	if kind == "screen_door":
 		extra = max(extra - 1, 3)
@@ -13057,6 +13558,7 @@ func _extra_spawn_count_for_event(event_index: int, event: Dictionary) -> int:
 func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) -> String:
 	var total_events = max(current_level["events"].size(), 1)
 	var progress = float(event_index + 1) / float(total_events)
+	var level_id = String(current_level.get("id", ""))
 	match main_kind:
 		"day_boss":
 			if extra_index == 0:
@@ -13097,6 +13599,8 @@ func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) 
 		"patchouli_boss":
 			if extra_index == 0:
 				return "screen_door" if progress < 0.52 else "football"
+			if level_id == "1-23":
+				return "qinghua" if progress >= 0.78 else "ninja"
 			return "basketball" if progress >= 0.78 else "ninja"
 		"sakuya_boss":
 			if extra_index == 0:
@@ -13106,6 +13610,10 @@ func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) 
 			if extra_index == 0:
 				return "screen_door" if progress < 0.45 else "football"
 			return "dark_football" if progress >= 0.74 else "basketball"
+		"flandre_boss":
+			if extra_index == 0:
+				return "screen_door" if progress < 0.45 else "dark_football"
+			return "barrel_screen_zombie" if progress >= 0.8 else "wizard_zombie"
 		"daiyousei_boss":
 			if extra_index == 0:
 				return "lifebuoy_normal" if progress >= 0.5 else "conehead"
@@ -13180,7 +13688,13 @@ func _draw() -> void:
 	if startup_loading_active:
 		_draw_startup_loading_scene()
 		return
+	if _should_show_mobile_rotate_prompt():
+		_draw_mobile_rotate_prompt()
+		return
 	if page_transition_active:
+		if _should_show_mobile_rotate_prompt(page_transition_to_mode):
+			_draw_mobile_rotate_prompt(page_transition_to_mode)
+			return
 		var eased = ThemeLib.ease_in_out(page_transition_progress)
 		var travel = size.x * 0.94
 		var from_offset = Vector2(-travel * eased * page_transition_direction, 0.0)
@@ -13225,8 +13739,7 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 	if draw_mode == MODE_BATTLE and screen_shake_amount > 0.5:
 		shake_offset = Vector2(sin(ui_time * 67.3) * screen_shake_amount, cos(ui_time * 53.7) * screen_shake_amount * 0.6)
 	if _is_ui_scaled_mode(draw_mode):
-		var s = _ui_scale()
-		draw_set_transform(offset + _ui_offset(), 0.0, Vector2(s, s))
+		draw_set_transform(offset + _ui_offset(draw_mode), 0.0, _ui_scale_vector(draw_mode))
 	else:
 		draw_set_transform(offset + shake_offset, 0.0, Vector2.ONE)
 	if draw_mode == MODE_WORLD_SELECT:
@@ -13649,6 +14162,10 @@ func _draw_level_node(level_index: int) -> void:
 		halo_color = Color(0.92, 0.14, 0.22, 0.22 + 0.14 * pulse) if unlocked else Color(0.0, 0.0, 0.0, 0.0)
 		bulb_color = Color(0.66, 0.22, 0.34) if unlocked else Color(0.42, 0.36, 0.4)
 		outline = Color(0.24, 0.0, 0.08) if unlocked else Color(0.2, 0.18, 0.2)
+	elif terrain_key == "blood_toy_roof":
+		halo_color = Color(1.0, 0.26, 0.34, 0.22 + 0.16 * pulse) if unlocked else Color(0.0, 0.0, 0.0, 0.0)
+		bulb_color = Color(0.92, 0.38, 0.48) if unlocked else Color(0.42, 0.36, 0.4)
+		outline = Color(0.34, 0.02, 0.08) if unlocked else Color(0.2, 0.18, 0.2)
 
 	if unlocked:
 		draw_circle(node_pos, 44.0 + 5.0 * pulse + hover_boost * 6.0, Color(halo_color.r, halo_color.g, halo_color.b, halo_color.a * 0.4))
@@ -13672,8 +14189,13 @@ func _draw_level_node(level_index: int) -> void:
 	draw_circle(node_pos, 28.0, outline, false, 2.5)
 	_draw_text(str(world_order), node_pos + Vector2(-8.0, 7.0), 24, Color(0.19, 0.19, 0.2))
 	_draw_text(String(level["id"]), node_pos + Vector2(-22.0, -42.0), 16, Color(0.25, 0.18, 0.08))
-	if terrain_key == "blood_moon" or terrain_key == "blood_library":
+	if terrain_key == "blood_moon" or terrain_key == "blood_library" or terrain_key == "blood_toy_roof":
 		draw_circle(node_pos, 18.0 + pulse * 4.0, Color(1.0, 0.3, 0.36, 0.16), false, 2.0)
+		if terrain_key == "blood_toy_roof":
+			for shard_index in range(4):
+				var shard_angle = map_time * 0.8 + float(shard_index) * TAU * 0.25
+				var shard_center = node_pos + Vector2(cos(shard_angle), sin(shard_angle)) * (20.0 + pulse * 5.0)
+				draw_circle(shard_center, 3.6, Color(1.0, 0.92, 0.72, 0.32))
 
 	if completed:
 		draw_polygon(
@@ -14261,6 +14783,65 @@ func _draw_battle_background() -> void:
 		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 22.0, BOARD_ORIGIN.y + 24.0), Vector2(board_size.x + 96.0, 92.0)), Color(0.9, 0.16, 0.22, 0.04), true)
 		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 30.0, BOARD_ORIGIN.y + 230.0), Vector2(board_size.x + 108.0, 88.0)), Color(0.12, 0.0, 0.04, 0.1), true)
 		ThemeLib.draw_ambient_particles(self, size, ui_time, "dust_motes", 12)
+	elif _is_blood_toy_roof_level():
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 170.0)), Color(0.08, 0.0, 0.03), Color(0.34, 0.04, 0.12))
+		ThemeLib.draw_glow_circle(self, Vector2(size.x - 148.0, 74.0), 42.0, Color(0.98, 0.18, 0.26), 6)
+		draw_circle(Vector2(size.x - 128.0, 68.0), 36.0, Color(0.14, 0.0, 0.04))
+		for cloud_index in range(5):
+			var drift = fmod(ui_time * (5.2 + cloud_index * 1.05), 280.0)
+			var cloud_pos = Vector2(180.0 + float(cloud_index) * 220.0 + drift, 42.0 + float(cloud_index % 3) * 20.0)
+			draw_circle(cloud_pos, 26.0, Color(0.28, 0.02, 0.08, 0.42))
+			draw_circle(cloud_pos + Vector2(22.0, 5.0), 20.0, Color(0.4, 0.04, 0.12, 0.44))
+			draw_circle(cloud_pos + Vector2(-18.0, 8.0), 18.0, Color(0.18, 0.0, 0.05, 0.4))
+		for ribbon_index in range(3):
+			var ribbon_y = 84.0 + float(ribbon_index) * 24.0
+			var sway = sin(ui_time * 1.6 + float(ribbon_index) * 0.8) * 10.0
+			draw_arc(Vector2(246.0 + float(ribbon_index) * 284.0, ribbon_y), 44.0, -PI * 0.2, PI * 1.16, 28, Color(1.0, 0.42, 0.5, 0.22), 3.0)
+			draw_line(Vector2(214.0 + float(ribbon_index) * 284.0, ribbon_y + sway), Vector2(278.0 + float(ribbon_index) * 284.0, ribbon_y - sway), Color(1.0, 0.68, 0.74, 0.16), 1.4)
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(0.0, 118.0), Vector2(size.x, size.y - 118.0)), Color(0.22, 0.03, 0.08), Color(0.12, 0.01, 0.04))
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(20.0, 118.0), Vector2(192.0, size.y - 118.0)), Color(0.46, 0.08, 0.14), Color(0.3, 0.04, 0.08))
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(46.0, 164.0), Vector2(142.0, 150.0)), Color(0.72, 0.18, 0.22), Color(0.52, 0.1, 0.14))
+		draw_rect(Rect2(Vector2(72.0, 126.0), Vector2(96.0, 58.0)), Color(0.22, 0.02, 0.08), true)
+		draw_rect(Rect2(Vector2(84.0, 140.0), Vector2(20.0, 16.0)), Color(1.0, 0.24, 0.26, 0.46), true)
+		draw_rect(Rect2(Vector2(120.0, 140.0), Vector2(20.0, 16.0)), Color(0.98, 0.54, 0.66, 0.36), true)
+		var attic_rect = Rect2(Vector2(BOARD_ORIGIN.x - 28.0, BOARD_ORIGIN.y - 20.0), Vector2(board_size.x + 104.0, board_size.y + 40.0))
+		draw_polygon(
+			PackedVector2Array([
+				attic_rect.position + Vector2(0.0, 44.0),
+				attic_rect.position + Vector2(attic_rect.size.x * 0.16, 0.0),
+				attic_rect.position + Vector2(attic_rect.size.x * 0.42, 48.0),
+				attic_rect.position + Vector2(attic_rect.size.x * 0.68, 10.0),
+				attic_rect.position + Vector2(attic_rect.size.x, 54.0),
+				attic_rect.position + Vector2(attic_rect.size.x, attic_rect.size.y),
+				attic_rect.position + Vector2(0.0, attic_rect.size.y),
+			]),
+			PackedColorArray([
+				Color(0.42, 0.08, 0.14, 0.9),
+				Color(0.58, 0.12, 0.18, 0.94),
+				Color(0.48, 0.08, 0.16, 0.92),
+				Color(0.62, 0.14, 0.22, 0.94),
+				Color(0.46, 0.08, 0.16, 0.92),
+				Color(0.2, 0.02, 0.08, 0.96),
+				Color(0.18, 0.02, 0.06, 0.96),
+			])
+		)
+		for shingle in range(15):
+			var shingle_x = BOARD_ORIGIN.x - 40.0 + float(shingle) * 68.0
+			draw_line(Vector2(shingle_x, BOARD_ORIGIN.y - 4.0), Vector2(shingle_x + 34.0, BOARD_ORIGIN.y + board_size.y + 8.0), Color(1.0, 0.82, 0.7, 0.08), 2.2)
+		for row_band in range(6):
+			var band_y = BOARD_ORIGIN.y + float(row_band) * (board_size.y / 5.0)
+			draw_line(Vector2(BOARD_ORIGIN.x - 24.0, band_y), Vector2(BOARD_ORIGIN.x + board_size.x + 74.0, band_y), Color(0.18, 0.0, 0.04, 0.16), 1.8)
+		for toy_index in range(7):
+			var toy_phase = ui_time * 1.4 + float(toy_index) * 0.7
+			var toy_center = Vector2(BOARD_ORIGIN.x + 82.0 + float(toy_index) * 126.0, BOARD_ORIGIN.y - 14.0 + sin(toy_phase) * 5.0)
+			draw_circle(toy_center, 10.0, Color(1.0, 0.78, 0.3, 0.16))
+			draw_line(toy_center + Vector2(-10.0, 0.0).rotated(toy_phase), toy_center + Vector2(10.0, 0.0).rotated(toy_phase), Color(1.0, 0.42, 0.34, 0.32), 1.8)
+			draw_line(toy_center + Vector2(0.0, -10.0).rotated(toy_phase), toy_center + Vector2(0.0, 10.0).rotated(toy_phase), Color(1.0, 0.94, 0.74, 0.28), 1.5)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 36.0, BOARD_ORIGIN.y), Vector2(28.0, board_size.y)), Color(0.52, 0.1, 0.16), true)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x + board_size.x, BOARD_ORIGIN.y), Vector2(88.0, board_size.y)), Color(0.18, 0.02, 0.08), true)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 20.0, BOARD_ORIGIN.y + 24.0), Vector2(board_size.x + 98.0, 92.0)), Color(1.0, 0.24, 0.32, 0.05), true)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 26.0, BOARD_ORIGIN.y + 226.0), Vector2(board_size.x + 110.0, 90.0)), Color(0.02, 0.0, 0.02, 0.1), true)
+		ThemeLib.draw_ambient_particles(self, size, ui_time, "dust_motes", 10)
 	elif _is_scarlet_clocktower_level():
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 162.0)), Color(0.08, 0.02, 0.06), Color(0.22, 0.04, 0.1))
 		for star_index in range(8):
@@ -14772,6 +15353,8 @@ func _draw_battle_board() -> void:
 			lane_color = Color(0.46, 0.08, 0.12) if row % 2 == 0 else Color(0.38, 0.05, 0.08)
 		elif _is_blood_library_level():
 			lane_color = Color(0.34, 0.06, 0.12) if row % 2 == 0 else Color(0.28, 0.04, 0.1)
+		elif _is_blood_toy_roof_level():
+			lane_color = Color(0.42, 0.08, 0.14) if row % 2 == 0 else Color(0.34, 0.05, 0.12)
 		elif _is_frozen_branch_level():
 			lane_color = Color(0.62, 0.78, 0.68) if row % 2 == 0 else Color(0.56, 0.72, 0.62)
 		elif _is_city_level():
@@ -14801,6 +15384,16 @@ func _draw_battle_board() -> void:
 				)
 			draw_line(lane_rect.position + Vector2(0.0, 10.0), lane_rect.position + Vector2(lane_rect.size.x, 10.0), Color(0.9, 1.0, 1.0, 0.18), 2.0)
 			draw_line(lane_rect.position + Vector2(0.0, lane_rect.size.y - 10.0), lane_rect.position + Vector2(lane_rect.size.x, lane_rect.size.y - 10.0), Color(0.0, 0.22, 0.34, 0.16), 2.0)
+		elif _is_blood_toy_roof_level():
+			for ribbon_index in range(4):
+				var ribbon_y = lane_rect.position.y + 12.0 + float(ribbon_index) * 18.0
+				var sway = sin(ui_time * 1.9 + float(row) * 0.5 + float(ribbon_index) * 0.8) * 6.0
+				draw_line(
+					Vector2(lane_rect.position.x - 10.0, ribbon_y + sway),
+					Vector2(lane_rect.position.x + lane_rect.size.x + 12.0, ribbon_y - sway),
+					Color(1.0, 0.76, 0.82, 0.05 if ribbon_index % 2 == 0 else 0.035),
+					2.0
+				)
 		elif _is_roof_level():
 			for stripe_index in range(5):
 				var stripe_y = lane_rect.position.y + 12.0 + float(stripe_index) * 20.0
@@ -14831,6 +15424,14 @@ func _draw_battle_board() -> void:
 			elif _is_blood_library_level():
 				tint = Color(0.94, 0.26, 0.34, 0.04) if (row + col) % 2 == 0 else Color(0.08, 0.0, 0.04, 0.08)
 				border_color = Color(0.56, 0.14, 0.22, 0.3)
+			elif _is_blood_toy_roof_level():
+				var toy_terrain = _cell_terrain_kind(row, col)
+				if toy_terrain == "roof":
+					tint = Color(0.94, 0.76, 0.74, 0.08) if (row + col) % 2 == 0 else Color(0.18, 0.04, 0.08, 0.1)
+					border_color = Color(0.58, 0.18, 0.22, 0.32)
+				else:
+					tint = Color(1.0, 0.3, 0.4, 0.06) if (row + col) % 2 == 0 else Color(0.08, 0.0, 0.03, 0.08)
+					border_color = Color(0.46, 0.12, 0.18, 0.28)
 			elif _is_scarlet_clocktower_level():
 				tint = Color(clock_floor_style.get("mortar", Color(0.14, 0.03, 0.06, 0.8)))
 				border_color = Color(clock_floor_style.get("bevel_shadow", Color(0.18, 0.02, 0.08, 0.46)))
@@ -14950,24 +15551,40 @@ func _draw_battle_board() -> void:
 						var cover_center = tile.position + tile.size * 0.5
 						draw_circle(cover_center, minf(tile.size.x, tile.size.y) * 0.15, Color(0.2, 0.26, 0.22, 0.32))
 						draw_circle(cover_center, minf(tile.size.x, tile.size.y) * 0.09, Color(0.12, 0.16, 0.14, 0.42))
-				if _is_frozen_branch_level():
-					var tile_terrain = _cell_terrain_kind(row, col)
-					if tile_terrain == "water":
-						var mid_y = tile.position.y + tile.size.y * 0.5
-						draw_line(Vector2(tile.position.x + 8.0, mid_y - 12.0), Vector2(tile.position.x + tile.size.x - 8.0, mid_y - 12.0), Color(1.0, 1.0, 1.0, 0.12), 2.0)
-						draw_line(Vector2(tile.position.x + 14.0, mid_y + 12.0), Vector2(tile.position.x + tile.size.x - 14.0, mid_y + 12.0), Color(0.78, 0.96, 1.0, 0.12), 2.0)
-					elif tile_terrain == "frozen":
-						var mid_y = tile.position.y + tile.size.y * 0.5
-						var water_alpha = (1.0 - freeze_visual_ratio) * 0.12
-						if water_alpha > 0.0:
-							draw_line(Vector2(tile.position.x + 8.0, mid_y - 12.0), Vector2(tile.position.x + tile.size.x - 8.0, mid_y - 12.0), Color(1.0, 1.0, 1.0, water_alpha), 2.0)
-							draw_line(Vector2(tile.position.x + 14.0, mid_y + 12.0), Vector2(tile.position.x + tile.size.x - 14.0, mid_y + 12.0), Color(0.78, 0.96, 1.0, water_alpha), 2.0)
-						var crack_alpha = freeze_visual_ratio * 0.18
-						draw_line(tile.position + Vector2(12.0, 14.0), tile.position + tile.size - Vector2(18.0, 16.0), Color(1.0, 1.0, 1.0, crack_alpha), 2.0)
-						draw_line(tile.position + Vector2(tile.size.x * 0.55, 12.0), tile.position + Vector2(tile.size.x * 0.32, tile.size.y - 12.0), Color(0.72, 0.92, 1.0, freeze_visual_ratio * 0.16), 2.0)
+			elif _is_blood_toy_roof_level():
+				var toy_terrain = _cell_terrain_kind(row, col)
+				if toy_terrain == "roof":
+					for stripe_index in range(4):
+						var stripe_y = tile.position.y + 10.0 + float(stripe_index) * 18.0
+						draw_line(tile.position + Vector2(-2.0, stripe_y - tile.position.y), tile.position + Vector2(tile.size.x + 2.0, stripe_y - tile.position.y - 8.0), Color(1.0, 0.88, 0.8, 0.1 if stripe_index % 2 == 0 else 0.06), 1.8)
+					var pot_mark = Rect2(tile.position + Vector2(tile.size.x * 0.28, tile.size.y * 0.22), Vector2(tile.size.x * 0.44, tile.size.y * 0.42))
+					draw_rect(pot_mark, Color(0.24, 0.02, 0.06, 0.18), false, 1.6)
+					draw_line(pot_mark.position + Vector2(4.0, pot_mark.size.y - 6.0), pot_mark.position + Vector2(pot_mark.size.x - 4.0, 6.0), Color(1.0, 0.86, 0.72, 0.14), 1.2)
+				else:
+					if (row + col) % 2 == 0:
+						draw_circle(tile.position + tile.size * 0.5, minf(tile.size.x, tile.size.y) * 0.12, Color(1.0, 0.84, 0.32, 0.16))
+					for petal_index in range(3):
+						var petal_phase = float(row * 9 + col * 5 + petal_index)
+						var petal_center = tile.position + Vector2(16.0 + petal_index * 18.0, 18.0 + fmod(petal_phase * 11.0, 28.0))
+						draw_circle(petal_center + Vector2(sin(ui_time * 1.2 + petal_phase) * 2.0, cos(ui_time * 1.0 + petal_phase) * 1.6), 2.4, Color(1.0, 0.68, 0.76, 0.12))
+			if _is_frozen_branch_level():
+				var tile_terrain = _cell_terrain_kind(row, col)
+				if tile_terrain == "water":
+					var mid_y = tile.position.y + tile.size.y * 0.5
+					draw_line(Vector2(tile.position.x + 8.0, mid_y - 12.0), Vector2(tile.position.x + tile.size.x - 8.0, mid_y - 12.0), Color(1.0, 1.0, 1.0, 0.12), 2.0)
+					draw_line(Vector2(tile.position.x + 14.0, mid_y + 12.0), Vector2(tile.position.x + tile.size.x - 14.0, mid_y + 12.0), Color(0.78, 0.96, 1.0, 0.12), 2.0)
+				elif tile_terrain == "frozen":
+					var mid_y = tile.position.y + tile.size.y * 0.5
+					var water_alpha = (1.0 - freeze_visual_ratio) * 0.12
+					if water_alpha > 0.0:
+						draw_line(Vector2(tile.position.x + 8.0, mid_y - 12.0), Vector2(tile.position.x + tile.size.x - 8.0, mid_y - 12.0), Color(1.0, 1.0, 1.0, water_alpha), 2.0)
+						draw_line(Vector2(tile.position.x + 14.0, mid_y + 12.0), Vector2(tile.position.x + tile.size.x - 14.0, mid_y + 12.0), Color(0.78, 0.96, 1.0, water_alpha), 2.0)
+					var crack_alpha = freeze_visual_ratio * 0.18
+					draw_line(tile.position + Vector2(12.0, 14.0), tile.position + tile.size - Vector2(18.0, 16.0), Color(1.0, 1.0, 1.0, crack_alpha), 2.0)
+					draw_line(tile.position + Vector2(tile.size.x * 0.55, 12.0), tile.position + Vector2(tile.size.x * 0.32, tile.size.y - 12.0), Color(0.72, 0.92, 1.0, freeze_visual_ratio * 0.16), 2.0)
 			draw_rect(tile, border_color, false, 1.0)
 
-	var outline = Color(0.38, 0.04, 0.06, 0.8) if _is_blood_moon_level() else (Color(0.48, 0.08, 0.18, 0.82) if _is_blood_library_level() else (Color(0.72, 0.16, 0.08, 0.82) if String(current_level.get("terrain", "")) == "scarlet_gate" else (Color(0.62, 0.16, 0.24, 0.84) if _is_scarlet_clocktower_level() else (Color(0.52, 0.84, 1.0, 0.8) if _is_frozen_branch_level() else (Color(0.34, 0.78, 0.96, 0.82) if _is_city_level() else (Color(0.54, 0.24, 0.16, 0.76) if _is_roof_level() else (Color(0.08, 0.26, 0.34, 0.72) if _uses_backyard_pool_board() else (Color(0.16, 0.24, 0.22, 0.72) if _is_fog_level() else Color(0.12, 0.28, 0.08, 0.68)))))))))
+	var outline = Color(0.38, 0.04, 0.06, 0.8) if _is_blood_moon_level() else (Color(0.48, 0.08, 0.18, 0.82) if _is_blood_library_level() else (Color(0.64, 0.12, 0.22, 0.84) if _is_blood_toy_roof_level() else (Color(0.72, 0.16, 0.08, 0.82) if String(current_level.get("terrain", "")) == "scarlet_gate" else (Color(0.62, 0.16, 0.24, 0.84) if _is_scarlet_clocktower_level() else (Color(0.52, 0.84, 1.0, 0.8) if _is_frozen_branch_level() else (Color(0.34, 0.78, 0.96, 0.82) if _is_city_level() else (Color(0.54, 0.24, 0.16, 0.76) if _is_roof_level() else (Color(0.08, 0.26, 0.34, 0.72) if _uses_backyard_pool_board() else (Color(0.16, 0.24, 0.22, 0.72) if _is_fog_level() else Color(0.12, 0.28, 0.08, 0.68))))))))))
 	draw_rect(Rect2(BOARD_ORIGIN, board_size), outline, false, 4.0)
 
 
@@ -17417,6 +18034,179 @@ func _draw_effects() -> void:
 				draw_circle(burst_center, 4.0 + (1.0 - burst_ratio) * 4.0, Color(1.0, 0.92, 0.72, effect_color.a * (0.54 - burst_ratio * 0.16)))
 				draw_circle(burst_center, 9.0, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.12))
 			draw_circle(flare_origin + Vector2(flare_length, 0.0), flare_width * 0.24, Color(1.0, 0.94, 0.78, effect_color.a * 0.86))
+			continue
+		if shape == "flandre_laevatein":
+			var blade_origin = Vector2(effect["position"])
+			var blade_length = _effect_visual_length(effect, ratio)
+			var blade_width = _effect_visual_width(effect, ratio)
+			for band_index in range(4):
+				var band_ratio = float(band_index) / 3.0
+				var band_y = lerpf(-blade_width * 0.42, blade_width * 0.42, band_ratio)
+				var band_height = blade_width * (0.16 + (1.0 - band_ratio) * 0.04)
+				draw_rect(
+					Rect2(blade_origin + Vector2(0.0, band_y - band_height * 0.5), Vector2(blade_length, band_height)),
+					Color(1.0, 0.34 + band_ratio * 0.18, 0.18, effect_color.a * (0.26 + band_ratio * 0.08)),
+					true
+				)
+			for flame_index in range(11):
+				var flame_ratio = float(flame_index + 1) / 11.0
+				var flame_center = blade_origin + Vector2(blade_length * flame_ratio, sin(level_time * anim_speed * 1.4 + flame_ratio * 8.0) * blade_width * 0.16)
+				draw_circle(flame_center, blade_width * (0.08 + (1.0 - flame_ratio) * 0.04), Color(1.0, 0.88, 0.4, effect_color.a * (0.42 - flame_ratio * 0.12)))
+			draw_circle(blade_origin + Vector2(blade_length, 0.0), blade_width * 0.22, Color(1.0, 0.96, 0.82, effect_color.a * 0.88))
+			continue
+		if shape == "flandre_four_of_a_kind":
+			var clone_center = Vector2(effect["position"])
+			for point_variant in effect.get("points", []):
+				var point = Vector2(point_variant)
+				var ring_radius = 26.0 + sin(level_time * anim_speed + point.x * 0.01) * 4.0
+				draw_arc(point, ring_radius, level_time * anim_speed * 0.24, level_time * anim_speed * 0.24 + PI * 1.7, 24, Color(1.0, 0.82, 0.4, effect_color.a * 0.66), 2.2)
+				draw_circle(point, 10.0, Color(1.0, 0.42, 0.28, effect_color.a * 0.26))
+				draw_line(clone_center, point, Color(1.0, 0.58, 0.24, effect_color.a * 0.24), 1.6)
+			draw_circle(clone_center, 18.0, Color(1.0, 0.74, 0.28, effect_color.a * 0.2))
+			continue
+		if shape == "flandre_kagome_ring":
+			var kagome_center = Vector2(effect["position"])
+			var kagome_points := PackedVector2Array()
+			for point_variant in effect.get("points", []):
+				kagome_points.append(Vector2(point_variant))
+			if kagome_points.size() >= 3:
+				kagome_points.append(kagome_points[0])
+				draw_polyline(kagome_points, Color(1.0, 0.24, 0.36, effect_color.a * 0.58), 2.4)
+			for point_variant in effect.get("points", []):
+				var point = Vector2(point_variant)
+				draw_circle(point, 14.0, Color(0.82, 0.08, 0.18, effect_color.a * 0.18))
+				draw_arc(point, 22.0, 0.0, TAU, 28, Color(1.0, 0.7, 0.36, effect_color.a * 0.46), 1.8)
+			draw_arc(kagome_center, _effect_visual_radius(effect, ratio) * 0.66, level_time * anim_speed * 0.18, level_time * anim_speed * 0.18 + TAU * 0.82, 38, Color(1.0, 0.4, 0.28, effect_color.a * 0.34), 2.6)
+			continue
+		if shape == "flandre_starbow_break":
+			var star_origin = Vector2(effect["position"])
+			var star_length = _effect_visual_length(effect, ratio)
+			var star_width = _effect_visual_width(effect, ratio)
+			var star_colors = [
+				Color(1.0, 0.34, 0.24, effect_color.a * 0.42),
+				Color(1.0, 0.72, 0.26, effect_color.a * 0.38),
+				Color(1.0, 0.94, 0.52, effect_color.a * 0.34),
+			]
+			for band_index in range(star_colors.size()):
+				var band_rect = Rect2(star_origin + Vector2(0.0, (-0.32 + float(band_index) * 0.32) * star_width), Vector2(star_length, star_width * 0.16))
+				draw_rect(band_rect, star_colors[band_index], true)
+			for star_index in range(9):
+				var star_ratio = float(star_index + 1) / 9.0
+				var star_center = star_origin + Vector2(star_length * star_ratio, sin(level_time * anim_speed * 1.1 + star_ratio * 8.0) * star_width * 0.2)
+				for arm_index in range(5):
+					var arm_angle = level_time * anim_speed * 0.16 + float(arm_index) * TAU / 5.0
+					draw_line(star_center, star_center + Vector2(cos(arm_angle), sin(arm_angle)) * 12.0, Color(1.0, 0.96, 0.76, effect_color.a * 0.48), 1.6)
+				draw_circle(star_center, 4.4, Color(1.0, 0.94, 0.72, effect_color.a * 0.66))
+			continue
+		if shape == "flandre_doll_box":
+			var box_center = Vector2(effect["position"])
+			for point_variant in effect.get("points", []):
+				var point = Vector2(point_variant)
+				draw_rect(Rect2(point + Vector2(-16.0, -16.0), Vector2(32.0, 32.0)), Color(0.94, 0.28, 0.42, effect_color.a * 0.18), false, 2.0)
+				draw_circle(point + Vector2(-6.0, -2.0), 3.0, Color(1.0, 0.92, 0.82, effect_color.a * 0.56))
+				draw_circle(point + Vector2(6.0, -2.0), 3.0, Color(1.0, 0.92, 0.82, effect_color.a * 0.56))
+				draw_line(point + Vector2(-6.0, 8.0), point + Vector2(6.0, 8.0), Color(1.0, 0.76, 0.56, effect_color.a * 0.4), 1.6)
+				draw_line(box_center, point, Color(1.0, 0.46, 0.62, effect_color.a * 0.18), 1.2)
+			draw_circle(box_center, 22.0, Color(1.0, 0.54, 0.74, effect_color.a * 0.12))
+			continue
+		if shape == "flandre_crystal_spike":
+			for point_variant in effect.get("points", []):
+				var point = Vector2(point_variant)
+				draw_polygon(
+					PackedVector2Array([
+						point + Vector2(0.0, -26.0),
+						point + Vector2(12.0, -4.0),
+						point + Vector2(5.0, 18.0),
+						point + Vector2(-8.0, 8.0),
+					]),
+					PackedColorArray([
+						Color(0.76, 0.98, 1.0, effect_color.a * 0.88),
+						Color(0.48, 0.9, 1.0, effect_color.a * 0.72),
+						Color(0.26, 0.66, 0.96, effect_color.a * 0.56),
+						Color(0.84, 1.0, 1.0, effect_color.a * 0.68),
+					])
+				)
+				draw_circle(point, 9.0, Color(0.86, 1.0, 1.0, effect_color.a * 0.16))
+			continue
+		if shape == "flandre_break_switch":
+			var break_center = Vector2(effect["position"])
+			var break_radius = _effect_visual_radius(effect, ratio)
+			for crack_index in range(8):
+				var crack_angle = float(crack_index) * TAU / 8.0 + level_time * anim_speed * 0.08
+				var crack_dir = Vector2(cos(crack_angle), sin(crack_angle))
+				draw_line(break_center, break_center + crack_dir * break_radius * (0.48 + float(crack_index % 3) * 0.14), Color(1.0, 0.56, 0.32, effect_color.a * 0.54), 2.2)
+			draw_arc(break_center, break_radius * 0.52, 0.0, TAU, 32, Color(1.0, 0.22, 0.28, effect_color.a * 0.42), 2.4)
+			draw_circle(break_center, break_radius * 0.18, Color(1.0, 0.84, 0.56, effect_color.a * 0.24))
+			continue
+		if shape == "flandre_toy_storm":
+			var storm_origin = Vector2(effect["position"])
+			var storm_length = _effect_visual_length(effect, ratio)
+			var storm_width = _effect_visual_width(effect, ratio)
+			for toy_index in range(16):
+				var toy_ratio = float(toy_index + 1) / 16.0
+				var toy_center = storm_origin + Vector2(storm_length * toy_ratio, sin(level_time * anim_speed * 0.9 + toy_ratio * 10.0) * storm_width * 0.36)
+				draw_circle(toy_center, 5.0 + float(toy_index % 3), Color(1.0, 0.8, 0.36, effect_color.a * 0.28))
+				var spin = level_time * anim_speed * 0.22 + float(toy_index) * 0.3
+				draw_line(toy_center + Vector2(-8.0, 0.0).rotated(spin), toy_center + Vector2(8.0, 0.0).rotated(spin), Color(1.0, 0.48, 0.24, effect_color.a * 0.38), 1.8)
+				draw_line(toy_center + Vector2(0.0, -8.0).rotated(spin), toy_center + Vector2(0.0, 8.0).rotated(spin), Color(1.0, 0.96, 0.72, effect_color.a * 0.32), 1.4)
+			draw_rect(Rect2(storm_origin + Vector2(0.0, -storm_width * 0.38), Vector2(storm_length, storm_width * 0.76)), Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.08), true)
+			continue
+		if shape == "flandre_secret_barrage":
+			var barrage_center = Vector2(effect["position"])
+			for point_variant in effect.get("points", []):
+				var point = Vector2(point_variant)
+				var mid = barrage_center.lerp(point, 0.5) + (point - barrage_center).normalized().orthogonal() * 18.0 * (1.0 - ratio)
+				draw_polyline(PackedVector2Array([barrage_center, mid, point]), Color(1.0, 0.86, 0.42, effect_color.a * 0.52), 2.0)
+				draw_circle(point, 7.0, Color(1.0, 0.34, 0.34, effect_color.a * 0.4))
+			draw_circle(barrage_center, 18.0, Color(1.0, 0.92, 0.72, effect_color.a * 0.18))
+			continue
+		if shape == "flandre_judgement_grid":
+			var grid_center = Vector2(effect["position"])
+			var grid_length = _effect_visual_length(effect, ratio)
+			var grid_width = _effect_visual_width(effect, ratio)
+			for line_index in range(5):
+				var x_ratio = float(line_index) / 4.0
+				var x = grid_center.x - grid_length * 0.5 + grid_length * x_ratio
+				draw_line(Vector2(x, grid_center.y - grid_width * 0.5), Vector2(x, grid_center.y + grid_width * 0.5), Color(1.0, 0.44, 0.28, effect_color.a * 0.34), 1.8)
+			for line_index in range(4):
+				var y_ratio = float(line_index) / 3.0
+				var y = grid_center.y - grid_width * 0.5 + grid_width * y_ratio
+				draw_line(Vector2(grid_center.x - grid_length * 0.5, y), Vector2(grid_center.x + grid_length * 0.5, y), Color(1.0, 0.84, 0.52, effect_color.a * 0.28), 1.6)
+			for point_variant in effect.get("points", []):
+				var point = Vector2(point_variant)
+				draw_circle(point, 5.0, Color(1.0, 0.92, 0.7, effect_color.a * 0.48))
+			continue
+		if shape == "flandre_cranberry_trap":
+			for point_variant in effect.get("points", []):
+				var point = Vector2(point_variant)
+				draw_circle(point, 18.0, Color(0.92, 0.08, 0.16, effect_color.a * 0.18))
+				draw_arc(point, 24.0, level_time * anim_speed * 0.18, level_time * anim_speed * 0.18 + TAU * 0.84, 24, Color(1.0, 0.42, 0.42, effect_color.a * 0.54), 2.0)
+				draw_circle(point, 7.0, Color(1.0, 0.8, 0.84, effect_color.a * 0.42))
+			continue
+		if shape == "flandre_destroyer_field":
+			var destroy_center = Vector2(effect["position"])
+			var destroy_length = _effect_visual_length(effect, ratio)
+			var destroy_width = _effect_visual_width(effect, ratio)
+			draw_rect(Rect2(destroy_center + Vector2(-destroy_length * 0.5, -destroy_width * 0.5), Vector2(destroy_length, destroy_width)), Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.1), true)
+			draw_arc(destroy_center, _effect_visual_radius(effect, ratio) * 0.48, 0.0, TAU, 40, Color(1.0, 0.4, 0.26, effect_color.a * 0.42), 2.8)
+			draw_line(destroy_center + Vector2(-destroy_length * 0.42, 0.0), destroy_center + Vector2(destroy_length * 0.42, 0.0), Color(1.0, 0.84, 0.56, effect_color.a * 0.36), 2.0)
+			draw_line(destroy_center + Vector2(0.0, -destroy_width * 0.42), destroy_center + Vector2(0.0, destroy_width * 0.42), Color(1.0, 0.84, 0.56, effect_color.a * 0.32), 2.0)
+			continue
+		if shape == "flandre_phase_wings":
+			var wing_center = Vector2(effect["position"])
+			var wing_radius = _effect_visual_radius(effect, ratio)
+			for side in [-1.0, 1.0]:
+				var wing_points := PackedVector2Array([
+					wing_center + Vector2(side * 18.0, -8.0),
+					wing_center + Vector2(side * (wing_radius * 0.34), -wing_radius * 0.12),
+					wing_center + Vector2(side * (wing_radius * 0.48), wing_radius * 0.08),
+					wing_center + Vector2(side * (wing_radius * 0.28), wing_radius * 0.28),
+				])
+				draw_polyline(wing_points, Color(1.0, 0.72, 0.28, effect_color.a * 0.62), 2.6)
+				for shard_index in range(3):
+					var shard_point = wing_points[min(shard_index + 1, wing_points.size() - 1)]
+					draw_circle(shard_point, 7.0 + float(shard_index), Color(1.0, 0.94, 0.78, effect_color.a * (0.42 - float(shard_index) * 0.08)))
+			draw_circle(wing_center, wing_radius * 0.16, Color(1.0, 0.9, 0.68, effect_color.a * 0.22))
 			continue
 		if shape == "squash_slam":
 			var slam_radius = _effect_visual_radius(effect, ratio)
@@ -20242,6 +21032,23 @@ func _ensure_remilia_frames_loaded() -> void:
 	shared_remilia_frames_face_left = expected_face_left
 
 
+func _ensure_flandre_frames_loaded() -> void:
+	var expected_face_left = _boss_frames_face_left("flandre_boss")
+	if flandre_frames_loaded and _boss_frame_cache_matches(flandre_frames, FLANDRE_FRAME_COUNT, expected_face_left, flandre_frames_face_left):
+		return
+	if shared_flandre_frames_loaded and _boss_frame_cache_matches(shared_flandre_frames, FLANDRE_FRAME_COUNT, expected_face_left, shared_flandre_frames_face_left):
+		flandre_frames_loaded = true
+		flandre_frames = shared_flandre_frames
+		flandre_frames_face_left = shared_flandre_frames_face_left
+		return
+	flandre_frames_loaded = true
+	flandre_frames = _load_boss_frame_set("flandre_boss", expected_face_left)
+	flandre_frames_face_left = expected_face_left
+	shared_flandre_frames_loaded = true
+	shared_flandre_frames = flandre_frames
+	shared_flandre_frames_face_left = expected_face_left
+
+
 func _rumia_draw_scale(phase: int) -> float:
 	return 0.25 + float(phase) * 0.016
 
@@ -20263,7 +21070,7 @@ func _koakuma_draw_scale(phase: int) -> float:
 
 
 func _patchouli_draw_scale(phase: int) -> float:
-	return 0.275 + float(phase) * 0.013
+	return 0.44 + float(phase) * 0.015
 
 
 func _sakuya_draw_scale(phase: int) -> float:
@@ -20271,7 +21078,11 @@ func _sakuya_draw_scale(phase: int) -> float:
 
 
 func _remilia_draw_scale(phase: int) -> float:
-	return 0.212 + float(phase) * 0.01
+	return 0.32 + float(phase) * 0.014
+
+
+func _flandre_draw_scale(phase: int) -> float:
+	return 0.5 + float(phase) * 0.018
 
 
 func _rumia_cycle_frame(frames: Array, speed: float, phase: float) -> int:
@@ -20445,6 +21256,43 @@ func _remilia_frame_index(zombie: Dictionary) -> int:
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
 				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
+			return 0
+	return 0
+
+
+func _flandre_frame_index(zombie: Dictionary) -> int:
+	var state = String(zombie.get("rumia_state", "idle"))
+	var phase = float(zombie.get("anim_phase", 0.0))
+	match state:
+		"laevatein":
+			return _rumia_cycle_frame([2, 6, 7, 6], 7.6, phase * 0.44)
+		"clones":
+			return _rumia_cycle_frame([5, 6, 5, 2], 7.2, phase * 0.4)
+		"kagome":
+			return _rumia_cycle_frame([3, 4, 3, 4], 6.4, phase * 0.34)
+		"starbow":
+			return _rumia_cycle_frame([4, 6, 4, 1], 7.0, phase * 0.42)
+		"dolls":
+			return _rumia_cycle_frame([2, 5, 2, 5], 6.0, phase * 0.32)
+		"crystal":
+			return _rumia_cycle_frame([6, 7, 6, 4], 7.4, phase * 0.46)
+		"break":
+			return _rumia_cycle_frame([7, 5, 7, 1], 6.8, phase * 0.4)
+		"storm":
+			return _rumia_cycle_frame([1, 3, 5, 3], 6.6, phase * 0.36)
+		"secret":
+			return _rumia_cycle_frame([6, 4, 6, 2], 7.2, phase * 0.42)
+		"judgement":
+			return _rumia_cycle_frame([7, 6, 7, 3], 6.2, phase * 0.34)
+		"cranberry":
+			return _rumia_cycle_frame([5, 4, 5, 0], 6.4, phase * 0.3)
+		"phase":
+			return _rumia_cycle_frame([7, 6, 5, 6], 6.8, phase * 0.38)
+		"shift":
+			return _rumia_cycle_frame([1, 0, 1, 0], 5.8, phase * 0.26)
+		_:
+			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
+				return _rumia_cycle_frame([1, 0, 1], 5.2, phase * 0.22)
 			return 0
 	return 0
 
@@ -20728,6 +21576,57 @@ func _draw_remilia_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_circle(orb_center, 10.0, Color(orb_colors[orb_index].r, orb_colors[orb_index].g, orb_colors[orb_index].b, 0.2))
 	if String(zombie.get("rumia_state", "")) == "drain":
 		draw_circle(center + Vector2(0.0, -18.0), 72.0 + sin(level_time * 4.8) * 5.0, Color(0.96, 0.14, 0.22, 0.06))
+
+
+func _draw_flandre_boss(center: Vector2, zombie: Dictionary) -> void:
+	var frame_index = _flandre_frame_index(zombie)
+	if float(zombie.get("impact_timer", 0.0)) > 0.0:
+		frame_index = 7
+	_ensure_flandre_frames_loaded()
+	var texture := _try_get_boss_frame_texture("flandre_boss", frame_index)
+	var draw_scale = _flandre_draw_scale(int(zombie.get("boss_phase", 0)))
+	var local_phase = float(zombie.get("anim_phase", 0.0))
+	var bob = sin(level_time * 2.0 + local_phase) * 4.6 + sin(level_time * 5.6 + local_phase * 0.74) * 1.2
+	var sway = sin(level_time * 1.36 + local_phase) * 4.8
+	var aura_center = center + Vector2(sway * 0.04, -38.0 + bob * 0.14)
+	var pulse = 0.1 + 0.04 * sin(level_time * 2.6 + local_phase)
+	draw_circle(center + Vector2(sway * 0.05, 52.0), 20.0, Color(0.14, 0.04, 0.06, 0.18))
+	draw_circle(aura_center, 52.0, Color(1.0, 0.24, 0.18, pulse))
+	draw_circle(aura_center, 32.0, Color(0.38, 0.06, 0.12, 0.12))
+	if texture != null:
+		var texture_size = texture.get_size() * draw_scale
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.88 + bob)
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+	else:
+		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.98, 0.78, 0.82))
+		draw_rect(Rect2(center + Vector2(-18.0, -12.0), Vector2(36.0, 60.0)), Color(0.58, 0.14, 0.18), true)
+	var crystal_colors = [
+		Color(1.0, 0.34, 0.18, 0.8),
+		Color(1.0, 0.82, 0.22, 0.74),
+		Color(0.44, 0.94, 1.0, 0.7),
+		Color(0.9, 0.48, 1.0, 0.74),
+	]
+	for crystal_index in range(crystal_colors.size()):
+		var angle = level_time * 1.7 + float(crystal_index) * TAU / float(crystal_colors.size()) + local_phase * 0.16
+		var orbit_radius = 36.0 + float(crystal_index % 2) * 10.0
+		var crystal_center = center + Vector2(cos(angle) * orbit_radius, -24.0 + sin(angle) * (14.0 + float(crystal_index % 2) * 4.0) + bob * 0.16)
+		draw_polygon(
+			PackedVector2Array([
+				crystal_center + Vector2(0.0, -8.0),
+				crystal_center + Vector2(7.0, -1.0),
+				crystal_center + Vector2(0.0, 9.0),
+				crystal_center + Vector2(-7.0, -1.0),
+			]),
+			PackedColorArray([
+				crystal_colors[crystal_index],
+				Color(1.0, 1.0, 1.0, crystal_colors[crystal_index].a * 0.7),
+				crystal_colors[crystal_index].darkened(0.16),
+				Color(1.0, 1.0, 1.0, crystal_colors[crystal_index].a * 0.58),
+			])
+		)
+		draw_circle(crystal_center, 11.0, Color(crystal_colors[crystal_index].r, crystal_colors[crystal_index].g, crystal_colors[crystal_index].b, 0.14))
+	if String(zombie.get("rumia_state", "")) == "phase":
+		draw_circle(center + Vector2(0.0, -18.0), 78.0 + sin(level_time * 4.2) * 5.0, Color(1.0, 0.32, 0.2, 0.08))
 
 
 func _draw_dragon_boat_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -21212,6 +22111,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "remilia_boss":
 		_draw_remilia_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "flandre_boss":
+		_draw_flandre_boss(center + Vector2(0.0, -10.0), zombie)
 		return
 	if kind == "dragon_boat":
 		_draw_dragon_boat_zombie(center, zombie)
