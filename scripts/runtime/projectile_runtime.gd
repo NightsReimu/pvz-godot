@@ -534,6 +534,8 @@ func update_projectiles(delta: float) -> void:
 				game.projectiles.remove_at(i)
 				continue
 			game.zombies[hit_index] = zombie
+			if game.has_method("_emit_projectile_impact_feedback"):
+				game._emit_projectile_impact_feedback(Vector2(float(zombie["x"]) + 2.0, projectile_pos.y), projectile, zombie)
 			if projectile_kind == "amber_pea":
 				_emit_amber_impact(Vector2(float(zombie["x"]) + 2.0, game._row_center_y(int(zombie["row"])) - 8.0), amber_armored_hit)
 			elif projectile_kind == "amber_ultimate_shard":

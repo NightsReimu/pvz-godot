@@ -57,6 +57,17 @@ const SUN_COLLECT_SPEED := 920.0
 const ICE_TILE_DURATION := 20.0
 const COIN_COLLECT_SPEED := 980.0
 const PLANT_FOOD_COLLECT_SPEED := 980.0
+const SFX_POOL_SIZE := 6
+const SFX_HIT_SOFT_PATH := "res://audio/sfx/hit-soft.wav"
+const SFX_HIT_BRIGHT_PATH := "res://audio/sfx/hit-bright.wav"
+const POLISHED_PLANT_TEXTURE_PATHS := {
+	"peashooter": "res://art/polish/peashooter-polished.png",
+	"sunflower": "res://art/polish/sunflower-polished.png",
+	"wallnut": "res://art/polish/wallnut-polished.png",
+}
+const POLISHED_PROJECTILE_TEXTURE_PATHS := {
+	"pea": "res://art/polish/pea-polished.png",
+}
 const SUN_VALUE := 50
 const MAX_PLANT_FOOD := 3
 const SAVE_PATH := "user://pvz_progress_save.json"
@@ -112,6 +123,8 @@ const REMILIA_FRAME_COUNT := 8
 const FLANDRE_FRAME_COUNT := 8
 
 static var shared_audio_stream_cache := {}
+static var shared_sfx_stream_cache := {}
+static var shared_polished_texture_cache := {}
 static var shared_rumia_frames: Array = []
 static var shared_rumia_frames_loaded := false
 static var shared_rumia_frames_face_left = null
@@ -402,6 +415,10 @@ var music_player: AudioStreamPlayer
 var current_bgm_path := ""
 var pending_bgm_path := ""
 var audio_stream_cache := {}
+var sfx_players: Array = []
+var sfx_stream_cache := {}
+var sfx_player_index := 0
+var polished_texture_cache := {}
 var update_manager := UpdateManagerLib.new()
 var update_check_request: HTTPRequest
 var update_download_request: HTTPRequest
@@ -1483,11 +1500,77 @@ func _build_overlay_ui() -> void:
 
 func _build_audio_player() -> void:
 	if music_player != null:
+		_build_sfx_players()
 		return
 	music_player = AudioStreamPlayer.new()
 	music_player.bus = "Master"
 	music_player.volume_db = -7.0
 	add_child(music_player)
+	_build_sfx_players()
+
+
+func _build_sfx_players() -> void:
+	if sfx_players.size() >= SFX_POOL_SIZE:
+		return
+	for _index in range(sfx_players.size(), SFX_POOL_SIZE):
+		var player := AudioStreamPlayer.new()
+		player.bus = "Master"
+		player.volume_db = -12.0
+		sfx_players.append(player)
+		add_child(player)
+
+
+func _load_sfx_stream(path: String) -> AudioStream:
+	if path == "":
+		return null
+	if sfx_stream_cache.has(path):
+		return sfx_stream_cache[path]
+	if shared_sfx_stream_cache.has(path):
+		sfx_stream_cache[path] = shared_sfx_stream_cache[path]
+		return sfx_stream_cache[path]
+	var imported_stream := load(path) as AudioStream
+	if imported_stream != null:
+		shared_sfx_stream_cache[path] = imported_stream
+		sfx_stream_cache[path] = imported_stream
+		return imported_stream
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		var absolute_path := ProjectSettings.globalize_path(path)
+		if FileAccess.file_exists(absolute_path):
+			file = FileAccess.open(absolute_path, FileAccess.READ)
+	if file == null or file.get_length() <= 44:
+		return null
+	file.seek(24)
+	var sample_rate := int(file.get_32())
+	file.seek(44)
+	var pcm_data := file.get_buffer(file.get_length() - 44)
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.stereo = false
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	stream.data = pcm_data
+	shared_sfx_stream_cache[path] = stream
+	sfx_stream_cache[path] = stream
+	return stream
+
+
+func _play_sfx(path: String, volume_db: float = -12.0, pitch_scale: float = 1.0) -> void:
+	if path == "":
+		return
+	if not is_inside_tree():
+		return
+	_build_sfx_players()
+	var stream := _load_sfx_stream(path)
+	if stream == null or sfx_players.is_empty():
+		return
+	var player: AudioStreamPlayer = sfx_players[sfx_player_index % sfx_players.size()]
+	sfx_player_index += 1
+	player.stop()
+	player.stream = stream
+	player.volume_db = volume_db
+	player.pitch_scale = pitch_scale
+	player.play()
 
 
 func _build_update_requests() -> void:
@@ -1960,6 +2043,35 @@ func _try_get_cached_audio_stream(path: String) -> AudioStream:
 		audio_stream_cache[path] = shared_audio_stream_cache[path]
 		return audio_stream_cache[path]
 	return null
+
+
+func _load_polished_texture(path: String) -> Texture2D:
+	if path == "":
+		return null
+	if polished_texture_cache.has(path):
+		return polished_texture_cache[path]
+	if shared_polished_texture_cache.has(path):
+		polished_texture_cache[path] = shared_polished_texture_cache[path]
+		return polished_texture_cache[path]
+	var texture: Texture2D = null
+	if FileAccess.file_exists("%s.import" % path):
+		texture = load(path) as Texture2D
+	if texture == null:
+		var image := Image.load_from_file(path)
+		if image != null and not image.is_empty():
+			texture = ImageTexture.create_from_image(image)
+	if texture != null:
+		shared_polished_texture_cache[path] = texture
+		polished_texture_cache[path] = texture
+	return texture
+
+
+func _polished_plant_texture(kind: String) -> Texture2D:
+	return _load_polished_texture(String(POLISHED_PLANT_TEXTURE_PATHS.get(kind, "")))
+
+
+func _polished_projectile_texture(kind: String) -> Texture2D:
+	return _load_polished_texture(String(POLISHED_PROJECTILE_TEXTURE_PATHS.get(kind, "")))
 
 
 func _boss_frame_count_for_kind(kind: String) -> int:
@@ -8175,6 +8287,37 @@ func _cleanup_dead_zombies() -> void:
 
 func _trigger_screen_shake(amount: float) -> void:
 	screen_shake_amount = maxf(screen_shake_amount, amount)
+
+
+func _emit_projectile_impact_feedback(position: Vector2, projectile: Dictionary = {}, target: Dictionary = {}) -> void:
+	var projectile_kind := String(projectile.get("kind", "pea"))
+	var base_color := Color(projectile.get("color", Color(0.36, 0.86, 0.3)))
+	var heavy_hit := float(projectile.get("damage", 0.0)) >= 35.0 or projectile_kind == "amber_ultimate_shard" or bool(projectile.get("fire", false))
+	effects.append({
+		"shape": "projectile_impact",
+		"position": position,
+		"radius": 40.0 if heavy_hit else 28.0,
+		"time": 0.16 if heavy_hit else 0.13,
+		"duration": 0.16 if heavy_hit else 0.13,
+		"color": Color(base_color.r, base_color.g, base_color.b, 0.28 if heavy_hit else 0.22),
+		"anim_speed": 8.0 if heavy_hit else 6.0,
+	})
+	var particle_count := 9 if heavy_hit else 6
+	var uid_phase := float(int(target.get("uid", 0)) % 11) * 0.17
+	for particle_index in range(particle_count):
+		var ratio := float(particle_index) / float(max(1, particle_count))
+		var angle := ratio * TAU + uid_phase + rng.randf_range(-0.18, 0.18)
+		var speed := rng.randf_range(58.0, 118.0 if heavy_hit else 96.0)
+		vfx_particles.append({
+			"pos": position + Vector2(rng.randf_range(-3.0, 3.0), rng.randf_range(-3.0, 3.0)),
+			"vel": Vector2(cos(angle) * speed, sin(angle) * speed - rng.randf_range(14.0, 36.0)),
+			"life": rng.randf_range(0.18, 0.34 if heavy_hit else 0.28),
+			"max_life": 0.34 if heavy_hit else 0.28,
+			"color": Color(base_color.r, base_color.g, base_color.b, 0.78),
+			"size": rng.randf_range(2.2, 4.8 if heavy_hit else 4.0),
+		})
+	_trigger_screen_shake(2.8 if heavy_hit else 1.7)
+	_play_sfx(SFX_HIT_BRIGHT_PATH if heavy_hit else SFX_HIT_SOFT_PATH, -12.0 if heavy_hit else -15.0, rng.randf_range(0.94, 1.08))
 
 
 func _spawn_death_poof(pos: Vector2, color: Color = Color(0.6, 0.6, 0.6)) -> void:
@@ -16607,6 +16750,8 @@ func _draw_projectiles() -> void:
 		var pulse = 1.0 + 0.12 * sin(level_time * 14.0 + projectile_pos.x * 0.04)
 		var projectile_radius = float(projectile.get("radius", 8.0)) * pulse
 		var trail_dir = 1.0 if float(projectile.get("speed", 0.0)) >= 0.0 else -1.0
+		if _try_draw_polished_projectile(projectile_kind, projectile_pos, projectile_radius, trail_dir, projectile_color):
+			continue
 		if projectile_kind == "origami_plane":
 			for trail_index in range(3):
 				var trail_ratio = float(trail_index + 1) / 3.0
@@ -16973,6 +17118,34 @@ func _effect_visual_width(effect: Dictionary, _ratio: float) -> float:
 	return float(effect.get("width", 78.0))
 
 
+func _try_draw_polished_projectile(projectile_kind: String, position: Vector2, radius: float, trail_dir: float, tint: Color) -> bool:
+	var texture := _polished_projectile_texture(projectile_kind)
+	if texture == null:
+		return false
+	for trail_index in range(3):
+		var trail_ratio := float(trail_index + 1) / 3.0
+		draw_circle(position + Vector2(-trail_dir * trail_ratio * 11.0, 0.0), radius * (0.78 - trail_ratio * 0.12), Color(tint.r, tint.g, tint.b, 0.2 - trail_ratio * 0.04))
+	draw_circle(position, radius * 1.75, Color(tint.r, tint.g, tint.b, 0.1))
+	var texture_size := Vector2(radius * 4.2, radius * 4.2)
+	draw_texture_rect(texture, Rect2(position - texture_size * 0.5, texture_size), false)
+	return true
+
+
+func _try_draw_polished_plant(kind: String, center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> bool:
+	var texture := _polished_plant_texture(kind)
+	if texture == null:
+		return false
+	var texture_size := Vector2(92.0, 92.0) * size_scale
+	if kind == "wallnut":
+		texture_size = Vector2(88.0, 96.0) * size_scale
+	var top_left := center + Vector2(-texture_size.x * 0.5, -texture_size.y * 0.72)
+	draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, alpha))
+	if flash > 0.0:
+		var flash_alpha := clampf(flash * 1.8, 0.0, 0.34) * alpha
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, flash_alpha))
+	return true
+
+
 func _draw_effect_blade(tip: Vector2, tail: Vector2, half_width: float, edge_color: Color, core_color: Color) -> void:
 	var direction = tip - tail
 	var direction_length = maxf(direction.length(), 0.001)
@@ -17022,6 +17195,18 @@ func _draw_effects() -> void:
 		effect_color.a *= ratio
 		var shape = String(effect.get("shape", "circle"))
 		var anim_speed = float(effect.get("anim_speed", 4.0))
+		if shape == "projectile_impact":
+			var impact_center = Vector2(effect["position"])
+			var impact_radius = _effect_visual_radius(effect, ratio) * (0.64 + (1.0 - ratio) * 0.56)
+			draw_circle(impact_center, impact_radius, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.52))
+			draw_circle(impact_center, impact_radius * 0.48, Color(1.0, 1.0, 1.0, effect_color.a * 0.26))
+			for ray_index in range(6):
+				var ray_angle = level_time * anim_speed * 0.16 + float(ray_index) * TAU / 6.0
+				var ray_start = impact_center + Vector2(cos(ray_angle), sin(ray_angle)) * impact_radius * 0.24
+				var ray_end = impact_center + Vector2(cos(ray_angle), sin(ray_angle)) * impact_radius * (0.72 + (1.0 - ratio) * 0.34)
+				draw_line(ray_start, ray_end, Color(1.0, 1.0, 0.9, effect_color.a * 0.54), 1.6)
+			draw_arc(impact_center, impact_radius * 0.8, level_time * anim_speed, level_time * anim_speed + PI * 1.25, 18, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.92), 2.0)
+			continue
 		if shape == "dark_orbit":
 			var orbit_center = Vector2(effect["position"])
 			var orbit_radius = float(effect.get("radius", 120.0)) * (0.82 + (1.0 - ratio) * 0.24)
@@ -18228,7 +18413,9 @@ func _draw_vfx_particles() -> void:
 		var sz = float(p["size"]) * life_ratio
 		draw_circle(Vector2(p["pos"]), sz, c)
 		# Fading trail
-		draw_circle(Vector2(p["pos"]) - Vector2(p["vel"]).normalized() * sz * 1.5, sz * 0.5, Color(c.r, c.g, c.b, c.a * 0.3))
+		var velocity = Vector2(p["vel"])
+		if velocity.length_squared() > 0.001:
+			draw_circle(Vector2(p["pos"]) - velocity.normalized() * sz * 1.5, sz * 0.5, Color(c.r, c.g, c.b, c.a * 0.3))
 
 
 func _draw_mowers() -> void:
@@ -18717,6 +18904,8 @@ func _draw_plant_preview(kind: String, center: Vector2) -> void:
 
 
 func _draw_sunflower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	if _try_draw_polished_plant("sunflower", center, size_scale, flash, alpha):
+		return
 	var petal_color = Color(1.0, 0.84, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.2)
 	var core_center = center + Vector2(0.0, -8.0 * size_scale)
 	# Shadow under plant
@@ -18756,6 +18945,8 @@ func _draw_sunflower(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 
 func _draw_peashooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	if _try_draw_polished_plant("peashooter", center, size_scale, flash, alpha):
+		return
 	var body_color = Color(0.43, 0.83, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.2)
 	# Shadow
 	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
@@ -20143,6 +20334,8 @@ func _draw_bowling_nut(center: Vector2, size_scale: float, flash: float, alpha: 
 
 
 func _draw_wallnut(center: Vector2, size_scale: float, flash: float, ratio: float, alpha: float = 1.0) -> void:
+	if _try_draw_polished_plant("wallnut", center, size_scale, flash, alpha):
+		return
 	var shell_color = Color(0.61, 0.38, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	# Shadow
 	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 18.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
