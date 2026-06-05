@@ -173,11 +173,11 @@ def _title_from_kind(kind: str) -> str:
 def _subject(category: str, kind: str, display_name: str) -> str:
     title = _title_from_kind(kind)
     if category == "plants":
-        return f"{display_name} plant, {title}, cute botanical tower defense unit"
+        return f"{display_name} plant, {title}, cute botanical tower defense unit, facing right toward the zombies"
     if category == "zombies":
         if kind.endswith("_boss"):
-            return f"{display_name} boss zombie, {title}, large enemy unit"
-        return f"{display_name} zombie, {title}, readable enemy unit"
+            return f"{display_name} boss zombie, {title}, large enemy unit, facing left toward the plants"
+        return f"{display_name} zombie, {title}, readable enemy unit, facing left toward the plants"
     if category == "projectiles":
         return f"{title} projectile, single attack sprite moving to the right"
     return f"{title} combat visual effect burst, single reusable VFX sprite"
@@ -190,7 +190,7 @@ def _composition(category: str) -> str:
         return "single centered VFX element with generous padding, usable as a transparent overlay"
     if category == "zombies":
         return "single centered full-body enemy sprite with generous padding, facing left toward the plants"
-    return "single centered full-body plant sprite with generous padding, readable at small size"
+    return "single centered full-body plant sprite with generous padding, facing right toward the zombies, readable at small size"
 
 
 def _prompt(category: str, kind: str, display_name: str) -> str:

@@ -62,10 +62,19 @@ def main() -> int:
     assert_true(sample["out"].endswith("-source.png"), "manifest source outputs should use the -source.png suffix")
     assert_true("#ff00ff" in sample["prompt"], "manifest prompts should use a removable chroma-key background")
     assert_true("no text" in sample["constraints"].lower(), "manifest prompts should forbid in-image text")
+    assert_true("facing right" in sample["prompt"].lower(), "plant prompts should explicitly require right-facing sprites")
+    assert_true("facing right" in sample["composition"].lower(), "plant composition should explicitly require right-facing sprites")
 
     plant_jobs = run_manifest("--category", "plants", "--limit", "2", "--offset", "1")
     assert_true(len(plant_jobs) == 2, "category/limit/offset should select a small deterministic batch")
     assert_true(all(job["category"] == "plants" for job in plant_jobs), "category filter should return only plants")
+    assert_true(all("facing right" in job["prompt"].lower() for job in plant_jobs), "all generated plant prompts should face right")
+
+    zombie_jobs = run_manifest("--category", "zombies", "--limit", "2")
+    assert_true(len(zombie_jobs) == 2, "zombie category filter should select a small deterministic batch")
+    assert_true(all(job["category"] == "zombies" for job in zombie_jobs), "zombie category filter should return only zombies")
+    assert_true(all("facing left" in job["prompt"].lower() for job in zombie_jobs), "all generated zombie prompts should face left")
+    assert_true(all("facing left" in job["composition"].lower() for job in zombie_jobs), "zombie composition should explicitly require left-facing sprites")
 
     selected_jobs = run_manifest("--category", "projectiles", "--kinds", "pea,boomerang")
     assert_true({job["kind"] for job in selected_jobs} == {"pea", "boomerang"}, "kinds filter should select exact asset kinds")
