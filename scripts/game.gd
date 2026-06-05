@@ -60,6 +60,18 @@ const PLANT_FOOD_COLLECT_SPEED := 980.0
 const SFX_POOL_SIZE := 6
 const SFX_HIT_SOFT_PATH := "res://audio/sfx/hit-soft.wav"
 const SFX_HIT_BRIGHT_PATH := "res://audio/sfx/hit-bright.wav"
+const SFX_HIT_HEAVY_PATH := "res://audio/sfx/hit-heavy.wav"
+const SFX_HIT_EXPLOSION_PATH := "res://audio/sfx/hit-explosion.wav"
+const SFX_HIT_ICE_PATH := "res://audio/sfx/hit-ice.wav"
+const SFX_HIT_ELECTRIC_PATH := "res://audio/sfx/hit-electric.wav"
+const SFX_HIT_BITE_PATH := "res://audio/sfx/hit-bite.wav"
+const IMAGE2_ASSET_ROOT := "res://art/image2"
+const IMAGE2_ASSET_CATEGORIES := {
+	"plants": true,
+	"zombies": true,
+	"projectiles": true,
+	"effects": true,
+}
 const POLISHED_PLANT_TEXTURE_PATHS := {
 	"peashooter": "res://art/polish/peashooter-polished.png",
 	"sunflower": "res://art/polish/sunflower-polished.png",
@@ -125,6 +137,7 @@ const FLANDRE_FRAME_COUNT := 8
 static var shared_audio_stream_cache := {}
 static var shared_sfx_stream_cache := {}
 static var shared_polished_texture_cache := {}
+static var shared_image2_texture_cache := {}
 static var shared_rumia_frames: Array = []
 static var shared_rumia_frames_loaded := false
 static var shared_rumia_frames_face_left = null
@@ -419,6 +432,7 @@ var sfx_players: Array = []
 var sfx_stream_cache := {}
 var sfx_player_index := 0
 var polished_texture_cache := {}
+var image2_texture_cache := {}
 var update_manager := UpdateManagerLib.new()
 var update_check_request: HTTPRequest
 var update_download_request: HTTPRequest
@@ -1528,7 +1542,9 @@ func _load_sfx_stream(path: String) -> AudioStream:
 	if shared_sfx_stream_cache.has(path):
 		sfx_stream_cache[path] = shared_sfx_stream_cache[path]
 		return sfx_stream_cache[path]
-	var imported_stream := load(path) as AudioStream
+	var imported_stream: AudioStream = null
+	if FileAccess.file_exists("%s.import" % path):
+		imported_stream = load(path) as AudioStream
 	if imported_stream != null:
 		shared_sfx_stream_cache[path] = imported_stream
 		sfx_stream_cache[path] = imported_stream
@@ -2045,25 +2061,29 @@ func _try_get_cached_audio_stream(path: String) -> AudioStream:
 	return null
 
 
-func _load_polished_texture(path: String) -> Texture2D:
+func _load_cached_texture(path: String, instance_cache: Dictionary, shared_cache: Dictionary) -> Texture2D:
 	if path == "":
 		return null
-	if polished_texture_cache.has(path):
-		return polished_texture_cache[path]
-	if shared_polished_texture_cache.has(path):
-		polished_texture_cache[path] = shared_polished_texture_cache[path]
-		return polished_texture_cache[path]
+	if instance_cache.has(path):
+		return instance_cache[path]
+	if shared_cache.has(path):
+		instance_cache[path] = shared_cache[path]
+		return instance_cache[path]
 	var texture: Texture2D = null
 	if FileAccess.file_exists("%s.import" % path):
 		texture = load(path) as Texture2D
-	if texture == null:
+	if texture == null and FileAccess.file_exists(path):
 		var image := Image.load_from_file(path)
 		if image != null and not image.is_empty():
 			texture = ImageTexture.create_from_image(image)
 	if texture != null:
-		shared_polished_texture_cache[path] = texture
-		polished_texture_cache[path] = texture
+		shared_cache[path] = texture
+		instance_cache[path] = texture
 	return texture
+
+
+func _load_polished_texture(path: String) -> Texture2D:
+	return _load_cached_texture(path, polished_texture_cache, shared_polished_texture_cache)
 
 
 func _polished_plant_texture(kind: String) -> Texture2D:
@@ -2072,6 +2092,36 @@ func _polished_plant_texture(kind: String) -> Texture2D:
 
 func _polished_projectile_texture(kind: String) -> Texture2D:
 	return _load_polished_texture(String(POLISHED_PROJECTILE_TEXTURE_PATHS.get(kind, "")))
+
+
+func _image2_asset_path(category: String, kind: String) -> String:
+	if not IMAGE2_ASSET_CATEGORIES.has(category):
+		return ""
+	if kind == "":
+		return ""
+	return "%s/%s/%s.png" % [IMAGE2_ASSET_ROOT, category, kind]
+
+
+func _image2_texture(category: String, kind: String) -> Texture2D:
+	return _load_cached_texture(_image2_asset_path(category, kind), image2_texture_cache, shared_image2_texture_cache)
+
+
+func _image2_plant_texture(kind: String) -> Texture2D:
+	var texture := _image2_texture("plants", kind)
+	if texture != null:
+		return texture
+	return _polished_plant_texture(kind)
+
+
+func _image2_projectile_texture(kind: String) -> Texture2D:
+	var texture := _image2_texture("projectiles", kind)
+	if texture != null:
+		return texture
+	return _polished_projectile_texture(kind)
+
+
+func _should_use_image2_zombie_texture(kind: String) -> bool:
+	return not _is_existing_touhou_boss_kind(kind)
 
 
 func _boss_frame_count_for_kind(kind: String) -> int:
@@ -2131,6 +2181,10 @@ func _boss_frame_resource_path(kind: String, frame_index: int) -> String:
 
 func _boss_assets_are_preprocessed(kind: String) -> bool:
 	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "flandre_boss"
+
+
+func _is_existing_touhou_boss_kind(kind: String) -> bool:
+	return _boss_assets_are_preprocessed(kind)
 
 
 func _is_image_backed_hover_boss(kind: String) -> bool:
@@ -4195,6 +4249,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		"slow_timer": 0.0,
 		"rooted_timer": 0.0,
 		"bite_timer": 0.0,
+		"bite_sfx_timer": 0.0,
 		"impact_timer": 0.0,
 		"special_pause_timer": 0.28 if _is_whack_level() else 0.0,
 		"enraged": false,
@@ -7041,6 +7096,7 @@ func _update_zombies(delta: float) -> void:
 		zombie["slow_timer"] = maxf(0.0, float(zombie["slow_timer"]) - delta)
 		zombie["rooted_timer"] = maxf(0.0, float(zombie.get("rooted_timer", 0.0)) - delta)
 		zombie["bite_timer"] = maxf(0.0, float(zombie.get("bite_timer", 0.0)) - delta)
+		zombie["bite_sfx_timer"] = maxf(0.0, float(zombie.get("bite_sfx_timer", 0.0)) - delta)
 		zombie["impact_timer"] = maxf(0.0, float(zombie.get("impact_timer", 0.0)) - delta)
 		zombie["special_pause_timer"] = maxf(0.0, float(zombie.get("special_pause_timer", 0.0)) - delta)
 		zombie["revealed_timer"] = maxf(0.0, float(zombie.get("revealed_timer", 0.0)) - delta)
@@ -7829,6 +7885,7 @@ func _update_zombies(delta: float) -> void:
 				continue
 			var bite_damage = float(zombie["attack_dps"]) * delta
 			zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
+			zombie = _play_bite_hit_sfx(zombie)
 			if float(plant.get("holy_invincible_timer", 0.0)) > 0.0:
 				pass
 			elif float(plant["armor_health"]) > 0.0:
@@ -8289,6 +8346,50 @@ func _trigger_screen_shake(amount: float) -> void:
 	screen_shake_amount = maxf(screen_shake_amount, amount)
 
 
+func _impact_sfx_path(projectile: Dictionary = {}, heavy_hit: bool = false) -> String:
+	var projectile_kind := String(projectile.get("kind", "pea"))
+	if bool(projectile.get("fire", false)) or projectile_kind in ["chimney_fire", "meteor_flower", "moon_meteor", "prism_burst"]:
+		return SFX_HIT_EXPLOSION_PATH
+	if float(projectile.get("slow_duration", 0.0)) > 0.0 or projectile_kind in ["butter", "mist_bloom"]:
+		return SFX_HIT_ICE_PATH
+	if projectile_kind.find("tesla") != -1 or projectile_kind.find("thunder") != -1 or projectile_kind.find("storm") != -1:
+		return SFX_HIT_ELECTRIC_PATH
+	if heavy_hit:
+		return SFX_HIT_HEAVY_PATH
+	if projectile_kind in ["amber_pea", "amber_ultimate_shard", "angel_spear", "prism_pea", "prism_fragment"]:
+		return SFX_HIT_BRIGHT_PATH
+	return SFX_HIT_SOFT_PATH
+
+
+func _impact_sfx_volume_db(path: String, heavy_hit: bool = false) -> float:
+	match path:
+		SFX_HIT_EXPLOSION_PATH:
+			return -10.5
+		SFX_HIT_ELECTRIC_PATH:
+			return -12.5
+		SFX_HIT_HEAVY_PATH:
+			return -12.0
+		SFX_HIT_ICE_PATH:
+			return -14.0
+		SFX_HIT_BITE_PATH:
+			return -16.0
+		SFX_HIT_BRIGHT_PATH:
+			return -13.0
+	return -12.0 if heavy_hit else -15.0
+
+
+func _play_electric_hit_sfx() -> void:
+	_play_sfx(SFX_HIT_ELECTRIC_PATH, _impact_sfx_volume_db(SFX_HIT_ELECTRIC_PATH), rng.randf_range(0.96, 1.08))
+
+
+func _play_bite_hit_sfx(zombie: Dictionary) -> Dictionary:
+	if float(zombie.get("bite_sfx_timer", 0.0)) > 0.0:
+		return zombie
+	_play_sfx(SFX_HIT_BITE_PATH, _impact_sfx_volume_db(SFX_HIT_BITE_PATH), rng.randf_range(0.92, 1.06))
+	zombie["bite_sfx_timer"] = 0.22
+	return zombie
+
+
 func _emit_projectile_impact_feedback(position: Vector2, projectile: Dictionary = {}, target: Dictionary = {}) -> void:
 	var projectile_kind := String(projectile.get("kind", "pea"))
 	var base_color := Color(projectile.get("color", Color(0.36, 0.86, 0.3)))
@@ -8317,7 +8418,8 @@ func _emit_projectile_impact_feedback(position: Vector2, projectile: Dictionary 
 			"size": rng.randf_range(2.2, 4.8 if heavy_hit else 4.0),
 		})
 	_trigger_screen_shake(2.8 if heavy_hit else 1.7)
-	_play_sfx(SFX_HIT_BRIGHT_PATH if heavy_hit else SFX_HIT_SOFT_PATH, -12.0 if heavy_hit else -15.0, rng.randf_range(0.94, 1.08))
+	var impact_sfx_path := _impact_sfx_path(projectile, heavy_hit)
+	_play_sfx(impact_sfx_path, _impact_sfx_volume_db(impact_sfx_path, heavy_hit), rng.randf_range(0.94, 1.08))
 
 
 func _spawn_death_poof(pos: Vector2, color: Color = Color(0.6, 0.6, 0.6)) -> void:
@@ -12129,6 +12231,7 @@ func _update_reversed_digger(zombie: Dictionary, delta: float) -> Dictionary:
 			plant["flash"] = 0.08
 			_set_targetable_plant(target.x, target.y, plant)
 			zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
+			zombie = _play_bite_hit_sfx(zombie)
 		return zombie
 	if float(zombie.get("special_pause_timer", 0.0)) <= 0.0:
 		zombie["x"] += _current_zombie_speed(zombie) * delta
@@ -12702,6 +12805,7 @@ func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: 
 	var chain_indices = _collect_thunder_chain_targets(start_index, chain_range, max_targets)
 	if chain_indices.is_empty():
 		return 0
+	_play_electric_hit_sfx()
 	for order in range(chain_indices.size()):
 		var zombie_index = int(chain_indices[order])
 		var zombie = zombies[zombie_index]
@@ -12725,6 +12829,7 @@ func _strike_tesla_chain(source_position: Vector2, start_index: int, first_damag
 	var chain_indices = _collect_thunder_chain_targets(start_index, chain_range, max_targets)
 	if chain_indices.is_empty():
 		return 0
+	_play_electric_hit_sfx()
 	var chain_mult = 1.0 + float(max(chain_indices.size() - 1, 0)) * 0.18
 	var arc_origin = source_position
 	for order in range(chain_indices.size()):
@@ -16429,7 +16534,9 @@ func _draw_plants() -> void:
 			var support_motion = _plant_draw_motion(support, support_center)
 			var support_draw_center = Vector2(support_motion["center"])
 			draw_set_transform(support_draw_center, float(support_motion["rotation"]), Vector2(support_motion["scale"]))
-			match String(support["kind"]):
+			var support_kind := String(support["kind"])
+			var support_drawn_with_image2 := _try_draw_image2_plant(support_kind, Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
+			match "__image2_drawn__" if support_drawn_with_image2 else support_kind:
 				"lily_pad":
 					_draw_lily_pad(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
 				"flower_pot":
@@ -16460,7 +16567,9 @@ func _draw_plants() -> void:
 				_draw_plant_food_icon(draw_center + Vector2(0.0, -52.0), 0.38)
 
 			draw_set_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
-			match String(plant["kind"]):
+			var plant_kind := String(plant["kind"])
+			var plant_drawn_with_image2 := _try_draw_image2_plant(plant_kind, Vector2.ZERO, 1.0, flash)
+			match "__image2_drawn__" if plant_drawn_with_image2 else plant_kind:
 				"sunflower":
 					_draw_sunflower(Vector2.ZERO, 1.0, flash)
 				"peashooter":
@@ -17118,8 +17227,8 @@ func _effect_visual_width(effect: Dictionary, _ratio: float) -> float:
 	return float(effect.get("width", 78.0))
 
 
-func _try_draw_polished_projectile(projectile_kind: String, position: Vector2, radius: float, trail_dir: float, tint: Color) -> bool:
-	var texture := _polished_projectile_texture(projectile_kind)
+func _try_draw_image2_projectile(projectile_kind: String, position: Vector2, radius: float, trail_dir: float, tint: Color) -> bool:
+	var texture := _image2_projectile_texture(projectile_kind)
 	if texture == null:
 		return false
 	for trail_index in range(3):
@@ -17131,8 +17240,12 @@ func _try_draw_polished_projectile(projectile_kind: String, position: Vector2, r
 	return true
 
 
-func _try_draw_polished_plant(kind: String, center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> bool:
-	var texture := _polished_plant_texture(kind)
+func _try_draw_polished_projectile(projectile_kind: String, position: Vector2, radius: float, trail_dir: float, tint: Color) -> bool:
+	return _try_draw_image2_projectile(projectile_kind, position, radius, trail_dir, tint)
+
+
+func _try_draw_image2_plant(kind: String, center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> bool:
+	var texture := _image2_plant_texture(kind)
 	if texture == null:
 		return false
 	var texture_size := Vector2(92.0, 92.0) * size_scale
@@ -17143,6 +17256,58 @@ func _try_draw_polished_plant(kind: String, center: Vector2, size_scale: float, 
 	if flash > 0.0:
 		var flash_alpha := clampf(flash * 1.8, 0.0, 0.34) * alpha
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, flash_alpha))
+	return true
+
+
+func _try_draw_polished_plant(kind: String, center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> bool:
+	return _try_draw_image2_plant(kind, center, size_scale, flash, alpha)
+
+
+func _image2_zombie_draw_size(kind: String) -> Vector2:
+	var zombie_def: Dictionary = Defs.ZOMBIES.get(kind, {})
+	if bool(zombie_def.get("boss", false)):
+		return Vector2(172.0, 154.0)
+	match kind:
+		"gargantuar", "mech_zombie":
+			return Vector2(112.0, 132.0)
+		"zomboni", "bobsled_team", "dragon_boat", "dragon_dance":
+			return Vector2(138.0, 104.0)
+		"imp", "bee_minion", "kite_trap":
+			return Vector2(58.0, 70.0)
+	return Vector2(78.0, 98.0)
+
+
+func _try_draw_image2_zombie(kind: String, center: Vector2, zombie: Dictionary) -> bool:
+	if not _should_use_image2_zombie_texture(kind):
+		return false
+	var texture := _image2_texture("zombies", kind)
+	if texture == null:
+		return false
+	var flash := float(zombie.get("flash", 0.0))
+	var slow_tint := 0.36 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
+	var texture_size := _image2_zombie_draw_size(kind)
+	var impact_offset := sin((1.0 - clampf(float(zombie.get("impact_timer", 0.0)) / 0.16, 0.0, 1.0)) * PI) * 8.0 if float(zombie.get("impact_timer", 0.0)) > 0.0 else 0.0
+	var draw_center := center + Vector2(impact_offset, 0.0)
+	var top_left := draw_center + Vector2(-texture_size.x * 0.5, -texture_size.y * 0.72)
+	draw_circle(draw_center + Vector2(0.0, texture_size.y * 0.28), texture_size.x * 0.24, Color(0.0, 0.0, 0.0, 0.08))
+	draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0))
+	if slow_tint > 0.0:
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(0.52, 0.72, 1.0, slow_tint))
+	if flash > 0.0:
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, clampf(flash * 1.7, 0.0, 0.34)))
+	return true
+
+
+func _try_draw_image2_effect(shape: String, effect: Dictionary, ratio: float, effect_color: Color) -> bool:
+	var texture := _image2_texture("effects", shape)
+	if texture == null:
+		return false
+	var center := Vector2(effect.get("position", Vector2.ZERO))
+	var radius := maxf(_effect_visual_radius(effect, ratio), 24.0)
+	var length := maxf(_effect_visual_length(effect, ratio), radius * 2.0)
+	var width := maxf(_effect_visual_width(effect, ratio), radius * 2.0)
+	var texture_size := Vector2(maxf(radius * 2.0, length), maxf(radius * 2.0, width)) * (0.72 + (1.0 - ratio) * 0.28)
+	draw_texture_rect(texture, Rect2(center - texture_size * 0.5, texture_size), false, effect_color)
 	return true
 
 
@@ -17195,6 +17360,8 @@ func _draw_effects() -> void:
 		effect_color.a *= ratio
 		var shape = String(effect.get("shape", "circle"))
 		var anim_speed = float(effect.get("anim_speed", 4.0))
+		if _try_draw_image2_effect(shape, effect, ratio, effect_color):
+			continue
 		if shape == "projectile_impact":
 			var impact_center = Vector2(effect["position"])
 			var impact_radius = _effect_visual_radius(effect, ratio) * (0.64 + (1.0 - ratio) * 0.56)
@@ -18467,6 +18634,8 @@ func _draw_mowers() -> void:
 
 
 func _draw_card_icon(kind: String, center: Vector2) -> void:
+	if _try_draw_image2_plant(kind, center + Vector2(0.0, 8.0), 0.54, 0.0):
+		return
 	match kind:
 		"peashooter":
 			_draw_peashooter(center + Vector2(0.0, 4.0), 0.52, 0.0)
@@ -18722,6 +18891,8 @@ func _draw_card_icon(kind: String, center: Vector2) -> void:
 
 
 func _draw_plant_preview(kind: String, center: Vector2) -> void:
+	if _try_draw_image2_plant(kind, center, 1.0, 0.0, 0.42):
+		return
 	match kind:
 		"peashooter":
 			_draw_peashooter(center, 1.0, 0.0, 0.42)
@@ -22218,6 +22389,8 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie["flash"])
 	var slow_tint = 0.55 if float(zombie["slow_timer"]) > 0.0 else 0.0
 	var kind = String(zombie["kind"])
+	if _try_draw_image2_zombie(kind, center, zombie):
+		return
 	if kind == "bungee_zombie":
 		_draw_bungee_zombie(center, zombie)
 		return

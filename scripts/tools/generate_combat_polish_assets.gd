@@ -11,7 +11,12 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://audio/sfx"))
 	_write_hit_wav("res://audio/sfx/hit-soft.wav", 440.0, 860.0, 0.1, 0.42)
 	_write_hit_wav("res://audio/sfx/hit-bright.wav", 620.0, 1420.0, 0.085, 0.34)
-	print("Generated combat polish SFX. Run scripts/tools/run_image2_polish_assets.sh for image2 PNG assets.")
+	_write_hit_wav("res://audio/sfx/hit-heavy.wav", 220.0, 520.0, 0.14, 0.56)
+	_write_hit_wav("res://audio/sfx/hit-explosion.wav", 150.0, 420.0, 0.18, 0.68)
+	_write_hit_wav("res://audio/sfx/hit-ice.wav", 760.0, 1880.0, 0.16, 0.38)
+	_write_hit_wav("res://audio/sfx/hit-electric.wav", 920.0, 2460.0, 0.12, 0.46)
+	_write_hit_wav("res://audio/sfx/hit-bite.wav", 310.0, 1180.0, 0.09, 0.34)
+	print("Generated combat polish SFX. Run scripts/tools/run_image2_full_assets.sh for gpt-image-2 PNG assets.")
 	quit(0)
 
 

@@ -10,6 +10,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_sfx_pool_is_prepared_with_hit_streams() or failed
+	failed = not _test_hit_sfx_assets_and_routing() or failed
 	failed = not _test_basic_projectile_hit_emits_feedback() or failed
 	failed = not _test_polished_art_assets_load_for_common_combat_readability() or failed
 	quit(1 if failed else 0)
@@ -58,8 +59,10 @@ func _free_game(game: Control) -> void:
 		player.stream = null
 	game.sfx_stream_cache.clear()
 	game.polished_texture_cache.clear()
+	game.image2_texture_cache.clear()
 	GameScript.shared_sfx_stream_cache.clear()
 	GameScript.shared_polished_texture_cache.clear()
+	GameScript.shared_image2_texture_cache.clear()
 	if is_instance_valid(game.toast_label):
 		game.toast_label.free()
 	game.free()
@@ -81,6 +84,35 @@ func _test_sfx_pool_is_prepared_with_hit_streams() -> bool:
 		passed = _assert_true(game.has_method("_load_sfx_stream"), "game should expose a short SFX stream loader") and passed
 		var hit_stream = game.call("_load_sfx_stream", "res://audio/sfx/hit-soft.wav")
 		passed = _assert_true(hit_stream is AudioStreamWAV, "soft hit SFX should load as AudioStreamWAV") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_hit_sfx_assets_and_routing() -> bool:
+	var game = _make_game()
+	var paths := [
+		"res://audio/sfx/hit-soft.wav",
+		"res://audio/sfx/hit-bright.wav",
+		"res://audio/sfx/hit-heavy.wav",
+		"res://audio/sfx/hit-explosion.wav",
+		"res://audio/sfx/hit-ice.wav",
+		"res://audio/sfx/hit-electric.wav",
+		"res://audio/sfx/hit-bite.wav",
+	]
+	var passed := _assert_true(game.has_method("_impact_sfx_path"), "game should expose impact SFX routing") \
+		and _assert_true(game.has_method("_play_bite_hit_sfx"), "game should expose bite SFX throttling")
+	if passed:
+		for path in paths:
+			passed = _assert_true(game.call("_load_sfx_stream", path) is AudioStreamWAV, "%s should load as AudioStreamWAV" % path) and passed
+		passed = _assert_true(String(game.call("_impact_sfx_path", {"kind": "pea", "damage": 20.0}, false)) == "res://audio/sfx/hit-soft.wav", "basic peas should use the soft hit SFX") and passed
+		passed = _assert_true(String(game.call("_impact_sfx_path", {"kind": "pea", "damage": 80.0}, true)) == "res://audio/sfx/hit-heavy.wav", "heavy peas should use the heavy hit SFX") and passed
+		passed = _assert_true(String(game.call("_impact_sfx_path", {"kind": "pea", "fire": true}, true)) == "res://audio/sfx/hit-explosion.wav", "fire projectiles should use the explosion hit SFX") and passed
+		passed = _assert_true(String(game.call("_impact_sfx_path", {"kind": "pea", "slow_duration": 2.0}, false)) == "res://audio/sfx/hit-ice.wav", "slow projectiles should use the ice hit SFX") and passed
+		passed = _assert_true(String(game.call("_impact_sfx_path", {"kind": "amber_pea"}, false)) == "res://audio/sfx/hit-bright.wav", "crystalline projectiles should use the bright hit SFX") and passed
+		passed = _assert_true(String(game.call("_impact_sfx_path", {"kind": "thunder_arc"}, false)) == "res://audio/sfx/hit-electric.wav", "electric projectiles should use the electric hit SFX") and passed
+		var bite_zombie := {"bite_sfx_timer": 0.0}
+		bite_zombie = game.call("_play_bite_hit_sfx", bite_zombie)
+		passed = _assert_true(float(bite_zombie.get("bite_sfx_timer", 0.0)) > 0.0, "bite SFX helper should set a short cooldown") and passed
 	_free_game(game)
 	return passed
 
