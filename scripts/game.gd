@@ -9,6 +9,7 @@ const AlmanacTextLib = preload("res://scripts/data/almanac_text.gd")
 const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
+const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
 const ROWS := 6
 const COLS := 9
@@ -351,6 +352,12 @@ var level_time := 0.0
 var screen_shake_amount := 0.0
 var screen_shake_decay := 8.0
 var vfx_particles: Array = []
+# Additive glow layer: each frame the game pushes glow primitives here (cleared at
+# the top of _draw), and EffectGlowLayer redraws them with blend_mode=ADD on top.
+var glow_primitives: Array = []
+var glow_layer: Control
+var glow_draw_offset := Vector2.ZERO
+var glow_draw_scale := Vector2.ONE
 var sky_sun_cooldown := 0.0
 var batch_spawn_remaining := 0
 var batch_spawn_queue: Array = []
@@ -1068,6 +1075,8 @@ func _handle_battle_pause_click(mouse_pos: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	ui_time += delta
+	if glow_layer != null:
+		glow_layer.queue_redraw()
 	# Screen shake decay
 	if screen_shake_amount > 0.01:
 		screen_shake_amount *= exp(-screen_shake_decay * delta)
@@ -1399,6 +1408,13 @@ func _build_font() -> void:
 
 
 func _build_overlay_ui() -> void:
+	# Additive glow layer first so it sits above the gameplay _draw but below the
+	# toast/banner/message overlays. Only draws primitives the game pushes in battle.
+	glow_layer = EffectGlowLayer.new()
+	glow_layer.source = self
+	glow_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	glow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(glow_layer)
 	overlay_panel_style = StyleBoxFlat.new()
 	overlay_panel_style.bg_color = Color(0.14, 0.12, 0.09, 0.9)
 	overlay_panel_style.border_width_left = 3
@@ -13942,6 +13958,7 @@ func _random_active_target_y() -> float:
 
 
 func _draw() -> void:
+	glow_primitives.clear()
 	if startup_loading_active:
 		_draw_startup_loading_scene()
 		return
@@ -13996,9 +14013,16 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 	if draw_mode == MODE_BATTLE and screen_shake_amount > 0.5:
 		shake_offset = Vector2(sin(ui_time * 67.3) * screen_shake_amount, cos(ui_time * 53.7) * screen_shake_amount * 0.6)
 	if _is_ui_scaled_mode(draw_mode):
-		draw_set_transform(offset + _ui_offset(draw_mode), 0.0, _ui_scale_vector(draw_mode))
+		var scaled_offset = offset + _ui_offset(draw_mode)
+		var scaled_scale = _ui_scale_vector(draw_mode)
+		draw_set_transform(scaled_offset, 0.0, scaled_scale)
+		glow_draw_offset = scaled_offset
+		glow_draw_scale = scaled_scale
 	else:
-		draw_set_transform(offset + shake_offset, 0.0, Vector2.ONE)
+		var battle_offset = offset + shake_offset
+		draw_set_transform(battle_offset, 0.0, Vector2.ONE)
+		glow_draw_offset = battle_offset
+		glow_draw_scale = Vector2.ONE
 	if draw_mode == MODE_WORLD_SELECT:
 		_draw_world_select_scene()
 	elif draw_mode == MODE_MAP:
@@ -17412,15 +17436,29 @@ func _draw_effects() -> void:
 			continue
 		if shape == "projectile_impact":
 			var impact_center = Vector2(effect["position"])
-			var impact_radius = _effect_visual_radius(effect, ratio) * (0.64 + (1.0 - ratio) * 0.56)
-			draw_circle(impact_center, impact_radius, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.52))
-			draw_circle(impact_center, impact_radius * 0.48, Color(1.0, 1.0, 1.0, effect_color.a * 0.26))
-			for ray_index in range(6):
-				var ray_angle = level_time * anim_speed * 0.16 + float(ray_index) * TAU / 6.0
-				var ray_start = impact_center + Vector2(cos(ray_angle), sin(ray_angle)) * impact_radius * 0.24
-				var ray_end = impact_center + Vector2(cos(ray_angle), sin(ray_angle)) * impact_radius * (0.72 + (1.0 - ratio) * 0.34)
-				draw_line(ray_start, ray_end, Color(1.0, 1.0, 0.9, effect_color.a * 0.54), 1.6)
-			draw_arc(impact_center, impact_radius * 0.8, level_time * anim_speed, level_time * anim_speed + PI * 1.25, 18, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.92), 2.0)
+			var fade = clampf(ratio, 0.0, 1.0)        # 1 at birth, 0 at death
+			var born = clampf(1.0 - ratio, 0.0, 1.0)   # 0 at birth, 1 at death
+			var base_radius = _effect_visual_radius(effect, ratio)
+			var shock_radius = base_radius * (0.5 + born * 0.95)
+			# bright white core flash, strongest right at impact
+			var core_flash = clampf(fade * 1.5, 0.0, 1.0)
+			draw_circle(impact_center, base_radius * 0.7, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.4))
+			draw_circle(impact_center, base_radius * 0.42, Color(1.0, 1.0, 1.0, core_flash * 0.8))
+			draw_circle(impact_center, base_radius * 0.22, Color(1.0, 1.0, 1.0, core_flash))
+			# expanding double shockwave ring
+			draw_arc(impact_center, shock_radius, 0.0, TAU, 30, Color(1.0, 1.0, 0.95, fade * 0.8), 2.2)
+			draw_arc(impact_center, shock_radius * 0.76, 0.0, TAU, 24, Color(effect_color.r, effect_color.g, effect_color.b, fade * 0.6), 1.6)
+			# radial spark rays
+			var ray_count = 8
+			for ray_index in range(ray_count):
+				var ray_angle = level_time * anim_speed * 0.4 + float(ray_index) * TAU / float(ray_count)
+				var ray_dir = Vector2(cos(ray_angle), sin(ray_angle))
+				var ray_start = impact_center + ray_dir * base_radius * 0.3
+				var ray_end = impact_center + ray_dir * shock_radius * 1.08
+				draw_line(ray_start, ray_end, Color(1.0, 1.0, 0.92, fade * 0.6), 1.8)
+			# additive bloom: bright core + tinted halo
+			glow_primitives.append({"type": "circle", "pos": impact_center, "radius": base_radius * 1.2, "color": Color(1.0, 1.0, 1.0, fade * 0.5)})
+			glow_primitives.append({"type": "circle", "pos": impact_center, "radius": base_radius * 0.5, "color": Color(effect_color.r, effect_color.g, effect_color.b, fade * 0.5)})
 			continue
 		if shape == "dark_orbit":
 			var orbit_center = Vector2(effect["position"])
@@ -18623,14 +18661,23 @@ func _draw_effects() -> void:
 func _draw_vfx_particles() -> void:
 	for p in vfx_particles:
 		var life_ratio = clampf(float(p["life"]) / float(p["max_life"]), 0.0, 1.0)
-		var c = Color(p["color"])
-		c.a *= life_ratio
-		var sz = float(p["size"]) * life_ratio
-		draw_circle(Vector2(p["pos"]), sz, c)
-		# Fading trail
-		var velocity = Vector2(p["vel"])
-		if velocity.length_squared() > 0.001:
-			draw_circle(Vector2(p["pos"]) - velocity.normalized() * sz * 1.5, sz * 0.5, Color(c.r, c.g, c.b, c.a * 0.3))
+		var base = Color(p["color"])
+		var pos = Vector2(p["pos"])
+		var vel = Vector2(p["vel"])
+		# size pulse: grow on birth then shrink out
+		var pulse = sin(clampf(life_ratio, 0.0, 1.0) * PI)
+		var sz = float(p["size"]) * (0.6 + pulse * 0.7)
+		var alpha = clampf(life_ratio, 0.0, 1.0)
+		# velocity trail streak (behind motion)
+		if vel.length_squared() > 4.0:
+			var tail = pos - vel.normalized() * sz * 2.2
+			draw_line(pos, tail, Color(base.r, base.g, base.b, alpha * 0.45), maxf(0.8, sz * 0.5))
+		# outer soft halo + mid body + bright core
+		draw_circle(pos, sz * 1.8, Color(base.r, base.g, base.b, alpha * 0.16))
+		draw_circle(pos, sz, Color(base.r, base.g, base.b, alpha * 0.55))
+		draw_circle(pos, sz * 0.5, Color(min(1.0, base.r + 0.3), min(1.0, base.g + 0.3), min(1.0, base.b + 0.3), alpha * 0.9))
+		# additive bloom on the glow layer
+		glow_primitives.append({"type": "circle", "pos": pos, "radius": sz * 2.6, "color": Color(base.r, base.g, base.b, 0.26 * alpha)})
 
 
 func _draw_mowers() -> void:
