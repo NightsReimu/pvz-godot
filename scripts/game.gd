@@ -80,6 +80,14 @@ const POLISHED_PLANT_TEXTURE_PATHS := {
 const POLISHED_PROJECTILE_TEXTURE_PATHS := {
 	"pea": "res://art/polish/pea-polished.png",
 }
+# image2 zombie/boss sprites whose source art already faces LEFT toward the plants.
+# Every other image2 zombie kind has art that faces RIGHT, so it is flipped at draw
+# time in _try_draw_image2_zombie so enemy zombies face left. Hypnotized zombies
+# (moving right toward enemy zombies) keep facing right automatically.
+const IMAGE2_ZOMBIE_ART_FACES_LEFT := {
+	"pool_boss": true,
+	"city_boss": true,
+}
 const SUN_VALUE := 50
 const MAX_PLANT_FOOD := 3
 const SAVE_PATH := "user://pvz_progress_save.json"
@@ -433,6 +441,7 @@ var sfx_stream_cache := {}
 var sfx_player_index := 0
 var polished_texture_cache := {}
 var image2_texture_cache := {}
+var image2_flipped_zombie_cache := {}
 var update_manager := UpdateManagerLib.new()
 var update_check_request: HTTPRequest
 var update_download_request: HTTPRequest
@@ -17289,13 +17298,52 @@ func _try_draw_image2_zombie(kind: String, center: Vector2, zombie: Dictionary) 
 	var impact_offset := sin((1.0 - clampf(float(zombie.get("impact_timer", 0.0)) / 0.16, 0.0, 1.0)) * PI) * 8.0 if float(zombie.get("impact_timer", 0.0)) > 0.0 else 0.0
 	var draw_center := center + Vector2(impact_offset, 0.0)
 	var top_left := draw_center + Vector2(-texture_size.x * 0.5, -texture_size.y * 0.72)
+	# Orient toward the plants: most image2 zombie art faces RIGHT, so flip it
+	# horizontally so enemy zombies face LEFT. Hypnotized zombies move right and
+	# should face right, so they stay unflipped (or flip if their art faces left).
+	# Flipping caches a horizontally-mirrored ImageTexture (renderer-independent);
+	# if the image data is unavailable we fall back to a negative-width draw rect.
+	var flip_h := _image2_zombie_should_flip(kind, zombie)
+	var draw_texture := texture
+	var tex_rect := Rect2(top_left, texture_size)
+	if flip_h:
+		var flipped := _image2_flipped_zombie_texture(kind, texture)
+		if flipped != null:
+			draw_texture = flipped
+		else:
+			tex_rect = Rect2(top_left.x + texture_size.x, top_left.y, -texture_size.x, texture_size.y)
 	draw_circle(draw_center + Vector2(0.0, texture_size.y * 0.28), texture_size.x * 0.24, Color(0.0, 0.0, 0.0, 0.08))
-	draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0))
+	draw_texture_rect(draw_texture, tex_rect, false, Color(1.0, 1.0, 1.0, 1.0))
 	if slow_tint > 0.0:
-		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(0.52, 0.72, 1.0, slow_tint))
+		draw_texture_rect(draw_texture, tex_rect, false, Color(0.52, 0.72, 1.0, slow_tint))
 	if flash > 0.0:
-		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, clampf(flash * 1.7, 0.0, 0.34)))
+		draw_texture_rect(draw_texture, tex_rect, false, Color(1.0, 1.0, 1.0, clampf(flash * 1.7, 0.0, 0.34)))
 	return true
+
+
+func _image2_zombie_should_flip(kind: String, zombie: Dictionary) -> bool:
+	# Most image2 zombie art faces RIGHT; enemy zombies must face LEFT toward the
+	# plants, so they flip. Hypnotized zombies move right and keep facing right.
+	# Art that already faces left (IMAGE2_ZOMBIE_ART_FACES_LEFT) only flips when
+	# the zombie is hypnotized.
+	var art_faces_left := bool(IMAGE2_ZOMBIE_ART_FACES_LEFT.get(kind, false))
+	var want_face_left := not bool(zombie.get("hypnotized", false))
+	return want_face_left != art_faces_left
+
+
+func _image2_flipped_zombie_texture(kind: String, source: Texture2D) -> Texture2D:
+	if source == null:
+		return null
+	if image2_flipped_zombie_cache.has(kind):
+		return image2_flipped_zombie_cache[kind]
+	var image := source.get_image()
+	if image == null or image.is_empty():
+		return null
+	image.flip_x()
+	var flipped := ImageTexture.create_from_image(image)
+	if flipped != null:
+		image2_flipped_zombie_cache[kind] = flipped
+	return flipped
 
 
 func _try_draw_image2_effect(shape: String, effect: Dictionary, ratio: float, effect_color: Color) -> bool:
