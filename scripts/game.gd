@@ -9,6 +9,8 @@ const AlmanacTextLib = preload("res://scripts/data/almanac_text.gd")
 const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
+const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
+const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
 const ROWS := 6
 const COLS := 9
@@ -79,6 +81,14 @@ const POLISHED_PLANT_TEXTURE_PATHS := {
 }
 const POLISHED_PROJECTILE_TEXTURE_PATHS := {
 	"pea": "res://art/polish/pea-polished.png",
+}
+# image2 zombie/boss sprites whose source art already faces LEFT toward the plants.
+# Every other image2 zombie kind has art that faces RIGHT, so it is flipped at draw
+# time in _try_draw_image2_zombie so enemy zombies face left. Hypnotized zombies
+# (moving right toward enemy zombies) keep facing right automatically.
+const IMAGE2_ZOMBIE_ART_FACES_LEFT := {
+	"pool_boss": true,
+	"city_boss": true,
 }
 const SUN_VALUE := 50
 const MAX_PLANT_FOOD := 3
@@ -343,6 +353,12 @@ var level_time := 0.0
 var screen_shake_amount := 0.0
 var screen_shake_decay := 8.0
 var vfx_particles: Array = []
+# Additive glow layer: each frame the game pushes glow primitives here (cleared at
+# the top of _draw), and EffectGlowLayer redraws them with blend_mode=ADD on top.
+var glow_primitives: Array = []
+var glow_layer: Control
+var glow_draw_offset := Vector2.ZERO
+var glow_draw_scale := Vector2.ONE
 var sky_sun_cooldown := 0.0
 var batch_spawn_remaining := 0
 var batch_spawn_queue: Array = []
@@ -410,6 +426,7 @@ var card_cooldowns := {}
 var plant_runtime: PlantRuntime
 var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
+var zombie_runtime: ZombieRuntime
 var save_dirty := false
 var autosave_timer := 0.0
 
@@ -433,6 +450,7 @@ var sfx_stream_cache := {}
 var sfx_player_index := 0
 var polished_texture_cache := {}
 var image2_texture_cache := {}
+var image2_flipped_zombie_cache := {}
 var update_manager := UpdateManagerLib.new()
 var update_check_request: HTTPRequest
 var update_download_request: HTTPRequest
@@ -1059,6 +1077,8 @@ func _handle_battle_pause_click(mouse_pos: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	ui_time += delta
+	if glow_layer != null:
+		glow_layer.queue_redraw()
 	# Screen shake decay
 	if screen_shake_amount > 0.01:
 		screen_shake_amount *= exp(-screen_shake_decay * delta)
@@ -1390,6 +1410,13 @@ func _build_font() -> void:
 
 
 func _build_overlay_ui() -> void:
+	# Additive glow layer first so it sits above the gameplay _draw but below the
+	# toast/banner/message overlays. Only draws primitives the game pushes in battle.
+	glow_layer = EffectGlowLayer.new()
+	glow_layer.source = self
+	glow_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	glow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(glow_layer)
 	overlay_panel_style = StyleBoxFlat.new()
 	overlay_panel_style.bg_color = Color(0.14, 0.12, 0.09, 0.9)
 	overlay_panel_style.border_width_left = 3
@@ -3210,11 +3237,11 @@ func _enter_endless_mode() -> void:
 
 
 func _normal_zombie_spawn_x() -> float:
-	return BOARD_ORIGIN.x + board_size.x + 92.0
+	return _ensure_zombie_runtime().normal_zombie_spawn_x()
 
 
 func _random_normal_zombie_spawn_x() -> float:
-	return _normal_zombie_spawn_x() + rng.randf_range(-12.0, 18.0)
+	return _ensure_zombie_runtime().random_normal_zombie_spawn_x()
 
 
 func _endless_spawn_candidate_kinds() -> Array:
@@ -4459,67 +4486,27 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 
 
 func _is_water_zombie_kind(kind: String) -> bool:
-	return kind == "ducky_tube" \
-		or kind == "lifebuoy_normal" \
-		or kind == "lifebuoy_cone" \
-		or kind == "lifebuoy_bucket" \
-		or kind == "snorkel" \
-		or kind == "dolphin_rider" \
-		or kind == "dragon_boat"
+	return _ensure_zombie_runtime().is_water_zombie_kind(kind)
 
 
 func _is_dual_terrain_zombie_kind(kind: String) -> bool:
-	return kind == "qinghua" or kind == "ice_block" or kind == "shouyue"
+	return _ensure_zombie_runtime().is_dual_terrain_zombie_kind(kind)
 
 
 func _is_row_valid_for_spawn_kind(kind: String, row: int) -> bool:
-	if not _is_row_active(row):
-		return false
-	if not _is_pool_level():
-		return true
-	if kind == "bobsled_team":
-		return true
-	if _is_dual_terrain_zombie_kind(kind):
-		return true
-	if _is_water_zombie_kind(kind):
-		return _is_water_row(row)
-	return not _is_water_row(row)
+	return _ensure_zombie_runtime().is_row_valid_for_spawn_kind(kind, row)
 
 
 func _eligible_spawn_rows_for_kind(kind: String) -> Array:
-	var rows: Array = []
-	for row in active_rows:
-		var row_i = int(row)
-		if _is_row_valid_for_spawn_kind(kind, row_i):
-			rows.append(row_i)
-	if rows.is_empty():
-		for row in active_rows:
-			rows.append(int(row))
-	return rows
+	return _ensure_zombie_runtime().eligible_spawn_rows_for_kind(kind)
 
 
 func _choose_spawn_row_for_kind(kind: String) -> int:
-	var candidates = _eligible_spawn_rows_for_kind(kind)
-	if candidates.is_empty():
-		return -1
-	var min_count := 999999
-	var row_counts := {}
-	for row in candidates:
-		var amount := 0
-		for zombie in zombies:
-			if int(zombie["row"]) == int(row):
-				amount += 1
-		row_counts[int(row)] = amount
-		min_count = min(min_count, amount)
-	var filtered: Array = []
-	for row in candidates:
-		if int(row_counts[int(row)]) == min_count:
-			filtered.append(int(row))
-	return int(filtered[rng.randi_range(0, filtered.size() - 1)])
+	return _ensure_zombie_runtime().choose_spawn_row_for_kind(kind)
 
 
 func _choose_spawn_row() -> int:
-	return _choose_spawn_row_for_kind("normal")
+	return _ensure_zombie_runtime().choose_spawn_row()
 
 
 func _top_plant_at(row: int, col: int) -> Variant:
@@ -4702,16 +4689,7 @@ func _pick_random_active_cells(count: int, min_col: int = 2, max_col: int = COLS
 
 
 func _is_mechanical_zombie_kind(kind: String) -> bool:
-	return kind == "zomboni" \
-		or kind == "bobsled_team" \
-		or kind == "catapult_zombie" \
-		or kind == "turret_zombie" \
-		or kind == "programmer_zombie" \
-		or kind == "subway_zombie" \
-		or kind == "wenjie_zombie" \
-		or kind == "router_zombie" \
-		or kind == "mech_zombie" \
-		or kind == "jack_in_the_box_zombie"
+	return _ensure_zombie_runtime().is_mechanical_zombie_kind(kind)
 
 
 func _choose_bungee_target_cell() -> Vector2i:
@@ -5530,6 +5508,12 @@ func _ensure_projectile_runtime() -> ProjectileRuntime:
 	if projectile_runtime == null:
 		projectile_runtime = ProjectileRuntime.new(self)
 	return projectile_runtime
+
+
+func _ensure_zombie_runtime() -> ZombieRuntime:
+	if zombie_runtime == null:
+		zombie_runtime = ZombieRuntime.new(self)
+	return zombie_runtime
 
 
 func _update_plants(delta: float) -> void:
@@ -13933,6 +13917,7 @@ func _random_active_target_y() -> float:
 
 
 func _draw() -> void:
+	glow_primitives.clear()
 	if startup_loading_active:
 		_draw_startup_loading_scene()
 		return
@@ -13987,9 +13972,16 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 	if draw_mode == MODE_BATTLE and screen_shake_amount > 0.5:
 		shake_offset = Vector2(sin(ui_time * 67.3) * screen_shake_amount, cos(ui_time * 53.7) * screen_shake_amount * 0.6)
 	if _is_ui_scaled_mode(draw_mode):
-		draw_set_transform(offset + _ui_offset(draw_mode), 0.0, _ui_scale_vector(draw_mode))
+		var scaled_offset = offset + _ui_offset(draw_mode)
+		var scaled_scale = _ui_scale_vector(draw_mode)
+		draw_set_transform(scaled_offset, 0.0, scaled_scale)
+		glow_draw_offset = scaled_offset
+		glow_draw_scale = scaled_scale
 	else:
-		draw_set_transform(offset + shake_offset, 0.0, Vector2.ONE)
+		var battle_offset = offset + shake_offset
+		draw_set_transform(battle_offset, 0.0, Vector2.ONE)
+		glow_draw_offset = battle_offset
+		glow_draw_scale = Vector2.ONE
 	if draw_mode == MODE_WORLD_SELECT:
 		_draw_world_select_scene()
 	elif draw_mode == MODE_MAP:
@@ -17289,13 +17281,52 @@ func _try_draw_image2_zombie(kind: String, center: Vector2, zombie: Dictionary) 
 	var impact_offset := sin((1.0 - clampf(float(zombie.get("impact_timer", 0.0)) / 0.16, 0.0, 1.0)) * PI) * 8.0 if float(zombie.get("impact_timer", 0.0)) > 0.0 else 0.0
 	var draw_center := center + Vector2(impact_offset, 0.0)
 	var top_left := draw_center + Vector2(-texture_size.x * 0.5, -texture_size.y * 0.72)
+	# Orient toward the plants: most image2 zombie art faces RIGHT, so flip it
+	# horizontally so enemy zombies face LEFT. Hypnotized zombies move right and
+	# should face right, so they stay unflipped (or flip if their art faces left).
+	# Flipping caches a horizontally-mirrored ImageTexture (renderer-independent);
+	# if the image data is unavailable we fall back to a negative-width draw rect.
+	var flip_h := _image2_zombie_should_flip(kind, zombie)
+	var draw_texture := texture
+	var tex_rect := Rect2(top_left, texture_size)
+	if flip_h:
+		var flipped := _image2_flipped_zombie_texture(kind, texture)
+		if flipped != null:
+			draw_texture = flipped
+		else:
+			tex_rect = Rect2(top_left.x + texture_size.x, top_left.y, -texture_size.x, texture_size.y)
 	draw_circle(draw_center + Vector2(0.0, texture_size.y * 0.28), texture_size.x * 0.24, Color(0.0, 0.0, 0.0, 0.08))
-	draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0))
+	draw_texture_rect(draw_texture, tex_rect, false, Color(1.0, 1.0, 1.0, 1.0))
 	if slow_tint > 0.0:
-		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(0.52, 0.72, 1.0, slow_tint))
+		draw_texture_rect(draw_texture, tex_rect, false, Color(0.52, 0.72, 1.0, slow_tint))
 	if flash > 0.0:
-		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, clampf(flash * 1.7, 0.0, 0.34)))
+		draw_texture_rect(draw_texture, tex_rect, false, Color(1.0, 1.0, 1.0, clampf(flash * 1.7, 0.0, 0.34)))
 	return true
+
+
+func _image2_zombie_should_flip(kind: String, zombie: Dictionary) -> bool:
+	# Most image2 zombie art faces RIGHT; enemy zombies must face LEFT toward the
+	# plants, so they flip. Hypnotized zombies move right and keep facing right.
+	# Art that already faces left (IMAGE2_ZOMBIE_ART_FACES_LEFT) only flips when
+	# the zombie is hypnotized.
+	var art_faces_left := bool(IMAGE2_ZOMBIE_ART_FACES_LEFT.get(kind, false))
+	var want_face_left := not bool(zombie.get("hypnotized", false))
+	return want_face_left != art_faces_left
+
+
+func _image2_flipped_zombie_texture(kind: String, source: Texture2D) -> Texture2D:
+	if source == null:
+		return null
+	if image2_flipped_zombie_cache.has(kind):
+		return image2_flipped_zombie_cache[kind]
+	var image := source.get_image()
+	if image == null or image.is_empty():
+		return null
+	image.flip_x()
+	var flipped := ImageTexture.create_from_image(image)
+	if flipped != null:
+		image2_flipped_zombie_cache[kind] = flipped
+	return flipped
 
 
 func _try_draw_image2_effect(shape: String, effect: Dictionary, ratio: float, effect_color: Color) -> bool:
@@ -17364,15 +17395,29 @@ func _draw_effects() -> void:
 			continue
 		if shape == "projectile_impact":
 			var impact_center = Vector2(effect["position"])
-			var impact_radius = _effect_visual_radius(effect, ratio) * (0.64 + (1.0 - ratio) * 0.56)
-			draw_circle(impact_center, impact_radius, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.52))
-			draw_circle(impact_center, impact_radius * 0.48, Color(1.0, 1.0, 1.0, effect_color.a * 0.26))
-			for ray_index in range(6):
-				var ray_angle = level_time * anim_speed * 0.16 + float(ray_index) * TAU / 6.0
-				var ray_start = impact_center + Vector2(cos(ray_angle), sin(ray_angle)) * impact_radius * 0.24
-				var ray_end = impact_center + Vector2(cos(ray_angle), sin(ray_angle)) * impact_radius * (0.72 + (1.0 - ratio) * 0.34)
-				draw_line(ray_start, ray_end, Color(1.0, 1.0, 0.9, effect_color.a * 0.54), 1.6)
-			draw_arc(impact_center, impact_radius * 0.8, level_time * anim_speed, level_time * anim_speed + PI * 1.25, 18, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.92), 2.0)
+			var fade = clampf(ratio, 0.0, 1.0)        # 1 at birth, 0 at death
+			var born = clampf(1.0 - ratio, 0.0, 1.0)   # 0 at birth, 1 at death
+			var base_radius = _effect_visual_radius(effect, ratio)
+			var shock_radius = base_radius * (0.5 + born * 0.95)
+			# bright white core flash, strongest right at impact
+			var core_flash = clampf(fade * 1.5, 0.0, 1.0)
+			draw_circle(impact_center, base_radius * 0.7, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.4))
+			draw_circle(impact_center, base_radius * 0.42, Color(1.0, 1.0, 1.0, core_flash * 0.8))
+			draw_circle(impact_center, base_radius * 0.22, Color(1.0, 1.0, 1.0, core_flash))
+			# expanding double shockwave ring
+			draw_arc(impact_center, shock_radius, 0.0, TAU, 30, Color(1.0, 1.0, 0.95, fade * 0.8), 2.2)
+			draw_arc(impact_center, shock_radius * 0.76, 0.0, TAU, 24, Color(effect_color.r, effect_color.g, effect_color.b, fade * 0.6), 1.6)
+			# radial spark rays
+			var ray_count = 8
+			for ray_index in range(ray_count):
+				var ray_angle = level_time * anim_speed * 0.4 + float(ray_index) * TAU / float(ray_count)
+				var ray_dir = Vector2(cos(ray_angle), sin(ray_angle))
+				var ray_start = impact_center + ray_dir * base_radius * 0.3
+				var ray_end = impact_center + ray_dir * shock_radius * 1.08
+				draw_line(ray_start, ray_end, Color(1.0, 1.0, 0.92, fade * 0.6), 1.8)
+			# additive bloom: bright core + tinted halo
+			glow_primitives.append({"type": "circle", "pos": impact_center, "radius": base_radius * 1.2, "color": Color(1.0, 1.0, 1.0, fade * 0.5)})
+			glow_primitives.append({"type": "circle", "pos": impact_center, "radius": base_radius * 0.5, "color": Color(effect_color.r, effect_color.g, effect_color.b, fade * 0.5)})
 			continue
 		if shape == "dark_orbit":
 			var orbit_center = Vector2(effect["position"])
@@ -18575,14 +18620,23 @@ func _draw_effects() -> void:
 func _draw_vfx_particles() -> void:
 	for p in vfx_particles:
 		var life_ratio = clampf(float(p["life"]) / float(p["max_life"]), 0.0, 1.0)
-		var c = Color(p["color"])
-		c.a *= life_ratio
-		var sz = float(p["size"]) * life_ratio
-		draw_circle(Vector2(p["pos"]), sz, c)
-		# Fading trail
-		var velocity = Vector2(p["vel"])
-		if velocity.length_squared() > 0.001:
-			draw_circle(Vector2(p["pos"]) - velocity.normalized() * sz * 1.5, sz * 0.5, Color(c.r, c.g, c.b, c.a * 0.3))
+		var base = Color(p["color"])
+		var pos = Vector2(p["pos"])
+		var vel = Vector2(p["vel"])
+		# size pulse: grow on birth then shrink out
+		var pulse = sin(clampf(life_ratio, 0.0, 1.0) * PI)
+		var sz = float(p["size"]) * (0.6 + pulse * 0.7)
+		var alpha = clampf(life_ratio, 0.0, 1.0)
+		# velocity trail streak (behind motion)
+		if vel.length_squared() > 4.0:
+			var tail = pos - vel.normalized() * sz * 2.2
+			draw_line(pos, tail, Color(base.r, base.g, base.b, alpha * 0.45), maxf(0.8, sz * 0.5))
+		# outer soft halo + mid body + bright core
+		draw_circle(pos, sz * 1.8, Color(base.r, base.g, base.b, alpha * 0.16))
+		draw_circle(pos, sz, Color(base.r, base.g, base.b, alpha * 0.55))
+		draw_circle(pos, sz * 0.5, Color(min(1.0, base.r + 0.3), min(1.0, base.g + 0.3), min(1.0, base.b + 0.3), alpha * 0.9))
+		# additive bloom on the glow layer
+		glow_primitives.append({"type": "circle", "pos": pos, "radius": sz * 2.6, "color": Color(base.r, base.g, base.b, 0.26 * alpha)})
 
 
 func _draw_mowers() -> void:

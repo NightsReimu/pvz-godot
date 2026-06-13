@@ -315,6 +315,8 @@ const LEVELS = [
 				{"time": 79.0, "kind": "nether", "row": 5},
 				{"time": 83.0, "kind": "dancing", "row": 1},
 				{"time": 87.0, "kind": "nezha", "row": 0},
+				{"time": 88.0, "kind": "barrel_screen_zombie", "row": 4},
+				{"time": 90.5, "kind": "turret_zombie", "row": 0},
 				{"time": 91.0, "kind": "dark_football", "row": 4},
 				{"time": 93.0, "kind": "dragon_boat", "row": 2},
 				{"time": 94.0, "kind": "qinghua", "row": 0},
