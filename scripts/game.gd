@@ -9,6 +9,7 @@ const AlmanacTextLib = preload("res://scripts/data/almanac_text.gd")
 const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
+const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
 const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
 const ROWS := 6
@@ -425,6 +426,7 @@ var card_cooldowns := {}
 var plant_runtime: PlantRuntime
 var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
+var zombie_runtime: ZombieRuntime
 var save_dirty := false
 var autosave_timer := 0.0
 
@@ -3235,11 +3237,11 @@ func _enter_endless_mode() -> void:
 
 
 func _normal_zombie_spawn_x() -> float:
-	return BOARD_ORIGIN.x + board_size.x + 92.0
+	return _ensure_zombie_runtime().normal_zombie_spawn_x()
 
 
 func _random_normal_zombie_spawn_x() -> float:
-	return _normal_zombie_spawn_x() + rng.randf_range(-12.0, 18.0)
+	return _ensure_zombie_runtime().random_normal_zombie_spawn_x()
 
 
 func _endless_spawn_candidate_kinds() -> Array:
@@ -4484,67 +4486,27 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 
 
 func _is_water_zombie_kind(kind: String) -> bool:
-	return kind == "ducky_tube" \
-		or kind == "lifebuoy_normal" \
-		or kind == "lifebuoy_cone" \
-		or kind == "lifebuoy_bucket" \
-		or kind == "snorkel" \
-		or kind == "dolphin_rider" \
-		or kind == "dragon_boat"
+	return _ensure_zombie_runtime().is_water_zombie_kind(kind)
 
 
 func _is_dual_terrain_zombie_kind(kind: String) -> bool:
-	return kind == "qinghua" or kind == "ice_block" or kind == "shouyue"
+	return _ensure_zombie_runtime().is_dual_terrain_zombie_kind(kind)
 
 
 func _is_row_valid_for_spawn_kind(kind: String, row: int) -> bool:
-	if not _is_row_active(row):
-		return false
-	if not _is_pool_level():
-		return true
-	if kind == "bobsled_team":
-		return true
-	if _is_dual_terrain_zombie_kind(kind):
-		return true
-	if _is_water_zombie_kind(kind):
-		return _is_water_row(row)
-	return not _is_water_row(row)
+	return _ensure_zombie_runtime().is_row_valid_for_spawn_kind(kind, row)
 
 
 func _eligible_spawn_rows_for_kind(kind: String) -> Array:
-	var rows: Array = []
-	for row in active_rows:
-		var row_i = int(row)
-		if _is_row_valid_for_spawn_kind(kind, row_i):
-			rows.append(row_i)
-	if rows.is_empty():
-		for row in active_rows:
-			rows.append(int(row))
-	return rows
+	return _ensure_zombie_runtime().eligible_spawn_rows_for_kind(kind)
 
 
 func _choose_spawn_row_for_kind(kind: String) -> int:
-	var candidates = _eligible_spawn_rows_for_kind(kind)
-	if candidates.is_empty():
-		return -1
-	var min_count := 999999
-	var row_counts := {}
-	for row in candidates:
-		var amount := 0
-		for zombie in zombies:
-			if int(zombie["row"]) == int(row):
-				amount += 1
-		row_counts[int(row)] = amount
-		min_count = min(min_count, amount)
-	var filtered: Array = []
-	for row in candidates:
-		if int(row_counts[int(row)]) == min_count:
-			filtered.append(int(row))
-	return int(filtered[rng.randi_range(0, filtered.size() - 1)])
+	return _ensure_zombie_runtime().choose_spawn_row_for_kind(kind)
 
 
 func _choose_spawn_row() -> int:
-	return _choose_spawn_row_for_kind("normal")
+	return _ensure_zombie_runtime().choose_spawn_row()
 
 
 func _top_plant_at(row: int, col: int) -> Variant:
@@ -4727,16 +4689,7 @@ func _pick_random_active_cells(count: int, min_col: int = 2, max_col: int = COLS
 
 
 func _is_mechanical_zombie_kind(kind: String) -> bool:
-	return kind == "zomboni" \
-		or kind == "bobsled_team" \
-		or kind == "catapult_zombie" \
-		or kind == "turret_zombie" \
-		or kind == "programmer_zombie" \
-		or kind == "subway_zombie" \
-		or kind == "wenjie_zombie" \
-		or kind == "router_zombie" \
-		or kind == "mech_zombie" \
-		or kind == "jack_in_the_box_zombie"
+	return _ensure_zombie_runtime().is_mechanical_zombie_kind(kind)
 
 
 func _choose_bungee_target_cell() -> Vector2i:
@@ -5555,6 +5508,12 @@ func _ensure_projectile_runtime() -> ProjectileRuntime:
 	if projectile_runtime == null:
 		projectile_runtime = ProjectileRuntime.new(self)
 	return projectile_runtime
+
+
+func _ensure_zombie_runtime() -> ZombieRuntime:
+	if zombie_runtime == null:
+		zombie_runtime = ZombieRuntime.new(self)
+	return zombie_runtime
 
 
 func _update_plants(delta: float) -> void:
