@@ -538,11 +538,12 @@ const LEVELS = [
 			"description": "任一除草机被触发即失败。",
 			"available_plants": ["peashooter", "sunflower", "cherry_bomb", "wallnut", "potato_mine", "snow_pea", "chomper", "repeater", "lily_pad", "squash", "threepeater", "tangle_kelp", "jalapeno", "spikeweed", "torchwood", "tall_nut", "sea_shroom", "plantern", "cactus", "blover", "split_pea", "starfruit"],
 			"unlock_requirements": ["4-8"],
+			"branch_from": "4-8",
 			"start_sun": 300,
 			"row_count": 6,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(7.5, 9.5),
-			"node_pos": Vector2(2020.0, 460.0),
+			"node_pos": Vector2(556.0, 220.0),
 			"objective": {
 				"type": "no_mower",
 				"title": "不丢除草机",

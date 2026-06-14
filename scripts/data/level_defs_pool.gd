@@ -573,11 +573,12 @@ const LEVELS = [
 			"description": "僵尸不得越过第 1 列（从左数第二列）。",
 			"available_plants": ["peashooter", "sunflower", "cherry_bomb", "wallnut", "potato_mine", "snow_pea", "chomper", "repeater", "lily_pad", "squash", "threepeater", "tangle_kelp", "jalapeno", "spikeweed", "torchwood", "tall_nut"],
 			"unlock_requirements": ["3-8"],
+			"branch_from": "3-8",
 			"start_sun": 250,
 			"row_count": 6,
 			"time_scale": 1.0,
 			"sky_sun_range": Vector2(7.0, 9.0),
-			"node_pos": Vector2(1620.0, 500.0),
+			"node_pos": Vector2(1280.0, 360.0),
 			"objective": {
 				"type": "column_defense",
 				"title": "守住防线",
