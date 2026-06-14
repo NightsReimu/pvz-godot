@@ -10,6 +10,7 @@ const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
 const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
+const ObjectiveRuntime = preload("res://scripts/runtime/objective_runtime.gd")
 const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
 const ROWS := 6
@@ -427,6 +428,7 @@ var plant_runtime: PlantRuntime
 var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
 var zombie_runtime: ZombieRuntime
+var objective_runtime: ObjectiveRuntime
 var save_dirty := false
 var autosave_timer := 0.0
 
@@ -3919,6 +3921,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 
 	_setup_cell_terrain_mask()
 	_setup_preplaced_supports()
+	_ensure_objective_runtime().setup(current_level)
 	_refresh_fog_visibility_state()
 	_setup_level_graves()
 	if _is_vasebreaker_level():
@@ -5514,6 +5517,16 @@ func _ensure_zombie_runtime() -> ZombieRuntime:
 	if zombie_runtime == null:
 		zombie_runtime = ZombieRuntime.new(self)
 	return zombie_runtime
+
+
+func _ensure_objective_runtime() -> ObjectiveRuntime:
+	if objective_runtime == null:
+		objective_runtime = ObjectiveRuntime.new(self)
+	return objective_runtime
+
+
+func _objective_active() -> bool:
+	return objective_runtime != null and objective_runtime.active
 
 
 func _update_plants(delta: float) -> void:
@@ -7931,6 +7944,8 @@ func _update_zombies(delta: float) -> void:
 				mower["armed"] = false
 				mower["active"] = true
 				mowers[int(zombie["row"])] = mower
+				if _objective_active():
+					objective_runtime.notify_mower_activated()
 			elif not bool(mower["active"]):
 				_lose_level()
 				return
@@ -8204,12 +8219,15 @@ func _update_effects(delta: float) -> void:
 
 
 func _remove_dead_plants() -> void:
+	var track := _objective_active()
 	for row in range(ROWS):
 		for col in range(COLS):
 			var plant_variant = grid[row][col]
 			if plant_variant == null:
 				continue
 			if float(plant_variant["health"]) <= 0.0:
+				if track:
+					objective_runtime.notify_plant_removed(plant_variant)
 				grid[row][col] = null
 	for row in range(ROWS):
 		for col in range(COLS):
@@ -8217,6 +8235,8 @@ func _remove_dead_plants() -> void:
 			if support_variant == null:
 				continue
 			if float(support_variant["health"]) <= 0.0:
+				if track:
+					objective_runtime.notify_plant_removed(support_variant)
 				support_grid[row][col] = null
 				grid[row][col] = null
 
@@ -8421,6 +8441,14 @@ func _spawn_death_poof(pos: Vector2, color: Color = Color(0.6, 0.6, 0.6)) -> voi
 
 
 func _check_end_state() -> void:
+	if _objective_active():
+		var fail_reason = objective_runtime.fail_check()
+		if fail_reason != "":
+			_lose_level(fail_reason)
+			return
+		if objective_runtime.win_check():
+			_win_level()
+			return
 	if _can_finish_level_ignoring_obstacles():
 		_win_level()
 
@@ -8476,7 +8504,7 @@ func _win_level() -> void:
 	_show_banner("关卡完成！", 2.0)
 
 
-func _lose_level() -> void:
+func _lose_level(reason: String = "") -> void:
 	if battle_state != BATTLE_PLAYING:
 		return
 	battle_state = BATTLE_LOST
@@ -8489,7 +8517,8 @@ func _lose_level() -> void:
 	if String(current_level.get("id", "")) == "每日":
 		_show_message("%s 失败\n今日挑战尚未完成" % current_level["title"], "retry_daily", "重试挑战")
 		return
-	_show_message("%s 失败\n僵尸闯进了房子" % current_level["title"], "retry", "重试本关")
+	var lose_text = "%s 失败\n%s" % [current_level["title"], reason] if reason != "" else "%s 失败\n僵尸闯进了房子" % current_level["title"]
+	_show_message(lose_text, "retry", "重试本关")
 
 
 func _show_message(text: String, action: String, button_text: String) -> void:
@@ -14983,6 +15012,7 @@ func _draw_battle_scene() -> void:
 	_draw_battle_board()
 	_draw_seed_bank()
 	_draw_wave_bar()
+	_draw_objective_chip()
 	_draw_panel_shell(PAUSE_BUTTON_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.1, 0.05)
 	_draw_text("暂停", PAUSE_BUTTON_RECT.position + Vector2(24.0, 27.0), 18, Color(0.27, 0.18, 0.08))
 	_draw_hover()
@@ -16410,8 +16440,28 @@ func _update_city_blizzard_weather(delta: float) -> void:
 	city_blizzard_timer = rng.randf_range(3.6, 6.2)
 
 
-func _draw_wave_bar() -> void:
-	# Endless mode: show wave counter instead of progress bar
+func _draw_objective_chip() -> void:
+	if not _objective_active():
+		return
+	var status = objective_runtime.status_text()
+	var label := String(status.get("label", ""))
+	if label == "":
+		return
+	var progress := String(status.get("progress", ""))
+	var danger := bool(status.get("danger", false))
+	# Sit just under the wave bar, left-aligned to it.
+	var chip_rect = Rect2(WAVE_BAR_RECT.position + Vector2(0.0, WAVE_BAR_RECT.size.y + 30.0), Vector2(maxf(WAVE_BAR_RECT.size.x, 176.0), 38.0))
+	var fill = Color(0.46, 0.12, 0.12, 0.92) if danger else Color(0.14, 0.18, 0.12, 0.9)
+	var border = Color(0.98, 0.5, 0.42) if danger else Color(0.86, 0.78, 0.5)
+	_draw_panel_shell(chip_rect, fill, border, 0.12, 0.08)
+	var text_color = Color(1.0, 0.86, 0.82) if danger else Color(0.96, 0.92, 0.74)
+	_draw_text("🎯 " + label, chip_rect.position + Vector2(12.0, 16.0), 16, text_color)
+	if progress != "":
+		var pw = ui_font.get_string_size(progress, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16).x
+		_draw_text(progress, chip_rect.position + Vector2(chip_rect.size.x - pw - 14.0, 16.0), 16, text_color)
+
+
+func _draw_wave_bar() -> void:	# Endless mode: show wave counter instead of progress bar
 	if current_level.get("id", "") == "无尽":
 		ThemeLib.draw_rounded_panel(self, WAVE_BAR_RECT, Color(0.52, 0.14, 0.14), Color(0.36, 0.08, 0.08), 8.0, 0.16, 0.08)
 		var wave_text = "第 %d 波" % endless_wave if endless_wave > 0 else "准备中..."
