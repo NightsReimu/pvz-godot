@@ -10,6 +10,7 @@ const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
 const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
+const ObjectiveRuntime = preload("res://scripts/runtime/objective_runtime.gd")
 const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
 const ROWS := 6
@@ -427,6 +428,7 @@ var plant_runtime: PlantRuntime
 var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
 var zombie_runtime: ZombieRuntime
+var objective_runtime: ObjectiveRuntime
 var save_dirty := false
 var autosave_timer := 0.0
 
@@ -3919,6 +3921,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 
 	_setup_cell_terrain_mask()
 	_setup_preplaced_supports()
+	_ensure_objective_runtime().setup(current_level)
 	_refresh_fog_visibility_state()
 	_setup_level_graves()
 	if _is_vasebreaker_level():
@@ -5514,6 +5517,16 @@ func _ensure_zombie_runtime() -> ZombieRuntime:
 	if zombie_runtime == null:
 		zombie_runtime = ZombieRuntime.new(self)
 	return zombie_runtime
+
+
+func _ensure_objective_runtime() -> ObjectiveRuntime:
+	if objective_runtime == null:
+		objective_runtime = ObjectiveRuntime.new(self)
+	return objective_runtime
+
+
+func _objective_active() -> bool:
+	return objective_runtime != null and objective_runtime.active
 
 
 func _update_plants(delta: float) -> void:
@@ -7931,6 +7944,8 @@ func _update_zombies(delta: float) -> void:
 				mower["armed"] = false
 				mower["active"] = true
 				mowers[int(zombie["row"])] = mower
+				if _objective_active():
+					objective_runtime.notify_mower_activated()
 			elif not bool(mower["active"]):
 				_lose_level()
 				return
@@ -8204,12 +8219,15 @@ func _update_effects(delta: float) -> void:
 
 
 func _remove_dead_plants() -> void:
+	var track := _objective_active()
 	for row in range(ROWS):
 		for col in range(COLS):
 			var plant_variant = grid[row][col]
 			if plant_variant == null:
 				continue
 			if float(plant_variant["health"]) <= 0.0:
+				if track:
+					objective_runtime.notify_plant_removed(plant_variant)
 				grid[row][col] = null
 	for row in range(ROWS):
 		for col in range(COLS):
@@ -8217,6 +8235,8 @@ func _remove_dead_plants() -> void:
 			if support_variant == null:
 				continue
 			if float(support_variant["health"]) <= 0.0:
+				if track:
+					objective_runtime.notify_plant_removed(support_variant)
 				support_grid[row][col] = null
 				grid[row][col] = null
 
@@ -8421,6 +8441,14 @@ func _spawn_death_poof(pos: Vector2, color: Color = Color(0.6, 0.6, 0.6)) -> voi
 
 
 func _check_end_state() -> void:
+	if _objective_active():
+		var fail_reason = objective_runtime.fail_check()
+		if fail_reason != "":
+			_lose_level(fail_reason)
+			return
+		if objective_runtime.win_check():
+			_win_level()
+			return
 	if _can_finish_level_ignoring_obstacles():
 		_win_level()
 
@@ -8476,7 +8504,7 @@ func _win_level() -> void:
 	_show_banner("关卡完成！", 2.0)
 
 
-func _lose_level() -> void:
+func _lose_level(reason: String = "") -> void:
 	if battle_state != BATTLE_PLAYING:
 		return
 	battle_state = BATTLE_LOST
@@ -8489,7 +8517,8 @@ func _lose_level() -> void:
 	if String(current_level.get("id", "")) == "每日":
 		_show_message("%s 失败\n今日挑战尚未完成" % current_level["title"], "retry_daily", "重试挑战")
 		return
-	_show_message("%s 失败\n僵尸闯进了房子" % current_level["title"], "retry", "重试本关")
+	var lose_text = "%s 失败\n%s" % [current_level["title"], reason] if reason != "" else "%s 失败\n僵尸闯进了房子" % current_level["title"]
+	_show_message(lose_text, "retry", "重试本关")
 
 
 func _show_message(text: String, action: String, button_text: String) -> void:
@@ -14892,11 +14921,98 @@ func _zombie_draw_motion(zombie: Dictionary, base_center: Vector2) -> Dictionary
 	}
 
 
+func _ambient_light_for_level() -> Dictionary:
+	# Single source of truth for a level's ambient light. Drives both the unified
+	# ground shadow colour (_draw_ground_shadow) and the screen-wide grade
+	# (_draw_ambient_grade). Replaces the scattered, inconsistent tint/shadow
+	# literals across the background/board/overlay painters.
+	var tint := Color(1.0, 0.98, 0.9)
+	var tint_alpha := 0.04
+	var shadow_tint := Color(0.0, 0.0, 0.0)
+	var shadow_alpha := 0.06
+	if _is_blood_moon_level() or _is_blood_library_level() or _is_scarlet_clocktower_level():
+		tint = Color(0.62, 0.14, 0.16)
+		tint_alpha = 0.10
+		shadow_tint = Color(0.14, 0.02, 0.05)
+		shadow_alpha = 0.10
+	elif _is_blood_toy_roof_level():
+		tint = Color(0.5, 0.16, 0.2)
+		tint_alpha = 0.09
+		shadow_tint = Color(0.12, 0.02, 0.06)
+		shadow_alpha = 0.09
+	elif _is_frozen_branch_level():
+		tint = Color(0.62, 0.8, 1.0)
+		tint_alpha = 0.10
+		shadow_tint = Color(0.05, 0.09, 0.15)
+		shadow_alpha = 0.07
+	elif _is_storm_fog_level() or _is_fog_level():
+		tint = Color(0.5, 0.62, 0.66)
+		tint_alpha = 0.10
+		shadow_tint = Color(0.03, 0.05, 0.07)
+		shadow_alpha = 0.06
+	elif _is_night_level():
+		tint = Color(0.42, 0.52, 0.86)
+		tint_alpha = 0.10
+		shadow_tint = Color(0.02, 0.03, 0.09)
+		shadow_alpha = 0.065
+	elif _is_city_level():
+		tint = Color(0.5, 0.66, 0.9)
+		tint_alpha = 0.06
+		shadow_tint = Color(0.03, 0.05, 0.1)
+		shadow_alpha = 0.07
+	elif _is_roof_level():
+		tint = Color(1.0, 0.92, 0.8)
+		tint_alpha = 0.05
+		shadow_tint = Color(0.0, 0.0, 0.0)
+		shadow_alpha = 0.08
+	elif _is_pool_level():
+		tint = Color(0.8, 0.94, 1.0)
+		tint_alpha = 0.04
+		shadow_tint = Color(0.0, 0.02, 0.06)
+		shadow_alpha = 0.065
+	var breath = 1.0 + sin(ui_time * 0.6) * 0.05
+	return {
+		"tint": tint,
+		"tint_alpha": tint_alpha * breath,
+		"shadow_tint": shadow_tint,
+		"shadow_alpha": shadow_alpha,
+	}
+
+
+func _draw_ground_shadow(center: Vector2, radius: float, alpha_scale: float = 1.0, y_offset: float = 34.0) -> void:
+	# Central, world-aware soft ground shadow. Two concentric layers for a soft
+	# falloff; colour/strength come from _ambient_light_for_level so shadows follow
+	# the world's mood (neutral by day, blue at night, red under blood moon).
+	var light = _ambient_light_for_level()
+	var base = clampf(float(light["shadow_alpha"]) * alpha_scale, 0.0, 0.6)
+	var st = Color(light["shadow_tint"])
+	var anchor = center + Vector2(0.0, y_offset)
+	draw_circle(anchor, radius * 1.2, Color(st.r, st.g, st.b, base * 0.5))
+	draw_circle(anchor, radius * 0.78, Color(st.r, st.g, st.b, base * 0.85))
+
+
+func _draw_ambient_grade() -> void:
+	# One coherent ambient pass over the whole battle scene: a faint world-tint
+	# wash plus a soft vignette for depth. Single knob: _ambient_light_for_level.
+	var light = _ambient_light_for_level()
+	var tint = Color(light["tint"])
+	var ta = clampf(float(light["tint_alpha"]), 0.0, 0.4)
+	if ta > 0.001:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(tint.r, tint.g, tint.b, ta), true)
+	var v := 0.18
+	var edge := 96.0
+	ThemeLib.draw_gradient_rect_h(self, Rect2(Vector2.ZERO, Vector2(edge, size.y)), Color(0.0, 0.0, 0.0, v), Color(0.0, 0.0, 0.0, 0.0))
+	ThemeLib.draw_gradient_rect_h(self, Rect2(Vector2(size.x - edge, 0.0), Vector2(edge, size.y)), Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, v))
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, edge)), Color(0.0, 0.0, 0.0, v * 0.7), Color(0.0, 0.0, 0.0, 0.0))
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(0.0, size.y - edge), Vector2(size.x, edge)), Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, v * 1.1))
+
+
 func _draw_battle_scene() -> void:
 	_draw_battle_background()
 	_draw_battle_board()
 	_draw_seed_bank()
 	_draw_wave_bar()
+	_draw_objective_chip()
 	_draw_panel_shell(PAUSE_BUTTON_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.1, 0.05)
 	_draw_text("暂停", PAUSE_BUTTON_RECT.position + Vector2(24.0, 27.0), 18, Color(0.27, 0.18, 0.08))
 	_draw_hover()
@@ -14916,6 +15032,7 @@ func _draw_battle_scene() -> void:
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
 	_draw_boss_health_bar()
+	_draw_ambient_grade()
 
 	if battle_state != BATTLE_PLAYING:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.28), true)
@@ -16323,8 +16440,28 @@ func _update_city_blizzard_weather(delta: float) -> void:
 	city_blizzard_timer = rng.randf_range(3.6, 6.2)
 
 
-func _draw_wave_bar() -> void:
-	# Endless mode: show wave counter instead of progress bar
+func _draw_objective_chip() -> void:
+	if not _objective_active():
+		return
+	var status = objective_runtime.status_text()
+	var label := String(status.get("label", ""))
+	if label == "":
+		return
+	var progress := String(status.get("progress", ""))
+	var danger := bool(status.get("danger", false))
+	# Sit just under the wave bar, left-aligned to it.
+	var chip_rect = Rect2(WAVE_BAR_RECT.position + Vector2(0.0, WAVE_BAR_RECT.size.y + 30.0), Vector2(maxf(WAVE_BAR_RECT.size.x, 176.0), 38.0))
+	var fill = Color(0.46, 0.12, 0.12, 0.92) if danger else Color(0.14, 0.18, 0.12, 0.9)
+	var border = Color(0.98, 0.5, 0.42) if danger else Color(0.86, 0.78, 0.5)
+	_draw_panel_shell(chip_rect, fill, border, 0.12, 0.08)
+	var text_color = Color(1.0, 0.86, 0.82) if danger else Color(0.96, 0.92, 0.74)
+	_draw_text("🎯 " + label, chip_rect.position + Vector2(12.0, 16.0), 16, text_color)
+	if progress != "":
+		var pw = ui_font.get_string_size(progress, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16).x
+		_draw_text(progress, chip_rect.position + Vector2(chip_rect.size.x - pw - 14.0, 16.0), 16, text_color)
+
+
+func _draw_wave_bar() -> void:	# Endless mode: show wave counter instead of progress bar
 	if current_level.get("id", "") == "无尽":
 		ThemeLib.draw_rounded_panel(self, WAVE_BAR_RECT, Color(0.52, 0.14, 0.14), Color(0.36, 0.08, 0.08), 8.0, 0.16, 0.08)
 		var wave_text = "第 %d 波" % endless_wave if endless_wave > 0 else "准备中..."
@@ -17295,7 +17432,7 @@ func _try_draw_image2_zombie(kind: String, center: Vector2, zombie: Dictionary) 
 			draw_texture = flipped
 		else:
 			tex_rect = Rect2(top_left.x + texture_size.x, top_left.y, -texture_size.x, texture_size.y)
-	draw_circle(draw_center + Vector2(0.0, texture_size.y * 0.28), texture_size.x * 0.24, Color(0.0, 0.0, 0.0, 0.08))
+	_draw_ground_shadow(draw_center, texture_size.x * 0.24, 1.0, texture_size.y * 0.28)
 	draw_texture_rect(draw_texture, tex_rect, false, Color(1.0, 1.0, 1.0, 1.0))
 	if slow_tint > 0.0:
 		draw_texture_rect(draw_texture, tex_rect, false, Color(0.52, 0.72, 1.0, slow_tint))
@@ -19134,7 +19271,7 @@ func _draw_sunflower(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var petal_color = Color(1.0, 0.84, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.2)
 	var core_center = center + Vector2(0.0, -8.0 * size_scale)
 	# Shadow under plant
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	# Stem with slight curve
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.2, 0.52, 0.16, alpha), 6.0 * size_scale)
 	# Leaves with vein
@@ -19174,7 +19311,7 @@ func _draw_peashooter(center: Vector2, size_scale: float, flash: float, alpha: f
 		return
 	var body_color = Color(0.43, 0.83, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.2)
 	# Shadow
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	# Stem
 	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(-1.0 * size_scale, 33.0 * size_scale), Color(0.2, 0.5, 0.14, alpha), 7.0 * size_scale)
 	# Stem highlight
@@ -20173,7 +20310,7 @@ func _draw_heather_shooter(center: Vector2, size_scale: float, flash: float, alp
 	var stem = Color(0.22, 0.56, 0.18, alpha)
 	var blossom = Color(0.82, 0.34, 0.62, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var thorn = Color(0.46, 0.12, 0.32, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), stem, 6.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.36, 0.7, 0.24, alpha))
 	draw_circle(center + Vector2(12.0 * size_scale, 16.0 * size_scale), 7.0 * size_scale, Color(0.3, 0.64, 0.22, alpha))
@@ -20194,7 +20331,7 @@ func _draw_heather_shooter(center: Vector2, size_scale: float, flash: float, alp
 func _draw_leyline(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var stone = Color(0.32, 0.38, 0.44, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
 	var rune = Color(0.38, 0.92, 1.0, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 16.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 16.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_polygon(
 		PackedVector2Array([
 			center + Vector2(-18.0 * size_scale, 22.0 * size_scale),
@@ -20232,7 +20369,7 @@ func _draw_holo_nut(center: Vector2, size_scale: float, flash: float, health_rat
 func _draw_healing_gourd(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var gourd = Color(0.7, 0.9, 0.4, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var glow = Color(0.72, 1.0, 0.82, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.54, 0.18, alpha), 6.0 * size_scale)
 	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 14.0 * size_scale, gourd)
 	draw_circle(center + Vector2(0.0, 10.0 * size_scale), 20.0 * size_scale, gourd.darkened(0.04))
@@ -20266,7 +20403,7 @@ func _draw_snow_bloom(center: Vector2, size_scale: float, flash: float, wilt_rat
 	var petal = Color(0.82, 0.96, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
 	var core = Color(0.54, 0.8, 1.0, alpha)
 	var bloom_scale = 0.78 + wilt_ratio * 0.22
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.56, 0.84, 0.94, alpha), 4.0 * size_scale)
 	for petal_index in range(6):
 		var angle = TAU * float(petal_index) / 6.0 + PI * 0.166
@@ -20291,7 +20428,7 @@ func _draw_snow_bloom(center: Vector2, size_scale: float, flash: float, wilt_rat
 func _draw_cluster_boomerang(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var leaf = Color(0.36, 0.72, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var blade = Color(0.74, 0.96, 0.92, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-10.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf)
 	draw_circle(center + Vector2(10.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf.darkened(0.04))
@@ -20321,7 +20458,7 @@ func _draw_glitch_walnut(center: Vector2, size_scale: float, flash: float, healt
 func _draw_nether_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var cap = Color(0.42, 0.18, 0.62, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var stem = Color(0.84, 0.8, 0.9, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.08 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), stem, 6.0 * size_scale)
 	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 18.0 * size_scale, cap)
 	draw_circle(center + Vector2(11.0 * size_scale, -2.0 * size_scale), 10.0 * size_scale, cap.lightened(0.12))
@@ -20340,7 +20477,7 @@ func _draw_nether_shroom(center: Vector2, size_scale: float, flash: float, alpha
 func _draw_seraph_flower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal = Color(1.0, 0.9, 0.7, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var core = Color(0.98, 0.72, 0.28, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.62, 0.2, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-10.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.42, 0.76, 0.28, alpha))
 	draw_circle(center + Vector2(10.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.42, 0.76, 0.28, alpha))
@@ -20370,7 +20507,7 @@ func _draw_magma_stream(center: Vector2, size_scale: float, flash: float, wilt_r
 	var glow = clampf(wilt_ratio, 0.18, 1.0)
 	var magma = Color(1.0, 0.38, 0.12, alpha).lerp(Color(1.0, 0.82, 0.5, alpha), flash * 0.8)
 	var ember = Color(1.0, 0.84, 0.52, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.08 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_circle(center + Vector2(0.0, 26.0 * size_scale), 18.0 * size_scale, Color(0.72, 0.12, 0.04, 0.66 * alpha))
 	draw_circle(center + Vector2(-6.0 * size_scale, 24.0 * size_scale), 10.0 * size_scale, Color(1.0, 0.34, 0.1, 0.74 * alpha))
 	draw_circle(center + Vector2(8.0 * size_scale, 24.0 * size_scale), 8.0 * size_scale, Color(1.0, 0.6, 0.2, 0.58 * alpha))
@@ -20396,7 +20533,7 @@ func _draw_magma_stream(center: Vector2, size_scale: float, flash: float, wilt_r
 func _draw_orange_bloom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal = Color(1.0, 0.62, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var juice = Color(1.0, 0.84, 0.38, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.28, 0.58, 0.18, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.34, 0.72, 0.24, alpha))
 	draw_circle(center + Vector2(12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.34, 0.72, 0.24, alpha))
@@ -20415,7 +20552,7 @@ func _draw_orange_bloom(center: Vector2, size_scale: float, flash: float, alpha:
 func _draw_hive_flower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var leaf = Color(0.38, 0.74, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var hive = Color(0.96, 0.78, 0.24, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf)
 	draw_circle(center + Vector2(12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf.darkened(0.06))
@@ -20437,7 +20574,7 @@ func _draw_hive_flower(center: Vector2, size_scale: float, flash: float, alpha: 
 func _draw_mamba_tree(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var bark = Color(0.22, 0.16, 0.12, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 0.8)
 	var venom = Color(0.56, 0.9, 0.3, alpha)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.08 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, -2.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), bark, 10.0 * size_scale)
 	draw_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(-16.0, -12.0) * size_scale, bark, 5.0 * size_scale)
 	draw_line(center + Vector2(0.0, 2.0 * size_scale), center + Vector2(18.0, -14.0) * size_scale, bark, 5.0 * size_scale)
@@ -20455,7 +20592,7 @@ func _draw_mamba_tree(center: Vector2, size_scale: float, flash: float, alpha: f
 func _draw_chambord_sniper(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var leaf = Color(0.3, 0.72, 0.26, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var metal = Color(0.76, 0.82, 0.9, alpha)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf)
 	draw_circle(center + Vector2(12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf.darkened(0.08))
@@ -20471,7 +20608,7 @@ func _draw_chambord_sniper(center: Vector2, size_scale: float, flash: float, alp
 
 func _draw_dream_disc(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var ring = Color(0.72, 0.62, 0.98, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
-	draw_circle(center + Vector2(0.0, 34.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.28, 0.54, 0.2, alpha), 4.0 * size_scale)
 	draw_circle(center + Vector2(-10.0 * size_scale, 20.0 * size_scale), 7.0 * size_scale, Color(0.42, 0.74, 0.3, alpha))
 	draw_circle(center + Vector2(10.0 * size_scale, 20.0 * size_scale), 7.0 * size_scale, Color(0.42, 0.74, 0.3, alpha))
@@ -20563,7 +20700,7 @@ func _draw_wallnut(center: Vector2, size_scale: float, flash: float, ratio: floa
 		return
 	var shell_color = Color(0.61, 0.38, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	# Shadow
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 18.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 18.0 * size_scale, alpha, 36.0 * size_scale)
 	# Shell body
 	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 28.0 * size_scale, shell_color)
 	# Shell shading (darker bottom)
@@ -22684,7 +22821,7 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var shirt = shirt_base.lerp(Color(1.0, 1.0, 1.0), flash * 2.0).lerp(Color(0.46, 0.64, 0.9), slow_tint)
 	var pants = pants_base.lerp(Color(1.0, 1.0, 1.0), flash * 1.6).lerp(Color(0.46, 0.64, 0.9), slow_tint * 0.8)
 	# Shadow under zombie
-	draw_circle(torso + Vector2(0.0, 46.0), 14.0, Color(0.0, 0.0, 0.0, 0.06))
+	_draw_ground_shadow(torso, 14.0, 1.0, 46.0)
 	# Legs with shoes
 	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 + leg_swing, 42.0), Color(0.2, 0.2, 0.2), 4.0)
 	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 - leg_swing, 42.0), Color(0.2, 0.2, 0.2), 4.0)
@@ -22980,7 +23117,7 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 
 func _draw_shadow_pea(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.28, 0.12, 0.42, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.08 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(-1.0 * size_scale, 33.0 * size_scale), Color(0.14, 0.06, 0.24, alpha), 7.0 * size_scale)
 	draw_circle(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.18, 0.08, 0.32, alpha))
 	draw_circle(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.18, 0.08, 0.32, alpha))
@@ -22998,7 +23135,7 @@ func _draw_shadow_pea(center: Vector2, size_scale: float, flash: float, alpha: f
 
 func _draw_ice_queen(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.56, 0.82, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.36, 0.62, 0.82, alpha), 6.0 * size_scale)
 	# Ice crystal crown
 	var crown = center + Vector2(0.0, -24.0 * size_scale)
@@ -23019,7 +23156,7 @@ func _draw_ice_queen(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 func _draw_vine_emperor(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.22, 0.52, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 16.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 16.0 * size_scale, alpha, 36.0 * size_scale)
 	# Thick vine body
 	draw_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.16, 0.42, 0.12, alpha), 10.0 * size_scale)
 	# Thorny whip arms
@@ -23043,7 +23180,7 @@ func _draw_vine_emperor(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_soul_flower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal_color = Color(0.62, 0.36, 0.82, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.32, 0.18, 0.46, alpha), 6.0 * size_scale)
 	# Ghost-like petals
 	var core = center + Vector2(0.0, -8.0 * size_scale)
@@ -23064,7 +23201,7 @@ func _draw_soul_flower(center: Vector2, size_scale: float, flash: float, alpha: 
 
 func _draw_plasma_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.18, 0.72, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 33.0 * size_scale), Color(0.12, 0.48, 0.62, alpha), 7.0 * size_scale)
 	draw_circle(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.14, 0.56, 0.72, alpha))
 	draw_circle(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.14, 0.56, 0.72, alpha))
@@ -23084,7 +23221,7 @@ func _draw_plasma_shooter(center: Vector2, size_scale: float, flash: float, alph
 
 func _draw_crystal_nut(center: Vector2, size_scale: float, flash: float, ratio: float, alpha: float = 1.0) -> void:
 	var shell_color = Color(0.56, 0.78, 0.96, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 18.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 18.0 * size_scale, alpha, 36.0 * size_scale)
 	# Crystal facets
 	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 30.0 * size_scale, Color(0.42, 0.68, 0.92, 0.3 * alpha))
 	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 28.0 * size_scale, shell_color)
@@ -23105,7 +23242,7 @@ func _draw_crystal_nut(center: Vector2, size_scale: float, flash: float, ratio: 
 
 func _draw_dragon_fruit(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.86, 0.28, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.56, 0.18, 0.12, alpha), 8.0 * size_scale)
 	# Dragon body
 	var head = center + Vector2(0.0, -8.0 * size_scale)
@@ -23126,7 +23263,7 @@ func _draw_dragon_fruit(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_time_rose(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal_color = Color(0.82, 0.56, 0.86, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.42, 0.26, alpha), 6.0 * size_scale)
 	# Rose petals (layered)
 	var core = center + Vector2(0.0, -8.0 * size_scale)
@@ -23148,7 +23285,7 @@ func _draw_time_rose(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 func _draw_galaxy_sunflower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal_color = Color(0.92, 0.76, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.18, 0.14, 0.42, alpha), 6.0 * size_scale)
 	var core = center + Vector2(0.0, -8.0 * size_scale)
 	# Galaxy aura
@@ -23174,7 +23311,7 @@ func _draw_galaxy_sunflower(center: Vector2, size_scale: float, flash: float, al
 
 func _draw_void_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.12, 0.06, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.08 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	# Stem
 	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.08, 0.04, 0.14, alpha), 8.0 * size_scale)
 	# Void aura (black hole effect)
@@ -23197,7 +23334,7 @@ func _draw_void_shroom(center: Vector2, size_scale: float, flash: float, alpha: 
 
 func _draw_phoenix_tree(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.92, 0.42, 0.12, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	# Trunk
 	draw_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.52, 0.22, 0.08, alpha), 8.0 * size_scale)
 	draw_line(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), center + Vector2(-2.0 * size_scale, 32.0 * size_scale), Color(0.62, 0.28, 0.12, alpha), 3.0 * size_scale)
@@ -23221,7 +23358,7 @@ func _draw_phoenix_tree(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_thunder_god(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.86, 0.82, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.52, 0.48, 0.12, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -8.0 * size_scale)
 	# Thunder aura
@@ -23249,7 +23386,7 @@ func _draw_thunder_god(center: Vector2, size_scale: float, flash: float, alpha: 
 
 func _draw_prism_pea(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.4, 0.8, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.5, 0.2, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Prism crystal body
@@ -23270,7 +23407,7 @@ func _draw_prism_pea(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 func _draw_magnet_daisy(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.8, 0.3, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.25, 0.35, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Magnetic field pulse ring
@@ -23289,7 +23426,7 @@ func _draw_magnet_daisy(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_thorn_cactus(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.3, 0.65, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
 	# Thick cactus body
 	draw_rect(Rect2(center + Vector2(-12.0 * size_scale, -10.0 * size_scale), Vector2(24.0 * size_scale, 44.0 * size_scale)), body_color, true)
 	# Arms
@@ -23308,7 +23445,7 @@ func _draw_thorn_cactus(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_bubble_lotus(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.2, 0.8, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	# Lily pad base
 	draw_circle(center + Vector2(0.0, 30.0 * size_scale), 16.0 * size_scale, Color(0.2, 0.6, 0.2, 0.7 * alpha))
 	var head = center + Vector2(0.0, 2.0 * size_scale)
@@ -23333,7 +23470,7 @@ func _draw_bubble_lotus(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_spiral_bamboo(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.6, 0.9, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 11.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 11.0 * size_scale, alpha, 36.0 * size_scale)
 	# Bamboo segments
 	var seg_colors = [Color(0.45, 0.72, 0.18, alpha), Color(0.55, 0.82, 0.22, alpha)]
 	for i in range(4):
@@ -23352,7 +23489,7 @@ func _draw_spiral_bamboo(center: Vector2, size_scale: float, flash: float, alpha
 
 func _draw_honey_blossom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.85, 0.1, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.45, 0.35, 0.12, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Honey drip glow
@@ -23374,7 +23511,7 @@ func _draw_honey_blossom(center: Vector2, size_scale: float, flash: float, alpha
 
 func _draw_echo_fern(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.5, 0.9, 0.7, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 11.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 11.0 * size_scale, alpha, 36.0 * size_scale)
 	# Fern stem
 	draw_line(center + Vector2(0.0, 34.0 * size_scale), center + Vector2(0.0, -20.0 * size_scale), Color(0.3, 0.6, 0.3, alpha), 5.0 * size_scale)
 	# Fronds
@@ -23392,7 +23529,7 @@ func _draw_echo_fern(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 func _draw_glow_ivy(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.3, 1.0, 0.6, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 11.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 11.0 * size_scale, alpha, 36.0 * size_scale)
 	# Vine tendrils
 	for i in range(4):
 		var angle = TAU * float(i) / 4.0 + level_time * 0.25
@@ -23414,7 +23551,7 @@ func _draw_glow_ivy(center: Vector2, size_scale: float, flash: float, alpha: flo
 
 func _draw_laser_lily(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.0, 0.5, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.1, 0.3, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Energy charge glow
@@ -23433,7 +23570,7 @@ func _draw_laser_lily(center: Vector2, size_scale: float, flash: float, alpha: f
 
 func _draw_rock_armor_fruit(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.65, 0.5, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 16.0 * size_scale, Color(0.0, 0.0, 0.0, 0.08 * alpha))
+	_draw_ground_shadow(center, 16.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.3, 0.2, alpha), 9.0 * size_scale)
 	var head = center + Vector2(0.0, -2.0 * size_scale)
 	# Rock armor plates
@@ -23458,7 +23595,7 @@ func _draw_rock_armor_fruit(center: Vector2, size_scale: float, flash: float, al
 
 func _draw_aurora_orchid(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.3, 1.0, 0.8, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.5, 0.4, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Aurora shimmer rings
@@ -23481,7 +23618,7 @@ func _draw_aurora_orchid(center: Vector2, size_scale: float, flash: float, alpha
 
 func _draw_blast_pomegranate(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.85, 0.15, 0.15, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.07 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.18, 0.1, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -2.0 * size_scale)
 	draw_circle(head, 22.0 * size_scale, body_color)
@@ -23504,7 +23641,7 @@ func _draw_blast_pomegranate(center: Vector2, size_scale: float, flash: float, a
 
 func _draw_frost_cypress(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.5, 0.85, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 11.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 11.0 * size_scale, alpha, 36.0 * size_scale)
 	# Trunk
 	draw_line(center + Vector2(0.0, 34.0 * size_scale), center + Vector2(0.0, -24.0 * size_scale), Color(0.3, 0.45, 0.55, alpha), 6.0 * size_scale)
 	# Layered branches (cypress shape)
@@ -23524,7 +23661,7 @@ func _draw_frost_cypress(center: Vector2, size_scale: float, flash: float, alpha
 
 func _draw_mirror_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.8, 0.9, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 12.0 * size_scale, Color(0.0, 0.0, 0.0, 0.05 * alpha))
+	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.42, 0.46, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Mirror cap (mushroom)
@@ -23546,7 +23683,7 @@ func _draw_mirror_shroom(center: Vector2, size_scale: float, flash: float, alpha
 
 func _draw_chain_lotus(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.2, 0.9, 0.8, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_circle(center + Vector2(0.0, 30.0 * size_scale), 15.0 * size_scale, Color(0.15, 0.55, 0.2, 0.7 * alpha))
 	var head = center + Vector2(0.0, 2.0 * size_scale)
 	# Chain links around body
@@ -23566,7 +23703,7 @@ func _draw_chain_lotus(center: Vector2, size_scale: float, flash: float, alpha: 
 
 func _draw_plasma_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.5, 0.2, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.25, 0.1, 0.4, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Plasma corona
@@ -23588,7 +23725,7 @@ func _draw_plasma_shroom(center: Vector2, size_scale: float, flash: float, alpha
 
 func _draw_meteor_flower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.6, 0.1, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.07 * alpha))
+	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.25, 0.08, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Fire corona
@@ -23611,7 +23748,7 @@ func _draw_meteor_flower(center: Vector2, size_scale: float, flash: float, alpha
 
 func _draw_destiny_tree(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.9, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 15.0 * size_scale, Color(0.0, 0.0, 0.0, 0.06 * alpha))
+	_draw_ground_shadow(center, 15.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.35, 0.1, alpha), 9.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Divine aura
@@ -23657,7 +23794,7 @@ func _draw_abyss_tentacle(center: Vector2, size_scale: float, flash: float, alph
 
 func _draw_solar_emperor(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.9, 0.1, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 16.0 * size_scale, Color(0.0, 0.0, 0.0, 0.07 * alpha))
+	_draw_ground_shadow(center, 16.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.4, 0.1, alpha), 10.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Solar corona
@@ -23706,7 +23843,7 @@ func _draw_shadow_assassin(center: Vector2, size_scale: float, flash: float, alp
 
 func _draw_core_blossom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.4, 0.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 15.0 * size_scale, Color(0.0, 0.0, 0.0, 0.08 * alpha))
+	_draw_ground_shadow(center, 15.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.35, 0.14, 0.04, alpha), 9.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Magma corona
@@ -23758,7 +23895,7 @@ func _draw_holy_lotus(center: Vector2, size_scale: float, flash: float, alpha: f
 
 func _draw_chaos_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.7, 0.2, 0.8, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 13.0 * size_scale, Color(0.0, 0.0, 0.0, 0.07 * alpha))
+	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
 	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.1, 0.38, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Chaos energy swirl
