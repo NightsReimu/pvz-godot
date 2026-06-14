@@ -2136,21 +2136,20 @@ func _image2_texture(category: String, kind: String) -> Texture2D:
 
 
 func _image2_plant_texture(kind: String) -> Texture2D:
-	var texture := _image2_texture("plants", kind)
-	if texture != null:
-		return texture
-	return _polished_plant_texture(kind)
+	# Disable image2 for plants; fall back to procedural drawing (v1.0.21 style).
+	# The image2 assets exist but users reported procedural plants looked better.
+	return null
 
 
 func _image2_projectile_texture(kind: String) -> Texture2D:
-	var texture := _image2_texture("projectiles", kind)
-	if texture != null:
-		return texture
-	return _polished_projectile_texture(kind)
+	# Disable image2 for projectiles; fall back to procedural drawing (v1.0.21 style).
+	return null
 
 
 func _should_use_image2_zombie_texture(kind: String) -> bool:
-	return not _is_existing_touhou_boss_kind(kind)
+	# Only Touhou bosses use image2/multi-frame assets. Regular zombies fall back
+	# to procedural drawing (v1.0.21 style) since users reported it looked better.
+	return _is_existing_touhou_boss_kind(kind)
 
 
 func _boss_frame_count_for_kind(kind: String) -> int:
