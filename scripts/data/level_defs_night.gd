@@ -471,11 +471,12 @@ const LEVELS = [
 			"description": "一次性阳光预算，无天降阳光，不可种植向日葵。",
 			"available_plants": ["peashooter", "wallnut", "potato_mine", "snow_pea", "chomper", "repeater", "puff_shroom", "sun_shroom", "fume_shroom", "grave_buster", "hypno_shroom", "scaredy_shroom", "ice_shroom", "doom_shroom", "magnet_shroom"],
 			"unlock_requirements": ["2-8"],
+			"branch_from": "2-8",
 			"start_sun": 2500,
 			"row_count": 5,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(1180.0, 420.0),
+			"node_pos": Vector2(1300.0, 360.0),
 			"objective": {
 				"type": "sun_budget",
 				"title": "最后防线",

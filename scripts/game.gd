@@ -14360,25 +14360,56 @@ func _draw_map_scene() -> void:
 	_draw_panel_shell(Rect2(Vector2(64.0, 242.0), Vector2(170.0, 164.0)), Color(0.93, 0.88, 0.74), Color(0.58, 0.42, 0.2), 0.12, 0.1)
 	draw_rect(Rect2(Vector2(94.0, 196.0), Vector2(110.0, 62.0)), Color(0.79, 0.28, 0.21), true)
 
-	var nodes = []
+	# Mainline path: connect only non-branch levels in order, so challenge
+	# branches don't get strung into the main winding road.
 	var visible_indices = _visible_level_indices()
+	var mainline_nodes = []
 	for index in visible_indices:
-		nodes.append(_map_node_position(int(index)))
+		if not _is_branch_level(Defs.LEVELS[int(index)]):
+			mainline_nodes.append(_map_node_position(int(index)))
 
-	for i in range(nodes.size() - 1):
-		var mid = _path_midpoint(nodes[i], nodes[i + 1], i)
-		draw_polyline(PackedVector2Array([nodes[i], mid, nodes[i + 1]]), Color(0.44, 0.34, 0.2, 0.8), 16.0)
-		draw_polyline(PackedVector2Array([nodes[i], mid, nodes[i + 1]]), Color(0.82, 0.71, 0.42), 8.0)
+	for i in range(mainline_nodes.size() - 1):
+		var mid = _path_midpoint(mainline_nodes[i], mainline_nodes[i + 1], i)
+		draw_polyline(PackedVector2Array([mainline_nodes[i], mid, mainline_nodes[i + 1]]), Color(0.44, 0.34, 0.2, 0.8), 16.0)
+		draw_polyline(PackedVector2Array([mainline_nodes[i], mid, mainline_nodes[i + 1]]), Color(0.82, 0.71, 0.42), 8.0)
 		# flowing spark traveling along the path segment, looping with map_time
-		var seg_a = nodes[i].distance_to(mid)
-		var seg_b = mid.distance_to(nodes[i + 1])
+		var seg_a = mainline_nodes[i].distance_to(mid)
+		var seg_b = mid.distance_to(mainline_nodes[i + 1])
 		var seg_total = maxf(seg_a + seg_b, 1.0)
 		var t = fmod(map_time * 0.35 + float(i) * 0.33, 1.0)
-		var spark_pos = nodes[i] if t * seg_total <= seg_a else nodes[i].lerp(mid, seg_a / seg_total).lerp(nodes[i + 1], (t * seg_total - seg_a) / maxf(seg_b, 1.0))
+		var spark_pos = mainline_nodes[i]
 		if t * seg_total <= seg_a:
-			spark_pos = nodes[i].lerp(mid, t * seg_total / maxf(seg_a, 1.0))
+			spark_pos = mainline_nodes[i].lerp(mid, t * seg_total / maxf(seg_a, 1.0))
+		else:
+			spark_pos = mid.lerp(mainline_nodes[i + 1], (t * seg_total - seg_a) / maxf(seg_b, 1.0))
 		draw_circle(spark_pos, 7.0, Color(1.0, 0.94, 0.56, 0.16))
 		draw_circle(spark_pos, 3.5, Color(1.0, 0.98, 0.74, 0.7))
+
+	# Branch fork paths: a separate short dashed-feel line from each branch
+	# level's branch_from source node out to the branch node.
+	for index in visible_indices:
+		var level = Defs.LEVELS[int(index)]
+		if not _is_branch_level(level):
+			continue
+		var source_id = String(level.get("branch_from", ""))
+		if source_id == "":
+			continue
+		var source_index = _find_level_index_by_id(source_id)
+		if source_index == -1:
+			continue
+		var from_pos = _map_node_position(source_index)
+		var to_pos = _map_node_position(int(index))
+		# teal-tinted fork to read as an optional side path
+		var fork_mid = (from_pos + to_pos) * 0.5 + Vector2(0.0, -10.0)
+		draw_polyline(PackedVector2Array([from_pos, fork_mid, to_pos]), Color(0.24, 0.4, 0.34, 0.7), 12.0)
+		# dashed highlight along the fork
+		var seg_count := 6
+		for d in range(seg_count):
+			if d % 2 == 1:
+				continue
+			var a := from_pos.lerp(to_pos, float(d) / float(seg_count))
+			var b := from_pos.lerp(to_pos, float(d + 1) / float(seg_count))
+			draw_line(a, b, Color(0.62, 0.92, 0.78, 0.85), 5.0)
 
 	for index in visible_indices:
 		_draw_level_node(int(index))

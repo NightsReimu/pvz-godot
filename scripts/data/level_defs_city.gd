@@ -635,11 +635,12 @@ static var LEVELS: Array = [
 		"description": "本关最多损失 3 株植物。",
 		"available_plants": ["peashooter", "sunflower", "cherry_bomb", "wallnut", "potato_mine", "snow_pea", "chomper", "repeater", "squash", "jalapeno", "spikeweed", "tall_nut", "cactus", "split_pea", "starfruit", "pumpkin", "cabbage_pult", "coffee_bean", "garlic", "umbrella_leaf", "melon_pult", "winter_melon", "gold_magnet", "spikerock", "cob_cannon"],
 		"unlock_requirements": ["6-8"],
+		"branch_from": "6-8",
 		"start_sun": 300,
 		"row_count": 5,
 		"time_scale": 0.95,
 		"sky_sun_range": Vector2(8.0, 10.5),
-		"node_pos": Vector2(2820.0, 480.0),
+		"node_pos": Vector2(1352.0, 436.0),
 		"objective": {
 			"type": "max_plant_loss",
 			"title": "植物学家",

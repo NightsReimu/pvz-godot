@@ -29,6 +29,7 @@ func _initialize():
 		assert(found, "challenge level %s should exist" % cid)
 		assert(level.has("objective"), "%s should have objective" % cid)
 		assert(level.has("unlock_requirements"), "%s should have unlock_requirements (branch gate)" % cid)
+		assert(level.has("branch_from"), "%s should have branch_from (forks from a mainline level)" % cid)
 		var obj = level["objective"]
 		assert(String(obj.get("type", "")) == expected_types[cid], "%s type should be %s" % [cid, expected_types[cid]])
 		assert(String(obj.get("title", "")) != "", "%s should have title" % cid)

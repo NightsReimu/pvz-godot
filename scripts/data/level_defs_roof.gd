@@ -506,11 +506,12 @@ const LEVELS = [
 		"description": "在 90 秒内存活即胜利。",
 		"available_plants": ["peashooter", "sunflower", "cherry_bomb", "wallnut", "potato_mine", "snow_pea", "chomper", "repeater", "squash", "jalapeno", "spikeweed", "tall_nut", "cactus", "blover", "split_pea", "starfruit", "pumpkin", "cabbage_pult", "flower_pot", "kernel_pult", "coffee_bean", "garlic", "umbrella_leaf", "marigold", "melon_pult"],
 		"unlock_requirements": ["5-8"],
+		"branch_from": "5-8",
 		"start_sun": 350,
 		"row_count": 5,
 		"time_scale": 0.9,
 		"sky_sun_range": Vector2(8.0, 10.0),
-		"node_pos": Vector2(2420.0, 540.0),
+		"node_pos": Vector2(1342.0, 440.0),
 		"objective": {
 			"type": "time_limit",
 			"title": "限时坚守",
