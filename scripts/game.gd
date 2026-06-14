@@ -2147,9 +2147,11 @@ func _image2_projectile_texture(kind: String) -> Texture2D:
 
 
 func _should_use_image2_zombie_texture(kind: String) -> bool:
-	# Only Touhou bosses use image2/multi-frame assets. Regular zombies fall back
-	# to procedural drawing (v1.0.21 style) since users reported it looked better.
-	return _is_existing_touhou_boss_kind(kind)
+	# v1.0.26: image2 zombie art was reverted to procedural drawing everywhere.
+	# Touhou bosses render via their own multi-frame pipeline (not image2), and
+	# every other zombie uses the procedural _draw_zombie path. So no zombie is
+	# eligible for the image2 texture path — the gate always returns false.
+	return false
 
 
 func _boss_frame_count_for_kind(kind: String) -> int:
@@ -14201,6 +14203,7 @@ func _draw_world_select_scene() -> void:
 	draw_rect(Rect2(Vector2(0.0, BASE_VIEWPORT_SIZE.y - 142.0), Vector2(BASE_VIEWPORT_SIZE.x, 142.0)), Color(0.12, 0.1, 0.08, 0.22), true)
 
 	var title_rect = Rect2(58.0, 34.0, 616.0, 102.0)
+	ThemeLib.draw_soft_shadow(self, title_rect, Color(0.0, 0.0, 0.0, 0.2), 4, 12.0, 8.0)
 	_draw_panel_shell(title_rect, Color(0.98, 0.94, 0.82, 0.95) if not sky_night else Color(0.16, 0.2, 0.32, 0.95), Color(0.54, 0.4, 0.16) if not sky_night else Color(0.58, 0.68, 0.88), 0.2, 0.12)
 	_draw_text("世界选择", title_rect.position + Vector2(24.0, 42.0), 36, Color(0.22, 0.16, 0.06) if not sky_night else Color(0.94, 0.96, 1.0))
 	_draw_text("像 PvZ2 一样先选世界，再进入该世界的关卡地图。", title_rect.position + Vector2(24.0, 76.0), 18, Color(0.3, 0.22, 0.08) if not sky_night else Color(0.82, 0.88, 0.98))
@@ -14215,16 +14218,26 @@ func _draw_world_select_scene() -> void:
 		var accent = Color(world["accent"])
 		if not unlocked:
 			fill = fill.darkened(0.24)
+		# Soft drop shadow under the card for depth
+		ThemeLib.draw_soft_shadow(self, card_rect, Color(0.0, 0.0, 0.0, 0.22), 4, 14.0, 10.0)
 		_draw_panel_shell(card_rect, fill, border, 0.24, 0.14)
+		# accent header band + glowing emblem
 		draw_rect(Rect2(card_rect.position + Vector2(18.0, 18.0), Vector2(card_rect.size.x - 36.0, 160.0)), Color(accent.r, accent.g, accent.b, 0.16), true)
-		draw_circle(card_rect.position + Vector2(card_rect.size.x - 68.0, 72.0), 34.0, Color(accent.r, accent.g, accent.b, 0.22))
+		var emblem_center = card_rect.position + Vector2(card_rect.size.x - 68.0, 72.0)
+		var emblem_pulse = 0.5 + 0.5 * sin(ui_time * 2.0 + float(i))
+		draw_circle(emblem_center, 40.0, Color(accent.r, accent.g, accent.b, 0.1 + emblem_pulse * 0.08))
+		draw_circle(emblem_center, 34.0, Color(accent.r, accent.g, accent.b, 0.22))
 		if String(world["key"]) == "night":
-			draw_circle(card_rect.position + Vector2(card_rect.size.x - 72.0, 76.0), 22.0, Color(0.92, 0.96, 1.0))
-			draw_circle(card_rect.position + Vector2(card_rect.size.x - 64.0, 72.0), 20.0, fill)
+			draw_circle(emblem_center + Vector2(-4.0, 4.0), 22.0, Color(0.92, 0.96, 1.0))
+			draw_circle(emblem_center + Vector2(4.0, 0.0), 20.0, fill)
 		else:
-			draw_circle(card_rect.position + Vector2(card_rect.size.x - 72.0, 76.0), 22.0, Color(1.0, 0.92, 0.38))
+			draw_circle(emblem_center, 22.0, Color(1.0, 0.92, 0.38))
+			draw_circle(emblem_center + Vector2(-5.0, -5.0), 8.0, Color(1.0, 1.0, 0.8, 0.6))
 		if selected:
-			draw_rect(card_rect.grow(4.0), Color(1.0, 0.92, 0.46, 0.42), false, 4.0)
+			# animated selection glow (gentle pulse) instead of a static frame
+			var glow = 0.32 + 0.18 * sin(ui_time * 3.0)
+			draw_rect(card_rect.grow(6.0), Color(1.0, 0.92, 0.46, glow), false, 5.0)
+			draw_rect(card_rect.grow(11.0), Color(1.0, 0.92, 0.46, glow * 0.4), false, 3.0)
 
 		_draw_text(String(world["title"]), card_rect.position + Vector2(26.0, 56.0), 34, Color(0.22, 0.16, 0.06) if String(world["key"]) == "day" else Color(0.94, 0.96, 1.0))
 		_draw_text(String(world["subtitle"]), card_rect.position + Vector2(26.0, 88.0), 18, Color(world["accent_dark"]).lerp(Color.WHITE, 0.15))
@@ -14255,6 +14268,11 @@ func _draw_world_select_scene() -> void:
 	if not unlocked_world:
 		enter_fill = Color(0.44, 0.46, 0.52)
 	_draw_panel_shell(WORLD_SELECT_ALMANAC_RECT, Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 0.18, 0.1)
+	ThemeLib.draw_soft_shadow(self, WORLD_SELECT_ENTER_RECT, Color(0.0, 0.0, 0.0, 0.28), 4, 14.0, 10.0)
+	# gentle glow pulse on the enter button when its world is unlocked
+	if unlocked_world:
+		var enter_pulse = 0.4 + 0.25 * sin(ui_time * 2.4)
+		draw_rect(WORLD_SELECT_ENTER_RECT.grow(6.0), Color(enter_fill.r, enter_fill.g, enter_fill.b, enter_pulse * 0.3), false, 4.0)
 	_draw_panel_shell(WORLD_SELECT_ENTER_RECT, enter_fill, Color(0.18, 0.22, 0.16), 0.22, 0.12)
 	_draw_text("图鉴", WORLD_SELECT_ALMANAC_RECT.position + Vector2(94.0, 38.0), 24, Color(0.24, 0.16, 0.06))
 	_draw_text("进入世界", WORLD_SELECT_ENTER_RECT.position + Vector2(66.0, 38.0), 26, Color(0.1, 0.14, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96))
@@ -14318,6 +14336,16 @@ func _draw_map_scene() -> void:
 		var mid = _path_midpoint(nodes[i], nodes[i + 1], i)
 		draw_polyline(PackedVector2Array([nodes[i], mid, nodes[i + 1]]), Color(0.44, 0.34, 0.2, 0.8), 16.0)
 		draw_polyline(PackedVector2Array([nodes[i], mid, nodes[i + 1]]), Color(0.82, 0.71, 0.42), 8.0)
+		# flowing spark traveling along the path segment, looping with map_time
+		var seg_a = nodes[i].distance_to(mid)
+		var seg_b = mid.distance_to(nodes[i + 1])
+		var seg_total = maxf(seg_a + seg_b, 1.0)
+		var t = fmod(map_time * 0.35 + float(i) * 0.33, 1.0)
+		var spark_pos = nodes[i] if t * seg_total <= seg_a else nodes[i].lerp(mid, seg_a / seg_total).lerp(nodes[i + 1], (t * seg_total - seg_a) / maxf(seg_b, 1.0))
+		if t * seg_total <= seg_a:
+			spark_pos = nodes[i].lerp(mid, t * seg_total / maxf(seg_a, 1.0))
+		draw_circle(spark_pos, 7.0, Color(1.0, 0.94, 0.56, 0.16))
+		draw_circle(spark_pos, 3.5, Color(1.0, 0.98, 0.74, 0.7))
 
 	for index in visible_indices:
 		_draw_level_node(int(index))
