@@ -130,6 +130,10 @@ const MAP_SCROLL_RIGHT_RECT := Rect2(1132.0, 32.0, 44.0, 44.0)
 const WORLD_CARD_SPACING := 470.0
 const TOUCH_DRAG_THRESHOLD := 18.0
 const TOUCH_PRIORITY_CLICK_THRESHOLD := 34.0
+# Pressing directly on a selection pool card is more forgiving: it takes a larger
+# move (and a clearly vertical one) before a long-press is treated as a scroll,
+# so holding to select a card no longer mis-fires as a drag.
+const SELECTION_CARD_DRAG_THRESHOLD := 48.0
 const TOUCH_MOUSE_SUPPRESS_MS := 240
 const TOUCH_MOUSE_PENDING_CLICK_MS := 1200
 const WORLD_DRAG_RELEASE_BIAS := 0.32
@@ -615,13 +619,13 @@ func _uses_legacy_landscape_ui_mode(m: String) -> bool:
 	return m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_ENHANCE
 
 
-func _uses_mobile_fill_ui_scaling(target_mode: String = mode) -> bool:
-	if not _is_mobile_runtime():
-		return false
-	if not _uses_legacy_landscape_ui_mode(target_mode):
-		return false
-	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
-	return viewport.x > viewport.y
+func _uses_mobile_fill_ui_scaling(_target_mode: String = mode) -> bool:
+	# Disabled: FILL stretched X and Y independently (size.x/1600, size.y/900),
+	# which distorted menus on non-16:9 phones (a 20:9 screen stretched X ~25%
+	# more than Y, turning circles into ellipses and misaligning hit areas).
+	# Menus now use uniform scaling + centering like battle; widescreen sides are
+	# filled by the full-viewport backdrop drawn outside the scene transform.
+	return false
 
 
 func _should_show_mobile_rotate_prompt(target_mode: String = mode) -> bool:
@@ -940,14 +944,23 @@ func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 	touch_navigation_last_delta = event.relative
 	touch_navigation_release_velocity = event.velocity
 	if not touch_navigation_dragging:
-		if touch_navigation_press_target != "" and delta_total.length() < TOUCH_PRIORITY_CLICK_THRESHOLD:
+		var pressed_selection_card := touch_navigation_mode == MODE_SELECTION and touch_navigation_press_target.begins_with("selection_pool_card_")
+		# Holding on a card: demand a larger, clearly-vertical move before it
+		# becomes a scroll, so a long-press selects instead of mis-firing a drag.
+		var click_guard := SELECTION_CARD_DRAG_THRESHOLD if pressed_selection_card else TOUCH_PRIORITY_CLICK_THRESHOLD
+		if touch_navigation_press_target != "" and delta_total.length() < click_guard:
 			return false
 		if delta_total.length() < TOUCH_DRAG_THRESHOLD:
 			return false
 		if touch_navigation_mode == MODE_SELECTION:
 			if not _selection_touch_target_allows_drag(touch_navigation_press_target):
 				return false
-			if absf(delta_total.y) <= absf(delta_total.x):
+			# On a card, require a clearly vertical swipe (y must dominate x) so a
+			# slightly diagonal long-press is not swallowed as a scroll.
+			if pressed_selection_card:
+				if absf(delta_total.y) <= absf(delta_total.x) * 1.5:
+					return false
+			elif absf(delta_total.y) <= absf(delta_total.x):
 				return false
 		else:
 			if absf(delta_total.x) <= absf(delta_total.y):
@@ -13997,11 +14010,28 @@ func _draw_startup_loading_scene() -> void:
 		draw_circle(panel_rect.position + Vector2(302.0 + float(dot_index) * 34.0, 292.0), 8.0 + pulse * 4.0, Color(1.0, 0.84, 0.52, 0.35 + pulse * 0.45))
 
 
+func _draw_menu_backdrop_fill(draw_mode: String) -> void:
+	# Full-viewport backdrop drawn OUTSIDE the scene transform so widescreen
+	# (e.g. 20:9) sides are filled instead of letterboxed when menu content is
+	# uniformly scaled and centered. Uses a sky-like vertical gradient matching
+	# the mode so the centered content blends into the fill.
+	if size.x <= 0.0 or size.y <= 0.0:
+		return
+	var night := draw_mode == MODE_WORLD_SELECT and roundi(world_select_scroll) >= 3
+	if draw_mode == MODE_MAP:
+		night = current_world_key == "night"
+	var top := Color(0.46, 0.74, 1.0) if not night else Color(0.05, 0.08, 0.18)
+	var bottom := Color(0.62, 0.8, 0.5) if not night else Color(0.1, 0.14, 0.22)
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), top, bottom)
+
+
 func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 	var shake_offset = Vector2.ZERO
 	if draw_mode == MODE_BATTLE and screen_shake_amount > 0.5:
 		shake_offset = Vector2(sin(ui_time * 67.3) * screen_shake_amount, cos(ui_time * 53.7) * screen_shake_amount * 0.6)
 	if _is_ui_scaled_mode(draw_mode):
+		# Fill widescreen margins behind the centered, uniformly-scaled content.
+		_draw_menu_backdrop_fill(draw_mode)
 		var scaled_offset = offset + _ui_offset(draw_mode)
 		var scaled_scale = _ui_scale_vector(draw_mode)
 		draw_set_transform(scaled_offset, 0.0, scaled_scale)
@@ -14172,7 +14202,10 @@ func _draw_panel_shell(rect: Rect2, fill_color: Color, border_color: Color, shad
 
 
 func _draw_world_sky(is_night_world: bool) -> void:
-	ThemeLib.draw_world_sky(self, size, ui_time, is_night_world)
+	# Menus draw inside a uniformly-scaled, centered transform, so the sky must
+	# use the BASE viewport size (not the actual size) or it would be scaled
+	# twice and overflow. Widescreen margins are covered by _draw_menu_backdrop_fill.
+	ThemeLib.draw_world_sky(self, BASE_VIEWPORT_SIZE, ui_time, is_night_world)
 
 
 func _draw_scroll_mask(content_rect: Rect2, view_rect: Rect2, fill_color: Color, border_color: Color) -> void:
