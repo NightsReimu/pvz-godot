@@ -301,12 +301,20 @@ func _test_mobile_landscape_world_select_hides_rotate_prompt() -> bool:
 
 
 func _test_mobile_landscape_world_select_uses_full_width_scaling() -> bool:
+	# v1.0.28: FILL non-uniform scaling was removed because it distorted menus on
+	# non-16:9 phones (a 20:9 screen stretched X ~25% more than Y). Landscape menus
+	# now scale UNIFORMLY (no distortion) and center; widescreen sides are covered
+	# by the full-viewport backdrop, not by stretching content.
 	var game := _make_game()
 	game.mobile_runtime_override = 1
-	game.size = Vector2(844.0, 390.0)
+	game.size = Vector2(844.0, 390.0)  # ~19.5:9 landscape phone
 	game.mode = game.MODE_WORLD_SELECT
+	var scale = Vector2(game.call("_ui_scale_vector", game.MODE_WORLD_SELECT))
+	var passed = _assert_true(absf(scale.x - scale.y) < 0.0001, "landscape mobile world select must scale uniformly (no X/Y distortion); got x=%.4f y=%.4f" % [scale.x, scale.y])
+	passed = _assert_true(not bool(game.call("_uses_mobile_fill_ui_scaling", game.MODE_WORLD_SELECT)), "FILL non-uniform scaling must stay disabled") and passed
 	var offset = Vector2(game.call("_ui_offset"))
-	var passed = _assert_true(absf(offset.x) <= 0.01 and absf(offset.y) <= 0.01, "landscape mobile world select should use full-width scaling instead of leaving desktop letterboxing margins on both sides")
+	# 844/1600=0.5275, 390/900=0.4333 → uniform=0.4333; content width=1600*0.4333=693 → left margin=(844-693)/2≈75
+	passed = _assert_true(offset.x > 1.0, "uniformly-scaled menu should be horizontally centered (positive margin), got x=%.2f" % offset.x) and passed
 	_free_game(game)
 	return passed
 
