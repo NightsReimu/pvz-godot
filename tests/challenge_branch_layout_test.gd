@@ -1,6 +1,6 @@
 extends SceneTree
 
-# Verifies the 6 challenge branches fork from a mid-world mainline level and that
+# Verifies the 42 challenge branches (6 per world) fork from a mainline level and that
 # their map nodes don't overlap other nodes in the same world.
 
 const GameDefs = preload("res://scripts/game_defs.gd")
@@ -9,12 +9,12 @@ func _initialize():
 	print("challenge_branch_layout_test start")
 
 	var expected_fork = {
-		"1-S1": "1-5",
-		"2-S1": "2-8",
-		"3-S1": "3-8",
-		"4-S1": "4-8",
-		"5-S1": "5-8",
-		"6-S1": "6-8",
+		"1-S1": "1-5", "1-S2": "1-3", "1-S3": "1-7", "1-S4": "1-10", "1-S5": "1-13", "1-S6": "1-16", "1-S7": "1-8",
+		"2-S1": "2-8", "2-S2": "2-3", "2-S3": "2-5", "2-S4": "2-9", "2-S5": "2-12", "2-S6": "2-15", "2-S7": "2-16",
+		"3-S1": "3-8", "3-S2": "3-3", "3-S3": "3-5", "3-S4": "3-9", "3-S5": "3-11", "3-S6": "3-14", "3-S7": "3-16",
+		"4-S1": "4-8", "4-S2": "4-3", "4-S3": "4-6", "4-S4": "4-9", "4-S5": "4-11", "4-S6": "4-14", "4-S7": "4-16",
+		"5-S1": "5-8", "5-S2": "5-3", "5-S3": "5-6", "5-S4": "5-9", "5-S5": "5-12", "5-S6": "5-14", "5-S7": "5-16",
+		"6-S1": "6-8", "6-S2": "6-3", "6-S3": "6-6", "6-S4": "6-9", "6-S5": "6-12", "6-S6": "6-15", "6-S7": "6-18",
 	}
 
 	var by_id = {}
