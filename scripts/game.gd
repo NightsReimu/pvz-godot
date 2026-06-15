@@ -7394,7 +7394,7 @@ func _update_zombies(delta: float) -> void:
 					BOARD_ORIGIN.x,
 					mech_origin,
 					mech_damage,
-					"lane_spray",
+					"mech_laser",
 					Color(0.74, 0.96, 1.0, 0.28)
 				)
 				if bool(mech_reflection.get("reflected", false)):
@@ -7405,14 +7405,17 @@ func _update_zombies(delta: float) -> void:
 					continue
 				var beam_hit = _damage_plants_in_row_segment(int(zombie["row"]), BOARD_ORIGIN.x, float(zombie["x"]) - 12.0, mech_damage)
 				effects.append({
-					"shape": "lane_spray",
-					"position": Vector2(BOARD_ORIGIN.x, _row_center_y(int(zombie["row"])) - 8.0),
+					"shape": "mech_laser",
+					"position": Vector2(float(zombie["x"]) + 44.0, _row_center_y(int(zombie["row"])) - 20.0),
+					"target": Vector2(BOARD_ORIGIN.x - 6.0, _row_center_y(int(zombie["row"])) - 20.0),
 					"length": maxf(0.0, float(zombie["x"]) - BOARD_ORIGIN.x - 12.0),
-					"width": 12.0,
+					"width": 16.0,
 					"radius": board_size.x,
-					"time": 0.18,
-					"duration": 0.18,
-					"color": Color(0.74, 0.96, 1.0, 0.34 if beam_hit else 0.24),
+					"time": 0.30,
+					"duration": 0.30,
+					"color": Color(0.66, 0.94, 1.0, 0.42 if beam_hit else 0.30),
+					"anim_speed": 11.0,
+					"hit": beam_hit,
 				})
 				zombie["laser_cooldown"] = float(Defs.ZOMBIES["mech_zombie"].get("laser_cooldown", 4.8))
 				zombie["special_pause_timer"] = 0.32
@@ -18644,6 +18647,46 @@ func _draw_effects() -> void:
 				draw_circle(puff_center, puff_radius, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * (0.46 - puff_ratio * 0.05)))
 			draw_circle(origin + Vector2(plume_length, 0.0), width * 0.28, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.84))
 			continue
+		if shape == "mech_laser":
+			var laser_origin = Vector2(effect["position"])
+			var laser_target = Vector2(effect.get("target", laser_origin + Vector2.LEFT * _effect_visual_length(effect, ratio)))
+			var laser_dir = laser_target - laser_origin
+			var laser_length = maxf(laser_dir.length(), 1.0)
+			var laser_forward = laser_dir / laser_length
+			var laser_normal = Vector2(-laser_forward.y, laser_forward.x)
+			var laser_width = _effect_visual_width(effect, ratio)
+			var laser_hit = bool(effect.get("hit", false))
+			var laser_alpha = effect_color.a * (1.0 if laser_hit else 0.72)
+			var glow_world_origin = glow_draw_offset + laser_origin * glow_draw_scale
+			var glow_world_target = glow_draw_offset + laser_target * glow_draw_scale
+			# Plasma core: 4 offset bands, jittered along the normal for a flowing arc look.
+			for band_index in range(4):
+				var band_width = (laser_width * (0.62 - band_index * 0.12)) * (0.8 + ratio * 0.2)
+				var band_jitter = sin(level_time * anim_speed + band_index * 1.4) * laser_width * 0.14
+				var band_offset = laser_normal * band_jitter
+				var band_color = Color(0.58, 0.92, 1.0, laser_alpha * (0.22 + band_index * 0.16))
+				draw_line(laser_origin + band_offset, laser_target + band_offset, band_color, band_width)
+			# White-hot inner filament
+			draw_line(laser_origin, laser_target, Color(0.98, 1.0, 1.0, laser_alpha * 0.85), laser_width * 0.26)
+			# Sparks along the beam, bobbing perpendicular to travel.
+			for spark_index in range(10):
+				var spark_ratio = float(spark_index + 1) / 11.0
+				var spark_center = laser_origin + laser_forward * laser_length * spark_ratio + laser_normal * sin(level_time * anim_speed * 1.3 + spark_ratio * 7.0) * laser_width * 0.22
+				draw_circle(spark_center, laser_width * (0.12 + (1.0 - spark_ratio) * 0.06), Color(0.92, 0.98, 1.0, laser_alpha * (0.6 - spark_ratio * 0.18)))
+				draw_circle(spark_center, laser_width * 0.32, Color(0.5, 0.86, 1.0, laser_alpha * 0.1))
+			# Muzzle flare and impact burst.
+			draw_circle(laser_origin, laser_width * 0.42, Color(0.74, 0.96, 1.0, laser_alpha * 0.5))
+			draw_circle(laser_origin, laser_width * 0.22, Color(0.96, 1.0, 1.0, laser_alpha * 0.85))
+			draw_circle(laser_target, laser_width * (0.5 if laser_hit else 0.34), Color(0.9, 0.98, 1.0, laser_alpha * (0.92 if laser_hit else 0.6)))
+			for burst_index in range(6):
+				var burst_angle = level_time * anim_speed * 0.6 + float(burst_index) * (TAU / 6.0)
+				var burst_pos = laser_target + Vector2(cos(burst_angle), sin(burst_angle)) * laser_width * 0.36
+				draw_circle(burst_pos, laser_width * 0.12, Color(0.84, 0.96, 1.0, laser_alpha * 0.4))
+			# Additive glow bloom on the glow layer.
+			glow_primitives.append({"type": "line", "from": glow_world_origin, "to": glow_world_target, "width": laser_width * 1.7, "color": Color(0.46, 0.86, 1.0, laser_alpha * 0.42)})
+			glow_primitives.append({"type": "circle", "pos": glow_world_origin, "radius": laser_width * 1.3, "color": Color(0.5, 0.88, 1.0, laser_alpha * 0.32)})
+			glow_primitives.append({"type": "circle", "pos": glow_world_target, "radius": laser_width * 1.9, "color": Color(0.6, 0.92, 1.0, laser_alpha * 0.5)})
+			continue
 		if shape == "patchouli_flare":
 			var flare_origin = Vector2(effect["position"])
 			var flare_length = _effect_visual_length(effect, ratio)
@@ -19445,23 +19488,51 @@ func _draw_snow_pea(center: Vector2, size_scale: float, flash: float, alpha: flo
 
 
 func _draw_puff_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.72, 0.84, 0.62, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -2.0 * size_scale), 18.0 * size_scale, Color(0.74, 0.52, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(12.0 * size_scale, 0.0), 8.0 * size_scale, Color(0.86, 0.72, 0.98, alpha))
-	draw_circle(center + Vector2(-5.0 * size_scale, -4.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(center + Vector2(3.0 * size_scale, -4.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_arc(center + Vector2(-1.0 * size_scale, 3.0 * size_scale), 5.0 * size_scale, 0.2, PI - 0.2, 12, Color(0.1, 0.1, 0.1, alpha), 2.0 * size_scale)
+	var cap_color = Color(0.74, 0.52, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var cap = center + Vector2(0.0, -4.0 * size_scale)
+	# Stem
+	draw_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.78, 0.84, 0.66, alpha), 6.0 * size_scale)
+	draw_circle(center + Vector2(-7.0 * size_scale, 22.0 * size_scale), 5.0 * size_scale, Color(0.6, 0.74, 0.5, alpha))
+	# Cap
+	draw_circle(cap, 18.0 * size_scale, cap_color)
+	draw_circle(cap, 12.0 * size_scale, cap_color.lightened(0.08))
+	# Pale spots on cap
+	draw_circle(cap + Vector2(-8.0 * size_scale, -4.0 * size_scale), 3.2 * size_scale, Color(0.9, 0.78, 0.98, alpha * 0.7))
+	draw_circle(cap + Vector2(6.0 * size_scale, -7.0 * size_scale), 2.6 * size_scale, Color(0.9, 0.78, 0.98, alpha * 0.6))
+	draw_circle(cap + Vector2(9.0 * size_scale, 3.0 * size_scale), 2.2 * size_scale, Color(0.9, 0.78, 0.98, alpha * 0.6))
+	# Snout/barrel (shooter)
+	draw_circle(cap + Vector2(13.0 * size_scale, 1.0 * size_scale), 8.0 * size_scale, cap_color.darkened(0.06))
+	draw_circle(cap + Vector2(19.0 * size_scale, 1.0 * size_scale), 4.0 * size_scale, Color(0.4, 0.24, 0.5, alpha))
+	# Eyes + mouth
+	draw_circle(cap + Vector2(-5.0 * size_scale, -3.0 * size_scale), 2.8 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(cap + Vector2(3.0 * size_scale, -3.0 * size_scale), 2.8 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	draw_circle(cap + Vector2(-4.0 * size_scale, -4.0 * size_scale), 1.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
+	draw_circle(cap + Vector2(4.0 * size_scale, -4.0 * size_scale), 1.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
+	draw_arc(cap + Vector2(-1.0 * size_scale, 4.0 * size_scale), 5.0 * size_scale, 0.2, PI - 0.2, 12, Color(0.1, 0.1, 0.1, alpha), 2.0 * size_scale)
 
 
 func _draw_sun_shroom(center: Vector2, size_scale: float, flash: float, mature: bool, alpha: float = 1.0) -> void:
 	var cap_radius = 20.0 if mature else 14.0
 	var stem_height = 34.0 if mature else 26.0
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, stem_height * size_scale), Color(0.88, 0.86, 0.66, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), cap_radius * size_scale, Color(0.98, 0.84, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(-6.0 * size_scale, -8.0 * size_scale), 4.0 * size_scale, Color(1.0, 0.95, 0.58, alpha))
-	draw_circle(center + Vector2(6.0 * size_scale, -4.0 * size_scale), 4.0 * size_scale, Color(1.0, 0.95, 0.58, alpha))
-	draw_circle(center + Vector2(-4.0 * size_scale, -7.0 * size_scale), 2.4 * size_scale, Color(0.16, 0.1, 0.06, alpha))
-	draw_circle(center + Vector2(4.0 * size_scale, -7.0 * size_scale), 2.4 * size_scale, Color(0.16, 0.1, 0.06, alpha))
+	var cap = center + Vector2(0.0, -6.0 * size_scale)
+	var cap_color = Color(0.98, 0.84, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	# Warm sun glow
+	var glow_phase = level_time * 2.6
+	draw_arc(cap, (cap_radius + 7.0) * size_scale, glow_phase, glow_phase + PI * 1.5, 22, Color(1.0, 0.86, 0.32, alpha * 0.26), 2.4 * size_scale)
+	draw_arc(cap, (cap_radius + 11.0) * size_scale, -glow_phase * 0.7, -glow_phase * 0.7 + PI * 1.2, 18, Color(1.0, 0.92, 0.5, alpha * 0.18), 1.8 * size_scale)
+	# Stem
+	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, stem_height * size_scale), Color(0.9, 0.86, 0.66, alpha), 6.0 * size_scale)
+	# Cap + highlight
+	draw_circle(cap, cap_radius * size_scale, cap_color)
+	draw_circle(cap + Vector2(-cap_radius * 0.3 * size_scale, -cap_radius * 0.3 * size_scale), cap_radius * 0.5 * size_scale, cap_color.lightened(0.16))
+	# Spots
+	draw_circle(cap + Vector2(-6.0 * size_scale, -8.0 * size_scale), 3.6 * size_scale, Color(1.0, 0.95, 0.58, alpha))
+	draw_circle(cap + Vector2(6.0 * size_scale, -4.0 * size_scale), 3.6 * size_scale, Color(1.0, 0.95, 0.58, alpha))
+	draw_circle(cap + Vector2(2.0 * size_scale, 2.0 * size_scale), 2.6 * size_scale, Color(1.0, 0.95, 0.58, alpha))
+	# Eyes + smile
+	draw_circle(cap + Vector2(-4.0 * size_scale, -5.0 * size_scale), 2.4 * size_scale, Color(0.16, 0.1, 0.06, alpha))
+	draw_circle(cap + Vector2(4.0 * size_scale, -5.0 * size_scale), 2.4 * size_scale, Color(0.16, 0.1, 0.06, alpha))
+	draw_arc(cap + Vector2(0.0, 1.0 * size_scale), 4.0 * size_scale, 0.2, PI - 0.2, 10, Color(0.16, 0.1, 0.06, alpha), 1.8 * size_scale)
 
 
 func _draw_fume_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -19476,20 +19547,66 @@ func _draw_fume_shroom(center: Vector2, size_scale: float, flash: float, alpha: 
 
 
 func _draw_grave_buster(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(0.0, 8.0 * size_scale), 18.0 * size_scale, Color(0.22, 0.72, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(-12.0 * size_scale, 4.0 * size_scale), 10.0 * size_scale, Color(0.28, 0.82, 0.26, alpha))
-	draw_circle(center + Vector2(12.0 * size_scale, 4.0 * size_scale), 10.0 * size_scale, Color(0.28, 0.82, 0.26, alpha))
-	draw_arc(center + Vector2(0.0, 10.0 * size_scale), 12.0 * size_scale, PI, TAU, 14, Color(0.08, 0.08, 0.08, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(-16.0 * size_scale, 22.0 * size_scale), center + Vector2(16.0 * size_scale, 22.0 * size_scale), Color(0.12, 0.52, 0.1, alpha), 4.0 * size_scale)
+	var body = Color(0.22, 0.7, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var dark = Color(0.14, 0.48, 0.12, alpha)
+	# Leaves/base
+	draw_circle(center + Vector2(-14.0 * size_scale, 6.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.24, alpha))
+	draw_circle(center + Vector2(14.0 * size_scale, 6.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.24, alpha))
+	draw_line(center + Vector2(-18.0 * size_scale, 22.0 * size_scale), center + Vector2(18.0 * size_scale, 22.0 * size_scale), Color(0.12, 0.5, 0.1, alpha), 4.0 * size_scale)
+	# Main head bulb
+	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 18.0 * size_scale, body)
+	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 12.0 * size_scale, body.lightened(0.1))
+	# Wide open maw (the grave-eating mouth)
+	draw_arc(center + Vector2(0.0, 8.0 * size_scale), 13.0 * size_scale, PI, TAU, 16, Color(0.06, 0.05, 0.04, alpha), 5.0 * size_scale)
+	draw_circle(center + Vector2(0.0, 8.0 * size_scale), 11.0 * size_scale, Color(0.2, 0.06, 0.06, alpha))
+	# Teeth (top + bottom rows)
+	for tooth_index in range(5):
+		var tooth_x = (-8.0 + float(tooth_index) * 4.0) * size_scale
+		draw_polygon(PackedVector2Array([
+			center + Vector2(tooth_x - 1.5, 0.0 * size_scale),
+			center + Vector2(tooth_x + 1.5, 0.0 * size_scale),
+			center + Vector2(tooth_x, 5.0 * size_scale),
+		]), PackedColorArray([Color(0.94, 0.92, 0.82, alpha), Color(0.94, 0.92, 0.82, alpha), Color(0.94, 0.92, 0.82, alpha)]))
+		draw_polygon(PackedVector2Array([
+			center + Vector2(tooth_x - 1.5, 14.0 * size_scale),
+			center + Vector2(tooth_x + 1.5, 14.0 * size_scale),
+			center + Vector2(tooth_x, 9.0 * size_scale),
+		]), PackedColorArray([Color(0.94, 0.92, 0.82, alpha), Color(0.94, 0.92, 0.82, alpha), Color(0.94, 0.92, 0.82, alpha)]))
+	# Eyes (angry, above mouth)
+	draw_circle(center + Vector2(-7.0 * size_scale, -6.0 * size_scale), 3.2 * size_scale, Color(0.95, 0.86, 0.3, alpha))
+	draw_circle(center + Vector2(7.0 * size_scale, -6.0 * size_scale), 3.2 * size_scale, Color(0.95, 0.86, 0.3, alpha))
+	draw_circle(center + Vector2(-7.0 * size_scale, -6.0 * size_scale), 1.4 * size_scale, Color(0.1, 0.06, 0.04, alpha))
+	draw_circle(center + Vector2(7.0 * size_scale, -6.0 * size_scale), 1.4 * size_scale, Color(0.1, 0.06, 0.04, alpha))
+	draw_line(center + Vector2(-12.0 * size_scale, -11.0 * size_scale), center + Vector2(-3.0 * size_scale, -8.0 * size_scale), dark, 2.0 * size_scale)
+	draw_line(center + Vector2(12.0 * size_scale, -11.0 * size_scale), center + Vector2(3.0 * size_scale, -8.0 * size_scale), dark, 2.0 * size_scale)
 
 
 func _draw_hypno_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var cap = center + Vector2(0.0, -4.0 * size_scale)
+	var cap_color = Color(0.86, 0.5, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var swirl_phase = level_time * 3.4
+	# Mesmerizing aura rings
+	draw_arc(cap, 24.0 * size_scale, swirl_phase, swirl_phase + PI * 1.6, 24, Color(0.62, 0.4, 0.94, alpha * 0.22), 2.4 * size_scale)
+	draw_arc(cap, 28.0 * size_scale, -swirl_phase * 0.7, -swirl_phase * 0.7 + PI * 1.3, 20, Color(0.4, 0.58, 0.98, alpha * 0.16), 2.0 * size_scale)
+	# Stem
 	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 18.0 * size_scale, Color(0.86, 0.5, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_arc(center + Vector2(-5.0 * size_scale, -5.0 * size_scale), 4.0 * size_scale, 0.0, TAU, 18, Color(0.24, 0.58, 0.98, alpha), 2.0 * size_scale)
-	draw_arc(center + Vector2(5.0 * size_scale, -5.0 * size_scale), 4.0 * size_scale, 0.0, TAU, 18, Color(0.24, 0.58, 0.98, alpha), 2.0 * size_scale)
-	draw_circle(center + Vector2(-5.0 * size_scale, -5.0 * size_scale), 0.8 * size_scale, Color(0.24, 0.58, 0.98, alpha))
-	draw_circle(center + Vector2(5.0 * size_scale, -5.0 * size_scale), 0.8 * size_scale, Color(0.24, 0.58, 0.98, alpha))
+	# Cap
+	draw_circle(cap, 18.0 * size_scale, cap_color)
+	draw_circle(cap, 12.0 * size_scale, cap_color.lightened(0.08))
+	# Cap freckles
+	draw_circle(cap + Vector2(-8.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
+	draw_circle(cap + Vector2(8.0 * size_scale, -8.0 * size_scale), 2.2 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
+	draw_circle(cap + Vector2(2.0 * size_scale, -13.0 * size_scale), 1.8 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
+	# Spiral hypno eyes (3 rings each, counter-rotating)
+	for eye_offset in [-5.0, 5.0]:
+		var eye_center = cap + Vector2(eye_offset * size_scale, -3.0 * size_scale)
+		for ring_index in range(3):
+			var ring_r = (5.5 - ring_index * 1.8) * size_scale
+			var ring_color = Color(0.24, 0.58, 0.98, alpha * (0.5 + ring_index * 0.2)) if ring_index % 2 == 0 else Color(0.9, 0.94, 1.0, alpha * (0.4 + ring_index * 0.2))
+			draw_arc(eye_center, ring_r, swirl_phase + ring_index * 0.5, swirl_phase + ring_index * 0.5 + PI * 1.5, 16, ring_color, 1.8 * size_scale)
+		draw_circle(eye_center, 1.0 * size_scale, Color(0.24, 0.58, 0.98, alpha))
+	# Wavy smile (swaying)
+	draw_arc(cap + Vector2(0.0, 5.0 * size_scale), 5.0 * size_scale, 0.2 + sin(swirl_phase) * 0.15, PI - 0.2 + sin(swirl_phase) * 0.15, 12, Color(0.1, 0.08, 0.1, alpha), 1.8 * size_scale)
 
 
 func _draw_scaredy_shroom(center: Vector2, size_scale: float, flash: float, hiding: bool, alpha: float = 1.0) -> void:
@@ -19507,19 +19624,62 @@ func _draw_scaredy_shroom(center: Vector2, size_scale: float, flash: float, hidi
 
 
 func _draw_ice_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var cap = center + Vector2(0.0, -6.0 * size_scale)
+	var cap_color = Color(0.62, 0.88, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var frost = Color(0.9, 0.98, 1.0, alpha)
+	# Cold mist aura
+	var mist_phase = level_time * 2.0
+	draw_arc(cap, 26.0 * size_scale, mist_phase, mist_phase + PI * 1.4, 20, Color(0.8, 0.94, 1.0, alpha * 0.18), 2.2 * size_scale)
+	draw_arc(cap, 30.0 * size_scale, -mist_phase * 0.6, -mist_phase * 0.6 + PI * 1.2, 18, Color(0.86, 0.96, 1.0, alpha * 0.12), 1.6 * size_scale)
+	# Stem
 	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.86, 0.92, 1.0, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 20.0 * size_scale, Color(0.62, 0.88, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(-8.0 * size_scale, -14.0 * size_scale), 6.0 * size_scale, Color(0.86, 0.96, 1.0, alpha))
-	draw_circle(center + Vector2(8.0 * size_scale, -12.0 * size_scale), 5.0 * size_scale, Color(0.86, 0.96, 1.0, alpha))
-	draw_line(center + Vector2(-18.0 * size_scale, -4.0 * size_scale), center + Vector2(18.0 * size_scale, -4.0 * size_scale), Color(0.9, 0.98, 1.0, alpha), 2.0 * size_scale)
+	# Cap
+	draw_circle(cap, 20.0 * size_scale, cap_color)
+	draw_circle(cap + Vector2(-6.0 * size_scale, -6.0 * size_scale), 9.0 * size_scale, cap_color.lightened(0.14))
+	# Ice crystals on cap
+	draw_circle(cap + Vector2(-9.0 * size_scale, -13.0 * size_scale), 6.0 * size_scale, frost)
+	draw_circle(cap + Vector2(9.0 * size_scale, -11.0 * size_scale), 5.0 * size_scale, frost)
+	draw_circle(cap + Vector2(0.0 * size_scale, -18.0 * size_scale), 4.0 * size_scale, frost)
+	for crystal_index in range(4):
+		var cx = cap.x + (-12.0 + float(crystal_index) * 8.0) * size_scale
+		draw_line(Vector2(cx, cap.y - 4.0 * size_scale), Vector2(cx, cap.y - 12.0 * size_scale), frost, 1.6 * size_scale)
+	# Frosty brow line
+	draw_line(cap + Vector2(-18.0 * size_scale, -4.0 * size_scale), cap + Vector2(18.0 * size_scale, -4.0 * size_scale), frost, 2.4 * size_scale)
+	# Half-closed sleepy eyes
+	draw_line(cap + Vector2(-9.0 * size_scale, 1.0 * size_scale), cap + Vector2(-3.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
+	draw_line(cap + Vector2(3.0 * size_scale, 1.0 * size_scale), cap + Vector2(9.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
+	# Shivering mouth
+	draw_arc(cap + Vector2(0.0, 8.0 * size_scale), 4.0 * size_scale, 0.1, PI - 0.1, 8, Color(0.1, 0.16, 0.28, alpha), 1.6 * size_scale)
 
 
 func _draw_doom_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var cap = center + Vector2(0.0, -2.0 * size_scale)
+	var cap_color = Color(0.42, 0.08, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var core_glow = Color(0.98, 0.4, 0.28, alpha)
+	# Ominous pulsing aura
+	var pulse_phase = level_time * 3.2
+	draw_arc(cap, 30.0 * size_scale, pulse_phase, pulse_phase + PI * 1.5, 24, Color(0.86, 0.18, 0.28, alpha * 0.24), 2.6 * size_scale)
+	draw_arc(cap, 34.0 * size_scale, -pulse_phase * 0.7, -pulse_phase * 0.7 + PI * 1.2, 20, Color(0.96, 0.3, 0.34, alpha * 0.16), 2.0 * size_scale)
+	# Stem (gnarled, dark)
 	draw_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.58, 0.52, 0.46, alpha), 7.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -2.0 * size_scale), 24.0 * size_scale, Color(0.42, 0.08, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(0.0, -2.0 * size_scale), 11.0 * size_scale, Color(0.86, 0.22, 0.36, alpha))
-	draw_circle(center + Vector2(-8.0 * size_scale, -6.0 * size_scale), 3.0 * size_scale, Color(0.06, 0.06, 0.06, alpha))
-	draw_circle(center + Vector2(8.0 * size_scale, -6.0 * size_scale), 3.0 * size_scale, Color(0.06, 0.06, 0.06, alpha))
+	draw_line(center + Vector2(-3.0 * size_scale, 16.0 * size_scale), center + Vector2(-4.0 * size_scale, 30.0 * size_scale), Color(0.42, 0.36, 0.32, alpha), 2.0 * size_scale)
+	# Cap layers
+	draw_circle(cap, 24.0 * size_scale, cap_color)
+	draw_circle(cap, 17.0 * size_scale, cap_color.lightened(0.06))
+	# Glowing power core
+	draw_circle(cap, 11.0 * size_scale, core_glow)
+	draw_circle(cap, 7.0 * size_scale, core_glow.lightened(0.3))
+	draw_circle(cap, 3.0 * size_scale, Color(1.0, 0.96, 0.82, alpha))
+	# Dark eye sockets (skull-like)
+	draw_circle(cap + Vector2(-9.0 * size_scale, -6.0 * size_scale), 4.0 * size_scale, Color(0.04, 0.03, 0.03, alpha))
+	draw_circle(cap + Vector2(9.0 * size_scale, -6.0 * size_scale), 4.0 * size_scale, Color(0.04, 0.03, 0.03, alpha))
+	draw_circle(cap + Vector2(-9.0 * size_scale, -6.0 * size_scale), 1.6 * size_scale, Color(0.98, 0.7, 0.34, alpha))
+	draw_circle(cap + Vector2(9.0 * size_scale, -6.0 * size_scale), 1.6 * size_scale, Color(0.98, 0.7, 0.34, alpha))
+	# Gritted teeth mouth
+	draw_line(cap + Vector2(-7.0 * size_scale, 4.0 * size_scale), cap + Vector2(7.0 * size_scale, 4.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 2.4 * size_scale)
+	for tooth_index in range(4):
+		var tooth_x = (-5.0 + float(tooth_index) * 3.3) * size_scale
+		draw_line(cap + Vector2(tooth_x, 4.0 * size_scale), cap + Vector2(tooth_x, 7.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 1.4 * size_scale)
 
 
 func _draw_sea_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -19574,11 +19734,24 @@ func _draw_blover(center: Vector2, size_scale: float, flash: float, alpha: float
 
 func _draw_split_pea(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	_draw_peashooter(center + Vector2(-4.0 * size_scale, 0.0), size_scale, flash, alpha)
-	var rear_head = center + Vector2(-24.0 * size_scale, -10.0 * size_scale)
-	var body_color = Color(0.34, 0.78, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(rear_head, 12.0 * size_scale, body_color)
-	draw_circle(rear_head + Vector2(-14.0 * size_scale, 0.0), 6.0 * size_scale, body_color.darkened(0.06))
-	draw_circle(rear_head + Vector2(4.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	var rear_head = center + Vector2(-26.0 * size_scale, -8.0 * size_scale)
+	var body_color = Color(0.34, 0.78, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var dark = body_color.darkened(0.12)
+	# Rear-facing head (bigger, with its own muzzle pointing left)
+	draw_circle(rear_head, 13.0 * size_scale, body_color)
+	draw_circle(rear_head, 9.0 * size_scale, body_color.lightened(0.08))
+	# Rear muzzle (faces left)
+	draw_circle(rear_head + Vector2(-14.0 * size_scale, 0.0), 7.0 * size_scale, dark)
+	draw_circle(rear_head + Vector2(-15.0 * size_scale, 0.0), 4.0 * size_scale, Color(0.12, 0.08, 0.06, alpha))
+	# Connector bulb between heads
+	draw_circle(rear_head + Vector2(11.0 * size_scale, 3.0 * size_scale), 6.0 * size_scale, body_color.darkened(0.06))
+	# Rear-facing eyes (looking backwards)
+	draw_circle(rear_head + Vector2(-2.0 * size_scale, -4.0 * size_scale), 2.6 * size_scale, Color(0.95, 0.92, 0.4, alpha))
+	draw_circle(rear_head + Vector2(-8.0 * size_scale, -4.0 * size_scale), 2.6 * size_scale, Color(0.95, 0.92, 0.4, alpha))
+	draw_circle(rear_head + Vector2(-3.0 * size_scale, -4.0 * size_scale), 1.1 * size_scale, Color(0.1, 0.06, 0.04, alpha))
+	draw_circle(rear_head + Vector2(-9.0 * size_scale, -4.0 * size_scale), 1.1 * size_scale, Color(0.1, 0.06, 0.04, alpha))
+	# Determined brow
+	draw_line(rear_head + Vector2(0.0 * size_scale, -7.0 * size_scale), rear_head + Vector2(-10.0 * size_scale, -7.0 * size_scale), dark, 1.8 * size_scale)
 
 
 func _draw_starfruit(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -19659,9 +19832,31 @@ func _draw_vase(center: Vector2, size_scale: float, hostile: bool, alpha: float 
 
 func _draw_repeater(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	_draw_peashooter(center + Vector2(-6.0 * size_scale, 0.0), size_scale, flash, alpha)
-	var extra_head = center + Vector2(18.0 * size_scale, -14.0 * size_scale)
-	draw_circle(extra_head, 11.0 * size_scale, Color(0.35, 0.74, 0.25, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(extra_head + Vector2(14.0 * size_scale, 0.0), 5.0 * size_scale, Color(0.2, 0.45, 0.14, alpha))
+	var barrel_color = Color(0.32, 0.66, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var dark_barrel = barrel_color.darkened(0.18)
+	# Second barrel head (top-right, the "repeater" extra muzzle)
+	var second_head = center + Vector2(16.0 * size_scale, -16.0 * size_scale)
+	draw_circle(second_head, 12.0 * size_scale, barrel_color)
+	draw_circle(second_head, 8.0 * size_scale, barrel_color.lightened(0.1))
+	# Muzzle opening
+	draw_circle(second_head + Vector2(13.0 * size_scale, -2.0 * size_scale), 6.0 * size_scale, dark_barrel)
+	draw_circle(second_head + Vector2(13.0 * size_scale, -2.0 * size_scale), 3.5 * size_scale, Color(0.12, 0.08, 0.06, alpha))
+	# Connecting chamber between the two heads
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(2.0 * size_scale, -2.0 * size_scale),
+			center + Vector2(10.0 * size_scale, -14.0 * size_scale),
+			center + Vector2(18.0 * size_scale, -18.0 * size_scale),
+			center + Vector2(16.0 * size_scale, -10.0 * size_scale),
+			center + Vector2(8.0 * size_scale, 2.0 * size_scale),
+		]),
+		PackedColorArray([dark_barrel, dark_barrel, dark_barrel, dark_barrel, dark_barrel])
+	)
+	# Reinforcement band
+	draw_line(second_head + Vector2(-8.0 * size_scale, -2.0 * size_scale), second_head + Vector2(8.0 * size_scale, -2.0 * size_scale), barrel_color.lightened(0.2), 2.0 * size_scale)
+	# Second head eye (looks tougher)
+	draw_circle(second_head + Vector2(2.0 * size_scale, -3.0 * size_scale), 2.4 * size_scale, Color(0.95, 0.92, 0.4, alpha))
+	draw_circle(second_head + Vector2(3.0 * size_scale, -3.0 * size_scale), 1.0 * size_scale, Color(0.1, 0.06, 0.04, alpha))
 
 
 func _draw_amber_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -19729,19 +19924,73 @@ func _draw_vine_lasher(center: Vector2, size_scale: float, flash: float, alpha: 
 
 
 func _draw_pepper_mortar(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(0.0, 10.0 * size_scale), 19.0 * size_scale, Color(0.7, 0.18, 0.12, alpha))
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 15.0 * size_scale, Color(0.96, 0.5, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_rect(Rect2(center + Vector2(-18.0 * size_scale, 2.0 * size_scale), Vector2(36.0 * size_scale, 12.0 * size_scale)), Color(0.48, 0.24, 0.08, alpha), true)
+	var barrel_color = Color(0.34, 0.28, 0.32, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
+	var pepper_color = Color(0.92, 0.24, 0.14, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	# Base plate / wheels
+	draw_circle(center + Vector2(-13.0 * size_scale, 16.0 * size_scale), 7.0 * size_scale, Color(0.22, 0.18, 0.2, alpha))
+	draw_circle(center + Vector2(13.0 * size_scale, 16.0 * size_scale), 7.0 * size_scale, Color(0.22, 0.18, 0.2, alpha))
+	draw_circle(center + Vector2(-13.0 * size_scale, 16.0 * size_scale), 3.0 * size_scale, Color(0.5, 0.46, 0.5, alpha))
+	draw_circle(center + Vector2(13.0 * size_scale, 16.0 * size_scale), 3.0 * size_scale, Color(0.5, 0.46, 0.5, alpha))
+	# Mortar barrel (angled tube)
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(-14.0 * size_scale, 6.0 * size_scale),
+			center + Vector2(14.0 * size_scale, -14.0 * size_scale),
+			center + Vector2(22.0 * size_scale, -8.0 * size_scale),
+			center + Vector2(-6.0 * size_scale, 12.0 * size_scale),
+		]),
+		PackedColorArray([barrel_color, barrel_color.lightened(0.12), barrel_color.darkened(0.1), barrel_color])
+	)
+	# Muzzle ring + glow
+	draw_circle(center + Vector2(18.0 * size_scale, -11.0 * size_scale), 7.0 * size_scale, Color(0.12, 0.1, 0.12, alpha))
+	draw_circle(center + Vector2(18.0 * size_scale, -11.0 * size_scale), 4.0 * size_scale, Color(0.98, 0.66, 0.22, alpha * (0.7 + flash * 1.5)))
+	# Pepper body cradled at base
+	draw_circle(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), 13.0 * size_scale, pepper_color)
+	draw_circle(center + Vector2(-6.0 * size_scale, 4.0 * size_scale), 4.5 * size_scale, pepper_color.lightened(0.2))
+	# Pepper stem + leaf cap
+	draw_line(center + Vector2(-2.0 * size_scale, -4.0 * size_scale), center + Vector2(-2.0 * size_scale, -14.0 * size_scale), Color(0.2, 0.5, 0.16, alpha), 3.0 * size_scale)
+	draw_circle(center + Vector2(-10.0 * size_scale, -12.0 * size_scale), 6.0 * size_scale, Color(0.22, 0.6, 0.18, alpha))
+	draw_circle(center + Vector2(7.0 * size_scale, -12.0 * size_scale), 6.0 * size_scale, Color(0.22, 0.6, 0.18, alpha))
+	# Angry pepper eyes
+	draw_circle(center + Vector2(-6.0 * size_scale, 7.0 * size_scale), 2.2 * size_scale, Color(0.95, 0.92, 0.5, alpha))
+	draw_circle(center + Vector2(4.0 * size_scale, 7.0 * size_scale), 2.2 * size_scale, Color(0.95, 0.92, 0.5, alpha))
+	draw_circle(center + Vector2(-6.0 * size_scale, 7.0 * size_scale), 1.0 * size_scale, Color(0.1, 0.06, 0.04, alpha))
+	draw_circle(center + Vector2(4.0 * size_scale, 7.0 * size_scale), 1.0 * size_scale, Color(0.1, 0.06, 0.04, alpha))
 
 
 func _draw_cactus_guard(center: Vector2, size_scale: float, flash: float, ratio: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(0.0, 8.0 * size_scale), 24.0 * size_scale, Color(0.24, 0.72, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(-10.0 * size_scale, -4.0 * size_scale), 8.0 * size_scale, Color(0.3, 0.78, 0.28, alpha))
-	draw_circle(center + Vector2(10.0 * size_scale, -6.0 * size_scale), 8.0 * size_scale, Color(0.3, 0.78, 0.28, alpha))
-	draw_line(center + Vector2(-16.0 * size_scale, 2.0 * size_scale), center + Vector2(-24.0 * size_scale, -8.0 * size_scale), Color(0.92, 0.88, 0.68, alpha), 2.0 * size_scale)
-	draw_line(center + Vector2(16.0 * size_scale, 2.0 * size_scale), center + Vector2(24.0 * size_scale, -8.0 * size_scale), Color(0.92, 0.88, 0.68, alpha), 2.0 * size_scale)
+	var body_color = Color(0.24, 0.7, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var rib_color = body_color.darkened(0.14)
+	# Shield aura ring (defensive guard)
+	var aura_phase = level_time * 2.4
+	draw_arc(center + Vector2(0.0, 4.0 * size_scale), 28.0 * size_scale, aura_phase, aura_phase + PI * 1.6, 24, Color(0.5, 0.92, 0.7, alpha * 0.32), 2.4 * size_scale)
+	draw_arc(center + Vector2(0.0, 4.0 * size_scale), 32.0 * size_scale, -aura_phase * 0.7, -aura_phase * 0.7 + PI * 1.3, 20, Color(0.62, 0.96, 0.82, alpha * 0.22), 1.8 * size_scale)
+	# Main barrel body
+	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 22.0 * size_scale, body_color)
+	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 16.0 * size_scale, body_color.lightened(0.08))
+	# Ribs (vertical ridges)
+	for rib_index in range(3):
+		var rib_x = (-8.0 + float(rib_index) * 8.0) * size_scale
+		draw_line(center + Vector2(rib_x, -12.0 * size_scale), center + Vector2(rib_x, 24.0 * size_scale), rib_color, 2.2 * size_scale)
+	# Arms
+	draw_circle(center + Vector2(-18.0 * size_scale, 0.0 * size_scale), 8.0 * size_scale, body_color)
+	draw_circle(center + Vector2(-22.0 * size_scale, -8.0 * size_scale), 5.0 * size_scale, body_color.lightened(0.06))
+	draw_circle(center + Vector2(18.0 * size_scale, -2.0 * size_scale), 8.0 * size_scale, body_color)
+	draw_circle(center + Vector2(23.0 * size_scale, -10.0 * size_scale), 5.0 * size_scale, body_color.lightened(0.06))
+	# Spines radiating out
+	for spine_index in range(10):
+		var spine_angle = float(spine_index) * TAU / 10.0 + 0.3
+		var spine_base = center + Vector2(0.0, 6.0 * size_scale) + Vector2(cos(spine_angle), sin(spine_angle)) * 20.0 * size_scale
+		var spine_tip = center + Vector2(0.0, 6.0 * size_scale) + Vector2(cos(spine_angle), sin(spine_angle)) * 28.0 * size_scale
+		draw_line(spine_base, spine_tip, Color(0.95, 0.9, 0.7, alpha), 1.6 * size_scale)
+	# Face
+	draw_circle(center + Vector2(-6.0 * size_scale, 2.0 * size_scale), 2.6 * size_scale, Color(0.1, 0.08, 0.06, alpha))
+	draw_circle(center + Vector2(6.0 * size_scale, 2.0 * size_scale), 2.6 * size_scale, Color(0.1, 0.08, 0.06, alpha))
+	draw_circle(center + Vector2(-5.0 * size_scale, 1.0 * size_scale), 0.9 * size_scale, Color(1.0, 1.0, 1.0, alpha))
+	draw_circle(center + Vector2(7.0 * size_scale, 1.0 * size_scale), 0.9 * size_scale, Color(1.0, 1.0, 1.0, alpha))
+	draw_arc(center + Vector2(0.0, 9.0 * size_scale), 4.0 * size_scale, PI * 0.15, PI * 0.85, 8, Color(0.1, 0.08, 0.06, alpha), 1.6 * size_scale)
 	if ratio < 0.45:
-		draw_line(center + Vector2(-6.0 * size_scale, -16.0 * size_scale), center + Vector2(8.0 * size_scale, 14.0 * size_scale), Color(0.18, 0.42, 0.14, alpha), 2.0 * size_scale)
+		draw_line(center + Vector2(0.0, -16.0 * size_scale), center + Vector2(0.0, 14.0 * size_scale), Color(0.18, 0.42, 0.14, alpha * 0.6), 1.8 * size_scale)
 
 
 func _draw_pulse_bulb(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -19763,9 +20012,32 @@ func _draw_pulse_bulb(center: Vector2, size_scale: float, flash: float, alpha: f
 
 
 func _draw_sun_bean(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(-6.0 * size_scale, -6.0 * size_scale), 12.0 * size_scale, Color(0.98, 0.82, 0.24, alpha))
-	draw_circle(center + Vector2(8.0 * size_scale, -2.0 * size_scale), 12.0 * size_scale, Color(0.92, 0.72, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.18, alpha), 6.0 * size_scale)
+	var head = center + Vector2(0.0, -6.0 * size_scale)
+	var petal_color = Color(0.98, 0.78, 0.16, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var face_color = Color(0.96, 0.66, 0.16, alpha)
+	# Stem and leaves
+	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.54, 0.16, alpha), 6.0 * size_scale)
+	draw_circle(center + Vector2(-9.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.24, 0.68, 0.2, alpha))
+	draw_circle(center + Vector2(10.0 * size_scale, 22.0 * size_scale), 8.0 * size_scale, Color(0.24, 0.68, 0.2, alpha))
+	# Petal ring (12 petals)
+	for petal_index in range(12):
+		var petal_angle = float(petal_index) * TAU / 12.0
+		var petal_center = head + Vector2(cos(petal_angle), sin(petal_angle)) * 17.0 * size_scale
+		draw_circle(petal_center, 8.5 * size_scale, petal_color)
+	# Face disc
+	draw_circle(head, 14.0 * size_scale, face_color)
+	draw_circle(head, 9.0 * size_scale, face_color.lightened(0.12))
+	# Eyes
+	draw_circle(head + Vector2(-5.0 * size_scale, -2.0 * size_scale), 2.8 * size_scale, Color(0.1, 0.08, 0.06, alpha))
+	draw_circle(head + Vector2(5.0 * size_scale, -2.0 * size_scale), 2.8 * size_scale, Color(0.1, 0.08, 0.06, alpha))
+	draw_circle(head + Vector2(-4.0 * size_scale, -3.0 * size_scale), 1.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
+	draw_circle(head + Vector2(6.0 * size_scale, -3.0 * size_scale), 1.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
+	# Smile
+	draw_arc(head + Vector2(0.0, 2.0 * size_scale), 4.0 * size_scale, PI * 0.15, PI * 0.85, 8, Color(0.1, 0.08, 0.06, alpha), 1.6 * size_scale)
+	# Attack pod mouth (darker, hints at shooter nature)
+	var pod_phase = level_time * 4.0
+	draw_arc(head + Vector2(8.0 * size_scale, 2.0 * size_scale), 4.5 * size_scale, -PI * 0.35 + sin(pod_phase) * 0.1, PI * 0.35 + sin(pod_phase) * 0.1, 6, Color(0.32, 0.18, 0.08, alpha), 2.4 * size_scale)
+	draw_circle(head + Vector2(13.0 * size_scale, 2.0 * size_scale), 2.0 * size_scale, Color(0.92, 0.78, 0.22, alpha * 0.8))
 
 
 func _draw_wind_orchid(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -19887,10 +20159,34 @@ func _draw_squash(center: Vector2, size_scale: float, flash: float, alpha: float
 
 
 func _draw_threepeater(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.18, alpha), 6.0 * size_scale)
-	_draw_peashooter(center + Vector2(-2.0 * size_scale, -20.0 * size_scale), size_scale * 0.62, flash, alpha)
-	_draw_peashooter(center + Vector2(-10.0 * size_scale, 0.0), size_scale * 0.68, flash, alpha)
-	_draw_peashooter(center + Vector2(-2.0 * size_scale, 20.0 * size_scale), size_scale * 0.62, flash, alpha)
+	var head_color = Color(0.34, 0.78, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var dark_head = head_color.darkened(0.14)
+	# Shared stem + leaf base
+	draw_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.16, alpha), 7.0 * size_scale)
+	draw_circle(center + Vector2(-13.0 * size_scale, 22.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
+	draw_circle(center + Vector2(15.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
+	# Three heads stacked vertically
+	var head_offsets = [Vector2(2.0, -22.0), Vector2(6.0, -6.0), Vector2(2.0, 10.0)]
+	for head_index in range(3):
+		var head_pos = center + head_offsets[head_index] * size_scale
+		draw_circle(head_pos, 13.0 * size_scale, head_color)
+		draw_circle(head_pos, 9.0 * size_scale, head_color.lightened(0.08))
+		# Muzzle (faces right)
+		draw_circle(head_pos + Vector2(14.0 * size_scale, 0.0), 7.0 * size_scale, dark_head)
+		draw_circle(head_pos + Vector2(16.0 * size_scale, 0.0), 4.0 * size_scale, Color(0.14, 0.3, 0.1, alpha))
+		# Eye
+		draw_circle(head_pos + Vector2(-1.0 * size_scale, -3.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+		draw_circle(head_pos + Vector2(0.0 * size_scale, -4.0 * size_scale), 0.9 * size_scale, Color(1.0, 1.0, 1.0, alpha))
+	# Connecting neck between heads
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(-9.0 * size_scale, -18.0 * size_scale),
+			center + Vector2(-9.0 * size_scale, 6.0 * size_scale),
+			center + Vector2(-2.0 * size_scale, 6.0 * size_scale),
+			center + Vector2(-2.0 * size_scale, -18.0 * size_scale),
+		]),
+		PackedColorArray([dark_head, dark_head, dark_head, dark_head])
+	)
 
 
 func _draw_boomerang_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -20730,11 +21026,42 @@ func _draw_tangle_kelp(center: Vector2, size_scale: float, flash: float, alpha: 
 
 
 func _draw_jalapeno(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 32.0 * size_scale), Color(0.26, 0.56, 0.16, alpha), 5.0 * size_scale)
-	draw_circle(center + Vector2(0.0, 2.0 * size_scale), 18.0 * size_scale, Color(0.96, 0.22, 0.12, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8))
-	draw_circle(center + Vector2(10.0 * size_scale, -10.0 * size_scale), 12.0 * size_scale, Color(0.9, 0.14, 0.1, alpha))
-	draw_circle(center + Vector2(14.0 * size_scale, -18.0 * size_scale), 7.0 * size_scale, Color(0.98, 0.48, 0.18, alpha))
-	draw_line(center + Vector2(-6.0 * size_scale, -16.0 * size_scale), center + Vector2(2.0 * size_scale, -28.0 * size_scale), Color(0.24, 0.62, 0.18, alpha), 3.0 * size_scale)
+	var body_color = Color(0.94, 0.22, 0.12, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
+	var body_dark = Color(0.7, 0.12, 0.08, alpha)
+	# Flame tail (flickering)
+	var flame_phase = level_time * 9.0
+	for flame_index in range(5):
+		var flame_ratio = float(flame_index) / 4.0
+		var flame_y = -18.0 - flame_ratio * 16.0 + sin(flame_phase + flame_index * 1.3) * 3.0
+		var flame_r = (10.0 - flame_ratio * 5.0) * size_scale
+		var flame_color = Color(0.98, 0.5 + flame_ratio * 0.4, 0.16, alpha * (0.7 - flame_ratio * 0.12)).lerp(Color(1.0, 0.95, 0.7, alpha), flame_ratio * 0.5)
+		draw_circle(center + Vector2(sin(flame_phase * 0.7 + flame_index) * 4.0 * size_scale, flame_y * size_scale), flame_r, flame_color)
+	# Chili body (tapered polygon, darker at bottom, brighter at top)
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(-14.0 * size_scale, 20.0 * size_scale),
+			center + Vector2(14.0 * size_scale, 20.0 * size_scale),
+			center + Vector2(10.0 * size_scale, -10.0 * size_scale),
+			center + Vector2(0.0, -16.0 * size_scale),
+			center + Vector2(-10.0 * size_scale, -10.0 * size_scale),
+		]),
+		PackedColorArray([body_dark, body_dark, body_color, body_color.lightened(0.15), body_color])
+	)
+	# Highlight streak
+	draw_line(center + Vector2(-7.0 * size_scale, 14.0 * size_scale), center + Vector2(-5.0 * size_scale, -8.0 * size_scale), body_color.lightened(0.3), 3.0 * size_scale)
+	# Stem and leaf cap
+	draw_line(center + Vector2(0.0, -16.0 * size_scale), center + Vector2(0.0, -28.0 * size_scale), Color(0.22, 0.54, 0.16, alpha), 3.6 * size_scale)
+	draw_circle(center + Vector2(-7.0 * size_scale, -26.0 * size_scale), 6.0 * size_scale, Color(0.24, 0.6, 0.18, alpha))
+	draw_circle(center + Vector2(7.0 * size_scale, -26.0 * size_scale), 6.0 * size_scale, Color(0.24, 0.6, 0.18, alpha))
+	# Angry eyes (slanted)
+	draw_line(center + Vector2(-10.0 * size_scale, 2.0 * size_scale), center + Vector2(-2.0 * size_scale, 5.0 * size_scale), Color(0.95, 0.9, 0.4, alpha), 2.6 * size_scale)
+	draw_line(center + Vector2(10.0 * size_scale, 2.0 * size_scale), center + Vector2(2.0 * size_scale, 5.0 * size_scale), Color(0.95, 0.9, 0.4, alpha), 2.6 * size_scale)
+	draw_circle(center + Vector2(-6.0 * size_scale, 5.0 * size_scale), 1.6 * size_scale, Color(0.1, 0.06, 0.04, alpha))
+	draw_circle(center + Vector2(6.0 * size_scale, 5.0 * size_scale), 1.6 * size_scale, Color(0.1, 0.06, 0.04, alpha))
+	# Furious mouth
+	draw_line(center + Vector2(-6.0 * size_scale, 13.0 * size_scale), center + Vector2(6.0 * size_scale, 13.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 2.2 * size_scale)
+	draw_line(center + Vector2(-3.0 * size_scale, 13.0 * size_scale), center + Vector2(-3.0 * size_scale, 16.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 1.6 * size_scale)
+	draw_line(center + Vector2(3.0 * size_scale, 13.0 * size_scale), center + Vector2(3.0 * size_scale, 16.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 1.6 * size_scale)
 
 
 func _draw_spikeweed(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -20755,11 +21082,35 @@ func _draw_spikeweed(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 
 func _draw_torchwood(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(32.0 * size_scale, 28.0 * size_scale)), Color(0.54, 0.28, 0.12, alpha), true)
-	draw_rect(Rect2(center + Vector2(-10.0 * size_scale, -20.0 * size_scale), Vector2(20.0 * size_scale, 16.0 * size_scale)), Color(0.34, 0.18, 0.08, alpha), true)
-	draw_circle(center + Vector2(0.0, -20.0 * size_scale), 10.0 * size_scale, Color(1.0, 0.72, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4))
-	draw_circle(center + Vector2(0.0, -26.0 * size_scale), 8.0 * size_scale, Color(1.0, 0.42, 0.14, alpha))
-	draw_line(center + Vector2(0.0, 24.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.26, 0.5, 0.16, alpha), 5.0 * size_scale)
+	var bark = Color(0.44, 0.28, 0.16, alpha)
+	var bark_dark = Color(0.32, 0.18, 0.1, alpha)
+	var flame_phase = level_time * 8.0
+	# Trunk stump
+	draw_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(32.0 * size_scale, 34.0 * size_scale)), bark, true)
+	draw_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(8.0 * size_scale, 34.0 * size_scale)), bark_dark, true)
+	# Bark grain lines
+	draw_line(center + Vector2(-4.0 * size_scale, 0.0), center + Vector2(-4.0 * size_scale, 28.0 * size_scale), bark_dark, 2.0 * size_scale)
+	draw_line(center + Vector2(6.0 * size_scale, 0.0), center + Vector2(6.0 * size_scale, 28.0 * size_scale), bark_dark, 2.0 * size_scale)
+	# Cut top ring
+	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 16.0 * size_scale, bark.lightened(0.1))
+	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 11.0 * size_scale, bark)
+	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 6.0 * size_scale, bark_dark)
+	# Flame crown (flickering tongues)
+	for flame_index in range(7):
+		var flame_ratio = float(flame_index) / 6.0
+		var flame_x = (-14.0 + flame_ratio * 28.0) * size_scale
+		var flame_h = (18.0 + sin(flame_phase + flame_index * 1.4) * 5.0) * size_scale
+		var flame_color = Color(0.98, 0.4 + flame_ratio * 0.3, 0.12, alpha * (0.7 - abs(flame_ratio - 0.5) * 0.4)).lerp(Color(1.0, 0.92, 0.5, alpha), flame_ratio * 0.4)
+		draw_polygon(PackedVector2Array([
+			center + Vector2(flame_x - 4.0 * size_scale, -4.0 * size_scale),
+			center + Vector2(flame_x + 4.0 * size_scale, -4.0 * size_scale),
+			center + Vector2(flame_x + sin(flame_phase + flame_index) * 2.0 * size_scale, -4.0 * size_scale - flame_h),
+		]), PackedColorArray([flame_color, flame_color, flame_color.lightened(0.2)]))
+	# Glowing ember eyes
+	draw_circle(center + Vector2(-6.0 * size_scale, 8.0 * size_scale), 2.6 * size_scale, Color(1.0, 0.7, 0.2, alpha))
+	draw_circle(center + Vector2(6.0 * size_scale, 8.0 * size_scale), 2.6 * size_scale, Color(1.0, 0.7, 0.2, alpha))
+	draw_circle(center + Vector2(-6.0 * size_scale, 8.0 * size_scale), 1.2 * size_scale, Color(1.0, 0.96, 0.7, alpha))
+	draw_circle(center + Vector2(6.0 * size_scale, 8.0 * size_scale), 1.2 * size_scale, Color(1.0, 0.96, 0.7, alpha))
 
 
 func _draw_tallnut(center: Vector2, size_scale: float, flash: float, ratio: float, alpha: float = 1.0) -> void:

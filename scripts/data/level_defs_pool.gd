@@ -578,7 +578,7 @@ const LEVELS = [
 			"row_count": 6,
 			"time_scale": 1.0,
 			"sky_sun_range": Vector2(7.0, 9.0),
-			"node_pos": Vector2(1280.0, 360.0),
+			"node_pos": Vector2(1096.0, 360.0),
 			"objective": {
 				"type": "column_defense",
 				"title": "守住防线",
@@ -612,7 +612,7 @@ const LEVELS = [
 			"row_count": 6,
 			"time_scale": 0.92,
 			"sky_sun_range": Vector2(7.0, 9.0),
-			"node_pos": Vector2(455.0, 411.0),
+			"node_pos": Vector2(295.0, 572.0),
 			"terrain": "pool",
 			"water_rows": [2, 3],
 			"objective": {
@@ -645,7 +645,7 @@ const LEVELS = [
 			"row_count": 6,
 			"time_scale": 0.9,
 			"sky_sun_range": Vector2(7.0, 9.0),
-			"node_pos": Vector2(669.0, 431.0),
+			"node_pos": Vector2(900.0, 514.0),
 			"terrain": "pool",
 			"water_rows": [2, 3],
 			"objective": {
@@ -679,7 +679,7 @@ const LEVELS = [
 			"row_count": 6,
 			"time_scale": 0.9,
 			"sky_sun_range": Vector2(7.0, 9.0),
-			"node_pos": Vector2(1115.0, 153.0),
+			"node_pos": Vector2(930.0, 228.0),
 			"terrain": "pool",
 			"water_rows": [2, 3],
 			"objective": {
@@ -718,7 +718,7 @@ const LEVELS = [
 			"row_count": 6,
 			"time_scale": 0.9,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(926.0, 155.0),
+			"node_pos": Vector2(530.0, 150.0),
 			"terrain": "pool",
 			"water_rows": [2, 3],
 			"objective": {
@@ -751,7 +751,7 @@ const LEVELS = [
 			"row_count": 6,
 			"time_scale": 0.9,
 			"sky_sun_range": Vector2(8.0, 10.0),
-			"node_pos": Vector2(130.0, 159.0),
+			"node_pos": Vector2(248.0, 188.0),
 			"terrain": "pool",
 			"water_rows": [2, 3],
 			"objective": {
@@ -793,7 +793,7 @@ const LEVELS = [
 			"row_count": 6,
 			"time_scale": 0.9,
 			"sky_sun_range": Vector2(7.0, 9.0),
-			"node_pos": Vector2(809.0, 411.0),
+			"node_pos": Vector2(598.0, 512.0),
 			"terrain": "pool",
 			"water_rows": [2, 3],
 			"objective": {

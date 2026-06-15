@@ -800,7 +800,7 @@ const LEVELS = [
 		"row_count": 5,
 		"time_scale": 1.0,
 		"sky_sun_range": Vector2(7.0, 9.0),
-		"node_pos": Vector2(884.0, 668.0),
+		"node_pos": Vector2(736.0, 538.0),
 		"objective": {
 			"type": "protect_plants",
 			"title": "保护向日葵",
@@ -838,7 +838,7 @@ const LEVELS = [
 		"row_count": 5,
 		"time_scale": 1.0,
 		"sky_sun_range": Vector2(7.0, 9.0),
-		"node_pos": Vector2(134.0, 415.0),
+		"node_pos": Vector2(546.0, 526.0),
 		"objective": {
 			"type": "no_mower",
 			"title": "草坪守望者",
@@ -869,7 +869,7 @@ const LEVELS = [
 		"row_count": 5,
 		"time_scale": 0.95,
 		"sky_sun_range": Vector2(8.0, 10.0),
-		"node_pos": Vector2(1455.0, 575.0),
+		"node_pos": Vector2(1173.0, 504.0),
 		"objective": {
 			"type": "time_limit",
 			"title": "极限六十秒",
@@ -904,7 +904,7 @@ const LEVELS = [
 		"row_count": 5,
 		"time_scale": 0.95,
 		"sky_sun_range": Vector2(7.0, 9.0),
-		"node_pos": Vector2(977.0, 152.0),
+		"node_pos": Vector2(798.0, 362.0),
 		"objective": {
 			"type": "column_defense",
 			"title": "守住第二列",
@@ -936,7 +936,7 @@ const LEVELS = [
 		"row_count": 5,
 		"time_scale": 0.95,
 		"sky_sun_range": Vector2(7.0, 9.0),
-		"node_pos": Vector2(163.0, 152.0),
+		"node_pos": Vector2(270.0, 416.0),
 		"objective": {
 			"type": "max_plant_loss",
 			"title": "节俭园丁",
@@ -968,7 +968,7 @@ const LEVELS = [
 		"row_count": 5,
 		"time_scale": 0.95,
 		"sky_sun_range": Vector2(999.0, 999.0),
-		"node_pos": Vector2(674.0, 150.0),
+		"node_pos": Vector2(714.0, 268.0),
 		"objective": {
 			"type": "sun_budget",
 			"title": "紧缩预算",
@@ -999,7 +999,7 @@ const LEVELS = [
 		"row_count": 5,
 		"time_scale": 0.95,
 		"sky_sun_range": Vector2(8.0, 10.0),
-		"node_pos": Vector2(1417.0, 151.0),
+		"node_pos": Vector2(1092.0, 366.0),
 		"objective": {
 			"type": "protect_plants",
 			"title": "守护温室",

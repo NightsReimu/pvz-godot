@@ -476,7 +476,7 @@ const LEVELS = [
 			"row_count": 5,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(1300.0, 360.0),
+			"node_pos": Vector2(1138.0, 360.0),
 			"objective": {
 				"type": "sun_budget",
 				"title": "最后防线",
@@ -509,7 +509,7 @@ const LEVELS = [
 			"row_count": 5,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(479.0, 431.0),
+			"node_pos": Vector2(704.0, 564.0),
 			"objective": {
 				"type": "time_limit",
 				"title": "暗夜倒计时",
@@ -546,7 +546,7 @@ const LEVELS = [
 			"row_count": 5,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(992.0, 495.0),
+			"node_pos": Vector2(861.0, 511.0),
 			"objective": {
 				"type": "column_defense",
 				"title": "守住第一列",
@@ -578,7 +578,7 @@ const LEVELS = [
 			"row_count": 5,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(1161.0, 161.0),
+			"node_pos": Vector2(1004.0, 238.0),
 			"objective": {
 				"type": "no_mower",
 				"title": "静夜守望",
@@ -609,7 +609,7 @@ const LEVELS = [
 			"row_count": 5,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(132.0, 154.0),
+			"node_pos": Vector2(434.0, 150.0),
 			"objective": {
 				"type": "max_plant_loss",
 				"title": "惜菇如金",
@@ -641,7 +641,7 @@ const LEVELS = [
 			"row_count": 5,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(644.0, 393.0),
+			"node_pos": Vector2(402.0, 486.0),
 			"objective": {
 				"type": "protect_plants",
 				"title": "守护菌丛",
@@ -678,7 +678,7 @@ const LEVELS = [
 			"row_count": 5,
 			"time_scale": 0.95,
 			"sky_sun_range": Vector2(999.0, 999.0),
-			"node_pos": Vector2(543.0, 342.0),
+			"node_pos": Vector2(620.0, 444.0),
 			"objective": {
 				"type": "sun_budget",
 				"title": "枯竭之夜",
