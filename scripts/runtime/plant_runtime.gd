@@ -4,6 +4,8 @@ class_name PlantRuntime
 const Defs = preload("res://scripts/game_defs.gd")
 const MAGIC_FLOWER_PROJECTILES := [
 	"pea",
+	"snow_pea",
+	"fire_pea",
 	"amber_pea",
 	"boomerang",
 	"sakura_petal",
@@ -11,6 +13,12 @@ const MAGIC_FLOWER_PROJECTILES := [
 	"glow_seed",
 	"heather_thorn",
 	"origami_plane",
+	"star_shot",
+	"moonforge_shot",
+	"prism_pea",
+	"shadow_pea",
+	"spiral_bamboo",
+	"cluster_boomerang",
 ]
 
 var game: Control
@@ -452,8 +460,6 @@ func find_magic_flower_target(row: int, plant_x: float, range_limit: float) -> i
 			continue
 		var zombie_x = float(zombie["x"])
 		var distance = zombie_x - plant_x
-		if distance > range_limit:
-			continue
 		if distance >= -8.0:
 			if zombie_x > ahead_x:
 				ahead_x = zombie_x
@@ -866,6 +872,27 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 			game._spawn_projectile(row, spawn_position, Color(0.96, 0.9, 0.74), base_damage, 0.0, 500.0, 7.0)
 			if not game.projectiles.is_empty():
 				game.projectiles[game.projectiles.size() - 1]["kind"] = "origami_plane"
+		"snow_pea":
+			game._spawn_projectile(row, spawn_position, Color(0.58, 0.88, 1.0), base_damage, 8.0, 480.0, 8.0)
+			if not game.projectiles.is_empty():
+				game.projectiles[game.projectiles.size() - 1]["kind"] = "snow_pea"
+		"fire_pea":
+			game._spawn_fire_projectile(row, spawn_position, base_damage, 500.0, 9.0)
+		"star_shot":
+			spawn_starfruit_projectile(row, spawn_position, 460.0, game.rng.randf_range(-120.0, 120.0))
+		"moonforge_shot":
+			var moonforge_target_x = center.x + 220.0
+			var moonforge_target = Vector2(moonforge_target_x, game._row_center_y(row) - 10.0)
+			spawn_moonforge_projectile(spawn_position, moonforge_target, base_damage * 1.1, 52.0)
+		"prism_pea":
+			spawn_prism_pea_projectile(row, spawn_position, base_damage * 0.9, center.x + 160.0, 3, base_damage * 0.4)
+		"shadow_pea":
+			spawn_shadow_pea_projectile(row, spawn_position, base_damage * 0.96, 2)
+		"spiral_bamboo":
+			spawn_spiral_bamboo_projectile(row, spawn_position, center.x, base_damage * 1.04, 3, base_damage * 0.6)
+		"cluster_boomerang":
+			var cluster_col = clampi(int(round((center.x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x)), 0, game.COLS - 1)
+			spawn_cluster_boomerang_projectile(row, cluster_col, row, spawn_position, center.x, base_damage * 1.08, 3)
 		_:
 			game._spawn_projectile(row, spawn_position, Color(0.96, 0.88, 0.72), base_damage, 0.0, 490.0, 7.6)
 	if not game.projectiles.is_empty():
@@ -873,13 +900,8 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 	return chosen_kind
 
 
-func _next_magic_flower_projectile_kind(plant: Dictionary) -> String:
-	if not plant.has("magic_cycle_seed"):
-		plant["magic_cycle_seed"] = game.rng.randi_range(0, MAGIC_FLOWER_PROJECTILES.size() - 1)
-	var cycle_seed = int(plant.get("magic_cycle_seed", 0))
-	var cycle_index = int(plant.get("magic_cycle_index", -1)) + 1
-	plant["magic_cycle_index"] = cycle_index
-	return String(MAGIC_FLOWER_PROJECTILES[(cycle_seed + cycle_index) % MAGIC_FLOWER_PROJECTILES.size()])
+func _next_magic_flower_projectile_kind(_plant: Dictionary) -> String:
+	return String(MAGIC_FLOWER_PROJECTILES[game.rng.randi_range(0, MAGIC_FLOWER_PROJECTILES.size() - 1)])
 
 
 func update_origami_blossom(plant: Dictionary, delta: float, row: int, col: int) -> void:
