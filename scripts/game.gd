@@ -18647,6 +18647,278 @@ func _draw_effects() -> void:
 				draw_circle(puff_center, puff_radius, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * (0.46 - puff_ratio * 0.05)))
 			draw_circle(origin + Vector2(plume_length, 0.0), width * 0.28, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.84))
 			continue
+		
+		if shape == "clover_gust":
+			var clover_origin = Vector2(effect["position"])
+			var clover_length = _effect_visual_length(effect, ratio)
+			var clover_width = _effect_visual_width(effect, ratio)
+			for ribbon_index in range(3):
+				var ribbon_points := PackedVector2Array()
+				var ribbon_offset = lerpf(-0.26, 0.26, float(ribbon_index) / 2.0) * clover_width
+				for step in range(15):
+					var ribbon_ratio = float(step) / 14.0
+					var ribbon_wave = sin(level_time * anim_speed * 1.3 + ribbon_ratio * TAU * 1.6 + float(ribbon_index) * 1.4) * clover_width * (0.09 + float(ribbon_index) * 0.02)
+					ribbon_points.append(clover_origin + Vector2(clover_length * ribbon_ratio, ribbon_offset + ribbon_wave))
+				draw_polyline(ribbon_points, Color(0.82, 1.0, 0.92, effect_color.a * (0.7 - float(ribbon_index) * 0.14)), 2.2 + float(ribbon_index) * 0.9)
+			for leaf_index in range(6):
+				var leaf_ratio = float(leaf_index + 1) / 6.0
+				var leaf_center = clover_origin + Vector2(clover_length * leaf_ratio, sin(level_time * anim_speed + leaf_ratio * 6.0) * clover_width * 0.24)
+				draw_circle(leaf_center, clover_width * (0.1 + (1.0 - leaf_ratio) * 0.05), Color(0.6, 1.0, 0.56, effect_color.a * (0.46 - leaf_ratio * 0.04)))
+				draw_circle(leaf_center, clover_width * 0.04, Color(0.86, 1.0, 0.74, effect_color.a * 0.7))
+			draw_circle(clover_origin + Vector2(clover_length, 0.0), clover_width * 0.16, Color(0.7, 1.0, 0.64, effect_color.a * 0.5))
+			continue
+		if shape == "leyline_pulse":
+			var ley_origin = Vector2(effect["position"])
+			var ley_length = _effect_visual_length(effect, ratio)
+			var ley_width = _effect_visual_width(effect, ratio)
+			for ring_index in range(3):
+				var ring_ratio = float(ring_index + 1) / 3.0
+				var ring_phase = level_time * anim_speed * 0.5 + float(ring_index) * 0.6
+				for seg in range(5):
+					var seg_ratio = float(seg) / 4.0
+					var seg_center = ley_origin + Vector2(ley_length * seg_ratio, sin(ring_phase + seg_ratio * 4.0) * ley_width * 0.2)
+					draw_arc(seg_center, ley_width * (0.18 + ring_ratio * 0.1), ring_phase + seg_ratio, ring_phase + seg_ratio + PI * 1.2, 14, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * (0.4 - ring_index * 0.08)), 2.0)
+			for crack_index in range(6):
+				var crack_ratio = float(crack_index + 1) / 6.0
+				var crack_x = ley_origin.x + ley_length * crack_ratio
+				draw_polyline(PackedVector2Array([
+					Vector2(crack_x - 6.0, ley_origin.y + ley_width * 0.1),
+					Vector2(crack_x + 3.0, ley_origin.y - ley_width * 0.06),
+					Vector2(crack_x - 2.0, ley_origin.y - ley_width * 0.18),
+				]), Color(0.16, 0.62, 0.72, effect_color.a * 0.5), 1.6)
+			continue
+		if shape == "seraph_lance":
+			var seraph_origin = Vector2(effect["position"])
+			var seraph_length = _effect_visual_length(effect, ratio)
+			var seraph_width = _effect_visual_width(effect, ratio)
+			for band_index in range(4):
+				var band_width = (seraph_width * (0.5 - band_index * 0.1)) * (0.8 + ratio * 0.2)
+				var band_jitter = sin(level_time * anim_speed + band_index * 1.5) * seraph_width * 0.1
+				var band_color = Color(1.0, 0.92 + band_index * 0.02, 0.58 + band_index * 0.08, effect_color.a * (0.24 + band_index * 0.14))
+				draw_line(seraph_origin + Vector2(0.0, band_jitter), seraph_origin + Vector2(seraph_length, band_jitter), band_color, band_width)
+			draw_line(seraph_origin, seraph_origin + Vector2(seraph_length, 0.0), Color(1.0, 0.98, 0.86, effect_color.a * 0.7), seraph_width * 0.2)
+			for feather_index in range(8):
+				var feather_ratio = float(feather_index + 1) / 8.0
+				var feather_center = seraph_origin + Vector2(seraph_length * feather_ratio, sin(level_time * anim_speed * 1.2 + feather_ratio * 6.0) * seraph_width * 0.22)
+				draw_circle(feather_center, seraph_width * (0.1 + (1.0 - feather_ratio) * 0.05), Color(1.0, 0.94, 0.7, effect_color.a * (0.5 - feather_ratio * 0.12)))
+			draw_circle(seraph_origin + Vector2(seraph_length, 0.0), seraph_width * 0.26, Color(1.0, 0.96, 0.8, effect_color.a * 0.86))
+			continue
+		if shape == "orange_spray":
+			var os_origin = Vector2(effect["position"])
+			var os_length = _effect_visual_length(effect, ratio)
+			var os_width = _effect_visual_width(effect, ratio)
+			for ribbon_index in range(3):
+				var ribbon_points := PackedVector2Array()
+				var ribbon_offset = lerpf(-0.22, 0.22, float(ribbon_index) / 2.0) * os_width
+				for step in range(12):
+					var ribbon_ratio = float(step) / 11.0
+					var ribbon_wave = sin(level_time * anim_speed * 1.4 + ribbon_ratio * TAU * 1.5 + float(ribbon_index) * 1.3) * os_width * (0.1 + float(ribbon_index) * 0.02)
+					ribbon_points.append(os_origin + Vector2(os_length * ribbon_ratio, ribbon_offset + ribbon_wave))
+				draw_polyline(ribbon_points, Color(1.0, 0.58 + float(ribbon_index) * 0.1, 0.22, effect_color.a * (0.6 - float(ribbon_index) * 0.12)), 2.4 + float(ribbon_index) * 0.8)
+			for splash_index in range(6):
+				var splash_ratio = float(splash_index + 1) / 6.0
+				var splash_center = os_origin + Vector2(os_length * splash_ratio, sin(level_time * anim_speed + splash_ratio * 7.0) * os_width * 0.26)
+				draw_circle(splash_center, os_width * (0.09 + (1.0 - splash_ratio) * 0.05), Color(1.0, 0.7, 0.32, effect_color.a * (0.5 - splash_ratio * 0.05)))
+			draw_circle(os_origin + Vector2(os_length, 0.0), os_width * 0.18, Color(1.0, 0.66, 0.26, effect_color.a * 0.84))
+			continue
+		if shape == "chambord_rail":
+			var rail_origin = Vector2(effect["position"])
+			var rail_target = Vector2(effect.get("target", rail_origin + Vector2.RIGHT * _effect_visual_length(effect, ratio)))
+			var rail_dir = rail_target - rail_origin
+			var rail_length = maxf(rail_dir.length(), 1.0)
+			var rail_forward = rail_dir / rail_length
+			var rail_normal = Vector2(-rail_forward.y, rail_forward.x)
+			var rail_width = _effect_visual_width(effect, ratio)
+			for band_index in range(3):
+				var band_w = (rail_width * (0.5 - band_index * 0.12)) * (0.8 + ratio * 0.2)
+				var band_j = sin(level_time * anim_speed + band_index * 1.6) * 1.4
+				draw_line(rail_origin + rail_normal * band_j, rail_target + rail_normal * band_j, Color(0.86, 0.96, 1.0, effect_color.a * (0.28 + band_index * 0.18)), band_w)
+			for crystal_index in range(5):
+				var crystal_ratio = float(crystal_index + 1) / 5.0
+				var crystal_center = rail_origin + rail_forward * rail_length * crystal_ratio + rail_normal * sin(level_time * anim_speed * 1.3 + crystal_ratio * 6.0) * rail_width * 0.4
+				draw_polygon(PackedVector2Array([
+					crystal_center + rail_normal * 4.0,
+					crystal_center + rail_forward * 3.0,
+					crystal_center - rail_normal * 4.0,
+					crystal_center - rail_forward * 3.0,
+				]), PackedColorArray([Color(0.92, 0.98, 1.0, effect_color.a * 0.7), Color(0.8, 0.92, 1.0, effect_color.a * 0.6), Color(0.92, 0.98, 1.0, effect_color.a * 0.7), Color(0.8, 0.92, 1.0, effect_color.a * 0.6)]))
+			draw_circle(rail_origin, rail_width * 0.5, Color(0.9, 0.98, 1.0, effect_color.a * 0.5))
+			draw_circle(rail_target, rail_width * 0.7, Color(0.94, 1.0, 1.0, effect_color.a * 0.82))
+			continue
+		if shape == "frost_gale":
+			var frost_origin = Vector2(effect["position"])
+			var frost_length = _effect_visual_length(effect, ratio)
+			var frost_width = _effect_visual_width(effect, ratio)
+			for ribbon_index in range(3):
+				var ribbon_points := PackedVector2Array()
+				var ribbon_offset = lerpf(-0.24, 0.24, float(ribbon_index) / 2.0) * frost_width
+				for step in range(13):
+					var ribbon_ratio = float(step) / 12.0
+					var ribbon_wave = sin(level_time * anim_speed * 1.1 + ribbon_ratio * TAU * 1.4 + float(ribbon_index) * 1.3) * frost_width * (0.09 + float(ribbon_index) * 0.02)
+					ribbon_points.append(frost_origin + Vector2(frost_length * ribbon_ratio, ribbon_offset + ribbon_wave))
+				draw_polyline(ribbon_points, Color(0.82, 0.98, 1.0, effect_color.a * (0.64 - float(ribbon_index) * 0.12)), 2.0 + float(ribbon_index) * 0.8)
+			for flake_index in range(6):
+				var flake_ratio = float(flake_index + 1) / 6.0
+				var flake_center = frost_origin + Vector2(frost_length * flake_ratio, sin(level_time * anim_speed + flake_ratio * 6.0) * frost_width * 0.24)
+				var flake_phase = level_time * anim_speed + flake_ratio * 3.0
+				for arm_index in range(3):
+					var arm_angle = flake_phase + float(arm_index) * (PI / 3.0)
+					draw_line(flake_center, flake_center + Vector2(cos(arm_angle), sin(arm_angle)) * frost_width * 0.16, Color(0.9, 0.98, 1.0, effect_color.a * (0.44 - flake_ratio * 0.04)), 1.6)
+				draw_circle(flake_center, frost_width * 0.05, Color(1.0, 1.0, 1.0, effect_color.a * 0.7))
+			draw_circle(frost_origin + Vector2(frost_length, 0.0), frost_width * 0.16, Color(0.88, 0.98, 1.0, effect_color.a * 0.6))
+			continue
+		if shape == "vine_whip":
+			var whip_origin = Vector2(effect["position"])
+			var whip_target = Vector2(effect.get("target", whip_origin + Vector2.RIGHT * _effect_visual_length(effect, ratio)))
+			var whip_dir = whip_target - whip_origin
+			var whip_length = maxf(whip_dir.length(), 1.0)
+			var whip_forward = whip_dir / whip_length
+			var whip_normal = Vector2(-whip_forward.y, whip_forward.x)
+			var whip_width = _effect_visual_width(effect, ratio)
+			var whip_phase = level_time * anim_speed * 2.0
+			var whip_points := PackedVector2Array()
+			for step in range(11):
+				var whip_ratio = float(step) / 10.0
+				var whip_wave = sin(whip_phase + whip_ratio * PI * 2.5) * whip_width * (0.12 + whip_ratio * 0.18)
+				whip_points.append(whip_origin + whip_forward * whip_length * whip_ratio + whip_normal * whip_wave)
+			draw_polyline(whip_points, Color(0.42, 0.94, 0.34, effect_color.a * 0.8), whip_width * 0.28)
+			draw_polyline(whip_points, Color(0.58, 1.0, 0.46, effect_color.a * 0.4), whip_width * 0.14)
+			for leaf_index in range(4):
+				var leaf_ratio = float(leaf_index + 1) / 4.0
+				var leaf_pos = whip_origin + whip_forward * whip_length * leaf_ratio + whip_normal * sin(whip_phase + leaf_ratio * 5.0) * whip_width * 0.2
+				draw_circle(leaf_pos, whip_width * (0.08 + (1.0 - leaf_ratio) * 0.04), Color(0.5, 0.9, 0.32, effect_color.a * (0.5 - leaf_ratio * 0.06)))
+			draw_circle(whip_target, whip_width * 0.14, Color(0.6, 0.96, 0.4, effect_color.a * 0.7))
+			continue
+		if shape == "fume_cloud":
+			var fume_origin = Vector2(effect["position"])
+			var fume_length = _effect_visual_length(effect, ratio)
+			var fume_width = _effect_visual_width(effect, ratio)
+			for cloud_index in range(3):
+				var cloud_ratio = float(cloud_index + 1) / 3.0
+				var cloud_phase = level_time * anim_speed * 0.8 + float(cloud_index) * 0.7
+				for blob_index in range(4):
+					var blob_ratio = float(blob_index) / 3.0
+					var blob_center = fume_origin + Vector2(fume_length * (cloud_ratio * 0.4 + blob_ratio * 0.2), sin(cloud_phase + blob_ratio * 4.0) * fume_width * 0.3)
+					draw_circle(blob_center, fume_width * (0.28 - cloud_index * 0.06), Color(0.9, 0.68, 0.98, effect_color.a * (0.3 - cloud_index * 0.06)))
+			for spore_index in range(8):
+				var spore_ratio = float(spore_index + 1) / 8.0
+				var spore_center = fume_origin + Vector2(fume_length * spore_ratio, sin(level_time * anim_speed * 1.2 + spore_ratio * 7.0) * fume_width * 0.32)
+				draw_circle(spore_center, fume_width * (0.06 + (1.0 - spore_ratio) * 0.04), Color(0.96, 0.82, 1.0, effect_color.a * (0.5 - spore_ratio * 0.08)))
+			draw_circle(fume_origin + Vector2(fume_length, 0.0), fume_width * 0.2, Color(0.88, 0.64, 0.98, effect_color.a * 0.6))
+			continue
+		if shape == "plasma_arc":
+			var pa_origin = Vector2(effect["position"])
+			var pa_target = Vector2(effect.get("target", pa_origin + Vector2.RIGHT * _effect_visual_length(effect, ratio)))
+			var pa_dir = pa_target - pa_origin
+			var pa_length = maxf(pa_dir.length(), 1.0)
+			var pa_forward = pa_dir / pa_length
+			var pa_normal = Vector2(-pa_forward.y, pa_forward.x)
+			var pa_width = _effect_visual_width(effect, ratio)
+			var pa_glow_origin = glow_draw_offset + pa_origin * glow_draw_scale
+			var pa_glow_target = glow_draw_offset + pa_target * glow_draw_scale
+			for arc_index in range(3):
+				var arc_points := PackedVector2Array()
+				for step in range(9):
+					var arc_ratio = float(step) / 8.0
+					var arc_jag = (rng.randf() - 0.5) * pa_width * 0.2 if step % 2 == 1 else 0.0
+					arc_points.append(pa_origin + pa_forward * pa_length * arc_ratio + pa_normal * (arc_jag + sin(level_time * anim_speed + arc_ratio * 8.0 + arc_index) * pa_width * 0.12))
+				draw_polyline(arc_points, Color(0.5, 0.92, 1.0, effect_color.a * (0.5 - arc_index * 0.12)), pa_width * (0.22 - arc_index * 0.05))
+			for spark_index in range(6):
+				var spark_ratio = float(spark_index + 1) / 6.0
+				var spark_center = pa_origin + pa_forward * pa_length * spark_ratio + pa_normal * sin(level_time * anim_speed * 1.4 + spark_ratio * 6.0) * pa_width * 0.3
+				draw_circle(spark_center, pa_width * (0.08 + (1.0 - spark_ratio) * 0.04), Color(0.86, 0.98, 1.0, effect_color.a * 0.7))
+			draw_circle(pa_origin, pa_width * 0.32, Color(0.6, 0.94, 1.0, effect_color.a * 0.6))
+			draw_circle(pa_target, pa_width * 0.38, Color(0.74, 0.98, 1.0, effect_color.a * 0.84))
+			glow_primitives.append({"type": "line", "from": pa_glow_origin, "to": pa_glow_target, "width": pa_width * 1.4, "color": Color(0.42, 0.88, 1.0, effect_color.a * 0.34)})
+			glow_primitives.append({"type": "circle", "pos": pa_glow_target, "radius": pa_width * 1.6, "color": Color(0.5, 0.92, 1.0, effect_color.a * 0.4)})
+			continue
+		if shape == "dragon_cone":
+			var dc_origin = Vector2(effect["position"])
+			var dc_length = _effect_visual_length(effect, ratio)
+			var dc_width = _effect_visual_width(effect, ratio)
+			var dc_colors = [Color(0.7, 0.12, 0.08, effect_color.a * 0.5), Color(0.95, 0.34, 0.12, effect_color.a * 0.5), Color(1.0, 0.62, 0.18, effect_color.a * 0.5), Color(1.0, 0.92, 0.6, effect_color.a * 0.5)]
+			for band_index in range(4):
+				var band_w = dc_width * (0.5 - band_index * 0.1) * (0.8 + ratio * 0.2)
+				var band_j = sin(level_time * anim_speed + band_index * 1.3) * dc_width * 0.12
+				draw_line(dc_origin + Vector2(0.0, band_j), dc_origin + Vector2(dc_length, band_j), dc_colors[band_index], band_w)
+			for tongue_index in range(6):
+				var tongue_ratio = float(tongue_index + 1) / 6.0
+				var tongue_center = dc_origin + Vector2(dc_length * tongue_ratio, sin(level_time * anim_speed * 1.3 + tongue_ratio * 6.0) * dc_width * 0.28)
+				var tongue_h = dc_width * (0.16 + (1.0 - tongue_ratio) * 0.1) * (0.7 + sin(level_time * anim_speed + tongue_ratio * 4.0) * 0.3)
+				draw_polygon(PackedVector2Array([
+					tongue_center + Vector2(-dc_width * 0.08, 0.0),
+					tongue_center + Vector2(dc_width * 0.08, 0.0),
+					tongue_center + Vector2(sin(level_time * anim_speed + tongue_ratio * 3.0) * dc_width * 0.06, -tongue_h),
+				]), PackedColorArray([Color(1.0, 0.56, 0.18, effect_color.a * 0.6), Color(1.0, 0.56, 0.18, effect_color.a * 0.6), Color(1.0, 0.9, 0.5, effect_color.a * 0.7)]))
+			draw_circle(dc_origin + Vector2(dc_length, 0.0), dc_width * 0.24, Color(1.0, 0.86, 0.42, effect_color.a * 0.86))
+			continue
+		if shape == "glow_lash":
+			var gl_origin = Vector2(effect["position"])
+			var gl_target = Vector2(effect.get("target", gl_origin + Vector2.RIGHT * _effect_visual_length(effect, ratio)))
+			var gl_dir = gl_target - gl_origin
+			var gl_length = maxf(gl_dir.length(), 1.0)
+			var gl_forward = gl_dir / gl_length
+			var gl_normal = Vector2(-gl_forward.y, gl_forward.x)
+			var gl_width = _effect_visual_width(effect, ratio)
+			var gl_phase = level_time * anim_speed * 2.2
+			var gl_points := PackedVector2Array()
+			for step in range(8):
+				var gl_ratio = float(step) / 7.0
+				var gl_wave = sin(gl_phase + gl_ratio * PI * 3.0) * gl_width * (0.14 + gl_ratio * 0.16)
+				gl_points.append(gl_origin + gl_forward * gl_length * gl_ratio + gl_normal * gl_wave)
+			draw_polyline(gl_points, Color(0.34, 1.0, 0.62, effect_color.a * 0.8), gl_width * 0.26)
+			draw_polyline(gl_points, Color(0.6, 1.0, 0.78, effect_color.a * 0.4), gl_width * 0.12)
+			for mote_index in range(4):
+				var mote_ratio = float(mote_index + 1) / 4.0
+				var mote_pos = gl_origin + gl_forward * gl_length * mote_ratio + gl_normal * sin(gl_phase + mote_ratio * 5.0) * gl_width * 0.2
+				draw_circle(mote_pos, gl_width * (0.1 + (1.0 - mote_ratio) * 0.05), Color(0.5, 1.0, 0.72, effect_color.a * (0.6 - mote_ratio * 0.1)))
+			draw_circle(gl_target, gl_width * 0.14, Color(0.6, 1.0, 0.8, effect_color.a * 0.8))
+			continue
+		if shape == "lily_beam":
+			var lb_origin = Vector2(effect["position"])
+			var lb_target = Vector2(effect.get("target", lb_origin + Vector2.RIGHT * _effect_visual_length(effect, ratio)))
+			var lb_dir = lb_target - lb_origin
+			var lb_length = maxf(lb_dir.length(), 1.0)
+			var lb_forward = lb_dir / lb_length
+			var lb_normal = Vector2(-lb_forward.y, lb_forward.x)
+			var lb_width = _effect_visual_width(effect, ratio)
+			var lb_glow_origin = glow_draw_offset + lb_origin * glow_draw_scale
+			var lb_glow_target = glow_draw_offset + lb_target * glow_draw_scale
+			for band_index in range(4):
+				var band_w = (lb_width * (0.5 - band_index * 0.1)) * (0.8 + ratio * 0.2)
+				var band_j = sin(level_time * anim_speed + band_index * 1.4) * lb_width * 0.14
+				var band_color = Color(1.0, 0.22 + band_index * 0.08, 0.34 + band_index * 0.06, effect_color.a * (0.24 + band_index * 0.14))
+				draw_line(lb_origin + lb_normal * band_j, lb_target + lb_normal * band_j, band_color, band_w)
+			draw_line(lb_origin, lb_target, Color(1.0, 0.96, 0.96, effect_color.a * 0.8), lb_width * 0.22)
+			for spark_index in range(6):
+				var spark_ratio = float(spark_index + 1) / 6.0
+				var spark_center = lb_origin + lb_forward * lb_length * spark_ratio + lb_normal * sin(level_time * anim_speed * 1.3 + spark_ratio * 6.0) * lb_width * 0.24
+				draw_circle(spark_center, lb_width * (0.09 + (1.0 - spark_ratio) * 0.05), Color(1.0, 0.82, 0.86, effect_color.a * (0.6 - spark_ratio * 0.08)))
+			draw_circle(lb_origin, lb_width * 0.34, Color(1.0, 0.4, 0.5, effect_color.a * 0.6))
+			draw_circle(lb_target, lb_width * 0.4, Color(1.0, 0.5, 0.58, effect_color.a * 0.84))
+			glow_primitives.append({"type": "line", "from": lb_glow_origin, "to": lb_glow_target, "width": lb_width * 1.5, "color": Color(1.0, 0.32, 0.44, effect_color.a * 0.34)})
+			glow_primitives.append({"type": "circle", "pos": lb_glow_target, "radius": lb_width * 1.8, "color": Color(1.0, 0.42, 0.52, effect_color.a * 0.42)})
+			continue
+		if shape == "solar_ray":
+			var sr_origin = Vector2(effect["position"])
+			var sr_length = _effect_visual_length(effect, ratio)
+			var sr_width = _effect_visual_width(effect, ratio)
+			for band_index in range(4):
+				var band_w = (sr_width * (0.52 - band_index * 0.1)) * (0.8 + ratio * 0.2)
+				var band_j = sin(level_time * anim_speed + band_index * 1.4) * sr_width * 0.12
+				var band_color = Color(1.0, 0.84 + band_index * 0.04, 0.28 + band_index * 0.1, effect_color.a * (0.24 + band_index * 0.14))
+				draw_line(sr_origin + Vector2(0.0, band_j), sr_origin + Vector2(sr_length, band_j), band_color, band_w)
+			draw_line(sr_origin, sr_origin + Vector2(sr_length, 0.0), Color(1.0, 0.96, 0.7, effect_color.a * 0.7), sr_width * 0.2)
+			for corona_index in range(8):
+				var corona_ratio = float(corona_index + 1) / 8.0
+				var corona_center = sr_origin + Vector2(sr_length * corona_ratio, sin(level_time * anim_speed * 1.2 + corona_ratio * 6.0) * sr_width * 0.24)
+				var corona_phase = level_time * anim_speed + corona_ratio * 4.0
+				for ray_index in range(4):
+					var ray_angle = corona_phase + float(ray_index) * (PI / 2.0)
+					draw_line(corona_center, corona_center + Vector2(cos(ray_angle), sin(ray_angle)) * sr_width * 0.16, Color(1.0, 0.92, 0.5, effect_color.a * (0.4 - corona_ratio * 0.04)), 1.6)
+				draw_circle(corona_center, sr_width * (0.08 + (1.0 - corona_ratio) * 0.04), Color(1.0, 0.96, 0.72, effect_color.a * (0.5 - corona_ratio * 0.06)))
+			draw_circle(sr_origin + Vector2(sr_length, 0.0), sr_width * 0.26, Color(1.0, 0.94, 0.62, effect_color.a * 0.86))
+			continue
 		if shape == "mech_laser":
 			var laser_origin = Vector2(effect["position"])
 			var laser_target = Vector2(effect.get("target", laser_origin + Vector2.LEFT * _effect_visual_length(effect, ratio)))

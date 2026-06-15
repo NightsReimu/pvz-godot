@@ -504,7 +504,7 @@ func update_blover(plant: Dictionary, delta: float, _row: int, _col: int) -> boo
 			zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.18)
 			game.zombies[i] = zombie
 	game.effects.append({
-		"shape": "lane_spray",
+		"shape": "clover_gust",
 		"position": game.BOARD_ORIGIN + Vector2(40.0, game.board_size.y * 0.5),
 		"length": game.board_size.x,
 		"width": game.board_size.y,
@@ -1245,7 +1245,7 @@ func _apply_leyline_pulse(row: int, center: Vector2, damage: float, stun_duratio
 		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), stun_duration)
 		game.zombies[i] = zombie
 	game.effects.append({
-		"shape": "lane_spray",
+		"shape": "leyline_pulse",
 		"position": Vector2(game.BOARD_ORIGIN.x, game._row_center_y(row) + 18.0),
 		"length": game.board_size.x,
 		"width": width,
@@ -1682,7 +1682,7 @@ func update_seraph_flower(plant: Dictionary, delta: float, row: int, col: int) -
 			if fired:
 				plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.18)
 				game.effects.append({
-					"shape": "lane_spray",
+					"shape": "seraph_lance",
 					"position": center + Vector2(14.0, -16.0),
 					"length": game.board_size.x * 0.74,
 					"width": game.CELL_SIZE.y * 2.4,
@@ -1751,7 +1751,7 @@ func _fire_orange_bloom(center: Vector2, row: int, damage: float, splash_radius:
 		game._damage_zombies_in_circle(impact, splash_radius, damage)
 		game._damage_obstacles_in_circle(impact, splash_radius * 0.76, damage * 0.65)
 	game.effects.append({
-		"shape": "lane_spray",
+		"shape": "orange_spray",
 		"position": center + Vector2(18.0, 0.0),
 		"length": game.board_size.x * 0.78,
 		"width": 54.0,
@@ -1919,7 +1919,7 @@ func _fire_chambord_shot(origin: Vector2, row: int, target_index: int, damage: f
 	var actual_damage = _chambord_damage(damage, float(zombie["x"]))
 	game.zombies[target_index] = game._apply_zombie_damage(zombie, actual_damage, 0.2)
 	game.effects.append({
-		"shape": "lane_spray",
+		"shape": "chambord_rail",
 		"position": origin,
 		"length": maxf(0.0, float(zombie["x"]) - origin.x),
 		"width": 10.0,
@@ -2484,7 +2484,7 @@ func update_frost_fan(plant: Dictionary, delta: float, row: int, col: int) -> vo
 			for lane in game.active_rows:
 				game._damage_zombies_in_row_segment(int(lane), center.x + 12.0, center.x + range_limit, float(Defs.PLANTS["frost_fan"]["damage"]) * 1.35, slow_duration + 4.0)
 				game.effects.append({
-					"shape": "lane_spray",
+					"shape": "frost_gale",
 					"position": game._cell_center(int(lane), col) + Vector2(18.0, -10.0),
 					"length": range_limit,
 					"width": 34.0,
@@ -2510,7 +2510,7 @@ func update_frost_fan(plant: Dictionary, delta: float, row: int, col: int) -> vo
 	for lane in lanes:
 		game._damage_zombies_in_row_segment(int(lane), center.x + 16.0, center.x + range_limit, float(Defs.PLANTS["frost_fan"]["damage"]), slow_duration)
 		game.effects.append({
-			"shape": "lane_spray",
+			"shape": "frost_gale",
 			"position": game._cell_center(int(lane), col) + Vector2(18.0, -10.0),
 			"length": range_limit,
 			"width": 30.0,
@@ -2702,7 +2702,7 @@ func update_vine_lasher(plant: Dictionary, delta: float, row: int, col: int) -> 
 		hit = true
 	if hit:
 		game.effects.append({
-			"shape": "lane_spray",
+			"shape": "vine_whip",
 			"position": game._cell_center(row, col) + Vector2(18.0, -6.0),
 			"length": range_limit,
 			"width": 54.0,
@@ -2840,7 +2840,7 @@ func update_fume_shroom(plant: Dictionary, delta: float, row: int, col: int) -> 
 			if game._damage_obstacles_in_radius(row, burst_center.x + burst_range * 0.5, burst_range * 0.5, burst_damage):
 				burst_hit = true
 			game.effects.append({
-				"shape": "lane_spray",
+				"shape": "fume_cloud",
 				"position": burst_center + Vector2(28.0, -8.0),
 				"length": burst_range,
 				"width": float(Defs.PLANTS["fume_shroom"].get("width", 92.0)) * 1.45,
@@ -2877,7 +2877,7 @@ func update_fume_shroom(plant: Dictionary, delta: float, row: int, col: int) -> 
 
 	if hit:
 		game.effects.append({
-			"shape": "lane_spray",
+			"shape": "fume_cloud",
 			"position": center + Vector2(24.0, -8.0),
 			"length": range_limit,
 			"width": float(Defs.PLANTS["fume_shroom"].get("width", 92.0)) * 1.15,
@@ -3258,7 +3258,7 @@ func update_plasma_shooter(plant: Dictionary, delta: float, row: int, col: int) 
 	)
 	if chained > 0:
 		game.effects.append({
-			"shape": "lane_spray",
+			"shape": "plasma_arc",
 			"position": center + Vector2(18.0, -12.0),
 			"length": game.board_size.x,
 			"width": 54.0,
@@ -3320,7 +3320,7 @@ func update_dragon_fruit(plant: Dictionary, delta: float, row: int, col: int) ->
 			game.zombies[zombie_index] = zombie
 	if hit:
 		game.effects.append({
-			"shape": "lane_spray",
+			"shape": "dragon_cone",
 			"position": center + Vector2(18.0, -10.0),
 			"length": range_limit,
 			"width": float(Defs.PLANTS["dragon_fruit"]["cone_width"]),
@@ -3689,7 +3689,7 @@ func update_glow_ivy(plant: Dictionary, delta: float, row: int, col: int) -> voi
 		game.zombies[i]["revealed_timer"] = maxf(float(game.zombies[i].get("revealed_timer",0.0)), 3.0)
 		hit = true
 	if hit:
-		game.effects.append({"shape": "lane_spray", "position": center + Vector2(14.0, -6.0), "length": 180.0, "width": 34.0, "radius": 90.0, "time": 0.18, "duration": 0.18, "color": Color(0.34, 1.0, 0.62, 0.22)})
+		game.effects.append({"shape": "glow_lash", "position": center + Vector2(14.0, -6.0), "length": 180.0, "width": 34.0, "radius": 90.0, "time": 0.18, "duration": 0.18, "color": Color(0.34, 1.0, 0.62, 0.22)})
 		game._trigger_plant_action(plant, 0.18)
 	plant["attack_timer"] = float(data["attack_interval"])
 
@@ -3709,7 +3709,7 @@ func update_laser_lily(plant: Dictionary, delta: float, row: int, col: int) -> v
 			game._damage_zombies_in_row_segment(row, center.x + 10.0,
 				game.BOARD_ORIGIN.x + game.board_size.x + 20.0,
 				float(data["damage"]) * float(ticks), 0.0)
-			game.effects.append({"shape": "lane_spray", "position": center + Vector2(16.0, -8.0),
+			game.effects.append({"shape": "lily_beam", "position": center + Vector2(16.0, -8.0),
 				"length": game.board_size.x, "width": 44.0, "radius": game.board_size.x * 0.5,
 				"time": float(data["beam_duration"]), "duration": float(data["beam_duration"]),
 				"color": Color(1.0, 0.22, 0.34, 0.36)})
@@ -4044,7 +4044,7 @@ func update_solar_emperor(plant: Dictionary, delta: float, row: int, col: int) -
 		var target_i = game._find_frontmost_zombie(row)
 		if target_i >= 0:
 			game._damage_zombies_in_row_segment(row, center.x + 10.0, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, float(Defs.PLANTS["solar_emperor"]["damage"]), 0.0)
-			game.effects.append({"shape": "lane_spray", "position": center + Vector2(14.0, -6.0),
+			game.effects.append({"shape": "solar_ray", "position": center + Vector2(14.0, -6.0),
 				"length": game.board_size.x, "width": 32.0, "radius": game.board_size.x * 0.5,
 				"time": 0.18, "duration": 0.18, "color": Color(1.0, 0.88, 0.32, 0.28)})
 			game._trigger_plant_action(plant, 0.2)
