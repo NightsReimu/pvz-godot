@@ -434,8 +434,15 @@ func find_lane_or_air_target(row: int, plant_x: float, range_limit: float) -> in
 
 
 func find_magic_flower_target(row: int, plant_x: float, range_limit: float) -> int:
-	var best_index := -1
-	var best_distance := 999999.0
+	# Whole-row detection: the magic flower fires whenever ANY enemy zombie is in its row,
+	# regardless of direction. We prefer the frontmost (rightmost) zombie ahead of the plant
+	# so straight-line projectiles (amber_pea, origami_plane) always connect; if none are
+	# ahead, fall back to the rightmost zombie behind it so special projectiles (boomerang,
+	# sakura split, mist splash, glow seed) can still reach.
+	var ahead_index := -1
+	var ahead_x := -999999.0
+	var behind_index := -1
+	var behind_x := -999999.0
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
 		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
@@ -443,13 +450,19 @@ func find_magic_flower_target(row: int, plant_x: float, range_limit: float) -> i
 		var balloon = bool(zombie.get("balloon_flying", false))
 		if game._is_hidden_from_lane_attacks(zombie) and not balloon:
 			continue
-		var distance = float(zombie["x"]) - plant_x
-		if distance < -8.0 or distance > range_limit:
+		var zombie_x = float(zombie["x"])
+		var distance = zombie_x - plant_x
+		if distance > range_limit:
 			continue
-		if distance < best_distance:
-			best_distance = distance
-			best_index = i
-	return best_index
+		if distance >= -8.0:
+			if zombie_x > ahead_x:
+				ahead_x = zombie_x
+				ahead_index = i
+		else:
+			if zombie_x > behind_x:
+				behind_x = zombie_x
+				behind_index = i
+	return ahead_index if ahead_index != -1 else behind_index
 
 
 func update_cactus(plant: Dictionary, delta: float, row: int, col: int) -> void:
