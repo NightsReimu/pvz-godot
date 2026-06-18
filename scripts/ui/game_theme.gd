@@ -109,6 +109,61 @@ static func draw_panel_shell(canvas: CanvasItem, rect: Rect2, fill_color: Color,
 	draw_rounded_panel(canvas, rect, fill_color, border_color, 10.0, shadow_alpha, accent_alpha)
 
 
+# --- Fancy Button (glossy, with hover/press states) ---
+
+static func draw_fancy_button(canvas: CanvasItem, rect: Rect2, label: String, font: Font, fill_color: Color, border_color: Color, hovered: bool = false, pressed: bool = false, font_size: int = 22) -> void:
+	# Subtle hover lift: grow slightly and brighten; pressed darkens.
+	var draw_rect = rect
+	var lift = 0.0
+	if pressed:
+		lift = -1.0
+	elif hovered:
+		lift = -2.0
+		draw_rect = rect.grow_individual(1.0, 1.0, 1.0, 1.0)
+	# Soft drop shadow (slightly stronger on hover)
+	var shadow_offset_y = 6.0 - lift
+	var shadow_alpha = 0.26 if hovered else 0.2
+	draw_soft_shadow(canvas, draw_rect, Color(0.0, 0.0, 0.0, shadow_alpha), 4, 11.0, shadow_offset_y)
+	# Hover halo glow ring
+	if hovered:
+		var glow_pulse = 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.005)
+		for gi in range(3):
+			var gt = float(gi + 1) / 3.0
+			canvas.draw_rect(draw_rect.grow(2.0 + gt * 4.0), Color(1.0, 0.96, 0.72, 0.05 * glow_pulse * (1.0 - gt)), false, 2.0)
+	# Fill: vertical gradient (top brighter, bottom darker) — press darkens whole thing
+	var bright = 0.14 if hovered else 0.08
+	var dark_amt = 0.16 if not pressed else 0.28
+	var top = fill_color.lerp(Color.WHITE, bright)
+	var bottom = fill_color.darkened(dark_amt)
+	draw_gradient_rect_v(canvas, draw_rect, top, bottom)
+	# Top glossy highlight band (rounded feel)
+	var gloss_h = maxf(8.0, draw_rect.size.y * 0.4)
+	var gloss_rect = Rect2(draw_rect.position + Vector2(3.0, 2.0), Vector2(maxf(0.0, draw_rect.size.x - 6.0), gloss_h))
+	canvas.draw_rect(gloss_rect, Color(1.0, 1.0, 1.0, 0.22 if hovered else 0.16), true)
+	# Gloss fade line under highlight
+	canvas.draw_line(
+		draw_rect.position + Vector2(4.0, gloss_h + 2.0),
+		draw_rect.position + Vector2(draw_rect.size.x - 4.0, gloss_h + 2.0),
+		Color(1.0, 1.0, 1.0, 0.08), 1.0)
+	# Inner highlight border (light, inset)
+	canvas.draw_rect(draw_rect.grow(-1.0), Color(1.0, 1.0, 1.0, 0.14 if hovered else 0.1), false, 1.0)
+	# Outer border
+	var border_w = 2.4 if hovered else 2.0
+	canvas.draw_rect(draw_rect, border_color, false, border_w)
+	# Corner softening (simulate rounded corners with translucent discs)
+	var cr = minf(8.0, minf(draw_rect.size.x, draw_rect.size.y) * 0.22)
+	if cr > 3.0:
+		for corner in [draw_rect.position + Vector2(cr, cr), draw_rect.position + Vector2(draw_rect.size.x - cr, cr), draw_rect.position + Vector2(draw_rect.size.x - cr, draw_rect.size.y - cr), draw_rect.position + Vector2(cr, draw_rect.size.y - cr)]:
+			canvas.draw_circle(corner, cr * 0.5, Color(1.0, 1.0, 1.0, 0.05))
+	# Centered label with shadow
+	var text_color = Color(0.97, 0.97, 0.93) if fill_color.v < 0.6 else fill_color.darkened(0.62)
+	var text_w = font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1.0, font_size).x
+	var text_pos = draw_rect.position + Vector2((draw_rect.size.x - text_w) * 0.5, (draw_rect.size.y + font_size) * 0.5 - 2.0)
+	# text shadow
+	canvas.draw_string(font, text_pos + Vector2(1.0, 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, Color(0.0, 0.0, 0.0, 0.34))
+	canvas.draw_string(font, text_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, text_color)
+
+
 # --- Grass Detail ---
 
 static func draw_grass_tufts(canvas: CanvasItem, rect: Rect2, ui_time: float, density: int = 6, color: Color = Color(0.36, 0.62, 0.22)) -> void:

@@ -3799,18 +3799,15 @@ func _draw_enhance_scene() -> void:
 				_draw_text("失败降级: -%d" % int(table["penalty"]), panel_rect.position + Vector2(20.0, 308.0), 16, Color(0.92, 0.42, 0.36))
 			# Enhance button
 			var btn_rect = _enhance_button_rect()
-			_draw_panel_shell(btn_rect, Color(0.72, 0.36, 0.92), Color(0.48, 0.22, 0.62), 0.18, 0.1)
-			_draw_text("强化!", btn_rect.position + Vector2(80.0, 36.0), 24, Color(1.0, 0.96, 1.0))
+			_draw_fancy_button(btn_rect, "强化!", Color(0.72, 0.36, 0.92), Color(0.48, 0.22, 0.62), 24)
 			if enhance_stones > 0:
 				var stone_btn = _enhance_stone_button_rect()
-				_draw_panel_shell(stone_btn, Color(0.82, 0.62, 0.18), Color(0.52, 0.36, 0.08), 0.14, 0.08)
-				_draw_text("使用强化石", stone_btn.position + Vector2(52.0, 32.0), 20, Color(1.0, 0.96, 0.86))
+				_draw_fancy_button(stone_btn, "使用强化石", Color(0.82, 0.62, 0.18), Color(0.52, 0.36, 0.08), 20)
 		else:
 			_draw_text("已达最高等级!", panel_rect.position + Vector2(80.0, 260.0), 22, Color(1.0, 0.86, 0.2))
 	# Back button
 	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
-	_draw_panel_shell(back_rect, Color(0.56, 0.52, 0.62), Color(0.36, 0.32, 0.42), 0.14, 0.08)
-	_draw_text("返回", back_rect.position + Vector2(36.0, 34.0), 22, Color(0.96, 0.94, 0.98))
+	_draw_fancy_button(back_rect, "返回", Color(0.56, 0.52, 0.62), Color(0.36, 0.32, 0.42), 22)
 
 
 func _begin_level(level_index: int, chosen_cards: Array, level_override: Dictionary = {}) -> void:
@@ -14093,14 +14090,11 @@ func _draw_gacha_scene() -> void:
 	var single_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 360.0, 140.0, 220.0, 72.0)
 	var premium_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 110.0, 140.0, 220.0, 72.0)
 	var multi_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 + 140.0, 140.0, 220.0, 72.0)
-	_draw_panel_shell(single_rect, Color(0.42, 0.56, 0.42), Color(0.22, 0.32, 0.22), 0.18, 0.1)
-	_draw_panel_shell(premium_rect, Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 0.2, 0.12)
-	_draw_panel_shell(multi_rect, Color(0.86, 0.52, 0.18), Color(0.52, 0.28, 0.08), 0.2, 0.12)
-	_draw_text("普通单抽", single_rect.position + Vector2(52.0, 32.0), 20, Color(0.96, 0.98, 0.94))
+	_draw_fancy_button(single_rect, "普通单抽", Color(0.42, 0.56, 0.42), Color(0.22, 0.32, 0.22), 20)
+	_draw_fancy_button(premium_rect, "高级单抽", Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 20)
+	_draw_fancy_button(multi_rect, "十连高级", Color(0.86, 0.52, 0.18), Color(0.52, 0.28, 0.08), 20)
 	_draw_text("50金", single_rect.position + Vector2(80.0, 56.0), 16, Color(0.82, 0.86, 0.78))
-	_draw_text("高级单抽", premium_rect.position + Vector2(52.0, 32.0), 20, Color(1.0, 0.96, 1.0))
 	_draw_text("200金", premium_rect.position + Vector2(72.0, 56.0), 16, Color(0.86, 0.78, 0.92))
-	_draw_text("十连高级", multi_rect.position + Vector2(52.0, 32.0), 20, Color(1.0, 0.98, 0.94))
 	_draw_text("1800金", multi_rect.position + Vector2(66.0, 56.0), 16, Color(0.86, 0.82, 0.72))
 
 	# Draw results
@@ -14196,12 +14190,18 @@ func _draw_gacha_scene() -> void:
 
 	# Back button
 	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
-	_draw_panel_shell(back_rect, Color(0.56, 0.52, 0.62), Color(0.36, 0.32, 0.42), 0.14, 0.08)
-	_draw_text("返回", back_rect.position + Vector2(36.0, 34.0), 22, Color(0.96, 0.94, 0.98))
+	_draw_fancy_button(back_rect, "返回", Color(0.56, 0.52, 0.62), Color(0.36, 0.32, 0.42), 22)
 
 
 func _draw_panel_shell(rect: Rect2, fill_color: Color, border_color: Color, shadow_alpha: float = 0.18, accent_alpha: float = 0.14) -> void:
 	ThemeLib.draw_panel_shell(self, rect, fill_color, border_color, shadow_alpha, accent_alpha)
+
+
+func _draw_fancy_button(rect: Rect2, label: String, fill_color: Color, border_color: Color, font_size: int = 22) -> void:
+	# Auto-detect hover from the current pointer position (battle-space coords).
+	var mp = _pointer_local_position()
+	var hovered = rect.has_point(mp)
+	ThemeLib.draw_fancy_button(self, rect, label, ui_font, fill_color, border_color, hovered, false, font_size)
 
 
 func _draw_world_sky(is_night_world: bool) -> void:
@@ -14303,34 +14303,28 @@ func _draw_world_select_scene() -> void:
 	var enter_fill = Color(selected_world.get("accent", Color(0.42, 0.76, 0.24)))
 	if not unlocked_world:
 		enter_fill = Color(0.44, 0.46, 0.52)
-	_draw_panel_shell(WORLD_SELECT_ALMANAC_RECT, Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 0.18, 0.1)
 	ThemeLib.draw_soft_shadow(self, WORLD_SELECT_ENTER_RECT, Color(0.0, 0.0, 0.0, 0.28), 4, 14.0, 10.0)
 	# gentle glow pulse on the enter button when its world is unlocked
 	if unlocked_world:
 		var enter_pulse = 0.4 + 0.25 * sin(ui_time * 2.4)
 		draw_rect(WORLD_SELECT_ENTER_RECT.grow(6.0), Color(enter_fill.r, enter_fill.g, enter_fill.b, enter_pulse * 0.3), false, 4.0)
 	_draw_panel_shell(WORLD_SELECT_ENTER_RECT, enter_fill, Color(0.18, 0.22, 0.16), 0.22, 0.12)
-	_draw_text("图鉴", WORLD_SELECT_ALMANAC_RECT.position + Vector2(94.0, 38.0), 24, Color(0.24, 0.16, 0.06))
+	_draw_fancy_button(WORLD_SELECT_ALMANAC_RECT, "图鉴", Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 24)
 	_draw_text("进入世界", WORLD_SELECT_ENTER_RECT.position + Vector2(66.0, 38.0), 26, Color(0.1, 0.14, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96))
 
 	# Endless mode button
-	_draw_panel_shell(WORLD_SELECT_ENDLESS_RECT, Color(0.86, 0.28, 0.22), Color(0.52, 0.12, 0.1), 0.18, 0.1)
-	_draw_text("无尽模式", WORLD_SELECT_ENDLESS_RECT.position + Vector2(48.0, 38.0), 22, Color(1.0, 0.94, 0.88))
+	_draw_fancy_button(WORLD_SELECT_ENDLESS_RECT, "无尽模式", Color(0.86, 0.28, 0.22), Color(0.52, 0.12, 0.1), 22)
 	# Gacha button
-	_draw_panel_shell(WORLD_SELECT_GACHA_RECT, Color(0.82, 0.62, 0.18), Color(0.48, 0.34, 0.08), 0.18, 0.1)
-	_draw_text("抽卡系统", WORLD_SELECT_GACHA_RECT.position + Vector2(48.0, 38.0), 22, Color(1.0, 0.96, 0.86))
+	_draw_fancy_button(WORLD_SELECT_GACHA_RECT, "抽卡系统", Color(0.82, 0.62, 0.18), Color(0.48, 0.34, 0.08), 22)
 	# Enhance button (below gacha)
 	var enhance_rect = Rect2(WORLD_SELECT_GACHA_RECT.position.x, WORLD_SELECT_GACHA_RECT.position.y + 72.0, 200.0, 52.0)
-	_draw_panel_shell(enhance_rect, Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 0.16, 0.1)
-	_draw_text("植物强化", enhance_rect.position + Vector2(52.0, 34.0), 20, Color(1.0, 0.96, 1.0))
+	_draw_fancy_button(enhance_rect, "植物强化", Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 20)
 	# Daily challenge button
 	var daily_done = daily_challenge_date == _today_string()
 	var daily_fill = Color(0.36, 0.64, 0.86) if not daily_done else Color(0.52, 0.56, 0.6)
-	_draw_panel_shell(WORLD_SELECT_DAILY_RECT, daily_fill, Color(0.16, 0.32, 0.48), 0.18, 0.1)
-	_draw_text("每日挑战" if not daily_done else "已完成", WORLD_SELECT_DAILY_RECT.position + Vector2(48.0, 38.0), 22, Color(1.0, 0.98, 0.94))
+	_draw_fancy_button(WORLD_SELECT_DAILY_RECT, "每日挑战" if not daily_done else "已完成", daily_fill, Color(0.16, 0.32, 0.48), 22)
 	# Update button and status
-	_draw_panel_shell(WORLD_SELECT_UPDATE_RECT, _update_badge_fill(), Color(0.18, 0.22, 0.28), 0.18, 0.1)
-	_draw_text(_update_action_text(), WORLD_SELECT_UPDATE_RECT.position + Vector2(18.0, 38.0), 20, Color(1.0, 0.98, 0.94))
+	_draw_fancy_button(WORLD_SELECT_UPDATE_RECT, _update_action_text(), _update_badge_fill(), Color(0.18, 0.22, 0.28), 20)
 	_draw_panel_shell(WORLD_SELECT_UPDATE_INFO_RECT, Color(0.14, 0.16, 0.2, 0.9), Color(0.34, 0.4, 0.48), 0.12, 0.08)
 	_draw_text("自动更新", WORLD_SELECT_UPDATE_INFO_RECT.position + Vector2(16.0, 20.0), 16, Color(0.92, 0.96, 1.0))
 	_draw_text(_update_status_line(), WORLD_SELECT_UPDATE_INFO_RECT.position + Vector2(16.0, 40.0), 14, Color(0.84, 0.9, 0.98))
@@ -14430,10 +14424,9 @@ func _draw_map_scene() -> void:
 	_draw_panel_shell(COIN_METER_RECT, Color(0.97, 0.89, 0.44), Color(0.48, 0.36, 0.09), 0.14, 0.08)
 	_draw_coin_icon(COIN_METER_RECT.position + Vector2(22.0, 20.0), 1.0)
 	_draw_text(str(coins_total), COIN_METER_RECT.position + Vector2(44.0, 27.0), 22, Color(0.31, 0.2, 0.05))
-	_draw_panel_shell(MAP_WORLD_BACK_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.1, 0.06)
-	_draw_text("世界页", MAP_WORLD_BACK_RECT.position + Vector2(24.0, 27.0), 18, Color(0.27, 0.18, 0.08))
+	_draw_fancy_button(MAP_WORLD_BACK_RECT, "世界页", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 	_draw_panel_shell(MAP_ALMANAC_BUTTON_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.1, 0.06)
-	_draw_text("图鉴", MAP_ALMANAC_BUTTON_RECT.position + Vector2(28.0, 27.0), 18, Color(0.27, 0.18, 0.08))
+	_draw_fancy_button(MAP_ALMANAC_BUTTON_RECT, "图鉴", Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 18)
 
 	_draw_map_info_panel()
 
@@ -14452,9 +14445,9 @@ func _draw_almanac_scene() -> void:
 	_draw_panel_shell(ALMANAC_PLANT_TAB_RECT, plant_tab_color, Color(0.42, 0.3, 0.14), 0.08, 0.05)
 	_draw_panel_shell(ALMANAC_ZOMBIE_TAB_RECT, zombie_tab_color, Color(0.42, 0.3, 0.14), 0.08, 0.05)
 	_draw_panel_shell(ALMANAC_CLOSE_RECT, Color(0.88, 0.84, 0.76), Color(0.42, 0.3, 0.14), 0.08, 0.05)
-	_draw_text("植物", ALMANAC_PLANT_TAB_RECT.position + Vector2(34.0, 29.0), 20, Color(0.24, 0.16, 0.06))
-	_draw_text("僵尸", ALMANAC_ZOMBIE_TAB_RECT.position + Vector2(34.0, 29.0), 20, Color(0.24, 0.16, 0.06))
-	_draw_text("返回", ALMANAC_CLOSE_RECT.position + Vector2(28.0, 26.0), 18, Color(0.24, 0.16, 0.06))
+	_draw_fancy_button(ALMANAC_PLANT_TAB_RECT, "植物", Color(0.72, 0.86, 0.42), Color(0.28, 0.44, 0.14), 20)
+	_draw_fancy_button(ALMANAC_ZOMBIE_TAB_RECT, "僵尸", Color(0.82, 0.62, 0.36), Color(0.46, 0.28, 0.12), 20)
+	_draw_fancy_button(ALMANAC_CLOSE_RECT, "返回", Color(0.94, 0.86, 0.66), Color(0.48, 0.3, 0.1), 18)
 
 	_draw_panel_shell(ALMANAC_LIST_RECT, Color(0.96, 0.93, 0.86), Color(0.44, 0.32, 0.14), 0.12, 0.06)
 	_draw_panel_shell(ALMANAC_DETAIL_RECT, Color(0.96, 0.93, 0.86), Color(0.44, 0.32, 0.14), 0.12, 0.06)
@@ -14740,10 +14733,8 @@ func _draw_seed_selection_scene() -> void:
 
 	var back_color = Color(0.88, 0.84, 0.76)
 	var start_color = Color(0.42, 0.76, 0.24) if selection_cards.size() >= required_count else Color(0.62, 0.62, 0.62)
-	_draw_panel_shell(back_rect, back_color, Color(0.42, 0.3, 0.14), 0.08, 0.04)
-	_draw_panel_shell(start_rect, start_color, Color(0.22, 0.36, 0.12), 0.08, 0.04)
-	_draw_text("返回地图", back_rect.position + Vector2(18.0, 28.0), 18, Color(0.26, 0.18, 0.08))
-	_draw_text("开始战斗", start_rect.position + Vector2(24.0, 28.0), 20, Color(0.08, 0.2, 0.04))
+	_draw_fancy_button(back_rect, "返回地图", back_color, Color(0.42, 0.3, 0.14), 18)
+	_draw_fancy_button(start_rect, "开始战斗", start_color, Color(0.22, 0.36, 0.12), 20)
 
 
 func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: bool, allow_hover: bool = true) -> void:
@@ -15107,8 +15098,7 @@ func _draw_battle_scene() -> void:
 	_draw_seed_bank()
 	_draw_wave_bar()
 	_draw_objective_chip()
-	_draw_panel_shell(PAUSE_BUTTON_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.1, 0.05)
-	_draw_text("暂停", PAUSE_BUTTON_RECT.position + Vector2(24.0, 27.0), 18, Color(0.27, 0.18, 0.08))
+	_draw_fancy_button(PAUSE_BUTTON_RECT, "暂停", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 	_draw_hover()
 	_draw_mowers()
 	_draw_lane_obstacles()
@@ -15155,8 +15145,7 @@ func _draw_battle_pause_overlay() -> void:
 	for spec_variant in button_specs:
 		var spec = Dictionary(spec_variant)
 		var button_rect = _battle_pause_button_rect(String(spec.get("action", "")))
-		_draw_panel_shell(button_rect, Color(spec.get("fill", Color(0.92, 0.88, 0.78))), Color(spec.get("border", Color(0.42, 0.3, 0.14))), 0.16, 0.08)
-		_draw_text(String(spec.get("label", "")), button_rect.position + Vector2(78.0, 34.0), 22, Color(0.96, 0.96, 0.92))
+		_draw_fancy_button(button_rect, String(spec.get("label", "")), Color(spec.get("fill", Color(0.92, 0.88, 0.78))), Color(spec.get("border", Color(0.42, 0.3, 0.14))), 22)
 
 
 func _draw_battle_background() -> void:
@@ -15781,8 +15770,7 @@ func _draw_battle_background() -> void:
 	_draw_coin_icon(COIN_METER_RECT.position + Vector2(22.0, 20.0), 1.0)
 	_draw_text(str(coins_total), COIN_METER_RECT.position + Vector2(44.0, 27.0), 22, Color(0.31, 0.2, 0.05))
 
-	_draw_panel_shell(BACK_BUTTON_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.1, 0.05)
-	_draw_text("返回地图", BACK_BUTTON_RECT.position + Vector2(14.0, 27.0), 18, Color(0.27, 0.18, 0.08))
+	_draw_fancy_button(BACK_BUTTON_RECT, "返回地图", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 
 
 func _draw_battle_board() -> void:
