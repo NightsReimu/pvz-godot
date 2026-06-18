@@ -3104,8 +3104,9 @@ func _selection_selected_panel_rect() -> Rect2:
 		rect.size.x = maxf(320.0, safe_rect.size.x - 32.0)
 		rect.size.y = clampf(safe_rect.size.y * 0.2, 92.0, 132.0)
 		return rect
-	rect.position.y = maxf(rect.position.y, 144.0)
+	rect.position.y = maxf(rect.position.y, 150.0)
 	rect.size.x = maxf(760.0, minf(maxf(rect.size.x, size.x - rect.position.x - 24.0), size.x - rect.position.x - 24.0))
+	rect.size.y = maxf(rect.size.y, 140.0)
 	return rect
 
 
@@ -12939,8 +12940,10 @@ func _selection_slot_rect(index: int) -> Rect2:
 	var step = (selected_panel_rect.size.x - 40.0) / float(MAX_SEED_SLOTS)
 	var slot_max_width = 104.0 if _is_mobile_runtime() else 88.0
 	var width = maxf(68.0, minf(slot_max_width, step - 8.0))
-	var height = clampf(selected_panel_rect.size.y - 28.0, 78.0, 100.0)
-	var y_offset = clampf((selected_panel_rect.size.y - height) * 0.5, 8.0, 16.0)
+	# Header row (label + progress) takes ~52px at the top; card slots fill the rest below it.
+	var header_h = 52.0
+	var height = clampf(selected_panel_rect.size.y - header_h - 14.0, 62.0, 92.0)
+	var y_offset = header_h
 	return Rect2(
 		Vector2(selected_panel_rect.position.x + 20.0 + index * step, selected_panel_rect.position.y + y_offset),
 		Vector2(width, height)
@@ -12960,14 +12963,22 @@ func _selection_pool_columns() -> int:
 
 func _selection_pool_step() -> Vector2:
 	if not _is_mobile_runtime():
-		return PREP_POOL_STEP
+		var card_size = _selection_pool_card_size()
+		return Vector2(card_size.x + 10.0, card_size.y + 8.0)
 	var card_size = _selection_pool_card_size()
 	return Vector2(card_size.x + 12.0, card_size.y + 12.0)
 
 
 func _selection_pool_card_size() -> Vector2:
 	if not _is_mobile_runtime():
-		return Vector2(96.0, 108.0)
+		# Size cards so exactly 3 rows fit the pool view height with no leftover half-row.
+		var view_rect = _selection_pool_view_rect()
+		var target_rows = 3
+		var gap_y = 8.0
+		var height = floor((view_rect.size.y - float(target_rows - 1) * gap_y) / float(target_rows))
+		height = clampf(height, 88.0, 118.0)
+		var width = clampf(height * 0.88, 84.0, 104.0)
+		return Vector2(width, height)
 	var view_rect = _selection_pool_view_rect()
 	var columns = _selection_pool_columns()
 	var gap_x = 12.0
@@ -14678,12 +14689,13 @@ func _draw_seed_selection_scene() -> void:
 	var title_x = selected_panel_rect.position.x
 	_draw_text(String(current_level["title"]), Vector2(title_x, 56.0), 34, Color(0.23, 0.15, 0.05))
 	_draw_text("植物超过 10 张时必须先选满 %d 张再开战" % max(required_count, 1), Vector2(title_x, 88.0), 18, Color(0.26, 0.18, 0.08))
-	_draw_text_block(String(current_level["description"]), Rect2(Vector2(title_x, 98.0), Vector2(minf(selected_panel_rect.size.x, 980.0), 44.0)), 16, Color(0.32, 0.24, 0.1), 3.0, 2)
+	_draw_text_block(String(current_level["description"]), Rect2(Vector2(title_x, 98.0), Vector2(minf(selected_panel_rect.size.x, 980.0), 38.0)), 15, Color(0.32, 0.24, 0.1), 3.0, 2)
 	_draw_text("已选 %d/10" % selection_cards.size(), selected_panel_rect.position + Vector2(20.0, 30.0), 24, Color(0.2, 0.32, 0.08))
 	_draw_text("本关僵尸", zombie_panel_rect.position + Vector2(18.0, 32.0), 18, Color(0.24, 0.16, 0.06))
 	_draw_text("可选植物", pool_panel_rect.position + Vector2(18.0, 30.0), 22, Color(0.24, 0.16, 0.06))
 	_draw_text("点选下方卡牌加入上方卡槽，选满后右下角按钮高亮。", selected_panel_rect.position + Vector2(188.0, 28.0), 16, Color(0.28, 0.22, 0.1))
-	var selection_progress_rect = Rect2(selected_panel_rect.position + Vector2(18.0, 90.0), Vector2(selected_panel_rect.size.x - 36.0, 18.0))
+	# Progress bar sits in the header row (right side), clear of the card slots below.
+	var selection_progress_rect = Rect2(selected_panel_rect.position + Vector2(selected_panel_rect.size.x * 0.42, 30.0), Vector2(selected_panel_rect.size.x * 0.55, 16.0))
 	draw_rect(selection_progress_rect, Color(0.34, 0.24, 0.12, 0.22), true)
 	var selection_fill = ThemeLib.progress_fill_rect(selection_progress_rect, float(selection_cards.size()) / float(max(required_count, 1)))
 	draw_rect(selection_fill, Color(0.52, 0.8, 0.26, 0.84), true)
