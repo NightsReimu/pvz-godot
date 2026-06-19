@@ -12962,25 +12962,25 @@ func _selection_pool_columns() -> int:
 
 
 func _selection_pool_step() -> Vector2:
-	if not _is_mobile_runtime():
-		var card_size = _selection_pool_card_size()
-		return Vector2(card_size.x + 10.0, card_size.y + 8.0)
 	var card_size = _selection_pool_card_size()
+	if not _is_mobile_runtime():
+		return Vector2(card_size.x + 10.0, card_size.y + 8.0)
 	return Vector2(card_size.x + 12.0, card_size.y + 12.0)
 
 
 func _selection_pool_card_size() -> Vector2:
-	if not _is_mobile_runtime():
-		# Size cards so exactly 3 rows fit the pool view height with no leftover half-row.
-		var view_rect = _selection_pool_view_rect()
-		var target_rows = 3
-		var gap_y = 8.0
-		var height = floor((view_rect.size.y - float(target_rows - 1) * gap_y) / float(target_rows))
-		height = clampf(height, 88.0, 118.0)
-		var width = clampf(height * 0.88, 84.0, 104.0)
-		return Vector2(width, height)
 	var view_rect = _selection_pool_view_rect()
 	var columns = _selection_pool_columns()
+	if not _is_mobile_runtime():
+		# Width fills the view across all columns; height fits exactly 3 rows.
+		var target_rows = 3
+		var gap_x = 10.0
+		var gap_y = 8.0
+		var width = floor((view_rect.size.x - float(max(columns - 1, 0)) * gap_x - 4.0) / float(columns))
+		width = clampf(width, 92.0, 150.0)
+		var height = floor((view_rect.size.y - float(target_rows - 1) * gap_y) / float(target_rows))
+		height = clampf(height, 88.0, 120.0)
+		return Vector2(width, height)
 	var gap_x = 12.0
 	var width = floor((view_rect.size.x - float(max(columns - 1, 0)) * gap_x - 8.0) / float(columns))
 	width = clampf(width, 88.0, 116.0)
@@ -13334,10 +13334,12 @@ func _almanac_item_rect(index: int) -> Rect2:
 	var col = index % ALMANAC_GRID_COLUMNS
 	var row = int(floor(float(index) / float(ALMANAC_GRID_COLUMNS)))
 	var view_rect = _almanac_list_view_rect()
-	var step_x = 90.0
+	# Fill the view width across all columns so the grid has no right-side gap.
+	var step_x = floor(view_rect.size.x / float(ALMANAC_GRID_COLUMNS))
+	var card_w = step_x - 10.0
 	return Rect2(
-		Vector2(view_rect.position.x + col * step_x, view_rect.position.y + row * ALMANAC_GRID_STEP.y - almanac_scroll),
-		Vector2(80.0, 102.0)
+		Vector2(view_rect.position.x + col * step_x + 4.0, view_rect.position.y + row * ALMANAC_GRID_STEP.y - almanac_scroll),
+		Vector2(card_w, 102.0)
 	)
 
 
