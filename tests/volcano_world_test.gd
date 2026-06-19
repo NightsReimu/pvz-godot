@@ -1,0 +1,355 @@
+extends SceneTree
+
+const GameScript = preload("res://scripts/game.gd")
+const Defs = preload("res://scripts/game_defs.gd")
+const WorldData = preload("res://scripts/data/world_data.gd")
+const VolcanoDefs = preload("res://scripts/data/level_defs_volcano.gd")
+
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	var failed := false
+	failed = not _test_volcano_world_metadata_exists() or failed
+	failed = not _test_7x_levels_route_to_volcano_world() or failed
+	failed = not _test_volcano_world_unlocks_after_6_19() or failed
+	failed = not _test_volcano_level_data_matches_unlock_rhythm() or failed
+	failed = not _test_volcano_finale_7_10_is_boss_conveyor() or failed
+	failed = not _test_volcano_tile_requires_flower_pot_support() or failed
+	failed = not _test_lava_cell_blocks_placement_and_cork_plug_seals_it() or failed
+	failed = not _test_volcano_straight_shooters_blocked_in_low_columns() or failed
+	failed = not _test_volcano_preplaced_supports_fill_every_active_cell() or failed
+	failed = not _test_volcano_new_plants_have_defs_and_costs() or failed
+	failed = not _test_volcano_new_zombies_have_defs_and_health() or failed
+	failed = not _test_volcano_plants_and_zombies_have_almanac_text() or failed
+	failed = not _test_cyclone_grass_detonate_pulls_and_damages_nearby_zombies() or failed
+	failed = not _test_corn_cannon_right_click_fires_at_target() or failed
+	failed = not _test_volcano_boss_is_flagged_and_has_reinforcement_pool() or failed
+	quit(1 if failed else 0)
+
+
+func _assert_true(condition: bool, message: String) -> bool:
+	if condition:
+		return true
+	push_error(message)
+	return false
+
+
+func _find_level_index(level_id: String) -> int:
+	for i in range(Defs.LEVELS.size()):
+		if String(Defs.LEVELS[i].get("id", "")) == level_id:
+			return i
+	return -1
+
+
+func _make_grid() -> Array:
+	var result: Array = []
+	for _row in range(6):
+		var row_data: Array = []
+		for _col in range(9):
+			row_data.append(null)
+		result.append(row_data)
+	return result
+
+
+func _make_game() -> Control:
+	var game := GameScript.new()
+	game.current_level = {"id": "7-test", "terrain": "volcano", "events": [], "row_count": 5}
+	game.active_rows = [0, 1, 2, 3, 4]
+	game.board_rows = 5
+	game.board_size = Vector2(9.0 * 98.0, 5.0 * 110.0)
+	game.water_rows = []
+	game.grid = _make_grid()
+	game.support_grid = _make_grid()
+	game.cell_terrain_mask = []
+	game.zombies = []
+	game.projectiles = []
+	game.effects = []
+	game.weeds = []
+	game.spears = []
+	game.graves = []
+	game.vfx_particles = []
+	game.lava_eruption_timers = {}
+	game.firing_sfx_throttle = {}
+	game.toast_label = Label.new()
+	game.banner_label = Label.new()
+	game.message_panel = PanelContainer.new()
+	game.message_label = Label.new()
+	game.action_button = Button.new()
+	game._setup_cell_terrain_mask()
+	return game
+
+
+func _free_game(game: Control) -> void:
+	if is_instance_valid(game.toast_label):
+		game.toast_label.free()
+	if is_instance_valid(game.banner_label):
+		game.banner_label.free()
+	if is_instance_valid(game.message_label):
+		game.message_label.free()
+	if is_instance_valid(game.action_button):
+		game.action_button.free()
+	if is_instance_valid(game.message_panel):
+		game.message_panel.free()
+	game.free()
+
+
+func _test_volcano_world_metadata_exists() -> bool:
+	var volcano_world = WorldData.by_key("volcano")
+	return _assert_true(String(volcano_world.get("key", "")) == "volcano", "expected volcano world metadata to exist") \
+		and _assert_true(String(volcano_world.get("title", "")) == "火山世界", "volcano world title should be 火山世界")
+
+
+func _test_7x_levels_route_to_volcano_world() -> bool:
+	var game = _make_game()
+	var passed := true
+	for level_id in ["7-1", "7-3", "7-5", "7-8", "7-9", "7-10"]:
+		passed = _assert_true(String(game.call("_world_key_for_level", {"id": level_id})) == "volcano", "%s should route to volcano world" % level_id) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_volcano_world_unlocks_after_6_19() -> bool:
+	var game = _make_game()
+	game.completed_levels.resize(Defs.LEVELS.size())
+	for i in range(game.completed_levels.size()):
+		game.completed_levels[i] = false
+	var index_6_19 = _find_level_index("6-19")
+	var index_7_1 = _find_level_index("7-1")
+	var passed = _assert_true(index_6_19 != -1, "expected 6-19 to exist for volcano unlock checks") \
+		and _assert_true(index_7_1 != -1, "expected 7-1 to exist for volcano unlock checks")
+	if passed:
+		passed = _assert_true(not bool(game.call("_is_world_unlocked", "volcano")), "volcano world should stay locked before 6-19 is completed") and passed
+		game.completed_levels[index_6_19] = true
+		passed = _assert_true(bool(game.call("_is_world_unlocked", "volcano")), "volcano world should unlock after 6-19 is completed") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_volcano_level_data_matches_unlock_rhythm() -> bool:
+	var expected_unlocks = {
+		"7-1": "dragon_bubble_pult",
+		"7-2": "cork_plug",
+		"7-3": "frost_boomerang",
+		"7-4": "cyclone_grass",
+		"7-5": "sand_lotus",
+		"7-6": "toxic_gum_pult",
+		"7-7": "holy_flower",
+		"7-8": "ice_cream",
+		"7-9": "corn_cannon",
+		"7-10": "",
+	}
+	var passed := true
+	for level_number in range(1, 11):
+		var level_id = "7-%d" % level_number
+		var level_index = _find_level_index(level_id)
+		passed = _assert_true(level_index != -1, "expected %s to exist in volcano progression" % level_id) and passed
+		if level_index == -1:
+			continue
+		var level = Defs.LEVELS[level_index]
+		passed = _assert_true(String(level.get("terrain", "")) == "volcano", "%s should use volcano terrain" % level_id) and passed
+		passed = _assert_true(int(level.get("row_count", 0)) == 5, "%s should use a 5-row volcano board" % level_id) and passed
+		passed = _assert_true(String(level.get("unlock_plant", "")) == String(expected_unlocks[level_id]), "%s should unlock %s" % [level_id, expected_unlocks[level_id]]) and passed
+		# Every volcano level should pre-place flower pots on all active cells.
+		var preplaced = level.get("preplaced_supports", [])
+		passed = _assert_true(preplaced.size() >= 45, "%s should pre-place flower pots across the whole board" % level_id) and passed
+	return passed
+
+
+func _test_volcano_finale_7_10_is_boss_conveyor() -> bool:
+	var level_index = _find_level_index("7-10")
+	if not _assert_true(level_index != -1, "expected 7-10 to exist as the volcano finale"):
+		return false
+	var level = Defs.LEVELS[level_index]
+	return _assert_true(String(level.get("terrain", "")) == "volcano", "7-10 should stay in the volcano world") \
+		and _assert_true(String(level.get("mode", "")) == "conveyor", "7-10 should be a conveyor boss level") \
+		and _assert_true(bool(level.get("boss_level", false)), "7-10 should be marked as a boss level") \
+		and _assert_true(String(level.get("boss_kind", "")) == "volcano_boss", "7-10 should use the volcano_boss finale")
+
+
+func _test_volcano_tile_requires_flower_pot_support() -> bool:
+	var game = _make_game()
+	# volcano_tile without a flower pot present -> error mentioning 花盆
+	game.cell_terrain_mask[2][3] = "volcano_tile"
+	var err_no_support = String(game.call("_placement_error", "peashooter", 2, 3))
+	var passed = _assert_true(err_no_support.find("花盆") != -1, "volcano tiles without a flower pot should reject normal plants")
+	# Once a flower pot support is present, normal planting is allowed.
+	game.support_grid[2][3] = game._create_plant("flower_pot", 2, 3)
+	var err_with_support = String(game.call("_placement_error", "peashooter", 2, 3))
+	passed = _assert_true(err_with_support == "", "volcano tiles with a flower pot should accept normal plants") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_lava_cell_blocks_placement_and_cork_plug_seals_it() -> bool:
+	var game = _make_game()
+	game.cell_terrain_mask[2][3] = "lava"
+	# Lava blocks everything (even with a flower pot underneath).
+	var err_normal = String(game.call("_placement_error", "peashooter", 2, 3))
+	var passed = _assert_true(err_normal.find("木塞子") != -1 or err_normal.find("岩浆") != -1, "lava cells should block normal plants and mention the cork plug")
+	# cork_plug only valid on lava cells.
+	var cork_err_land = String(game.call("_placement_error", "cork_plug", 2, 4))
+	passed = _assert_true(cork_err_land.find("岩浆") != -1, "cork plug should only be placeable on lava cells") and passed
+	var cork_err_lava = String(game.call("_placement_error", "cork_plug", 2, 3))
+	passed = _assert_true(cork_err_lava == "", "cork plug should be placeable on a lava cell") and passed
+	# Sealing a lava cell flips it back to volcano_tile.
+	game._seal_lava_cell(2, 3)
+	passed = _assert_true(String(game.cell_terrain_mask[2][3]) == "volcano_tile", "sealing a lava cell should convert it to volcano_tile") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_volcano_straight_shooters_blocked_in_low_columns() -> bool:
+	var game = _make_game()
+	# On a volcano level, straight shooters share the roof direct-fire gating.
+	game.current_level = {"id": "7-test", "terrain": "volcano"}
+	var passed = _assert_true(bool(game.call("_is_roof_or_volcano_level")), "volcano levels should share the roof direct-fire gating")
+	# A straight shooter in column 0 (col <= 2) firing at a target past the low-lane limit (col 4) is blocked.
+	var blocked_close = bool(game.call("_is_roof_direct_fire_blocked", game._cell_center(2, 0).x, game._cell_center(2, 6).x))
+	passed = _assert_true(blocked_close, "straight shooters in low columns should be blocked when firing past the slope on volcano terrain") and passed
+	# A straight shooter in column 3 (col > 2) is past the slope, so it connects even across the board.
+	var blocked_far = bool(game.call("_is_roof_direct_fire_blocked", game._cell_center(2, 3).x, game._cell_center(2, 8).x))
+	passed = _assert_true(not blocked_far, "straight shooters past the slope should not be blocked on volcano terrain") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_volcano_preplaced_supports_fill_every_active_cell() -> bool:
+	var passed := true
+	for level_number in range(1, 11):
+		var level_id = "7-%d" % level_number
+		var level = Defs.LEVELS[_find_level_index(level_id)]
+		var preplaced = level.get("preplaced_supports", [])
+		# Every active row (0..4) × every column (0..8) = 45 cells should be covered.
+		var covered: Dictionary = {}
+		for cell_variant in preplaced:
+			var cell = Vector2i(cell_variant)
+			covered["%d,%d" % [cell.x, cell.y]] = true
+		var missing := 0
+		for row in range(5):
+			for col in range(9):
+				if not covered.has("%d,%d" % [row, col]):
+					missing += 1
+		passed = _assert_true(missing == 0, "%s should pre-place a flower pot on every active cell, missing %d cells" % [level_id, missing]) and passed
+	return passed
+
+
+func _test_volcano_new_plants_have_defs_and_costs() -> bool:
+	var passed := true
+	var new_plants = {
+		"dragon_bubble_pult": 175,
+		"cork_plug": 25,
+		"cyclone_grass": 150,
+		"sand_lotus": 125,
+		"frost_boomerang": 200,
+		"toxic_gum_pult": 200,
+		"corn_cannon": 400,
+		"holy_flower": 150,
+		"ice_cream": 125,
+		"gator_cannon": 250,
+	}
+	for kind in new_plants.keys():
+		var data = Defs.PLANTS.get(kind, {})
+		passed = _assert_true(not data.is_empty(), "expected volcano plant %s to have a definition" % kind) and passed
+		passed = _assert_true(int(data.get("cost", -1)) == int(new_plants[kind]), "volcano plant %s should cost %d sun" % [kind, new_plants[kind]]) and passed
+		passed = _assert_true(float(data.get("health", 0.0)) > 0.0, "volcano plant %s should have positive health" % kind) and passed
+	return passed
+
+
+func _test_volcano_new_zombies_have_defs_and_health() -> bool:
+	var passed := true
+	var new_zombies = {
+		"umbrella_zombie": 560,  # shield health
+		"shania_zombie": 1200,
+		"shade_zombie": 500,
+		"crab_zombie": 400,
+		"camel_zombie": 500,
+		"volcano_boss": 17200,
+	}
+	for kind in new_zombies.keys():
+		var data = Defs.ZOMBIES.get(kind, {})
+		passed = _assert_true(not data.is_empty(), "expected volcano zombie %s to have a definition" % kind) and passed
+		if data.is_empty():
+			continue
+		if kind == "volcano_boss":
+			passed = _assert_true(bool(data.get("boss", false)), "volcano_boss should be flagged as a boss") and passed
+			passed = _assert_true(float(data.get("health", 0.0)) >= 17200.0, "volcano_boss should have at least 17200 health") and passed
+		else:
+			passed = _assert_true(float(data.get("health", 0.0)) > 0.0, "volcano zombie %s should have positive health" % kind) and passed
+	return passed
+
+
+func _test_volcano_plants_and_zombies_have_almanac_text() -> bool:
+	var game = _make_game()
+	var passed := true
+	for kind in ["dragon_bubble_pult", "cork_plug", "cyclone_grass", "sand_lotus", "frost_boomerang", "toxic_gum_pult", "corn_cannon", "holy_flower", "ice_cream", "gator_cannon"]:
+		var stats: Array = game.call("_plant_almanac_stats", kind)
+		passed = _assert_true(not stats.is_empty(), "volcano plant %s should have almanac stats" % kind) and passed
+	for kind in ["umbrella_zombie", "shania_zombie", "shade_zombie", "crab_zombie", "camel_zombie", "volcano_boss"]:
+		var stats: Array = game.call("_zombie_almanac_stats", kind)
+		passed = _assert_true(not stats.is_empty(), "volcano zombie %s should have almanac stats" % kind) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_cyclone_grass_detonate_pulls_and_damages_nearby_zombies() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 4
+	# Spawn a zombie within the 150px pull radius (column 5 is ~98px to the right of column 4).
+	var spawn_x = game._cell_center(row, 5).x
+	game._spawn_zombie_at("normal", row, spawn_x)
+	var zombie_before = game.zombies[0]
+	var health_before = float(zombie_before["health"])
+	var x_before = float(zombie_before["x"])
+	# Detonate cyclone_grass at (row, col): should pull the zombie toward the cell and damage it.
+	game._detonate_one_shot_plant("cyclone_grass", row, col)
+	var zombie_after = game.zombies[0]
+	var passed = _assert_true(float(zombie_after["health"]) < health_before, "cyclone grass detonation should damage zombies within pull radius")
+	passed = _assert_true(absf(float(zombie_after["x"]) - game._cell_center(row, col).x) < absf(x_before - game._cell_center(row, col).x), "cyclone grass detonation should pull zombies toward its cell") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_corn_cannon_right_click_fires_at_target() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 4
+	# Place a charged corn cannon (action_timer 0 == ready to fire).
+	var cannon = game._create_plant("corn_cannon", row, col)
+	cannon["action_timer"] = 0.0
+	game.grid[row][col] = cannon
+	# Spawn a zombie near the click target.
+	var spawn_x = game._cell_center(row, 6).x
+	game._spawn_zombie_at("normal", row, spawn_x)
+	var zombie_before = game.zombies[0]
+	var health_before = float(zombie_before["health"])
+	# Right-click near the zombie.
+	game._handle_corn_cannon_right_click(Vector2(spawn_x, game._row_center_y(row)))
+	var zombie_after = game.zombies[0]
+	var passed = _assert_true(float(zombie_after["health"]) < health_before, "corn cannon right-click should damage zombies at the target location")
+	# The cannon should go on cooldown after firing.
+	var cannon_after = game.grid[row][col]
+	passed = _assert_true(float(cannon_after.get("action_timer", 0.0)) > 0.0, "corn cannon should go on cooldown after right-click fire") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_volcano_boss_is_flagged_and_has_reinforcement_pool() -> bool:
+	var passed := true
+	var boss = Defs.ZOMBIES.get("volcano_boss", {})
+	passed = _assert_true(not boss.is_empty(), "volcano_boss definition should exist") and passed
+	if boss.is_empty():
+		return passed
+	passed = _assert_true(bool(boss.get("boss", false)), "volcano_boss must be flagged as a boss") and passed
+	# Boss reinforcement pool (extra zombies spawned during the fight) should be defined on the boss data
+	# or referenced by the 7-10 level — at minimum the level should schedule waves.
+	var level = Defs.LEVELS[_find_level_index("7-10")]
+	var wave_count := 0
+	for event in level.get("events", []):
+		if bool(Dictionary(event).get("wave", false)):
+			wave_count += 1
+	passed = _assert_true(wave_count >= 1, "7-10 should schedule at least one wave marker for the boss fight") and passed
+	return passed

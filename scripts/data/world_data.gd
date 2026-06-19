@@ -69,6 +69,17 @@ const WORLDS: Array = [
 		"panel_dark": Color(0.34, 0.46, 0.58),
 		"plants": ["heather_shooter", "leyline", "holo_nut", "healing_gourd", "mango_bowling"],
 	},
+	{
+		"key": "volcano",
+		"title": "火山世界",
+		"subtitle": "Adventure 7-1 ~ 7-10",
+		"description": "焦土与熔岩构成的火山世界。地形凹凸不平，直射手打不中前方敌人，只有投掷与追踪植物能越过坡面；花盆已铺满全场，岩浆格会间歇喷火。终章由熔岩尸王把全部火山系僵尸混编进 7-10。",
+		"accent": Color(0.92, 0.34, 0.14),
+		"accent_dark": Color(0.42, 0.08, 0.04),
+		"panel": Color(0.98, 0.82, 0.62),
+		"panel_dark": Color(0.62, 0.28, 0.16),
+		"plants": ["dragon_bubble_pult", "cork_plug", "frost_boomerang", "cyclone_grass", "gator_cannon"],
+	},
 ]
 
 

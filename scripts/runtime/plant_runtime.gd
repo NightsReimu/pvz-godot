@@ -370,8 +370,30 @@ func update_plants(delta: float) -> void:
 					update_magnet_shroom(plant, delta, row, col)
 				"torchwood":
 					update_torchwood(plant, delta, row, col)
-				"lily_pad", "flower_pot", "wallnut", "tallnut", "hypno_shroom", "cactus_guard", "plantern", "pumpkin", "garlic", "umbrella_leaf", "brick_guard":
+				"lily_pad", "flower_pot", "wallnut", "tallnut", "hypno_shroom", "cactus_guard", "plantern", "pumpkin", "garlic", "umbrella_leaf", "brick_guard", "cork_plug":
 					pass
+				"dragon_bubble_pult":
+					update_dragon_bubble_pult(plant, delta, row, col)
+				"toxic_gum_pult":
+					update_toxic_gum_pult(plant, delta, row, col)
+				"frost_boomerang":
+					update_frost_boomerang(plant, delta, row, col)
+				"gator_cannon":
+					update_gator_cannon(plant, delta, row, col)
+				"corn_cannon":
+					update_corn_cannon(plant, delta, row, col)
+				"holy_flower":
+					update_holy_flower(plant, delta, row, col)
+				"ice_cream":
+					update_ice_cream(plant, delta, row, col)
+				"cyclone_grass":
+					if bool(plant.get("detonated", false)):
+						game.grid[row][col] = null
+						continue
+				"sand_lotus":
+					if bool(plant.get("detonated", false)):
+						game.grid[row][col] = null
+						continue
 
 			game.grid[row][col] = plant
 	for row in range(game.ROWS):
@@ -478,7 +500,7 @@ func update_cactus(plant: Dictionary, delta: float, row: int, col: int) -> void:
 		var storm_center = game._cell_center(row, col)
 		while float(plant["plant_food_interval"]) <= 0.0:
 			for y_offset in [-18.0, -2.0]:
-				game._spawn_projectile(row, storm_center + Vector2(32.0, y_offset), Color(0.58, 0.96, 0.46), float(Defs.PLANTS["cactus"]["damage"]) * 1.2, 0.0, 520.0, 7.0)
+				game._spawn_projectile(row, storm_center + Vector2(32.0, y_offset), Color(0.58, 0.96, 0.46), float(Defs.PLANTS["cactus"]["damage"]) * 1.2, 0.0, 520.0, 7.0, "cactus")
 				game.projectiles[game.projectiles.size() - 1]["anti_air"] = true
 			plant["plant_food_interval"] += 0.08
 			plant["flash"] = maxf(float(plant["flash"]), 0.16)
@@ -491,7 +513,7 @@ func update_cactus(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	var range_limit = float(Defs.PLANTS["cactus"]["range"])
 	if not game._has_zombie_ahead(row, center.x, range_limit) and not has_balloon_target_ahead(row, center.x, range_limit):
 		return
-	game._spawn_projectile(row, center + Vector2(32.0, -22.0), Color(0.48, 0.86, 0.42), float(Defs.PLANTS["cactus"]["damage"]), 0.0, 470.0, 7.0)
+	game._spawn_projectile(row, center + Vector2(32.0, -22.0), Color(0.48, 0.86, 0.42), float(Defs.PLANTS["cactus"]["damage"]), 0.0, 470.0, 7.0, "cactus")
 	game.projectiles[game.projectiles.size() - 1]["anti_air"] = true
 	plant["shot_cooldown"] = float(Defs.PLANTS["cactus"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.18)
@@ -542,8 +564,8 @@ func update_split_pea(plant: Dictionary, delta: float, row: int, col: int) -> vo
 		var storm_center = game._cell_center(row, col)
 		while float(plant["plant_food_interval"]) <= 0.0:
 			for y_offset in [-16.0, -4.0]:
-				game._spawn_projectile(row, storm_center + Vector2(34.0, y_offset), Color(0.4, 0.9, 0.34), float(Defs.PLANTS["split_pea"]["damage"]) * 1.15, 0.0, 460.0, 8.0)
-				game._spawn_projectile(row, storm_center + Vector2(-28.0, y_offset - 1.0), Color(0.48, 0.92, 0.42), float(Defs.PLANTS["split_pea"]["damage"]) * 1.15, 0.0, -460.0, 8.0)
+				game._spawn_projectile(row, storm_center + Vector2(34.0, y_offset), Color(0.4, 0.9, 0.34), float(Defs.PLANTS["split_pea"]["damage"]) * 1.15, 0.0, 460.0, 8.0, "split_pea")
+				game._spawn_projectile(row, storm_center + Vector2(-28.0, y_offset - 1.0), Color(0.48, 0.92, 0.42), float(Defs.PLANTS["split_pea"]["damage"]) * 1.15, 0.0, -460.0, 8.0, "split_pea")
 			plant["plant_food_interval"] += 0.12
 			plant["flash"] = maxf(float(plant["flash"]), 0.16)
 			game._trigger_plant_action(plant, 0.14)
@@ -553,16 +575,18 @@ func update_split_pea(plant: Dictionary, delta: float, row: int, col: int) -> vo
 	var center = game._cell_center(row, col)
 	var damage = float(Defs.PLANTS["split_pea"]["damage"])
 	if float(plant["shot_cooldown"]) <= 0.0 and game._has_zombie_ahead(row, center.x):
-		game._spawn_projectile(row, center + Vector2(34.0, -12.0), Color(0.36, 0.84, 0.28), damage, 0.0)
+		game._spawn_projectile(row, center + Vector2(34.0, -12.0), Color(0.36, 0.84, 0.28), damage, 0.0, 460.0, 8.0, "split_pea")
 		plant["shot_cooldown"] = float(Defs.PLANTS["split_pea"]["shoot_interval"])
 		game._trigger_plant_action(plant, 0.16)
 	if float(plant["rear_shot_cooldown"]) <= 0.0 and has_zombie_behind(row, center.x):
-		game._spawn_projectile(row, center + Vector2(-28.0, -14.0), Color(0.42, 0.86, 0.34), damage, 0.0, -430.0, 8.0)
+		game._spawn_projectile(row, center + Vector2(-28.0, -14.0), Color(0.42, 0.86, 0.34), damage, 0.0, -430.0, 8.0, "split_pea")
 		plant["rear_shot_cooldown"] = float(Defs.PLANTS["split_pea"]["rear_interval"])
 		game._trigger_plant_action(plant, 0.16)
 
 
 func spawn_starfruit_projectile(row: int, position: Vector2, speed: float, velocity_y: float) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("starfruit")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, position, "starfruit"))
 	game.projectiles.append({
 		"kind": "star",
@@ -690,7 +714,7 @@ func update_basic_shooter(plant: Dictionary, delta: float, row: int, col: int, p
 		return
 
 	var damage = float(Defs.PLANTS[kind]["damage"])
-	game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -10.0), projectile_color, damage, slow_duration)
+	game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -10.0), projectile_color, damage, slow_duration, 460.0, 8.0, kind)
 	plant["shot_cooldown"] = float(Defs.PLANTS[kind]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.18)
 
@@ -740,6 +764,8 @@ func update_amber_shooter(plant: Dictionary, delta: float, row: int, col: int) -
 
 
 func spawn_roof_lobbed_projectile(kind: String, row: int, spawn_position: Vector2, target: Vector2, damage: float, color: Color, arc_height: float, radius: float = 10.0, splash_radius: float = 0.0, butter_duration: float = 0.0, source_plant_kind: String = "") -> void:
+	if source_plant_kind != "" and game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx(source_plant_kind)
 	var travel_duration = maxf(spawn_position.distance_to(target) / 380.0, 0.42)
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, source_plant_kind))
 	game.projectiles.append({
@@ -775,7 +801,7 @@ func update_cabbage_pult(plant: Dictionary, delta: float, row: int, col: int) ->
 			var barrage_target = game._find_throw_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
 			if barrage_target != -1:
 				var barrage_zombie = game.zombies[barrage_target]
-				spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), Vector2(float(barrage_zombie["x"]), game._row_center_y(int(barrage_zombie["row"])) - 8.0), float(Defs.PLANTS["cabbage_pult"]["damage"]) * 1.25, Color(0.56, 0.92, 0.34), 68.0, 10.0)
+				spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), Vector2(float(barrage_zombie["x"]), game._row_center_y(int(barrage_zombie["row"])) - 8.0), float(Defs.PLANTS["cabbage_pult"]["damage"]) * 1.25, Color(0.56, 0.92, 0.34), 68.0, 10.0, 0.0, 0.0, "cabbage_pult")
 				plant["flash"] = maxf(float(plant["flash"]), 0.16)
 				game._trigger_plant_action(plant, 0.16)
 			plant["plant_food_interval"] += 0.18
@@ -787,7 +813,7 @@ func update_cabbage_pult(plant: Dictionary, delta: float, row: int, col: int) ->
 	if target_index == -1:
 		return
 	var zombie = game.zombies[target_index]
-	spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["cabbage_pult"]["damage"]), Color(0.56, 0.92, 0.34), 66.0, 10.0)
+	spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["cabbage_pult"]["damage"]), Color(0.56, 0.92, 0.34), 66.0, 10.0, 0.0, 0.0, "cabbage_pult")
 	plant["shot_cooldown"] = float(Defs.PLANTS["cabbage_pult"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
 
@@ -802,7 +828,7 @@ func update_kernel_pult(plant: Dictionary, delta: float, row: int, col: int) -> 
 			var barrage_target = game._find_throw_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
 			if barrage_target != -1:
 				var barrage_zombie = game.zombies[barrage_target]
-				spawn_roof_lobbed_projectile("butter", row, center + Vector2(14.0, -26.0), Vector2(float(barrage_zombie["x"]), game._row_center_y(int(barrage_zombie["row"])) - 6.0), float(Defs.PLANTS["kernel_pult"]["damage"]) * 1.2, Color(1.0, 0.92, 0.42), 64.0, 10.0, 0.0, float(Defs.PLANTS["kernel_pult"]["butter_duration"]) + 1.4)
+				spawn_roof_lobbed_projectile("butter", row, center + Vector2(14.0, -26.0), Vector2(float(barrage_zombie["x"]), game._row_center_y(int(barrage_zombie["row"])) - 6.0), float(Defs.PLANTS["kernel_pult"]["damage"]) * 1.2, Color(1.0, 0.92, 0.42), 64.0, 10.0, 0.0, float(Defs.PLANTS["kernel_pult"]["butter_duration"]) + 1.4, "kernel_pult")
 				plant["flash"] = maxf(float(plant["flash"]), 0.16)
 				game._trigger_plant_action(plant, 0.16)
 			plant["plant_food_interval"] += 0.2
@@ -818,7 +844,7 @@ func update_kernel_pult(plant: Dictionary, delta: float, row: int, col: int) -> 
 	var projectile_kind = "butter" if game.rng.randf() <= butter_chance else "kernel"
 	var projectile_color = Color(1.0, 0.92, 0.42) if projectile_kind == "butter" else Color(0.98, 0.88, 0.34)
 	var butter_duration = float(Defs.PLANTS["kernel_pult"]["butter_duration"]) if projectile_kind == "butter" else 0.0
-	spawn_roof_lobbed_projectile(projectile_kind, row, center + Vector2(14.0, -26.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 6.0), float(Defs.PLANTS["kernel_pult"]["damage"]), projectile_color, 62.0, 10.0, 0.0, butter_duration)
+	spawn_roof_lobbed_projectile(projectile_kind, row, center + Vector2(14.0, -26.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 6.0), float(Defs.PLANTS["kernel_pult"]["damage"]), projectile_color, 62.0, 10.0, 0.0, butter_duration, "kernel_pult")
 	plant["shot_cooldown"] = float(Defs.PLANTS["kernel_pult"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
 
@@ -832,7 +858,7 @@ func update_melon_pult(plant: Dictionary, delta: float, row: int, col: int) -> v
 			var storm_target = game._find_global_frontmost_target()
 			if int(storm_target.get("row", -1)) != -1:
 				var storm_impact = Vector2(float(storm_target["x"]), game._row_center_y(int(storm_target["row"])) - 8.0)
-				spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -34.0), storm_impact, float(Defs.PLANTS["melon_pult"]["damage"]) * 1.18, Color(0.42, 0.82, 0.26), 82.0, 14.0, float(Defs.PLANTS["melon_pult"]["splash_radius"]) + 18.0)
+				spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -34.0), storm_impact, float(Defs.PLANTS["melon_pult"]["damage"]) * 1.18, Color(0.42, 0.82, 0.26), 82.0, 14.0, float(Defs.PLANTS["melon_pult"]["splash_radius"]) + 18.0, 0.0, "melon_pult")
 				plant["flash"] = maxf(float(plant["flash"]), 0.16)
 				game._trigger_plant_action(plant, 0.18)
 			plant["plant_food_interval"] += 0.24
@@ -844,7 +870,7 @@ func update_melon_pult(plant: Dictionary, delta: float, row: int, col: int) -> v
 	if target_index == -1:
 		return
 	var zombie = game.zombies[target_index]
-	spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -34.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["melon_pult"]["damage"]), Color(0.42, 0.82, 0.26), 78.0, 14.0, float(Defs.PLANTS["melon_pult"]["splash_radius"]))
+	spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -34.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["melon_pult"]["damage"]), Color(0.42, 0.82, 0.26), 78.0, 14.0, float(Defs.PLANTS["melon_pult"]["splash_radius"]), 0.0, "melon_pult")
 	plant["shot_cooldown"] = float(Defs.PLANTS["melon_pult"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.24)
 
@@ -855,6 +881,8 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 		chosen_kind = String(MAGIC_FLOWER_PROJECTILES[game.rng.randi_range(0, MAGIC_FLOWER_PROJECTILES.size() - 1)])
 	var spawn_position = center + spawn_offset + Vector2(30.0 + game.rng.randf_range(-2.0, 4.0), -16.0 + game.rng.randf_range(-7.0, 7.0))
 	var base_damage = maxf(float(Defs.PLANTS["origami_blossom"]["damage"]) * damage_mult, 12.0)
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx(_magic_flower_sound_kind(chosen_kind))
 	match chosen_kind:
 		"amber_pea":
 			game._spawn_amber_projectile(row, spawn_position, base_damage * 0.96, 500.0, 8.4)
@@ -904,6 +932,26 @@ func _next_magic_flower_projectile_kind(_plant: Dictionary) -> String:
 	return String(MAGIC_FLOWER_PROJECTILES[game.rng.randi_range(0, MAGIC_FLOWER_PROJECTILES.size() - 1)])
 
 
+# Maps a magic-flower projectile variant to a plant kind whose firing-SFX
+# family fits it, so each variant sounds distinct rather than always using pea.
+func _magic_flower_sound_kind(variant: String) -> String:
+	match variant:
+		"snow_pea":
+			return "snow_pea"
+		"fire_pea":
+			return "pepper_mortar"
+		"mist_bloom":
+			return "mist_orchid"
+		"glow_seed":
+			return "glowvine"
+		"moonforge_shot":
+			return "moonforge"
+		"prism_pea":
+			return "prism_pea"
+		_:
+			return "peashooter"
+
+
 func update_origami_blossom(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	var cadence_delta = game._plant_cadence_delta(delta, row, col)
 	var center = game._cell_center(row, col)
@@ -947,7 +995,7 @@ func update_chimney_pepper(plant: Dictionary, delta: float, row: int, col: int) 
 		while float(plant["plant_food_interval"]) <= 0.0:
 			var storm_target = game._find_global_frontmost_target()
 			if int(storm_target.get("row", -1)) != -1:
-				spawn_roof_lobbed_projectile("chimney_fire", row, center + Vector2(8.0, -38.0), Vector2(float(storm_target["x"]), game._row_center_y(int(storm_target["row"])) - 8.0), float(Defs.PLANTS["chimney_pepper"]["damage"]) * 1.15, Color(1.0, 0.54, 0.22), 84.0, 11.0, float(Defs.PLANTS["chimney_pepper"]["splash_radius"]) + 18.0)
+				spawn_roof_lobbed_projectile("chimney_fire", row, center + Vector2(8.0, -38.0), Vector2(float(storm_target["x"]), game._row_center_y(int(storm_target["row"])) - 8.0), float(Defs.PLANTS["chimney_pepper"]["damage"]) * 1.15, Color(1.0, 0.54, 0.22), 84.0, 11.0, float(Defs.PLANTS["chimney_pepper"]["splash_radius"]) + 18.0, 0.0, "chimney_pepper")
 				plant["flash"] = maxf(float(plant["flash"]), 0.18)
 				game._trigger_plant_action(plant, 0.16)
 			plant["plant_food_interval"] += 0.2
@@ -959,7 +1007,7 @@ func update_chimney_pepper(plant: Dictionary, delta: float, row: int, col: int) 
 	if target_index == -1:
 		return
 	var zombie = game.zombies[target_index]
-	spawn_roof_lobbed_projectile("chimney_fire", row, center + Vector2(8.0, -38.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["chimney_pepper"]["damage"]), Color(1.0, 0.54, 0.22), 78.0, 11.0, float(Defs.PLANTS["chimney_pepper"]["splash_radius"]))
+	spawn_roof_lobbed_projectile("chimney_fire", row, center + Vector2(8.0, -38.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["chimney_pepper"]["damage"]), Color(1.0, 0.54, 0.22), 78.0, 11.0, float(Defs.PLANTS["chimney_pepper"]["splash_radius"]), 0.0, "chimney_pepper")
 	plant["shot_cooldown"] = float(Defs.PLANTS["chimney_pepper"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
 
@@ -1113,7 +1161,7 @@ func update_skylight_melon(plant: Dictionary, delta: float, row: int, col: int) 
 	for lane_variant in impacted_rows:
 		var lane = int(lane_variant)
 		var lane_damage = damage if lane == int(target["row"]) else damage * 0.82
-		spawn_roof_lobbed_projectile("melon", lane, center + Vector2(10.0, -38.0), Vector2(float(target["x"]), game._row_center_y(lane) - 8.0), lane_damage, Color(0.52, 0.86, 0.34), 86.0, 14.0, splash)
+		spawn_roof_lobbed_projectile("melon", lane, center + Vector2(10.0, -38.0), Vector2(float(target["x"]), game._row_center_y(lane) - 8.0), lane_damage, Color(0.52, 0.86, 0.34), 86.0, 14.0, splash, 0.0, "skylight_melon")
 	game._trigger_plant_action(plant, 0.24)
 	if not boosted:
 		plant["shot_cooldown"] = float(Defs.PLANTS["skylight_melon"]["shoot_interval"])
@@ -1140,6 +1188,7 @@ func update_shooter_plant_food(plant: Dictionary, delta: float, row: int, col: i
 
 	plant["plant_food_interval"] -= delta
 	var damage = float(Defs.PLANTS[String(plant["kind"])]["damage"])
+	var pf_source_kind = String(plant["kind"])
 	while float(plant["plant_food_interval"]) <= 0.0:
 		for shot_index in range(volley_count):
 			var y_offset = 0.0
@@ -1150,7 +1199,10 @@ func update_shooter_plant_food(plant: Dictionary, delta: float, row: int, col: i
 				game._cell_center(row, col) + Vector2(32.0, -10.0 + y_offset),
 				projectile_color,
 				damage,
-				slow_duration
+				slow_duration,
+				460.0,
+				8.0,
+				pf_source_kind
 			)
 		plant["plant_food_interval"] += volley_interval
 		plant["flash"] = maxf(float(plant["flash"]), 0.16)
@@ -1164,14 +1216,14 @@ func update_repeater(plant: Dictionary, delta: float, row: int, col: int) -> voi
 		if float(plant["plant_food_timer"]) > 0.0:
 			plant["plant_food_interval"] -= cadence_delta
 			while float(plant["plant_food_interval"]) <= 0.0:
-				game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -16.0), Color(0.3, 0.84, 0.26), 20.0, 0.0)
-				game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -4.0), Color(0.3, 0.84, 0.26), 20.0, 0.0)
+				game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -16.0), Color(0.3, 0.84, 0.26), 20.0, 0.0, 460.0, 8.0, "repeater")
+				game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -4.0), Color(0.3, 0.84, 0.26), 20.0, 0.0, 460.0, 8.0, "repeater")
 				plant["plant_food_interval"] += 0.08
 				plant["flash"] = maxf(float(plant["flash"]), 0.18)
 				game._trigger_plant_action(plant, 0.16)
 			return
 		if int(plant["plant_food_charges"]) > 0:
-			game._spawn_projectile(row, game._cell_center(row, col) + Vector2(38.0, -12.0), Color(0.32, 0.96, 0.38), 400.0, 0.0, 520.0, 14.0)
+			game._spawn_projectile(row, game._cell_center(row, col) + Vector2(38.0, -12.0), Color(0.32, 0.96, 0.38), 400.0, 0.0, 520.0, 14.0, "repeater")
 			plant["plant_food_charges"] = 0
 			plant["plant_food_mode"] = ""
 			plant["plant_food_interval"] = 0.0
@@ -1184,7 +1236,7 @@ func update_repeater(plant: Dictionary, delta: float, row: int, col: int) -> voi
 		plant["burst_gap_timer"] -= cadence_delta
 		if float(plant["burst_gap_timer"]) <= 0.0:
 			var burst_damage = float(Defs.PLANTS["repeater"]["damage"])
-			game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -10.0), Color(0.3, 0.84, 0.26), burst_damage, 0.0)
+			game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -10.0), Color(0.3, 0.84, 0.26), burst_damage, 0.0, 460.0, 8.0, "repeater")
 			plant["burst_remaining"] = int(plant["burst_remaining"]) - 1
 			if int(plant["burst_remaining"]) > 0:
 				plant["burst_gap_timer"] = float(Defs.PLANTS["repeater"]["burst_gap"])
@@ -1198,7 +1250,7 @@ func update_repeater(plant: Dictionary, delta: float, row: int, col: int) -> voi
 		return
 
 	var damage = float(Defs.PLANTS["repeater"]["damage"])
-	game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -10.0), Color(0.3, 0.84, 0.26), damage, 0.0)
+	game._spawn_projectile(row, game._cell_center(row, col) + Vector2(32.0, -10.0), Color(0.3, 0.84, 0.26), damage, 0.0, 460.0, 8.0, "repeater")
 	plant["burst_remaining"] = int(Defs.PLANTS["repeater"]["burst_count"]) - 1
 	plant["burst_gap_timer"] = float(Defs.PLANTS["repeater"]["burst_gap"])
 	plant["shot_cooldown"] = float(Defs.PLANTS["repeater"]["shoot_interval"])
@@ -1222,7 +1274,7 @@ func update_threepeater(plant: Dictionary, delta: float, row: int, col: int) -> 
 		var storm_rows = threepeater_rows(row)
 		while float(plant["plant_food_interval"]) <= 0.0:
 			for lane in storm_rows:
-				game._spawn_projectile(lane, threepeater_projectile_spawn_position(col, int(lane)), Color(0.38, 0.88, 0.32), 20.0, 0.0)
+				game._spawn_projectile(lane, threepeater_projectile_spawn_position(col, int(lane)), Color(0.38, 0.88, 0.32), 20.0, 0.0, 460.0, 8.0, "threepeater")
 			plant["plant_food_interval"] += 0.1
 			plant["flash"] = maxf(float(plant["flash"]), 0.16)
 			game._trigger_plant_action(plant, 0.16)
@@ -1241,7 +1293,7 @@ func update_threepeater(plant: Dictionary, delta: float, row: int, col: int) -> 
 		return
 	var damage = float(Defs.PLANTS["threepeater"]["damage"])
 	for lane in lanes:
-		game._spawn_projectile(int(lane), threepeater_projectile_spawn_position(col, int(lane)), Color(0.38, 0.88, 0.32), damage, 0.0)
+		game._spawn_projectile(int(lane), threepeater_projectile_spawn_position(col, int(lane)), Color(0.38, 0.88, 0.32), damage, 0.0, 460.0, 8.0, "threepeater")
 	plant["shot_cooldown"] = float(Defs.PLANTS["threepeater"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
 
@@ -1251,6 +1303,8 @@ func threepeater_projectile_spawn_position(col: int, lane: int) -> Vector2:
 
 
 func spawn_heather_projectile(row: int, spawn_position: Vector2, damage: float, dot_damage: float, dot_duration: float, stun_duration: float, velocity_y: float = 0.0) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("heather_shooter")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "heather_shooter"))
 	game.projectiles.append({
 		"kind": "heather_thorn",
@@ -1496,6 +1550,8 @@ func _count_cluster_boomerangs(row: int, col: int) -> int:
 
 
 func spawn_cluster_boomerang_projectile(owner_row: int, owner_col: int, row: int, spawn_position: Vector2, anchor_x: float, damage: float, max_targets: int) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("boomerang_shooter")
 	var damage_mult = float(game.call("_plant_enhance_multiplier_at_cell", owner_row, owner_col))
 	game.projectiles.append({
 		"kind": "boomerang",
@@ -2021,6 +2077,8 @@ func update_dream_disc(plant: Dictionary, delta: float, row: int, col: int) -> b
 
 
 func spawn_boomerang_projectile(row: int, spawn_position: Vector2, anchor_x: float, damage: float, max_targets: int) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("boomerang_shooter")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "boomerang_shooter"))
 	game.projectiles.append({
 		"kind": "boomerang",
@@ -2044,6 +2102,8 @@ func spawn_boomerang_projectile(row: int, spawn_position: Vector2, anchor_x: flo
 
 
 func spawn_sakura_projectile(row: int, spawn_position: Vector2, damage: float, velocity_y: float = 0.0) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("sakura_shooter")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "sakura_shooter"))
 	game.projectiles.append({
 		"kind": "sakura_petal",
@@ -2159,6 +2219,8 @@ func update_lotus_lancer(plant: Dictionary, delta: float, row: int, col: int) ->
 
 
 func spawn_mist_projectile(row: int, spawn_position: Vector2, damage: float, slow_duration: float, splash_radius: float, reveal_duration: float) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("mist_orchid")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "mist_orchid"))
 	game.projectiles.append({
 		"kind": "mist_bloom",
@@ -2292,6 +2354,8 @@ func update_anchor_fern(plant: Dictionary, delta: float, row: int, col: int) -> 
 
 
 func spawn_glowvine_projectile(row: int, spawn_position: Vector2, damage: float) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("glowvine")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "glowvine"))
 	game.projectiles.append({
 		"kind": "glow_seed",
@@ -2422,6 +2486,8 @@ func update_storm_reed(plant: Dictionary, delta: float, row: int, col: int) -> v
 
 
 func spawn_moonforge_projectile(origin: Vector2, target: Vector2, damage: float, splash_radius: float) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("moonforge")
 	var delta = target - origin
 	var speed = 310.0
 	var travel_time = maxf(delta.x / speed, 0.14)
@@ -2710,7 +2776,7 @@ func update_torchwood(plant: Dictionary, delta: float, row: int, col: int) -> vo
 	plant["plant_food_interval"] -= delta
 	while float(plant["plant_food_interval"]) <= 0.0:
 		for lane in game.active_rows:
-			game._spawn_fire_projectile(int(lane), game._cell_center(row, col) + Vector2(18.0, -10.0), 40.0, 520.0, 9.0)
+			game._spawn_fire_projectile(int(lane), game._cell_center(row, col) + Vector2(18.0, -10.0), 40.0, 520.0, 9.0, "torchwood")
 		plant["plant_food_interval"] += 0.14
 		plant["flash"] = maxf(float(plant["flash"]), 0.16)
 		game._trigger_plant_action(plant, 0.16)
@@ -3161,6 +3227,8 @@ func update_wind_orchid(plant: Dictionary, delta: float, row: int, col: int) -> 
 
 
 func spawn_shadow_pea_projectile(row: int, spawn_position: Vector2, damage: float, pierce_left: int) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("shadow_pea")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "shadow_pea"))
 	game.projectiles.append({
 		"kind": "shadow_pea",
@@ -3457,7 +3525,7 @@ func update_phoenix_tree(plant: Dictionary, delta: float, row: int, col: int) ->
 		return
 	var target_row = int(target["row"])
 	var spawn_position = Vector2(center.x + 28.0, game._row_center_y(target_row) - 14.0)
-	game._spawn_fire_projectile(target_row, spawn_position, float(Defs.PLANTS["phoenix_tree"]["damage"]), 520.0, 10.0)
+	game._spawn_fire_projectile(target_row, spawn_position, float(Defs.PLANTS["phoenix_tree"]["damage"]), 520.0, 10.0, "phoenix_tree")
 	if not game.projectiles.is_empty():
 		game.projectiles[game.projectiles.size() - 1]["kind"] = "phoenix_flame"
 		game.projectiles[game.projectiles.size() - 1]["ignore_lane_hide"] = true
@@ -3507,6 +3575,8 @@ func update_thunder_god(plant: Dictionary, delta: float, row: int, col: int) -> 
 # ==================== NEW PURPLE GACHA UPDATE FUNCTIONS ====================
 
 func spawn_prism_pea_projectile(row: int, spawn_position: Vector2, damage: float, split_at_x: float, split_count: int, fragment_damage: float) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("prism_pea")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "prism_pea"))
 	game.projectiles.append({
 		"kind": "prism_pea",
@@ -3529,6 +3599,8 @@ func spawn_prism_pea_projectile(row: int, spawn_position: Vector2, damage: float
 
 
 func spawn_spiral_bamboo_projectile(row: int, spawn_position: Vector2, anchor_x: float, damage: float, max_hits: int, return_damage: float) -> void:
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx("spiral_bamboo")
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "spiral_bamboo"))
 	game.projectiles.append({
 		"kind": "boomerang",
@@ -4198,7 +4270,142 @@ func update_chaos_shroom(plant: Dictionary, delta: float, row: int, col: int) ->
 			for i in range(5):
 				var angle = TAU * float(i) / 5.0
 				var spore_row = clampi(row + (game.rng.randi() % 3) - 1, 0, game.ROWS - 1)
-				game._spawn_projectile(spore_row, center + Vector2(16.0, -8.0), Color(0.7, 0.3, 0.9), 40.0, 0.0, 440.0, 6.0)
+				game._spawn_projectile(spore_row, center + Vector2(16.0, -8.0), Color(0.7, 0.3, 0.9), 40.0, 0.0, 440.0, 6.0, "fume_shroom")
 			game.effects.append({"position": center, "radius": 110.0, "time": 0.22, "duration": 0.22, "color": Color(0.86, 0.48, 0.96, 0.32)})
 	game._trigger_plant_action(plant, 0.22)
 	plant["effect_timer"] = float(data["effect_interval"])
+
+
+# --- 火山世界 (Volcano World) plants ---
+
+# 龙泡泡投手: lobs a dragon bubble that splits into 3 fragments mid-air.
+func update_dragon_bubble_pult(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = game._plant_cadence_delta(delta, row, col)
+	var center = game._cell_center(row, col)
+	plant["shot_cooldown"] -= cadence_delta
+	if float(plant["shot_cooldown"]) > 0.0:
+		return
+	var target_index = game._find_throw_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
+	if target_index == -1:
+		return
+	var zombie = game.zombies[target_index]
+	var target = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0)
+	var damage = float(Defs.PLANTS["dragon_bubble_pult"]["damage"])
+	var source_kind = "dragon_bubble_pult"
+	game._spawn_roof_lobbed_projectile("dragon_bubble", row, center + Vector2(12.0, -30.0), target, damage, Color(0.46, 0.78, 1.0), 72.0, 11.0, float(Defs.PLANTS["dragon_bubble_pult"]["splash_radius"]), 0.0, source_kind)
+	# Mark the spawned projectile so resolve_lobbed_projectile_impact can split it.
+	if not game.projectiles.is_empty():
+		var last = game.projectiles[game.projectiles.size() - 1]
+		if String(last.get("kind", "")) == "dragon_bubble":
+			last["split_count"] = int(Defs.PLANTS["dragon_bubble_pult"]["split_count"])
+			last["split_damage"] = float(Defs.PLANTS["dragon_bubble_pult"]["split_damage"])
+			game.projectiles[game.projectiles.size() - 1] = last
+	plant["shot_cooldown"] = float(Defs.PLANTS["dragon_bubble_pult"]["shoot_interval"])
+	game._trigger_plant_action(plant, 0.22)
+
+
+# 剧毒口香糖投手: lobs toxic gum that splashes and splits to nearby zombies,
+# with a chance to stun.
+func update_toxic_gum_pult(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = game._plant_cadence_delta(delta, row, col)
+	var center = game._cell_center(row, col)
+	plant["shot_cooldown"] -= cadence_delta
+	if float(plant["shot_cooldown"]) > 0.0:
+		return
+	var target_index = game._find_throw_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
+	if target_index == -1:
+		return
+	var zombie = game.zombies[target_index]
+	var target = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0)
+	var damage = float(Defs.PLANTS["toxic_gum_pult"]["damage"])
+	game._spawn_roof_lobbed_projectile("toxic_gum", row, center + Vector2(12.0, -28.0), target, damage, Color(0.58, 0.92, 0.32), 66.0, 10.0, float(Defs.PLANTS["toxic_gum_pult"]["splash_radius"]), 0.0, "toxic_gum_pult")
+	if not game.projectiles.is_empty():
+		var last = game.projectiles[game.projectiles.size() - 1]
+		if String(last.get("kind", "")) == "toxic_gum":
+			last["split_count"] = int(Defs.PLANTS["toxic_gum_pult"]["split_count"])
+			last["stun_chance"] = float(Defs.PLANTS["toxic_gum_pult"]["stun_chance"])
+			last["stun_duration"] = float(Defs.PLANTS["toxic_gum_pult"]["stun_duration"])
+			game.projectiles[game.projectiles.size() - 1] = last
+	plant["shot_cooldown"] = float(Defs.PLANTS["toxic_gum_pult"]["shoot_interval"])
+	game._trigger_plant_action(plant, 0.22)
+
+
+# 寒冰回旋镖射手: fires a frost boomerang that travels out and returns,
+# hitting zombies both ways and slowing them.
+func update_frost_boomerang(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = game._plant_cadence_delta(delta, row, col)
+	plant["shot_cooldown"] -= cadence_delta
+	if float(plant["shot_cooldown"]) > 0.0:
+		return
+	var center = game._cell_center(row, col)
+	if not game._has_zombie_ahead(row, center.x, game.board_size.x):
+		return
+	var damage = float(Defs.PLANTS["frost_boomerang"]["damage"])
+	var slow = float(Defs.PLANTS["frost_boomerang"]["slow_duration"])
+	var spawn_position = center + Vector2(32.0, -12.0)
+	game._spawn_projectile(row, spawn_position, Color(0.6, 0.9, 1.0), damage, slow, 440.0, 9.0, "frost_boomerang")
+	if not game.projectiles.is_empty():
+		var last = game.projectiles[game.projectiles.size() - 1]
+		if String(last.get("kind", "")) == "frost_boomerang":
+			last["anchor_x"] = spawn_position.x
+			last["outbound"] = true
+			last["pierce_left"] = 99
+			last["hit_uids"] = []
+			game.projectiles[game.projectiles.size() - 1] = last
+	plant["shot_cooldown"] = float(Defs.PLANTS["frost_boomerang"]["shoot_interval"])
+	game._trigger_plant_action(plant, 0.2)
+
+
+# 鳄鱼炮: fires a piercing laser dragon orb straight forward.
+func update_gator_cannon(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	var cadence_delta = game._plant_cadence_delta(delta, row, col)
+	plant["shot_cooldown"] -= cadence_delta
+	if float(plant["shot_cooldown"]) > 0.0:
+		return
+	var center = game._cell_center(row, col)
+	if not game._has_zombie_ahead(row, center.x, game.board_size.x):
+		return
+	var damage = float(Defs.PLANTS["gator_cannon"]["damage"])
+	var spawn_position = center + Vector2(34.0, -12.0)
+	game._spawn_projectile(row, spawn_position, Color(0.34, 0.96, 0.78), damage, 0.0, 520.0, 11.0, "gator_orb")
+	if not game.projectiles.is_empty():
+		var last = game.projectiles[game.projectiles.size() - 1]
+		if String(last.get("kind", "")) == "gator_orb":
+			last["pierce_left"] = 99
+			last["hit_uids"] = []
+			game.projectiles[game.projectiles.size() - 1] = last
+	plant["shot_cooldown"] = float(Defs.PLANTS["gator_cannon"]["shoot_interval"])
+	game._trigger_plant_action(plant, 0.26)
+
+
+# 玉米加农炮: charges a shot on a timer; the actual launch is fired by
+# right-click targeting handled in game.gd. Left-click = ultimate.
+func update_corn_cannon(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	plant["fire_charge"] = clampf(float(plant.get("fire_charge", 0.0)) + delta, 0.0, float(Defs.PLANTS["corn_cannon"]["fire_interval"]))
+
+
+# 圣光花: stacks on a host plant; refreshes a shield on the host periodically.
+func update_holy_flower(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	if not bool(plant.get("attached", false)):
+		return
+	plant["support_timer"] -= delta
+	if float(plant["support_timer"]) > 0.0:
+		return
+	var host_variant = game._top_plant_at(row, col)
+	if host_variant != null:
+		var host = host_variant
+		var shield = float(Defs.PLANTS["holy_flower"]["shield_amount"])
+		host["armor_health"] = maxf(float(host.get("armor_health", 0.0)), shield)
+		host["max_armor_health"] = maxf(float(host.get("max_armor_health", 0.0)), shield)
+		host["shell_kind"] = "holy_shield"
+		host["flash"] = maxf(float(host.get("flash", 0.0)), 0.16)
+		game.grid[row][col] = host
+	plant["support_timer"] = float(Defs.PLANTS["holy_flower"]["shield_refresh"])
+
+
+# 冰淇淋: stacks on a host; one-shot, instantly fully charges the host's
+# click ultimate, then removes itself.
+func update_ice_cream(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	if not bool(plant.get("detonated", false)):
+		return
+

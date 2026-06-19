@@ -7,5 +7,6 @@ const PoolLevelDefs = preload("res://scripts/data/level_defs_pool.gd")
 const FogLevelDefs = preload("res://scripts/data/level_defs_fog.gd")
 const RoofLevelDefs = preload("res://scripts/data/level_defs_roof.gd")
 const CityLevelDefs = preload("res://scripts/data/level_defs_city.gd")
+const VolcanoLevelDefs = preload("res://scripts/data/level_defs_volcano.gd")
 
-static var LEVELS = DayLevelDefs.LEVELS + NightLevelDefs.LEVELS + PoolLevelDefs.LEVELS + FogLevelDefs.LEVELS + RoofLevelDefs.LEVELS + CityLevelDefs.LEVELS
+static var LEVELS = DayLevelDefs.LEVELS + NightLevelDefs.LEVELS + PoolLevelDefs.LEVELS + FogLevelDefs.LEVELS + RoofLevelDefs.LEVELS + CityLevelDefs.LEVELS + VolcanoLevelDefs.LEVELS

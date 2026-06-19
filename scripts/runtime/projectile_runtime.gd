@@ -25,7 +25,8 @@ func _init(game_owner: Control) -> void:
 	game = game_owner
 
 
-func spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color, damage: float, slow_duration: float, speed: float = 460.0, radius: float = 8.0) -> void:
+func spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color, damage: float, slow_duration: float, speed: float = 460.0, radius: float = 8.0, source_kind: String = "") -> void:
+	_play_firing_sfx_for(source_kind)
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position))
 	game.projectiles.append({
 		"kind": "pea",
@@ -45,7 +46,8 @@ func spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color
 	})
 
 
-func spawn_amber_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 480.0, radius: float = 8.5) -> void:
+func spawn_amber_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 480.0, radius: float = 8.5, source_kind: String = "amber_shooter") -> void:
+	_play_firing_sfx_for(source_kind)
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "amber_shooter"))
 	game.projectiles.append({
 		"kind": "amber_pea",
@@ -66,7 +68,8 @@ func spawn_amber_projectile(row: int, spawn_position: Vector2, damage: float, sp
 	})
 
 
-func spawn_amber_ultimate_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 560.0, radius: float = 10.5, velocity_y: float = 0.0, free_aim: bool = false) -> void:
+func spawn_amber_ultimate_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 560.0, radius: float = 10.5, velocity_y: float = 0.0, free_aim: bool = false, source_kind: String = "amber_shooter") -> void:
+	_play_firing_sfx_for(source_kind)
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "amber_shooter"))
 	game.projectiles.append({
 		"kind": "amber_ultimate_shard",
@@ -89,10 +92,19 @@ func spawn_amber_ultimate_projectile(row: int, spawn_position: Vector2, damage: 
 	})
 
 
-func spawn_fire_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 500.0, radius: float = 9.0) -> void:
-	spawn_projectile(row, spawn_position, Color(1.0, 0.54, 0.18), damage, 0.0, speed, radius)
+func spawn_fire_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 500.0, radius: float = 9.0, source_kind: String = "") -> void:
+	spawn_projectile(row, spawn_position, Color(1.0, 0.54, 0.18), damage, 0.0, speed, radius, source_kind)
 	if not game.projectiles.is_empty():
 		game.projectiles[game.projectiles.size() - 1]["fire"] = true
+
+
+# Routes the firing SFX through game.gd's throttled dispatcher. Guarded so
+# missing audio or non-tree contexts stay silent instead of erroring.
+func _play_firing_sfx_for(source_kind: String) -> void:
+	if source_kind == "":
+		return
+	if game.has_method("_play_firing_sfx"):
+		game._play_firing_sfx(source_kind)
 
 
 func find_zombie_index_by_uid(uid: int) -> int:
@@ -295,7 +307,11 @@ func update_lotus_converge_projectile(projectile: Dictionary, delta: float) -> D
 
 
 func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
-	if String(projectile.get("kind", "")) != "" and String(projectile.get("kind", "")) != "pea":
+	var kind = String(projectile.get("kind", ""))
+	# Torchwood transforms straight peas and amber peas into flaming versions.
+	var is_pea = kind == "" or kind == "pea"
+	var is_amber = kind == "amber_pea"
+	if not is_pea and not is_amber:
 		return projectile
 	if bool(projectile.get("fire", false)) or bool(projectile.get("reflected", false)) or float(projectile.get("speed", 0.0)) <= 0.0:
 		return projectile
@@ -310,9 +326,18 @@ func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
 			continue
 		projectile["fire"] = true
 		projectile["damage"] = float(projectile["damage"]) * 2.0
-		projectile["color"] = Color(1.0, 0.54, 0.18)
-		projectile["radius"] = maxf(float(projectile.get("radius", 8.0)), 9.0)
 		projectile["slow_duration"] = 0.0
+		if is_amber:
+			# 烈焰琥珀: keeps the amber armor bonus, gains a deeper flame tint
+			# and a larger body so it reads as an upgraded amber, not a pea.
+			projectile["amber_fire"] = true
+			projectile["color"] = Color(1.0, 0.42, 0.12)
+			projectile["radius"] = maxf(float(projectile.get("radius", 8.0)), 10.0)
+			if game.has_method("_play_firing_sfx"):
+				game._play_sfx("res://audio/sfx/shoot-fire.wav", -14.0, 1.1)
+		else:
+			projectile["color"] = Color(1.0, 0.54, 0.18)
+			projectile["radius"] = maxf(float(projectile.get("radius", 8.0)), 9.0)
 		return projectile
 	return projectile
 
@@ -381,6 +406,41 @@ func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: V
 				"time": 0.28,
 				"duration": 0.28,
 				"color": Color(1.0, 0.56, 0.22, 0.3),
+			})
+		"dragon_bubble":
+			# Splash on impact, then split into fragments that hit nearby zombies.
+			var bubble_radius = float(projectile.get("splash_radius", 52.0))
+			game._damage_zombies_in_circle(impact_position, bubble_radius, damage)
+			var split_count = int(projectile.get("split_count", 3))
+			var split_damage = float(projectile.get("split_damage", 16.0))
+			var split_targets = game._find_closest_zombies_in_radius(impact_position, bubble_radius * 1.6, split_count)
+			for sz_index in split_targets:
+				var sz = game.zombies[int(sz_index)]
+				sz = game._apply_zombie_damage(sz, split_damage, 0.1)
+				game.zombies[int(sz_index)] = sz
+			game.effects.append({
+				"position": impact_position,
+				"radius": bubble_radius,
+				"time": 0.24,
+				"duration": 0.24,
+				"color": Color(0.46, 0.82, 1.0, 0.3),
+			})
+		"toxic_gum":
+			var gum_radius = float(projectile.get("splash_radius", 48.0))
+			game._damage_zombies_in_circle(impact_position, gum_radius, damage)
+			var gum_stun_chance = float(projectile.get("stun_chance", 0.25))
+			var gum_stun_duration = float(projectile.get("stun_duration", 3.0))
+			for zombie_index in game._find_closest_zombies_in_radius(impact_position, gum_radius, 6):
+				var zombie = game.zombies[zombie_index]
+				if game.rng.randf() < gum_stun_chance:
+					zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), gum_stun_duration)
+				game.zombies[zombie_index] = zombie
+			game.effects.append({
+				"position": impact_position,
+				"radius": gum_radius,
+				"time": 0.24,
+				"duration": 0.24,
+				"color": Color(0.58, 0.92, 0.32, 0.3),
 			})
 
 
@@ -474,6 +534,22 @@ func update_projectiles(delta: float) -> void:
 		var hit_index = -1 if projectile_kind == "boomerang" else (_find_spatial_enemy_hit(projectile) if uses_spatial_hits else game._find_projectile_target(projectile))
 		if hit_index != -1:
 			var zombie = game.zombies[hit_index]
+			# 雨伞僵尸: blocks all lobbed/arc projectiles with its umbrella shield.
+			var is_lobbed = projectile.has("arc_target")
+			if String(zombie.get("kind", "")) == "umbrella_zombie" and is_lobbed and float(zombie.get("shield_health", 0.0)) > 0.0:
+				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - _projectile_hit_damage(projectile, zombie))
+				zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.16)
+				zombie["impact_timer"] = maxf(float(zombie.get("impact_timer", 0.0)), 0.12)
+				game.zombies[hit_index] = zombie
+				game.effects.append({
+					"position": Vector2(float(zombie["x"]) - 6.0, game._row_center_y(int(zombie["row"])) - 28.0),
+					"radius": 30.0,
+					"time": 0.14,
+					"duration": 0.14,
+					"color": Color(0.8, 0.92, 1.0, 0.24),
+				})
+				game.projectiles.remove_at(i)
+				continue
 			var hit_damage = _projectile_hit_damage(projectile, zombie)
 			var amber_armored_hit = (String(projectile_kind) == "amber_pea" or String(projectile_kind) == "amber_ultimate_shard") and _is_amber_armored_target(zombie)
 			if bool(zombie.get("balloon_flying", false)) and bool(projectile.get("anti_air", false)):
@@ -538,6 +614,9 @@ func update_projectiles(delta: float) -> void:
 				game._emit_projectile_impact_feedback(Vector2(float(zombie["x"]) + 2.0, projectile_pos.y), projectile, zombie)
 			if projectile_kind == "amber_pea":
 				_emit_amber_impact(Vector2(float(zombie["x"]) + 2.0, game._row_center_y(int(zombie["row"])) - 8.0), amber_armored_hit)
+				# 烈焰琥珀: amber impact plus the fire splash a normal fire pea gets.
+				if bool(projectile.get("amber_fire", false)):
+					apply_fire_projectile_splash(int(projectile["row"]), float(zombie["x"]), float(projectile["damage"]) * 0.55, hit_index)
 			elif projectile_kind == "amber_ultimate_shard":
 				_emit_amber_ultimate_impact(Vector2(float(zombie["x"]) + 2.0, game._row_center_y(int(zombie["row"])) - 8.0), amber_armored_hit)
 			elif projectile_kind == "sakura_petal":
@@ -581,6 +660,19 @@ func update_projectiles(delta: float) -> void:
 			if bool(projectile.get("outbound", true)) and projectile_pos.x > game.BOARD_ORIGIN.x + game.board_size.x + 120.0:
 				game.projectiles.remove_at(i)
 				continue
+			game.projectiles[i] = projectile
+			continue
+
+		if projectile_kind == "frost_boomerang":
+			# Outbound until the board edge, then reverse and return to anchor.
+			if bool(projectile.get("outbound", true)):
+				if projectile_pos.x >= game.BOARD_ORIGIN.x + game.board_size.x:
+					projectile["outbound"] = false
+					projectile["speed"] = -absf(float(projectile.get("speed", 440.0)))
+			else:
+				if float(projectile_pos.x) <= float(projectile.get("anchor_x", game.BOARD_ORIGIN.x)):
+					game.projectiles.remove_at(i)
+					continue
 			game.projectiles[i] = projectile
 			continue
 

@@ -128,6 +128,17 @@ const SUPPORTED_KINDS = [
 	"void_shroom",
 	"phoenix_tree",
 	"thunder_god",
+	# Volcano world plants
+	"dragon_bubble_pult",
+	"cork_plug",
+	"cyclone_grass",
+	"sand_lotus",
+	"frost_boomerang",
+	"toxic_gum_pult",
+	"corn_cannon",
+	"holy_flower",
+	"ice_cream",
+	"gator_cannon",
 ]
 
 var game: Control
@@ -1355,6 +1366,84 @@ func activate(row: int, col: int) -> bool:
 							var sp_row = clampi(row + (rng.randi() % 3) - 1, 0, game.ROWS - 1)
 							game._spawn_projectile(sp_row, center + Vector2(randf_range(-10.0,10.0), -8.0), Color(0.7, 0.3, 0.9), 60.0, 0.0, 460.0, 7.0)
 			game.effects.append({"position": center, "radius": 300.0, "time": 0.44, "duration": 0.44, "color": Color(0.8, 0.4, 1.0, 0.3)})
+		# Volcano world plants — plant food overrides
+		"dragon_bubble_pult":
+			plant["plant_food_mode"] = "cabbage_barrage"
+			plant["plant_food_timer"] = 2.2
+			plant["plant_food_interval"] = 0.01
+		"frost_boomerang":
+			plant["plant_food_mode"] = "cabbage_barrage"
+			plant["plant_food_timer"] = 2.0
+			plant["plant_food_interval"] = 0.01
+		"toxic_gum_pult":
+			plant["plant_food_mode"] = "cabbage_barrage"
+			plant["plant_food_timer"] = 2.1
+			plant["plant_food_interval"] = 0.01
+		"gator_cannon":
+			plant["plant_food_mode"] = "cabbage_barrage"
+			plant["plant_food_timer"] = 2.0
+			plant["plant_food_interval"] = 0.01
+		"corn_cannon":
+			# Saturation bombardment: rain corn blasts across the whole board.
+			for lane in game.active_rows:
+				for burst_col in range(game.COLS):
+					var burst_center = game._cell_center(int(lane), burst_col)
+					game._damage_zombies_in_circle(burst_center, float(Defs.PLANTS["corn_cannon"].get("splash_radius", 110.0)), float(Defs.PLANTS["corn_cannon"].get("damage", 90.0)) * 1.5)
+					game.effects.append({"position": burst_center, "radius": 80.0, "time": 0.3, "duration": 0.3, "color": Color(1.0, 0.78, 0.2, 0.4)})
+			plant["plant_food_timer"] = 0.8
+		"cyclone_grass":
+			# Mega vortex: pull and blast every enemy on the board.
+			for lane in game.active_rows:
+				game._detonate_one_shot_plant("cyclone_grass", int(lane), col)
+			plant["plant_food_timer"] = 0.6
+		"sand_lotus":
+			# Sandstorm: root every enemy on the board for the snare duration.
+			var sand_duration = float(Defs.PLANTS["sand_lotus"].get("snare_duration", 6.0))
+			for zi in range(game.zombies.size()):
+				var sand_zombie = game.zombies[zi]
+				if not game._is_enemy_zombie(sand_zombie):
+					continue
+				if bool(sand_zombie.get("flying", false)):
+					continue
+				sand_zombie["rooted_timer"] = maxf(float(sand_zombie.get("rooted_timer", 0.0)), sand_duration)
+				sand_zombie["frozen_timer"] = maxf(float(sand_zombie.get("frozen_timer", 0.0)), sand_duration)
+				sand_zombie["special_pause_timer"] = maxf(float(sand_zombie.get("special_pause_timer", 0.0)), sand_duration)
+				sand_zombie["flash"] = maxf(float(sand_zombie.get("flash", 0.0)), 0.2)
+				game.zombies[zi] = sand_zombie
+			plant["plant_food_timer"] = 0.6
+		"holy_flower":
+			# Bless every plant on the board with a holy shield and full health.
+			for r in range(game.ROWS):
+				for c in range(game.COLS):
+					var blessed = game._top_plant_at(r, c)
+					if blessed == null:
+						continue
+					blessed["health"] = float(blessed.get("max_health", 120.0))
+					blessed["holy_invincible_timer"] = maxf(float(blessed.get("holy_invincible_timer", 0.0)), 3.0)
+					blessed["armor_health"] = maxf(float(blessed.get("armor_health", 0.0)), float(Defs.PLANTS["holy_flower"].get("shield_amount", 600.0)))
+					blessed["max_armor_health"] = maxf(float(blessed.get("max_armor_health", 1.0)), float(Defs.PLANTS["holy_flower"].get("shield_amount", 600.0)))
+					blessed["flash"] = maxf(float(blessed.get("flash", 0.0)), 0.18)
+					game.grid[r][c] = blessed
+			plant["plant_food_timer"] = 0.6
+		"ice_cream":
+			# Mega charge: fully empower every plant's click ultimate.
+			for r in range(game.ROWS):
+				for c in range(game.COLS):
+					var charged = game._top_plant_at(r, c)
+					if charged == null:
+						continue
+					charged["ultimate_charge"] = 1.0
+					charged["ultimate_cooldown"] = 0.0
+					charged["flash"] = maxf(float(charged.get("flash", 0.0)), 0.18)
+					game.grid[r][c] = charged
+			plant["plant_food_timer"] = 0.6
+		"cork_plug":
+			# Seal every lava vent on the board.
+			for r in range(game.ROWS):
+				for c in range(game.COLS):
+					if String(game._cell_terrain_kind(r, c)) == "lava":
+						game._seal_lava_cell(r, c)
+			plant["plant_food_timer"] = 0.5
 		_:
 			return false
 
