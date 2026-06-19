@@ -422,6 +422,10 @@ var support_grid: Array = []
 var cell_terrain_mask: Array = []
 var zombies: Array = []
 var next_zombie_uid := 1
+# Re-entrancy guard: while the lead camel zombie spawns its row of platoon
+# companions, companions must not themselves spawn another platoon (would
+# recurse infinitely and crash with a stack overflow).
+var _camel_spawning_platoon := false
 var projectiles: Array = []
 var suns: Array = []
 var coins: Array = []
@@ -4451,12 +4455,18 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		knight["base_speed"] = float(base.get("mounted_speed", base["speed"]))
 		zombies[knight_index] = knight
 	if kind == "camel_zombie":
-		# 骆尸以 3 只一排同步推进（PvZ2 骆尸阵列）；额外两只在相邻行同步登场。
-		var anchor_x = float(zombies[zombies.size() - 1]["x"])
-		for companion_row in [row - 1, row + 1]:
-			if companion_row < 0 or companion_row >= ROWS or not _is_row_active(companion_row):
-				continue
-			_spawn_zombie_at("camel_zombie", companion_row, anchor_x, true)
+		# 骆尸以 3 只一排同步推进（PvZ2 骆尸阵列）；只有事件召唤的首领会再生成相邻行的
+		# 随从——随从本身不再分裂，否则 _spawn_zombie 会无限递归导致栈溢出闪退。
+		# 用实例级 re-entrancy 守卫：随从生成期间 _camel_spawning_platoon=true，
+		# 随从自身的 _spawn_zombie 调用看到守卫就跳过编队分裂。
+		if not _camel_spawning_platoon:
+			_camel_spawning_platoon = true
+			var anchor_x = float(zombies[zombies.size() - 1]["x"])
+			for companion_row in [row - 1, row + 1]:
+				if companion_row < 0 or companion_row >= ROWS or not _is_row_active(companion_row):
+					continue
+				_spawn_zombie_at("camel_zombie", companion_row, anchor_x, true)
+			_camel_spawning_platoon = false
 	if kind == "ski_zombie":
 		var ski_index = zombies.size() - 1
 		var ski = zombies[ski_index]
