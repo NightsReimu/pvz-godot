@@ -201,6 +201,7 @@ func _test_1_23_excludes_basketball_and_mech_from_flandre_spawns() -> bool:
 		"basketball": true,
 		"mech_zombie": true,
 		"catapult_zombie": true,
+		"programmer_zombie": true,
 	}
 	var passed := true
 	for event in level.get("events", []):

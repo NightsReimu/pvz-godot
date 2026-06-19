@@ -9859,9 +9859,12 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 			]
 			tint = Color(0.96, 0.24, 0.3, 0.28)
 		"flandre_boss":
+			# 1-23 is the Touhou (红魔馆) finale, so the reinforcement pool
+			# deliberately excludes programmer_zombie: its global attack-speed
+			# slow breaks the danmaku-themed pace and doesn't fit the world.
 			pools = [
 				["football", "buckethead", "screen_door", "ninja", "barrel_screen_zombie", "qinghua"],
-				["dark_football", "dragon_dance", "qinghua", "shouyue", "tornado_zombie", "turret_zombie", "programmer_zombie"],
+				["dark_football", "dragon_dance", "qinghua", "shouyue", "tornado_zombie", "turret_zombie"],
 				["gargantuar", "wizard_zombie", "subway_zombie", "barrel_screen_zombie", "excavator_zombie", "dragon_dance", "dark_football", "tornado_zombie"],
 			]
 			tint = Color(1.0, 0.38, 0.24, 0.3)
@@ -21558,6 +21561,12 @@ func _draw_plant_food_icon(center: Vector2, size_scale: float) -> void:
 
 func _draw_zombie_icon(kind: String, center: Vector2, size_scale: float) -> void:
 	draw_set_transform(center, 0.0, Vector2(size_scale, size_scale))
+	# Show the zombie with full accessories (shield) so the almanac icon
+	# displays the cone/bucket/helmet, not just the bare head.
+	var icon_shield = float(Defs.ZOMBIES.get(kind, {}).get("shield_health", 0.0))
+	var icon_enraged = false
+	if kind == "newspaper":
+		icon_enraged = false
 	_draw_zombie(
 		Vector2.ZERO,
 		{
@@ -21568,6 +21577,8 @@ func _draw_zombie_icon(kind: String, center: Vector2, size_scale: float) -> void
 			"jumping": false,
 			"reflect_timer": 0.0,
 			"plant_food_carrier": false,
+			"shield_health": icon_shield,
+			"enraged": icon_enraged,
 		}
 	)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
