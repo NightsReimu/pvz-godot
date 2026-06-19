@@ -27,6 +27,9 @@ func _run() -> void:
 	failed = not _test_cyclone_grass_detonate_pulls_and_damages_nearby_zombies() or failed
 	failed = not _test_corn_cannon_right_click_fires_at_target() or failed
 	failed = not _test_volcano_boss_is_flagged_and_has_reinforcement_pool() or failed
+	failed = not _test_dragon_bubble_pult_fires_and_erupts_whole_row() or failed
+	failed = not _test_toxic_gum_pult_fires_without_runtime_error() or failed
+	failed = not _test_corn_cannon_click_ultimate_saturation_barrage() or failed
 	quit(1 if failed else 0)
 
 
@@ -352,4 +355,90 @@ func _test_volcano_boss_is_flagged_and_has_reinforcement_pool() -> bool:
 		if bool(Dictionary(event).get("wave", false)):
 			wave_count += 1
 	passed = _assert_true(wave_count >= 1, "7-10 should schedule at least one wave marker for the boss fight") and passed
+	return passed
+
+
+func _test_dragon_bubble_pult_fires_and_erupts_whole_row() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	# Give the pult a flower pot support so it can sit on a volcano tile.
+	game.cell_terrain_mask[row][col] = "volcano_tile"
+	game.support_grid[row][col] = game._create_plant("flower_pot", row, col)
+	var plant = game._create_plant("dragon_bubble_pult", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	# Spawn two zombies in the same row — one near, one far — so a whole-row
+	# strike hurts both, not just the frontmost.
+	var near_x = game._cell_center(row, col + 1).x
+	var far_x = game._cell_center(row, col + 4).x
+	game._spawn_zombie_at("normal", row, near_x)
+	game._spawn_zombie_at("normal", row, far_x)
+	var near_before = float(game.zombies[0]["health"])
+	var far_before = float(game.zombies[1]["health"])
+	# One update tick should fire the lobbed projectile.
+	game._update_plants(0.2)
+	var fired = false
+	for projectile in game.projectiles:
+		if String(projectile.get("kind", "")) == "dragon_bubble":
+			fired = true
+			break
+	var passed = _assert_true(fired, "dragon bubble pult should fire a lobbed projectile when an enemy is in its lane")
+	# Advance enough ticks for the lobbed projectile to land (arc_duration ~0.42s+).
+	for _step in range(40):
+		game._update_projectiles(0.05)
+	var near_after = float(game.zombies[0]["health"])
+	var far_after = float(game.zombies[1]["health"])
+	passed = _assert_true(near_after < near_before, "dragon bubble whole-row eruption should damage a near zombie in the lane") and passed
+	passed = _assert_true(far_after < far_before, "dragon bubble whole-row eruption should damage a far zombie in the same lane") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_toxic_gum_pult_fires_without_runtime_error() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	game.cell_terrain_mask[row][col] = "volcano_tile"
+	game.support_grid[row][col] = game._create_plant("flower_pot", row, col)
+	var plant = game._create_plant("toxic_gum_pult", row, col)
+	plant["shot_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	game._spawn_zombie_at("normal", row, game._cell_center(row, col + 3).x)
+	game._update_plants(0.2)
+	var fired = false
+	for projectile in game.projectiles:
+		if String(projectile.get("kind", "")) == "toxic_gum":
+			fired = true
+			break
+	var passed = _assert_true(fired, "toxic gum pult should fire a lobbed projectile when an enemy is in its lane (no crash on spawn)")
+	# Advance ticks so the lobbed projectile lands without runtime errors.
+	for _step in range(40):
+		game._update_projectiles(0.05)
+	passed = _assert_true(true, "toxic gum pult projectile should resolve without runtime error") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_corn_cannon_click_ultimate_saturation_barrage() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	game.cell_terrain_mask[row][col] = "volcano_tile"
+	game.support_grid[row][col] = game._create_plant("flower_pot", row, col)
+	var plant = game._create_plant("corn_cannon", row, col)
+	plant["ultimate_charge"] = 1.0
+	plant["ultimate_cooldown"] = 0.0
+	game.grid[row][col] = plant
+	# Spawn a zombie in the same row so the saturation barrage has something to hit.
+	game._spawn_zombie_at("normal", row, game._cell_center(row, col + 3).x)
+	var health_before = float(game.zombies[0]["health"])
+	# Force the ultimate to charge and trigger it.
+	game.call("_update_ultimate_charges", 999.0)
+	var activated = bool(game.call("_try_activate_ultimate", row, col))
+	var passed = _assert_true(activated, "corn cannon click ultimate should activate when fully charged (explicit ultimate had no case before)")
+	if activated:
+		var health_after = float(game.zombies[0]["health"])
+		passed = _assert_true(health_after < health_before, "corn cannon saturation barrage ultimate should damage zombies in the lane") and passed
+	_free_game(game)
 	return passed

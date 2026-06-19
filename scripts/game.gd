@@ -6900,6 +6900,18 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 							z["rooted_timer"] = max(float(z.get("rooted_timer", 0.0)), 4.0)
 			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 800.0, "time": 1.5, "duration": 1.5, "color": Color(float(randf()), float(randf()), float(randf()), 0.6)})
 			_trigger_screen_shake(10.0)
+		"corn_cannon":
+			# 饱和炮击: rain corn blasts across every active lane.
+			var cc_radius = float(Defs.PLANTS["corn_cannon"].get("splash_radius", 110.0))
+			var cc_damage = maxf(float(Defs.PLANTS["corn_cannon"].get("damage", 90.0)) * 2.2, 220.0)
+			for lane in active_rows:
+				var lane_row = int(lane)
+				for burst_col in range(COLS):
+					var burst_center = _cell_center(lane_row, burst_col)
+					_damage_zombies_in_circle(burst_center, cc_radius, cc_damage)
+					_damage_obstacles_in_circle(burst_center, cc_radius * 0.9, cc_damage)
+					effects.append({"position": burst_center, "radius": cc_radius * 0.7, "time": 0.32, "duration": 0.32, "color": Color(1.0, 0.78, 0.2, 0.32)})
+			_trigger_screen_shake(12.0)
 
 
 func _has_any_enemy_zombie() -> bool:

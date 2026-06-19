@@ -4285,20 +4285,24 @@ func update_dragon_bubble_pult(plant: Dictionary, delta: float, row: int, col: i
 	plant["shot_cooldown"] -= cadence_delta
 	if float(plant["shot_cooldown"]) > 0.0:
 		return
+	# 整行判定: fires whenever any enemy is anywhere in this lane (lobbed,
+	# so the volcano slope never blocks it). The projectile erupts across the
+	# whole row on impact — handled in resolve_lobbed_projectile_impact.
 	var target_index = game._find_throw_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
 	if target_index == -1:
 		return
-	var zombie = game.zombies[target_index]
-	var target = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0)
+	# Aim at the far end of the lane so the eruption covers every column.
+	var target = Vector2(game.BOARD_ORIGIN.x + game.board_size.x - 8.0, game._row_center_y(row) - 8.0)
 	var damage = float(Defs.PLANTS["dragon_bubble_pult"]["damage"])
 	var source_kind = "dragon_bubble_pult"
-	game._spawn_roof_lobbed_projectile("dragon_bubble", row, center + Vector2(12.0, -30.0), target, damage, Color(0.46, 0.78, 1.0), 72.0, 11.0, float(Defs.PLANTS["dragon_bubble_pult"]["splash_radius"]), 0.0, source_kind)
+	spawn_roof_lobbed_projectile("dragon_bubble", row, center + Vector2(12.0, -30.0), target, damage, Color(1.0, 0.5, 0.18), 72.0, 12.0, float(Defs.PLANTS["dragon_bubble_pult"]["splash_radius"]), 0.0, source_kind)
 	# Mark the spawned projectile so resolve_lobbed_projectile_impact can split it.
 	if not game.projectiles.is_empty():
 		var last = game.projectiles[game.projectiles.size() - 1]
 		if String(last.get("kind", "")) == "dragon_bubble":
 			last["split_count"] = int(Defs.PLANTS["dragon_bubble_pult"]["split_count"])
 			last["split_damage"] = float(Defs.PLANTS["dragon_bubble_pult"]["split_damage"])
+			last["color"] = Color(1.0, 0.5, 0.18)
 			game.projectiles[game.projectiles.size() - 1] = last
 	plant["shot_cooldown"] = float(Defs.PLANTS["dragon_bubble_pult"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
@@ -4318,7 +4322,7 @@ func update_toxic_gum_pult(plant: Dictionary, delta: float, row: int, col: int) 
 	var zombie = game.zombies[target_index]
 	var target = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0)
 	var damage = float(Defs.PLANTS["toxic_gum_pult"]["damage"])
-	game._spawn_roof_lobbed_projectile("toxic_gum", row, center + Vector2(12.0, -28.0), target, damage, Color(0.58, 0.92, 0.32), 66.0, 10.0, float(Defs.PLANTS["toxic_gum_pult"]["splash_radius"]), 0.0, "toxic_gum_pult")
+	spawn_roof_lobbed_projectile("toxic_gum", row, center + Vector2(12.0, -28.0), target, damage, Color(0.58, 0.92, 0.32), 66.0, 10.0, float(Defs.PLANTS["toxic_gum_pult"]["splash_radius"]), 0.0, "toxic_gum_pult")
 	if not game.projectiles.is_empty():
 		var last = game.projectiles[game.projectiles.size() - 1]
 		if String(last.get("kind", "")) == "toxic_gum":

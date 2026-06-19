@@ -408,9 +408,14 @@ func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: V
 				"color": Color(1.0, 0.56, 0.22, 0.3),
 			})
 		"dragon_bubble":
-			# Splash on impact, then split into fragments that hit nearby zombies.
+			# Whole-row strike: the magma bubble erupts across the entire lane on impact,
+			# then splits into fragments that pick off survivors.
 			var bubble_radius = float(projectile.get("splash_radius", 52.0))
-			game._damage_zombies_in_circle(impact_position, bubble_radius, damage)
+			var impact_row = int(projectile.get("row", 0))
+			# Primary full-lane damage — every enemy in this row past the plant gets hit.
+			game._damage_zombies_in_row_segment(impact_row, impact_position.x - game.board_size.x, game.BOARD_ORIGIN.x + game.board_size.x + game.CELL_SIZE.x, damage)
+			# Splash around the impact point too.
+			game._damage_zombies_in_circle(impact_position, bubble_radius, damage * 0.5)
 			var split_count = int(projectile.get("split_count", 3))
 			var split_damage = float(projectile.get("split_damage", 16.0))
 			var split_targets = game._find_closest_zombies_in_radius(impact_position, bubble_radius * 1.6, split_count)
@@ -418,12 +423,23 @@ func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: V
 				var sz = game.zombies[int(sz_index)]
 				sz = game._apply_zombie_damage(sz, split_damage, 0.1)
 				game.zombies[int(sz_index)] = sz
+			# Full-lane magma eruption visual.
+			game.effects.append({
+				"shape": "lane_spray",
+				"position": Vector2(impact_position.x, game._row_center_y(impact_row)),
+				"length": game.board_size.x,
+				"width": 48.0,
+				"radius": game.board_size.x * 0.5,
+				"time": 0.3,
+				"duration": 0.3,
+				"color": Color(1.0, 0.46, 0.14, 0.32),
+			})
 			game.effects.append({
 				"position": impact_position,
 				"radius": bubble_radius,
 				"time": 0.24,
 				"duration": 0.24,
-				"color": Color(0.46, 0.82, 1.0, 0.3),
+				"color": Color(1.0, 0.5, 0.16, 0.34),
 			})
 		"toxic_gum":
 			var gum_radius = float(projectile.get("splash_radius", 48.0))
