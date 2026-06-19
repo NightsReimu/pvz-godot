@@ -5980,26 +5980,46 @@ func _update_ultimate_charges(delta: float) -> void:
 		for col in range(grid[row].size()):
 			if grid[row][col] != null:
 				grid[row][col] = _tick_click_ultimate_for_plant(grid[row][col], delta)
-			elif support_grid[row][col] != null:
+			if support_grid[row][col] != null:
 				support_grid[row][col] = _tick_click_ultimate_for_plant(support_grid[row][col], delta)
 
 
+func _ready_click_ultimate_candidate_at(row: int, col: int) -> Dictionary:
+	for layer in ["grid", "support"]:
+		var plant_variant = grid[row][col] if layer == "grid" else support_grid[row][col]
+		if plant_variant == null:
+			continue
+		var plant = plant_variant
+		var kind = String(plant.get("kind", ""))
+		var profile = _ultimate_profile_for_kind(kind)
+		if profile.is_empty():
+			continue
+		if float(plant.get("ultimate_charge", 0.0)) < 1.0 or bool(plant.get("ultimate_active", false)):
+			continue
+		if float(plant.get("ultimate_cooldown", 0.0)) > 0.0:
+			continue
+		return {"plant": plant, "kind": kind, "profile": profile, "layer": layer}
+	return {}
+
+
+func _set_click_ultimate_candidate(row: int, col: int, layer: String, plant: Dictionary) -> void:
+	if layer == "support":
+		support_grid[row][col] = plant
+	else:
+		grid[row][col] = plant
+
+
 func _try_activate_ultimate(row: int, col: int) -> bool:
-	var plant_variant = _targetable_plant_at(row, col)
-	if plant_variant == null:
+	var candidate = _ready_click_ultimate_candidate_at(row, col)
+	if candidate.is_empty():
 		return false
-	var plant = plant_variant
-	var kind = String(plant["kind"])
-	var profile = _ultimate_profile_for_kind(kind)
-	if profile.is_empty():
-		return false
-	if float(plant["ultimate_charge"]) < 1.0 or bool(plant["ultimate_active"]):
-		return false
-	if float(plant["ultimate_cooldown"]) > 0.0:
-		return false
+	var plant = Dictionary(candidate["plant"])
+	var kind = String(candidate["kind"])
+	var profile = Dictionary(candidate["profile"])
+	var layer = String(candidate["layer"])
 	plant["ultimate_active"] = true
 	plant["ultimate_timer"] = float(profile.get("ultimate_duration", 1.2))
-	_set_targetable_plant(row, col, plant)
+	_set_click_ultimate_candidate(row, col, layer, plant)
 	_trigger_screen_shake(6.0)
 	_show_toast("%s: %s!" % [String(Defs.PLANTS[kind].get("name", kind)), String(profile.get("ultimate_name", "终极技能"))])
 	_execute_ultimate(plant, kind, row, col, profile)
@@ -6310,12 +6330,261 @@ func _execute_generic_ultimate(plant: Dictionary, kind: String, row: int, col: i
 				effects.append({"position": center, "radius": 120.0, "time": 0.3, "duration": 0.3, "color": Color(0.7, 0.96, 0.74, 0.26)})
 
 
+func _append_volcano_ultimate_effect(shape: String, position: Vector2, radius: float, color: Color, duration: float = 0.42, length: float = 0.0, width: float = 0.0) -> void:
+	var effect := {
+		"shape": shape,
+		"position": position,
+		"radius": radius,
+		"time": duration,
+		"duration": duration,
+		"color": color,
+		"anim_speed": 8.0,
+	}
+	if length > 0.0:
+		effect["length"] = length
+	if width > 0.0:
+		effect["width"] = width
+	effects.append(effect)
+
+
+func _execute_volcano_dragon_bubble_ultimate(row: int, col: int) -> void:
+	var center = _cell_center(row, col)
+	var data = Defs.PLANTS["dragon_bubble_pult"]
+	var radius = float(data.get("splash_radius", 52.0)) + 36.0
+	var damage = maxf(float(data.get("damage", 32.0)) * 4.2, 150.0)
+	for lane_variant in active_rows:
+		var lane = int(lane_variant)
+		var lane_center = Vector2(center.x + board_size.x * 0.42, _row_center_y(lane) - 8.0)
+		_damage_zombies_in_row_segment(lane, BOARD_ORIGIN.x - 12.0, BOARD_ORIGIN.x + board_size.x + 24.0, damage, 0.3)
+		_damage_obstacles_in_circle(lane_center, board_size.x * 0.45, damage)
+		_append_volcano_ultimate_effect("volcano_dragon_bubble_barrage", lane_center, radius, Color(1.0, 0.48, 0.18, 0.32), 0.44, board_size.x * 0.82, CELL_SIZE.y * 0.72)
+	_play_sfx(SFX_HIT_EXPLOSION_PATH, -13.0, 1.04)
+	_trigger_screen_shake(9.0)
+
+
+func _execute_volcano_cork_plug_ultimate(row: int, col: int) -> void:
+	var sealed := 0
+	for r in range(ROWS):
+		for c in range(COLS):
+			if String(_cell_terrain_kind(r, c)) == "lava":
+				_seal_lava_cell(r, c)
+				sealed += 1
+				_append_volcano_ultimate_effect("volcano_cork_seal", _cell_center(r, c), CELL_SIZE.x * 0.48, Color(0.72, 0.46, 0.22, 0.34), 0.36)
+	var origin = _cell_center(row, col)
+	if sealed == 0:
+		_append_volcano_ultimate_effect("volcano_cork_seal", origin, CELL_SIZE.x * 0.58, Color(0.72, 0.46, 0.22, 0.34), 0.36)
+	var plug = support_grid[row][col] if support_grid[row][col] != null else grid[row][col]
+	if plug != null:
+		plug["health"] = float(plug.get("max_health", plug.get("health", 240.0)))
+		plug["armor_health"] = maxf(float(plug.get("armor_health", 0.0)), 180.0)
+		plug["max_armor_health"] = maxf(float(plug.get("max_armor_health", 0.0)), 180.0)
+		plug["flash"] = maxf(float(plug.get("flash", 0.0)), 0.2)
+		if support_grid[row][col] != null and String(plug.get("kind", "")) == "cork_plug":
+			support_grid[row][col] = plug
+		else:
+			grid[row][col] = plug
+	_play_sfx(SFX_HIT_HEAVY_PATH, -14.0, 0.86)
+	_trigger_screen_shake(6.0)
+
+
+func _execute_volcano_cyclone_ultimate(row: int, col: int) -> void:
+	var center = _cell_center(row, col)
+	var radius := 360.0
+	var damage = maxf(float(Defs.PLANTS["cyclone_grass"].get("pull_damage", 120.0)) * 1.65, 210.0)
+	for zombie_index in range(zombies.size()):
+		var zombie = zombies[zombie_index]
+		if not _is_enemy_zombie(zombie) or bool(zombie.get("flying", false)):
+			continue
+		var zpos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		if zpos.distance_to(center) > radius:
+			continue
+		zombie = _apply_zombie_damage(zombie, damage, 0.22, 1.2)
+		zombie["x"] = lerpf(float(zombie["x"]), center.x, 0.45)
+		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.55)
+		zombies[zombie_index] = zombie
+	_append_volcano_ultimate_effect("volcano_vortex", center, radius, Color(0.7, 0.92, 0.68, 0.3), 0.5)
+	_play_sfx(SFX_SHOOT_SPORE_PATH, -13.0, 0.82)
+	_trigger_screen_shake(7.0)
+
+
+func _execute_volcano_sand_lotus_ultimate(row: int, col: int) -> void:
+	var center = _cell_center(row, col)
+	var snare_duration = float(Defs.PLANTS["sand_lotus"].get("snare_duration", 6.0)) + 2.0
+	var damage := 90.0
+	for zombie_index in range(zombies.size()):
+		var zombie = zombies[zombie_index]
+		if not _is_enemy_zombie(zombie) or bool(zombie.get("flying", false)):
+			continue
+		zombie = _apply_zombie_damage(zombie, damage, 0.16, 1.2)
+		zombie["rooted_timer"] = maxf(float(zombie.get("rooted_timer", 0.0)), snare_duration)
+		zombie["frozen_timer"] = maxf(float(zombie.get("frozen_timer", 0.0)), snare_duration * 0.5)
+		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.85)
+		zombies[zombie_index] = zombie
+	_append_volcano_ultimate_effect("volcano_sandstorm", center + Vector2(board_size.x * 0.26, 0.0), board_size.x * 0.5, Color(0.84, 0.64, 0.32, 0.28), 0.52, board_size.x * 0.85, CELL_SIZE.y * float(active_rows.size()))
+	_play_sfx(SFX_HIT_HEAVY_PATH, -15.0, 0.78)
+	_trigger_screen_shake(6.0)
+
+
+func _execute_volcano_frost_boomerang_ultimate(row: int, col: int) -> void:
+	var center = _cell_center(row, col)
+	var damage = maxf(float(Defs.PLANTS["frost_boomerang"].get("damage", 24.0)) * 2.8, 92.0)
+	var slow = float(Defs.PLANTS["frost_boomerang"].get("slow_duration", 3.0)) + 2.0
+	for lane_variant in active_rows:
+		var lane = int(lane_variant)
+		for offset in [-18.0, 10.0, 38.0]:
+			var spawn = Vector2(center.x + 30.0, _row_center_y(lane) - 10.0 + float(offset) * 0.18)
+			_spawn_projectile(lane, spawn, Color(0.62, 0.92, 1.0), damage, slow, 600.0 + float(offset) * 0.25, 10.0, "frost_boomerang")
+			if not projectiles.is_empty():
+				var projectile = projectiles[projectiles.size() - 1]
+				projectile["anchor_x"] = spawn.x
+				projectile["outbound"] = true
+				projectile["pierce_left"] = 99
+				projectile["hit_uids"] = []
+				projectiles[projectiles.size() - 1] = projectile
+	_append_volcano_ultimate_effect("volcano_frost_ring", center, 170.0, Color(0.58, 0.94, 1.0, 0.34), 0.42)
+	_play_sfx(SFX_SHOOT_ICE_PATH, -13.0, 1.08)
+	_trigger_screen_shake(5.0)
+
+
+func _execute_volcano_toxic_gum_ultimate(row: int, col: int) -> void:
+	var center = _cell_center(row, col)
+	var data = Defs.PLANTS["toxic_gum_pult"]
+	var damage = maxf(float(data.get("damage", 26.0)) * 3.4, 120.0)
+	var radius = float(data.get("splash_radius", 48.0)) + 42.0
+	var targets: Array = []
+	for zombie_index in range(zombies.size()):
+		var zombie = zombies[zombie_index]
+		if _is_enemy_zombie(zombie):
+			targets.append({"index": zombie_index, "x": float(zombie["x"])})
+	targets.sort_custom(func(a, b): return float(a["x"]) < float(b["x"]))
+	var hit_count = max(1, min(6, targets.size()))
+	for target_order in range(hit_count):
+		if targets.is_empty():
+			break
+		var target = targets[target_order]
+		var zombie = zombies[int(target["index"])]
+		var impact = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 8.0)
+		_damage_zombies_in_circle(impact, radius, damage)
+		for close_index in _find_closest_zombies_in_radius(impact, radius, 4):
+			var close = zombies[int(close_index)]
+			close["special_pause_timer"] = maxf(float(close.get("special_pause_timer", 0.0)), float(data.get("stun_duration", 3.0)) * 0.65)
+			close["slow_timer"] = maxf(float(close.get("slow_timer", 0.0)), 2.5)
+			zombies[int(close_index)] = close
+		_append_volcano_ultimate_effect("volcano_toxic_gum_rain", impact, radius, Color(0.56, 0.96, 0.28, 0.34), 0.38)
+	if targets.is_empty():
+		_append_volcano_ultimate_effect("volcano_toxic_gum_rain", center + Vector2(120.0, -10.0), radius, Color(0.56, 0.96, 0.28, 0.34), 0.38)
+	_play_sfx(SFX_SHOOT_SPORE_PATH, -13.0, 1.12)
+	_trigger_screen_shake(6.0)
+
+
+func _execute_volcano_holy_flower_ultimate(row: int, col: int) -> void:
+	var center = _cell_center(row, col)
+	var shield = float(Defs.PLANTS["holy_flower"].get("shield_amount", 600.0))
+	for r in range(ROWS):
+		for c in range(COLS):
+			for layer in ["grid", "support"]:
+				var plant_variant = grid[r][c] if layer == "grid" else support_grid[r][c]
+				if plant_variant == null:
+					continue
+				var blessed = plant_variant
+				blessed["health"] = float(blessed.get("max_health", blessed.get("health", 120.0)))
+				blessed["holy_invincible_timer"] = maxf(float(blessed.get("holy_invincible_timer", 0.0)), 3.0)
+				blessed["armor_health"] = maxf(float(blessed.get("armor_health", 0.0)), shield)
+				blessed["max_armor_health"] = maxf(float(blessed.get("max_armor_health", 0.0)), shield)
+				blessed["shell_kind"] = "holy_shield"
+				blessed["flash"] = maxf(float(blessed.get("flash", 0.0)), 0.22)
+				if layer == "grid":
+					grid[r][c] = blessed
+				else:
+					support_grid[r][c] = blessed
+	_append_volcano_ultimate_effect("volcano_holy_shield", center + Vector2(board_size.x * 0.28, 0.0), board_size.x * 0.48, Color(1.0, 0.94, 0.62, 0.3), 0.5, board_size.x * 0.9, CELL_SIZE.y * float(active_rows.size()))
+	_play_sfx(SFX_HIT_BRIGHT_PATH, -12.0, 1.06)
+	_trigger_screen_shake(5.0)
+
+
+func _execute_volcano_ice_cream_ultimate(row: int, col: int) -> void:
+	var center = _cell_center(row, col)
+	for r in range(ROWS):
+		for c in range(COLS):
+			for layer in ["grid", "support"]:
+				var plant_variant = grid[r][c] if layer == "grid" else support_grid[r][c]
+				if plant_variant == null:
+					continue
+				var charged = plant_variant
+				if _ultimate_profile_for_kind(String(charged.get("kind", ""))).is_empty():
+					continue
+				charged["ultimate_charge"] = 1.0
+				charged["ultimate_cooldown"] = 0.0
+				charged["flash"] = maxf(float(charged.get("flash", 0.0)), 0.2)
+				if layer == "grid":
+					grid[r][c] = charged
+				else:
+					support_grid[r][c] = charged
+	_append_volcano_ultimate_effect("volcano_sweet_charge", center, 190.0, Color(0.68, 0.94, 1.0, 0.34), 0.44)
+	_play_sfx(SFX_HIT_ICE_PATH, -12.0, 1.12)
+	_trigger_screen_shake(5.0)
+
+
+func _execute_volcano_gator_cannon_ultimate(row: int, col: int) -> void:
+	var center = _cell_center(row, col)
+	var damage = maxf(float(Defs.PLANTS["gator_cannon"].get("damage", 55.0)) * 5.0, 300.0)
+	for lane in [row - 1, row, row + 1]:
+		if lane < 0 or lane >= ROWS or not _is_row_active(lane):
+			continue
+		for zombie_index in range(zombies.size()):
+			var zombie = zombies[zombie_index]
+			if int(zombie["row"]) != lane or not _is_enemy_zombie(zombie) or _is_hidden_from_lane_attacks(zombie):
+				continue
+			var zombie_x = float(zombie["x"])
+			if zombie_x < center.x + 8.0 or zombie_x > BOARD_ORIGIN.x + board_size.x + 24.0:
+				continue
+			zombie = _apply_zombie_damage(zombie, damage, 0.24, 0.75, true)
+			zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.25)
+			zombies[zombie_index] = zombie
+		_damage_obstacles_in_radius(lane, center.x + board_size.x * 0.5, board_size.x * 0.5, damage)
+		_append_volcano_ultimate_effect("volcano_gator_beam", Vector2(center.x + 26.0, _row_center_y(lane) - 10.0), board_size.x * 0.48, Color(0.26, 1.0, 0.78, 0.34), 0.38, board_size.x, CELL_SIZE.y * 0.42)
+	_play_sfx(SFX_SHOOT_ENERGY_PATH, -12.0, 0.92)
+	_trigger_screen_shake(8.0)
+
+
+func _execute_volcano_corn_cannon_ultimate() -> void:
+	var cc_radius = float(Defs.PLANTS["corn_cannon"].get("splash_radius", 110.0))
+	var cc_damage = maxf(float(Defs.PLANTS["corn_cannon"].get("damage", 90.0)) * 2.2, 220.0)
+	for lane in active_rows:
+		var lane_row = int(lane)
+		for burst_col in range(COLS):
+			var burst_center = _cell_center(lane_row, burst_col)
+			_damage_zombies_in_circle(burst_center, cc_radius, cc_damage)
+			_damage_obstacles_in_circle(burst_center, cc_radius * 0.9, cc_damage)
+			_append_volcano_ultimate_effect("volcano_corn_barrage", burst_center, cc_radius * 0.7, Color(1.0, 0.78, 0.2, 0.32), 0.32)
+	_play_sfx(SFX_HIT_EXPLOSION_PATH, -11.0, 0.92)
+	_trigger_screen_shake(12.0)
+
+
 func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, profile: Dictionary) -> void:
 	var center = _cell_center(row, col)
 	if String(profile.get("style", "")) != "explicit":
 		_execute_generic_ultimate(plant, kind, row, col, profile)
 		return
 	match kind:
+		"dragon_bubble_pult":
+			_execute_volcano_dragon_bubble_ultimate(row, col)
+		"cork_plug":
+			_execute_volcano_cork_plug_ultimate(row, col)
+		"cyclone_grass":
+			_execute_volcano_cyclone_ultimate(row, col)
+		"sand_lotus":
+			_execute_volcano_sand_lotus_ultimate(row, col)
+		"frost_boomerang":
+			_execute_volcano_frost_boomerang_ultimate(row, col)
+		"toxic_gum_pult":
+			_execute_volcano_toxic_gum_ultimate(row, col)
+		"holy_flower":
+			_execute_volcano_holy_flower_ultimate(row, col)
+		"ice_cream":
+			_execute_volcano_ice_cream_ultimate(row, col)
+		"gator_cannon":
+			_execute_volcano_gator_cannon_ultimate(row, col)
 		"shadow_pea":
 			for r in range(grid.size()):
 				for i in range(4):
@@ -6913,17 +7182,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 800.0, "time": 1.5, "duration": 1.5, "color": Color(float(randf()), float(randf()), float(randf()), 0.6)})
 			_trigger_screen_shake(10.0)
 		"corn_cannon":
-			# 饱和炮击: rain corn blasts across every active lane.
-			var cc_radius = float(Defs.PLANTS["corn_cannon"].get("splash_radius", 110.0))
-			var cc_damage = maxf(float(Defs.PLANTS["corn_cannon"].get("damage", 90.0)) * 2.2, 220.0)
-			for lane in active_rows:
-				var lane_row = int(lane)
-				for burst_col in range(COLS):
-					var burst_center = _cell_center(lane_row, burst_col)
-					_damage_zombies_in_circle(burst_center, cc_radius, cc_damage)
-					_damage_obstacles_in_circle(burst_center, cc_radius * 0.9, cc_damage)
-					effects.append({"position": burst_center, "radius": cc_radius * 0.7, "time": 0.32, "duration": 0.32, "color": Color(1.0, 0.78, 0.2, 0.32)})
-			_trigger_screen_shake(12.0)
+			_execute_volcano_corn_cannon_ultimate()
 
 
 func _has_any_enemy_zombie() -> bool:
@@ -19909,6 +20168,35 @@ func _draw_effects() -> void:
 			draw_circle(slam_center, slam_radius, effect_color)
 			draw_circle(slam_center, slam_radius * 0.82, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.26), false, 4.0)
 			draw_rect(Rect2(slam_center + Vector2(-slam_radius * 0.86, 12.0), Vector2(slam_radius * 1.72, 8.0)), Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.42), true)
+			continue
+		if shape.begins_with("volcano_"):
+			var volcano_center = Vector2(effect["position"])
+			var volcano_radius = _effect_visual_radius(effect, ratio)
+			var volcano_length = _effect_visual_length(effect, ratio)
+			var volcano_width = _effect_visual_width(effect, ratio)
+			var born = clampf(1.0 - ratio, 0.0, 1.0)
+			if volcano_length > volcano_radius * 2.4:
+				draw_rect(Rect2(volcano_center + Vector2(-volcano_length * 0.5, -volcano_width * 0.5), Vector2(volcano_length, volcano_width)), Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.16), true)
+				for band_index in range(3):
+					var band_y = lerpf(-volcano_width * 0.3, volcano_width * 0.3, float(band_index) / 2.0)
+					var wave = sin(level_time * anim_speed + float(band_index) * 1.7) * volcano_width * 0.08
+					draw_line(
+						volcano_center + Vector2(-volcano_length * 0.5, band_y + wave),
+						volcano_center + Vector2(volcano_length * 0.5, band_y - wave),
+						Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * (0.35 + float(band_index) * 0.08)),
+						maxf(2.0, volcano_width * (0.1 - float(band_index) * 0.015))
+					)
+				for spark_index in range(9):
+					var spark_ratio = float(spark_index + 1) / 10.0
+					var spark = volcano_center + Vector2(-volcano_length * 0.5 + volcano_length * spark_ratio, sin(level_time * anim_speed + spark_ratio * 9.0) * volcano_width * 0.34)
+					draw_circle(spark, 3.5 + born * 3.0, Color(1.0, 0.94, 0.78, effect_color.a * 0.55))
+			draw_circle(volcano_center, volcano_radius * (0.58 + born * 0.18), Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.22))
+			draw_arc(volcano_center, volcano_radius * 0.74, level_time * anim_speed * 0.22, level_time * anim_speed * 0.22 + TAU * 0.78, 38, effect_color, 3.0)
+			draw_arc(volcano_center, volcano_radius * 0.48, -level_time * anim_speed * 0.28, -level_time * anim_speed * 0.28 + TAU * 0.68, 30, Color(1.0, 0.96, 0.82, effect_color.a * 0.56), 2.0)
+			for ray_index in range(8):
+				var ray_angle = level_time * anim_speed * 0.18 + float(ray_index) * TAU / 8.0
+				var ray_dir = Vector2(cos(ray_angle), sin(ray_angle))
+				draw_line(volcano_center + ray_dir * volcano_radius * 0.18, volcano_center + ray_dir * volcano_radius * (0.66 + born * 0.18), Color(1.0, 0.92, 0.64, effect_color.a * 0.36), 1.6)
 			continue
 		var radius = _effect_visual_radius(effect, ratio)
 		draw_circle(Vector2(effect["position"]), radius, effect_color)

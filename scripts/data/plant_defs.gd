@@ -1605,12 +1605,18 @@ const PLANTS: Dictionary = {
 			"splash_radius": 52.0,
 			"split_count": 3,
 			"split_damage": 16.0,
+			"ultimate_name": "龙息连爆",
+			"ultimate_charge_time": 54.0,
+			"ultimate_duration": 1.0,
 		},
 		"cork_plug": {
 			"name": "木塞子",
 			"cost": 25,
 			"cooldown": 5.0,
 			"health": 240.0,
+			"ultimate_name": "地脉封堵",
+			"ultimate_charge_time": 42.0,
+			"ultimate_duration": 0.7,
 		},
 		"cyclone_grass": {
 			"name": "中控旋风草",
@@ -1621,6 +1627,9 @@ const PLANTS: Dictionary = {
 			"pull_radius": 150.0,
 			"pull_damage": 120.0,
 			"damage": 120.0,
+			"ultimate_name": "火山风眼",
+			"ultimate_charge_time": 46.0,
+			"ultimate_duration": 0.8,
 		},
 		"sand_lotus": {
 			"name": "沙尘莲",
@@ -1630,6 +1639,9 @@ const PLANTS: Dictionary = {
 			"one_shot": true,
 			"snare_duration": 6.0,
 			"max_snare_health": 1600.0,
+			"ultimate_name": "流沙结界",
+			"ultimate_charge_time": 48.0,
+			"ultimate_duration": 0.8,
 		},
 		"frost_boomerang": {
 			"name": "寒冰回旋镖射手",
@@ -1640,6 +1652,9 @@ const PLANTS: Dictionary = {
 			"damage": 24.0,
 			"slow_duration": 3.0,
 			"range": 10000.0,
+			"ultimate_name": "霜环回旋",
+			"ultimate_charge_time": 54.0,
+			"ultimate_duration": 1.0,
 		},
 		"toxic_gum_pult": {
 			"name": "剧毒口香糖投手",
@@ -1652,6 +1667,9 @@ const PLANTS: Dictionary = {
 			"split_count": 2,
 			"stun_chance": 0.25,
 			"stun_duration": 3.0,
+			"ultimate_name": "毒胶爆雨",
+			"ultimate_charge_time": 55.0,
+			"ultimate_duration": 1.0,
 		},
 		"corn_cannon": {
 			"name": "玉米加农炮",
@@ -1672,6 +1690,9 @@ const PLANTS: Dictionary = {
 			"health": 80.0,
 			"shield_amount": 600.0,
 			"shield_refresh": 12.0,
+			"ultimate_name": "圣盾天幕",
+			"ultimate_charge_time": 50.0,
+			"ultimate_duration": 0.8,
 		},
 		"ice_cream": {
 			"name": "冰淇淋",
@@ -1680,6 +1701,9 @@ const PLANTS: Dictionary = {
 			"health": 40.0,
 			"one_shot": true,
 			"stacks_on_plant": true,
+			"ultimate_name": "甜霜充能",
+			"ultimate_charge_time": 44.0,
+			"ultimate_duration": 0.7,
 		},
 		"gator_cannon": {
 			"name": "鳄鱼炮",
@@ -1690,5 +1714,8 @@ const PLANTS: Dictionary = {
 			"damage": 55.0,
 			"pierce": true,
 			"range": 10000.0,
+			"ultimate_name": "鳄龙贯穿",
+			"ultimate_charge_time": 56.0,
+			"ultimate_duration": 0.9,
 		},
 }

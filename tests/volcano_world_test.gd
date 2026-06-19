@@ -5,6 +5,19 @@ const Defs = preload("res://scripts/game_defs.gd")
 const WorldData = preload("res://scripts/data/world_data.gd")
 const VolcanoDefs = preload("res://scripts/data/level_defs_volcano.gd")
 
+const VOLCANO_PLANT_ULTIMATES := {
+	"dragon_bubble_pult": {"name": "龙息连爆", "shape": "volcano_dragon_bubble_barrage"},
+	"cork_plug": {"name": "地脉封堵", "shape": "volcano_cork_seal"},
+	"cyclone_grass": {"name": "火山风眼", "shape": "volcano_vortex"},
+	"sand_lotus": {"name": "流沙结界", "shape": "volcano_sandstorm"},
+	"frost_boomerang": {"name": "霜环回旋", "shape": "volcano_frost_ring"},
+	"toxic_gum_pult": {"name": "毒胶爆雨", "shape": "volcano_toxic_gum_rain"},
+	"corn_cannon": {"name": "饱和炮击", "shape": "volcano_corn_barrage"},
+	"holy_flower": {"name": "圣盾天幕", "shape": "volcano_holy_shield"},
+	"ice_cream": {"name": "甜霜充能", "shape": "volcano_sweet_charge"},
+	"gator_cannon": {"name": "鳄龙贯穿", "shape": "volcano_gator_beam"},
+}
+
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -29,6 +42,9 @@ func _run() -> void:
 	failed = not _test_volcano_boss_is_flagged_and_has_reinforcement_pool() or failed
 	failed = not _test_dragon_bubble_pult_fires_and_erupts_whole_row() or failed
 	failed = not _test_toxic_gum_pult_fires_without_runtime_error() or failed
+	failed = not _test_volcano_new_plants_have_named_click_ultimates() or failed
+	failed = not _test_volcano_click_ultimates_emit_dedicated_effects() or failed
+	failed = not _test_volcano_click_ultimates_affect_board_state() or failed
 	failed = not _test_corn_cannon_click_ultimate_saturation_barrage() or failed
 	quit(1 if failed else 0)
 
@@ -97,6 +113,36 @@ func _free_game(game: Control) -> void:
 	if is_instance_valid(game.message_panel):
 		game.message_panel.free()
 	game.free()
+
+
+func _count_effect_shape(game: Control, shape: String) -> int:
+	var count := 0
+	for effect_variant in game.effects:
+		if String(Dictionary(effect_variant).get("shape", "")) == shape:
+			count += 1
+	return count
+
+
+func _activate_volcano_ultimate(game: Control, kind: String, row: int, col: int) -> bool:
+	game.cell_terrain_mask[row][col] = "volcano_tile"
+	if kind == "cork_plug":
+		game.support_grid[row][col] = game._create_plant("cork_plug", row, col)
+		game.support_grid[row][col]["ultimate_charge"] = 1.0
+		game.support_grid[row][col]["ultimate_cooldown"] = 0.0
+	elif kind == "holy_flower":
+		game.support_grid[row][col] = game._create_plant("flower_pot", row, col)
+		game.grid[row][col] = game._create_plant("peashooter", row, col)
+		var support = game._create_plant("holy_flower", row, col)
+		support["ultimate_charge"] = 1.0
+		support["ultimate_cooldown"] = 0.0
+		game.support_grid[row][col] = support
+	else:
+		game.support_grid[row][col] = game._create_plant("flower_pot", row, col)
+		var plant = game._create_plant(kind, row, col)
+		plant["ultimate_charge"] = 1.0
+		plant["ultimate_cooldown"] = 0.0
+		game.grid[row][col] = plant
+	return bool(game.call("_try_activate_ultimate", row, col))
 
 
 func _test_volcano_world_metadata_exists() -> bool:
@@ -416,6 +462,88 @@ func _test_toxic_gum_pult_fires_without_runtime_error() -> bool:
 	for _step in range(40):
 		game._update_projectiles(0.05)
 	passed = _assert_true(true, "toxic gum pult projectile should resolve without runtime error") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_volcano_new_plants_have_named_click_ultimates() -> bool:
+	var game = _make_game()
+	var passed := true
+	for kind in VOLCANO_PLANT_ULTIMATES.keys():
+		var expected = Dictionary(VOLCANO_PLANT_ULTIMATES[kind])
+		var data = Defs.PLANTS.get(kind, {})
+		var profile = game.call("_ultimate_profile_for_kind", kind)
+		passed = _assert_true(not data.is_empty(), "volcano plant %s should exist before checking its ultimate" % kind) and passed
+		passed = _assert_true(String(data.get("ultimate_name", "")) == String(expected["name"]), "volcano plant %s should expose its named click ultimate in plant defs" % kind) and passed
+		passed = _assert_true(float(data.get("ultimate_charge_time", 0.0)) > 0.0, "volcano plant %s should define a positive click ultimate charge time" % kind) and passed
+		passed = _assert_true(String(Dictionary(profile).get("style", "")) == "explicit", "volcano plant %s should use a dedicated explicit click ultimate, not a generic template" % kind) and passed
+		passed = _assert_true(String(Dictionary(profile).get("ultimate_name", "")) == String(expected["name"]), "volcano plant %s click ultimate profile should use the dedicated name" % kind) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_volcano_click_ultimates_emit_dedicated_effects() -> bool:
+	var passed := true
+	for kind in VOLCANO_PLANT_ULTIMATES.keys():
+		var game = _make_game()
+		var row := 2
+		var col := 2
+		game._spawn_zombie_at("buckethead", row, game._cell_center(row, 6).x)
+		game.cell_terrain_mask[0][0] = "lava"
+		var activated := _activate_volcano_ultimate(game, kind, row, col)
+		var expected_shape = String(Dictionary(VOLCANO_PLANT_ULTIMATES[kind])["shape"])
+		passed = _assert_true(activated, "%s volcano click ultimate should activate when fully charged" % kind) and passed
+		passed = _assert_true(_count_effect_shape(game, expected_shape) > 0, "%s volcano click ultimate should emit %s effect" % [kind, expected_shape]) and passed
+		_free_game(game)
+	return passed
+
+
+func _test_volcano_click_ultimates_affect_board_state() -> bool:
+	var game = _make_game()
+	var passed := true
+	game.cell_terrain_mask[0][0] = "lava"
+	game.cell_terrain_mask[4][8] = "lava"
+	var cork_activated := _activate_volcano_ultimate(game, "cork_plug", 2, 2)
+	passed = _assert_true(cork_activated, "cork plug click ultimate should activate") and passed
+	passed = _assert_true(String(game.cell_terrain_mask[0][0]) == "volcano_tile" and String(game.cell_terrain_mask[4][8]) == "volcano_tile", "cork plug click ultimate should seal all lava cells") and passed
+	_free_game(game)
+
+	game = _make_game()
+	game.cell_terrain_mask[2][2] = "volcano_tile"
+	game.support_grid[2][2] = game._create_plant("flower_pot", 2, 2)
+	var target = game._create_plant("peashooter", 2, 2)
+	target["health"] = 40.0
+	game.grid[2][2] = target
+	game.support_grid[2][2] = game._create_plant("holy_flower", 2, 2)
+	game.support_grid[2][2]["ultimate_charge"] = 1.0
+	var holy_activated := bool(game.call("_try_activate_ultimate", 2, 2))
+	var blessed = game.grid[2][2]
+	passed = _assert_true(holy_activated, "holy flower click ultimate should activate") and passed
+	passed = _assert_true(float(blessed.get("armor_health", 0.0)) >= 600.0, "holy flower click ultimate should give board plants holy armor") and passed
+	passed = _assert_true(float(blessed.get("health", 0.0)) >= float(blessed.get("max_health", 0.0)), "holy flower click ultimate should heal board plants") and passed
+	_free_game(game)
+
+	game = _make_game()
+	game.cell_terrain_mask[2][2] = "volcano_tile"
+	game.support_grid[2][2] = game._create_plant("flower_pot", 2, 2)
+	var peashooter = game._create_plant("peashooter", 2, 4)
+	peashooter["ultimate_charge"] = 0.0
+	peashooter["ultimate_cooldown"] = 42.0
+	game.grid[2][4] = peashooter
+	var ice_activated := _activate_volcano_ultimate(game, "ice_cream", 2, 2)
+	var charged = game.grid[2][4]
+	passed = _assert_true(ice_activated, "ice cream click ultimate should activate") and passed
+	passed = _assert_true(is_equal_approx(float(charged.get("ultimate_charge", 0.0)), 1.0), "ice cream click ultimate should fully charge other plants") and passed
+	passed = _assert_true(is_equal_approx(float(charged.get("ultimate_cooldown", 0.0)), 0.0), "ice cream click ultimate should clear other plants' ultimate cooldown") and passed
+	_free_game(game)
+
+	game = _make_game()
+	game._spawn_zombie_at("buckethead", 2, game._cell_center(2, 6).x)
+	var health_before = float(game.zombies[0]["health"])
+	var gator_activated := _activate_volcano_ultimate(game, "gator_cannon", 2, 2)
+	var health_after = float(game.zombies[0]["health"])
+	passed = _assert_true(gator_activated, "gator cannon click ultimate should activate") and passed
+	passed = _assert_true(health_after < health_before, "gator cannon click ultimate should damage zombies in its beam lane") and passed
 	_free_game(game)
 	return passed
 
