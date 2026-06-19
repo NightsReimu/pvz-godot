@@ -5041,10 +5041,12 @@ func _erupt_lava_cell(row: int, col: int) -> void:
 	})
 	# Ember burst particles.
 	for p in range(6):
+		var ember_life = rng.randf_range(0.4, 0.7)
 		vfx_particles.append({
 			"pos": center + Vector2(rng.randf_range(-12.0, 12.0), -10.0),
 			"vel": Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(-120.0, -50.0)),
-			"life": rng.randf_range(0.4, 0.7),
+			"life": ember_life,
+			"max_life": ember_life,
 			"color": Color(1.0, rng.randf_range(0.4, 0.8), 0.1, 0.9),
 			"size": rng.randf_range(3.0, 6.0),
 		})
