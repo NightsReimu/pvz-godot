@@ -9514,6 +9514,16 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 				})
 			elif kind == "qinghua":
 				_add_porcelain_shard(int(zombie["row"]), _zombie_cell_col(float(zombie["x"])), 20.0)
+			# Accessory drop animation for cone/bucket/helmet zombies.
+			if kind in ["conehead", "buckethead", "football", "dark_football", "lifebuoy_cone", "lifebuoy_bucket"]:
+				effects.append({
+					"shape": "accessory_drop",
+					"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 44.0),
+					"kind": kind,
+					"time": 0.8,
+					"duration": 0.8,
+					"color": Color(1.0, 1.0, 1.0, 1.0),
+				})
 		else:
 			zombie["shield_health"] = shield_health - remaining_damage
 			remaining_damage = 0.0
@@ -19150,6 +19160,57 @@ func _draw_effects() -> void:
 					draw_circle(shard_point, 7.0 + float(shard_index), Color(1.0, 0.94, 0.78, effect_color.a * (0.42 - float(shard_index) * 0.08)))
 			draw_circle(wing_center, wing_radius * 0.16, Color(1.0, 0.9, 0.68, effect_color.a * 0.22))
 			continue
+		if shape == "accessory_drop":
+			var drop_origin = Vector2(effect["position"])
+			var drop_kind = String(effect.get("kind", "conehead"))
+			var drop_alpha = clampf(ratio, 0.0, 1.0)
+			# Tumble: rotate and fall as the accessory drops off the head.
+			var drop_y = (1.0 - ratio) * 56.0
+			var drop_rot = (1.0 - ratio) * 2.2
+			var drop_cos = cos(drop_rot)
+			var drop_sin = sin(drop_rot)
+			var drop_center = drop_origin + Vector2(sin(drop_rot) * 6.0, drop_y)
+			match drop_kind:
+				"conehead", "lifebuoy_cone":
+					var cone_color = Color(0.95, 0.54, 0.15, drop_alpha)
+					var p1 = drop_center + Vector2(drop_cos * 0.0 - drop_sin * (-30.0), drop_sin * 0.0 + drop_cos * (-30.0))
+					var p2 = drop_center + Vector2(drop_cos * (-13.0) - drop_sin * 8.0, drop_sin * (-13.0) + drop_cos * 8.0)
+					var p3 = drop_center + Vector2(drop_cos * 13.0 - drop_sin * 8.0, drop_sin * 13.0 + drop_cos * 8.0)
+					draw_polygon(PackedVector2Array([p1, p2, p3]), PackedColorArray([cone_color, cone_color.darkened(0.12), cone_color.lightened(0.08)]))
+					draw_line(p2, p3, cone_color.darkened(0.2), 1.5)
+				"buckethead", "lifebuoy_bucket":
+					var bucket_color = Color(0.62, 0.62, 0.66, drop_alpha)
+					var bw = 17.0
+					var bh = 24.0
+					var bp1 = drop_center + Vector2(drop_cos * (-bw) - drop_sin * (-bh), drop_sin * (-bw) + drop_cos * (-bh))
+					var bp2 = drop_center + Vector2(drop_cos * bw - drop_sin * (-bh), drop_sin * bw + drop_cos * (-bh))
+					var bp3 = drop_center + Vector2(drop_cos * bw - drop_sin * bh, drop_sin * bw + drop_cos * bh)
+					var bp4 = drop_center + Vector2(drop_cos * (-bw) - drop_sin * bh, drop_sin * (-bw) + drop_cos * bh)
+					draw_polygon(PackedVector2Array([bp1, bp2, bp3, bp4]), PackedColorArray([bucket_color, bucket_color, bucket_color.darkened(0.1), bucket_color]))
+					var rim_w = bw + 3.0
+					var rim_top = bh + 6.0
+					var rim_bot = bh + 1.0
+					draw_polygon(PackedVector2Array([
+						drop_center + Vector2(drop_cos * (-rim_w) - drop_sin * (-rim_top), drop_sin * (-rim_w) + drop_cos * (-rim_top)),
+						drop_center + Vector2(drop_cos * rim_w - drop_sin * (-rim_top), drop_sin * rim_w + drop_cos * (-rim_top)),
+						drop_center + Vector2(drop_cos * rim_w - drop_sin * (-rim_bot), drop_sin * rim_w + drop_cos * (-rim_bot)),
+						drop_center + Vector2(drop_cos * (-rim_w) - drop_sin * (-rim_bot), drop_sin * (-rim_w) + drop_cos * (-rim_bot)),
+					]), PackedColorArray([bucket_color.lightened(0.12), bucket_color.lightened(0.12), bucket_color, bucket_color]))
+				"football", "dark_football":
+					var helmet_color = Color(0.88, 0.12, 0.12, drop_alpha) if drop_kind == "football" else Color(0.08, 0.08, 0.1, drop_alpha)
+					var hw = 16.0
+					var hh = 11.0
+					var hp1 = drop_center + Vector2(drop_cos * (-hw) - drop_sin * (-hh), drop_sin * (-hw) + drop_cos * (-hh))
+					var hp2 = drop_center + Vector2(drop_cos * hw - drop_sin * (-hh), drop_sin * hw + drop_cos * (-hh))
+					var hp3 = drop_center + Vector2(drop_cos * hw - drop_sin * hh, drop_sin * hw + drop_cos * hh)
+					var hp4 = drop_center + Vector2(drop_cos * (-hw) - drop_sin * hh, drop_sin * (-hw) + drop_cos * hh)
+					draw_polygon(PackedVector2Array([hp1, hp2, hp3, hp4]), PackedColorArray([helmet_color, helmet_color, helmet_color.darkened(0.14), helmet_color]))
+					draw_line(hp1, hp2, Color(0.96, 0.96, 0.98, drop_alpha), 2.0)
+				_:
+					draw_circle(drop_center, 10.0, Color(0.7, 0.6, 0.5, drop_alpha * 0.6))
+			# Small dust puff at the drop origin
+			draw_circle(drop_origin + Vector2(0.0, 4.0), 8.0 * (1.0 - ratio * 0.5), Color(0.7, 0.62, 0.5, drop_alpha * 0.3))
+			continue
 		if shape == "squash_slam":
 			var slam_radius = _effect_visual_radius(effect, ratio)
 			var slam_center = Vector2(effect["position"])
@@ -23593,21 +23654,36 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 				])
 			)
 		"conehead":
-			draw_polygon(
-				PackedVector2Array([
-					torso + Vector2(0.0, -62.0),
-					torso + Vector2(-16.0, -10.0),
-					torso + Vector2(16.0, -10.0),
-				]),
-				PackedColorArray([
-					Color(0.95, 0.54, 0.15),
-					Color(0.95, 0.54, 0.15),
-					Color(0.95, 0.54, 0.15),
-				])
-			)
+			if float(zombie.get("shield_health", 0.0)) > 0.0:
+				draw_polygon(
+					PackedVector2Array([
+						torso + Vector2(0.0, -58.0),
+						torso + Vector2(-13.0, -34.0),
+						torso + Vector2(13.0, -34.0),
+					]),
+					PackedColorArray([
+						Color(0.95, 0.54, 0.15),
+						Color(0.84, 0.44, 0.1),
+						Color(0.84, 0.44, 0.1),
+					])
+				)
+				draw_polygon(
+					PackedVector2Array([
+						torso + Vector2(0.0, -58.0),
+						torso + Vector2(-4.0, -42.0),
+						torso + Vector2(4.0, -42.0),
+					]),
+					PackedColorArray([
+						Color(1.0, 0.8, 0.4),
+						Color(0.98, 0.66, 0.24),
+						Color(0.98, 0.66, 0.24),
+					])
+				)
 		"buckethead":
-			draw_rect(Rect2(torso + Vector2(-17.0, -54.0), Vector2(34.0, 24.0)), Color(0.62, 0.62, 0.66), true)
-			draw_rect(Rect2(torso + Vector2(-20.0, -60.0), Vector2(40.0, 8.0)), Color(0.72, 0.72, 0.76), true)
+			if float(zombie.get("shield_health", 0.0)) > 0.0:
+				draw_rect(Rect2(torso + Vector2(-15.0, -48.0), Vector2(30.0, 18.0)), Color(0.56, 0.56, 0.6), true)
+				draw_rect(Rect2(torso + Vector2(-13.0, -46.0), Vector2(26.0, 6.0)), Color(0.72, 0.72, 0.76), true)
+				draw_rect(Rect2(torso + Vector2(-17.0, -52.0), Vector2(34.0, 6.0)), Color(0.66, 0.66, 0.7), true)
 		"pole_vault":
 			draw_line(torso + Vector2(-10.0, -46.0), torso + Vector2(10.0, -46.0), Color(0.96, 0.96, 0.98), 4.0)
 			draw_rect(Rect2(torso + Vector2(-12.0, -4.0), Vector2(24.0, 10.0)), Color(0.96, 0.96, 0.98), true)
@@ -23637,14 +23713,16 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 				draw_line(torso + Vector2(30.0, -16.0), torso + Vector2(12.0, 26.0), Color(0.52, 0.56, 0.62), 3.0)
 		"football":
 			draw_rect(Rect2(torso + Vector2(-22.0, -16.0), Vector2(44.0, 16.0)), Color(0.96, 0.96, 0.98), true)
-			draw_rect(Rect2(torso + Vector2(-16.0, -52.0), Vector2(32.0, 22.0)), Color(0.88, 0.12, 0.12), true)
-			draw_line(torso + Vector2(-10.0, -41.0), torso + Vector2(10.0, -41.0), Color(0.96, 0.96, 0.98), 3.0)
-			draw_line(torso + Vector2(0.0, -48.0), torso + Vector2(0.0, -30.0), Color(0.96, 0.96, 0.98), 3.0)
+			if float(zombie.get("shield_health", 0.0)) > 0.0:
+				draw_rect(Rect2(torso + Vector2(-16.0, -52.0), Vector2(32.0, 22.0)), Color(0.88, 0.12, 0.12), true)
+				draw_line(torso + Vector2(-10.0, -41.0), torso + Vector2(10.0, -41.0), Color(0.96, 0.96, 0.98), 3.0)
+				draw_line(torso + Vector2(0.0, -48.0), torso + Vector2(0.0, -30.0), Color(0.96, 0.96, 0.98), 3.0)
 		"dark_football":
 			draw_rect(Rect2(torso + Vector2(-22.0, -16.0), Vector2(44.0, 16.0)), Color(0.96, 0.96, 0.98), true)
-			draw_rect(Rect2(torso + Vector2(-16.0, -52.0), Vector2(32.0, 22.0)), Color(0.08, 0.08, 0.1), true)
-			draw_line(torso + Vector2(-10.0, -41.0), torso + Vector2(10.0, -41.0), Color(0.42, 0.42, 0.46), 3.0)
-			draw_line(torso + Vector2(0.0, -48.0), torso + Vector2(0.0, -30.0), Color(0.42, 0.42, 0.46), 3.0)
+			if float(zombie.get("shield_health", 0.0)) > 0.0:
+				draw_rect(Rect2(torso + Vector2(-16.0, -52.0), Vector2(32.0, 22.0)), Color(0.08, 0.08, 0.1), true)
+				draw_line(torso + Vector2(-10.0, -41.0), torso + Vector2(10.0, -41.0), Color(0.42, 0.42, 0.46), 3.0)
+				draw_line(torso + Vector2(0.0, -48.0), torso + Vector2(0.0, -30.0), Color(0.42, 0.42, 0.46), 3.0)
 		"dancing":
 			draw_circle(torso + Vector2(0.0, -42.0), 18.0, Color(0.12, 0.12, 0.12))
 			draw_rect(Rect2(torso + Vector2(-18.0, -18.0), Vector2(36.0, 10.0)), Color(0.98, 0.88, 0.18), true)

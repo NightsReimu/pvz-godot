@@ -18,7 +18,8 @@ const ZOMBIES: Dictionary = {
 	},
 	"conehead": {
 		"name": "路障僵尸",
-		"health": 370.0,
+		"health": 200.0,
+		"shield_health": 170.0,
 		"speed": 18.0,
 		"attack_dps": 24.0,
 		"reward": 15,
@@ -33,7 +34,8 @@ const ZOMBIES: Dictionary = {
 	},
 	"buckethead": {
 		"name": "铁桶僵尸",
-		"health": 1100.0,
+		"health": 200.0,
+		"shield_health": 900.0,
 		"speed": 16.0,
 		"attack_dps": 24.0,
 		"reward": 22,
@@ -97,14 +99,16 @@ const ZOMBIES: Dictionary = {
 	},
 	"football": {
 		"name": "橄榄球僵尸",
-		"health": 1581.0,
+		"health": 320.0,
+		"shield_health": 1261.0,
 		"speed": 28.0,
 		"attack_dps": 28.0,
 		"reward": 34,
 	},
 	"dark_football": {
 		"name": "暗黑橄榄球僵尸",
-		"health": 3162.0,
+		"health": 480.0,
+		"shield_health": 2682.0,
 		"speed": 28.0,
 		"attack_dps": 28.0,
 		"reward": 34,
