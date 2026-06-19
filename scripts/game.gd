@@ -15984,6 +15984,65 @@ func _draw_battle_background() -> void:
 		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 26.0, BOARD_ORIGIN.y + 28.0), Vector2(board_size.x + 100.0, 88.0)), Color(1.0, 1.0, 1.0, 0.035), true)
 		# Dust motes
 		ThemeLib.draw_ambient_particles(self, size, ui_time, "dust_motes", 10)
+	elif _is_volcano_level():
+		# Smouldering ash sky — deep crimson bleeding into black.
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 152.0)), Color(0.14, 0.03, 0.04), Color(0.42, 0.1, 0.08))
+		# Dim blood sun glowing through the haze.
+		ThemeLib.draw_glow_circle(self, Vector2(118.0, 70.0), 34.0, Color(1.0, 0.36, 0.16), 5)
+		draw_circle(Vector2(120.0, 68.0), 26.0, Color(0.9, 0.26, 0.12, 0.7))
+		# Drifting ash / smoke clouds.
+		for cloud_index in range(5):
+			var vol_drift = fmod(ui_time * (3.2 + cloud_index * 0.8), 280.0)
+			var vol_cloud = Vector2(220.0 + float(cloud_index) * 214.0 + vol_drift, 40.0 + float(cloud_index % 3) * 22.0)
+			draw_circle(vol_cloud, 26.0, Color(0.18, 0.06, 0.06, 0.5))
+			draw_circle(vol_cloud + Vector2(22.0, 6.0), 20.0, Color(0.24, 0.08, 0.08, 0.46))
+			draw_circle(vol_cloud + Vector2(-18.0, 7.0), 18.0, Color(0.12, 0.03, 0.04, 0.42))
+		# Volcanic mountain silhouettes on the horizon.
+		draw_polygon(
+			PackedVector2Array([
+				Vector2(0.0, 196.0), Vector2(220.0, 120.0), Vector2(300.0, 158.0),
+				Vector2(560.0, 96.0), Vector2(680.0, 150.0), Vector2(940.0, 112.0),
+				Vector2(1120.0, 168.0), Vector2(size.x, 140.0),
+				Vector2(size.x, 236.0), Vector2(0.0, 236.0),
+			]),
+			PackedColorArray([
+				Color(0.1, 0.02, 0.03), Color(0.12, 0.03, 0.03), Color(0.1, 0.02, 0.03),
+				Color(0.13, 0.03, 0.03), Color(0.1, 0.02, 0.03), Color(0.12, 0.03, 0.03),
+				Color(0.1, 0.02, 0.03), Color(0.12, 0.03, 0.03),
+				Color(0.08, 0.02, 0.02), Color(0.08, 0.02, 0.02),
+			])
+		)
+		# Glowing calderas on the peaks.
+		for peak_index in range(4):
+			var peak_x = 224.0 + float(peak_index) * 236.0
+			var peak_y = 124.0 + float(peak_index % 2) * 30.0
+			var caldera_pulse = 0.5 + 0.5 * sin(ui_time * 2.0 + float(peak_index) * 1.5)
+			draw_circle(Vector2(peak_x, peak_y), 6.0, Color(1.0, 0.42, 0.1, 0.4 + 0.3 * caldera_pulse))
+			# Rising ember plume.
+			for ember_i in range(4):
+				var ember_t = fmod(ui_time * (0.4 + ember_i * 0.18) + float(peak_index) + float(ember_i) * 0.3, 1.0)
+				draw_circle(Vector2(peak_x + sin(ui_time * 2.0 + ember_i) * 5.0, peak_y - ember_t * 36.0), 1.6, Color(1.0, 0.56, 0.16, (1.0 - ember_t) * 0.6))
+		# Scorched ground gradient (charred rock, not grass).
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(0.0, 118.0), Vector2(size.x, size.y - 118.0)), Color(0.18, 0.05, 0.04), Color(0.08, 0.02, 0.02))
+		# House silhouette dimmed and glowing red from within.
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(28.0, 118.0), Vector2(160.0, size.y - 118.0)), Color(0.32, 0.08, 0.06), Color(0.22, 0.04, 0.04))
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(46.0, 164.0), Vector2(124.0, 150.0)), Color(0.42, 0.1, 0.08), Color(0.32, 0.06, 0.06))
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(70.0, 124.0), Vector2(80.0, 56.0)), Color(0.24, 0.05, 0.05), Color(0.16, 0.03, 0.03))
+		# Furnace windows glowing.
+		draw_rect(Rect2(Vector2(78.0, 136.0), Vector2(22.0, 18.0)), Color(1.0, 0.36, 0.14, 0.55), true)
+		draw_rect(Rect2(Vector2(116.0, 136.0), Vector2(22.0, 18.0)), Color(1.0, 0.36, 0.14, 0.55), true)
+		# Lava flow strip beside the house.
+		draw_rect(Rect2(Vector2(196.0, 118.0), Vector2(20.0, size.y - 118.0)), Color(1.0, 0.36, 0.12, 0.6), true)
+		draw_rect(Rect2(Vector2(196.0, 118.0), Vector2(8.0, size.y - 118.0)), Color(1.0, 0.78, 0.3, 0.5), true)
+		# Charred board frame.
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 38.0, BOARD_ORIGIN.y), Vector2(28.0, board_size.y)), Color(0.16, 0.04, 0.03), true)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x + board_size.x, BOARD_ORIGIN.y), Vector2(82.0, board_size.y)), Color(0.1, 0.02, 0.02), true)
+		# Ember glow band over the board top.
+		var board_glow_pulse = 0.5 + 0.5 * sin(level_time * 2.4)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 22.0, BOARD_ORIGIN.y + 18.0), Vector2(board_size.x + 96.0, 92.0)), Color(1.0, 0.28, 0.1, 0.06 + 0.04 * board_glow_pulse), true)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 32.0, BOARD_ORIGIN.y + 224.0), Vector2(board_size.x + 108.0, 88.0)), Color(0.0, 0.0, 0.0, 0.12), true)
+		# Drifting embers across the whole scene.
+		ThemeLib.draw_ambient_particles(self, size, ui_time, "dust_motes", 12)
 	elif _is_fog_level():
 		var is_storm = _is_storm_fog_level()
 		var sky_color = Color(0.14, 0.18, 0.24) if not is_storm else Color(0.1, 0.12, 0.18)
@@ -16315,6 +16374,8 @@ func _draw_battle_board() -> void:
 			lane_color = Color(0.24, 0.34, 0.3) if row % 2 == 0 else Color(0.2, 0.3, 0.26)
 		elif _is_roof_level():
 			lane_color = Color(0.56, 0.3, 0.2) if row % 2 == 0 else Color(0.5, 0.26, 0.18)
+		elif _is_volcano_level():
+			lane_color = Color(0.2, 0.08, 0.06) if row % 2 == 0 else Color(0.16, 0.06, 0.04)
 		elif _is_night_level():
 			lane_color = Color(0.23, 0.38, 0.2) if row % 2 == 0 else Color(0.19, 0.32, 0.17)
 		elif _is_fog_level():
@@ -16357,6 +16418,27 @@ func _draw_battle_board() -> void:
 					Color(1.0, 0.86, 0.72, 0.06 if stripe_index % 2 == 0 else 0.04),
 					2.0
 				)
+		elif _is_volcano_level():
+			# Glowing magma cracks running across each lane, pulsing with the level clock.
+			var crack_pulse = 0.5 + 0.5 * sin(level_time * 2.2 + float(row) * 1.4)
+			for crack_index in range(6):
+				var crack_y = lane_rect.position.y + 14.0 + float(crack_index) * (lane_rect.size.y / 6.0)
+				var crack_phase = ui_time * (1.4 + crack_index * 0.5) + float(row) * 2.1 + float(crack_index) * 1.7
+				var crack_x_start = lane_rect.position.x + 8.0 + (0.12 + 0.16 * float(crack_index)) * lane_rect.size.x
+				var crack_x_end = crack_x_start + lane_rect.size.x * (0.16 + 0.06 * sin(crack_phase))
+				draw_line(
+					Vector2(crack_x_start, crack_y),
+					Vector2(crack_x_end, crack_y + 6.0 + 4.0 * sin(crack_phase * 1.3)),
+					Color(1.0, 0.42 + 0.2 * crack_pulse, 0.1, 0.18 + 0.12 * crack_pulse),
+					2.4
+				)
+				draw_circle(Vector2(crack_x_end, crack_y + 6.0), 3.0, Color(1.0, 0.6, 0.16, 0.32 + 0.2 * crack_pulse))
+			# Rising ember sparks
+			for ember_index in range(5):
+				var ember_t = fmod(ui_time * (0.5 + float(ember_index) * 0.22) + float(ember_index) * 0.37 + float(row) * 0.5, 1.0)
+				var ember_x = lane_rect.position.x + (0.1 + float(ember_index) * 0.18) * lane_rect.size.x + sin(ui_time * 3.0 + float(ember_index)) * 14.0
+				var ember_y = lane_rect.position.y + lane_rect.size.y - ember_t * lane_rect.size.y
+				draw_circle(Vector2(ember_x, ember_y), 1.6, Color(1.0, 0.56, 0.18, (1.0 - ember_t) * 0.5))
 		else:
 			for stripe_index in range(5):
 				var stripe_y = lane_rect.position.y + 16.0 + float(stripe_index) * 18.0
