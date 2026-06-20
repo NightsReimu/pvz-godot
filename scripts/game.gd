@@ -458,6 +458,7 @@ const BASE_MAX_MORALE := 24.0
 const BASE_OFFLINE_CAP_SECONDS := 8.0 * 3600.0
 const BASE_DRONE_BOOST_SECONDS := 30.0 * 60.0
 const BASE_DRONE_BOOST_COST := 12.0
+const BASE_FX_MAX_PARTICLES := 96
 const BASE_ROOM_ORDER := ["control", "trade", "factory", "power", "dorm", "workshop", "training"]
 const BASE_ROOM_DEFS := {
 	"control": {"name": "控制中枢", "type": "command", "slots": 2, "rate": 0.0, "color": Color(0.38, 0.78, 0.92), "desc": "提升全局生产效率"},
@@ -3730,6 +3731,7 @@ func _base_assign_plant(room_id: String, kind: String) -> bool:
 	base_morale[kind] = clampf(float(base_morale.get(kind, BASE_MAX_MORALE)), 0.0, BASE_MAX_MORALE)
 	base_selected_room = room_id
 	base_selected_plant = kind
+	_spawn_base_assignment_fx(room_id, kind)
 	_mark_save_dirty(true)
 	queue_redraw()
 	return true
@@ -3744,6 +3746,7 @@ func _base_unassign_plant(room_id: String, kind: String) -> bool:
 		return false
 	assigned.erase(kind)
 	base_assignments[room_id] = assigned
+	_base_spawn_fx("slot_flash", _base_fx_anchor(room_id, "slot"), _base_fx_anchor(room_id, "room"), Color(0.95, 0.45, 0.32, 0.78), 0.45, {"room_id": room_id, "size": 1.0})
 	_mark_save_dirty(true)
 	queue_redraw()
 	return true
@@ -3840,7 +3843,7 @@ func _base_collect_all() -> Dictionary:
 	collected["materials"] = collected_materials
 	collected["fragments"] = collected_fragments
 	if pending_coins > 0 or not collected_materials.is_empty() or not collected_fragments.is_empty():
-		_spawn_base_collect_fx()
+		_spawn_base_collect_fx(collected)
 		_mark_save_dirty(true)
 		_show_toast("基建收益已领取")
 	queue_redraw()
@@ -3856,6 +3859,7 @@ func _base_boost_room(room_id: String) -> bool:
 		return false
 	base_drones -= BASE_DRONE_BOOST_COST
 	base_scan_pulse = 1.0
+	_spawn_base_drone_boost_fx(room_id)
 	_apply_base_elapsed(BASE_DRONE_BOOST_SECONDS)
 	_mark_save_dirty(true)
 	return true
@@ -3873,6 +3877,7 @@ func _base_workshop_convert(material: String) -> bool:
 		return false
 	coins_total -= 150
 	_add_enhance_material(material, 1)
+	_base_spawn_fx("chip_sweep", _base_material_chip_rect(ENHANCE_MATERIAL_DEFS.keys().find(material)).get_center(), _base_fx_anchor("workshop", "room"), Color(ENHANCE_MATERIAL_DEFS[material].get("color", Color(0.96, 0.78, 0.34))), 0.5, {"room_id": "workshop", "size": 1.0})
 	_mark_save_dirty(true)
 	_show_toast("加工完成：%s +1" % String(ENHANCE_MATERIAL_DEFS[material].get("name", material)))
 	return true
@@ -3886,6 +3891,8 @@ func _base_set_factory_recipe(material: String) -> void:
 	var factory: Dictionary = base_rooms.get("factory", {})
 	factory["recipe"] = material
 	base_rooms["factory"] = factory
+	var material_index := ENHANCE_MATERIAL_DEFS.keys().find(material)
+	_base_spawn_fx("chip_sweep", _base_material_chip_rect(max(0, material_index)).get_center(), _base_fx_anchor("factory", "room"), Color(ENHANCE_MATERIAL_DEFS[material].get("color", Color(0.44, 0.82, 0.62))), 0.48, {"room_id": "factory", "size": 1.0})
 	_mark_save_dirty(true)
 	queue_redraw()
 
@@ -3898,6 +3905,7 @@ func _base_set_training_target(kind: String) -> void:
 	var training: Dictionary = base_rooms.get("training", {})
 	training["target"] = kind
 	base_rooms["training"] = training
+	_base_spawn_fx("chip_sweep", _base_fx_anchor("training", "slot"), _base_fx_anchor("training", "room"), Color(0.88, 0.44, 0.38, 0.78), 0.5, {"room_id": "training", "size": 1.0})
 	_mark_save_dirty(true)
 	queue_redraw()
 
@@ -4118,22 +4126,125 @@ func _base_material_chip_rect(index: int) -> Rect2:
 	return Rect2(detail.position + Vector2(28.0 + float(index % 3) * 148.0, 260.0 + floor(float(index) / 3.0) * 42.0), Vector2(134.0, 32.0))
 
 
-func _spawn_base_collect_fx() -> void:
-	base_fx_particles.append({"pos": _base_collect_rect().get_center(), "vel": Vector2(-120.0, -140.0), "life": 0.65, "color": Color(1.0, 0.78, 0.24, 0.86)})
-	base_fx_particles.append({"pos": _base_collect_rect().get_center() + Vector2(30.0, 2.0), "vel": Vector2(-80.0, -170.0), "life": 0.72, "color": Color(0.38, 0.86, 1.0, 0.74)})
+func _base_resource_chip_rect(kind: String) -> Rect2:
+	match kind:
+		"coins":
+			return Rect2(650.0, 40.0, 142.0, 46.0)
+		"drones":
+			return Rect2(806.0, 40.0, 142.0, 46.0)
+		"pending":
+			return Rect2(962.0, 40.0, 150.0, 46.0)
+	return _base_top_bar_rect()
+
+
+func _base_fx_anchor(id: String, anchor_kind: String) -> Vector2:
+	if anchor_kind == "resource":
+		return _base_resource_chip_rect(id).get_center()
+	if BASE_ROOM_DEFS.has(id):
+		var room_index: int = BASE_ROOM_ORDER.find(id)
+		var card: Rect2 = _base_room_card_rect(max(0, room_index))
+		if anchor_kind == "slot":
+			return card.position + Vector2(52.0, 128.0)
+		if anchor_kind == "detail":
+			return _base_detail_rect().position + Vector2(72.0, 190.0)
+		return card.get_center()
+	if anchor_kind == "collect":
+		return _base_collect_rect().get_center()
+	return BASE_VIEWPORT_SIZE * 0.5
+
+
+func _base_trim_fx() -> void:
+	while base_fx_particles.size() > BASE_FX_MAX_PARTICLES:
+		base_fx_particles.remove_at(0)
+
+
+func _base_spawn_fx(kind: String, from_pos: Vector2, to_pos: Vector2, color: Color, duration: float, metadata: Dictionary = {}) -> void:
+	var clamped_duration: float = maxf(0.05, duration)
+	var fx: Dictionary = {
+		"kind": kind,
+		"from": from_pos,
+		"to": to_pos,
+		"pos": from_pos,
+		"vel": Vector2(metadata.get("vel", Vector2.ZERO)),
+		"age": 0.0,
+		"life": clamped_duration,
+		"duration": clamped_duration,
+		"color": color,
+		"room_id": String(metadata.get("room_id", "")),
+		"curve": float(metadata.get("curve", 0.0)),
+		"size": float(metadata.get("size", 1.0)),
+		"seed": float(base_fx_particles.size()),
+	}
+	base_fx_particles.append(fx)
+	_base_trim_fx()
+
+
+func _base_fx_count(kind: String = "") -> int:
+	if kind.is_empty():
+		return base_fx_particles.size()
+	var count: int = 0
+	for particle_variant in base_fx_particles:
+		if String(Dictionary(particle_variant).get("kind", "")) == kind:
+			count += 1
+	return count
+
+
+func _spawn_base_collect_fx(collected: Dictionary = {}) -> void:
+	var origin: Vector2 = _base_collect_rect().get_center()
+	var coins: int = int(collected.get("coins", 0))
+	if coins > 0:
+		for i in range(clampi(int(ceil(float(coins) / 80.0)), 1, 5)):
+			_base_spawn_fx("collect", origin + Vector2(float(i) * 9.0, -float(i % 2) * 6.0), _base_fx_anchor("coins", "resource"), Color(1.0, 0.78, 0.24, 0.9), 0.78 + float(i) * 0.04, {"curve": -42.0 - float(i) * 4.0, "size": 0.9 + float(i) * 0.08})
+	var materials: Dictionary = collected.get("materials", {})
+	var material_count: int = max(1, materials.size()) if not materials.is_empty() else 0
+	for i in range(material_count):
+		_base_spawn_fx("collect", origin + Vector2(18.0 + float(i) * 10.0, 4.0), _base_fx_anchor("pending", "resource"), Color(0.48, 0.92, 0.66, 0.86), 0.84 + float(i) * 0.05, {"curve": -56.0, "size": 0.86})
+	var fragments: Dictionary = collected.get("fragments", {})
+	var fragment_count: int = max(1, fragments.size()) if not fragments.is_empty() else 0
+	for i in range(fragment_count):
+		_base_spawn_fx("collect", origin + Vector2(30.0 + float(i) * 8.0, -2.0), _base_fx_anchor("pending", "resource"), Color(0.38, 0.86, 1.0, 0.78), 0.88 + float(i) * 0.05, {"curve": -66.0, "size": 0.82})
+
+
+func _spawn_base_assignment_fx(room_id: String, kind: String) -> void:
+	var room_anchor := _base_fx_anchor(room_id, "room")
+	var slot_anchor := _base_fx_anchor(room_id, "slot")
+	var role_color := Color(_plant_enhance_profile(kind).get("color", Color(0.6, 0.76, 0.82)))
+	_base_spawn_fx("slot_flash", slot_anchor, room_anchor, Color(role_color.r, role_color.g, role_color.b, 0.78), 0.5, {"room_id": room_id, "size": 1.0})
+	_base_spawn_fx("assign_line", _base_roster_panel_rect().position + Vector2(80.0, 78.0), slot_anchor, Color(role_color.r, role_color.g, role_color.b, 0.68), 0.46, {"room_id": room_id, "curve": -20.0, "size": 1.0})
+
+
+func _spawn_base_drone_boost_fx(room_id: String) -> void:
+	var grid := _base_room_grid_rect()
+	var room_anchor := _base_fx_anchor(room_id, "room")
+	_base_spawn_fx("room_pulse", room_anchor, room_anchor, Color(0.38, 0.86, 1.0, 0.86), 0.7, {"room_id": room_id, "size": 1.3})
+	for i in range(5):
+		var y := grid.position.y + 88.0 + float(i) * 82.0
+		_base_spawn_fx("drone", Vector2(grid.position.x + 18.0, y), Vector2(grid.end.x - 34.0, y - 28.0 + float(i % 2) * 18.0), Color(0.48, 0.9, 1.0, 0.78), 0.64 + float(i) * 0.06, {"curve": -18.0, "room_id": room_id, "size": 0.8 + float(i % 2) * 0.2})
 
 
 func _update_base_fx(delta: float) -> void:
 	base_scan_pulse = maxf(0.0, base_scan_pulse - delta * 1.6)
 	for i in range(base_fx_particles.size() - 1, -1, -1):
 		var particle: Dictionary = base_fx_particles[i]
-		particle["life"] = float(particle.get("life", 0.0)) - delta
-		if float(particle.get("life", 0.0)) <= 0.0:
+		var duration := maxf(0.05, float(particle.get("duration", particle.get("life", 0.0))))
+		var age := float(particle.get("age", 0.0)) + delta
+		particle["age"] = age
+		particle["life"] = maxf(0.0, duration - age)
+		if age >= duration:
 			base_fx_particles.remove_at(i)
 			continue
-		particle["pos"] = Vector2(particle.get("pos", Vector2.ZERO)) + Vector2(particle.get("vel", Vector2.ZERO)) * delta
-		particle["vel"] = Vector2(particle.get("vel", Vector2.ZERO)) + Vector2(0.0, 160.0) * delta
+		var t := clampf(age / duration, 0.0, 1.0)
+		var from_pos := Vector2(particle.get("from", particle.get("pos", Vector2.ZERO)))
+		var to_pos := Vector2(particle.get("to", from_pos))
+		var pos := from_pos.lerp(to_pos, t)
+		var curve := float(particle.get("curve", 0.0))
+		if absf(curve) > 0.01:
+			pos.y += sin(t * PI) * curve
+		if String(particle.get("kind", "")) == "slot_flash" or String(particle.get("kind", "")) == "room_pulse" or String(particle.get("kind", "")) == "chip_sweep":
+			pos = from_pos
+		particle["pos"] = pos
 		base_fx_particles[i] = particle
+	_base_trim_fx()
 
 
 func _handle_base_click(mouse_pos: Vector2) -> void:
@@ -16343,6 +16454,62 @@ func _draw_base_chip(rect: Rect2, label: String, value: String, accent: Color) -
 	_draw_text(value, rect.position + Vector2(16.0, 42.0), 22, Color(0.94, 0.98, 1.0))
 
 
+func _draw_base_room_idle_fx(room_id: String, rect: Rect2, accent: Color, efficiency: float, index: int) -> void:
+	var t := ui_time + float(index) * 0.37
+	var activity := clampf(0.32 + efficiency * 0.68, 0.24, 1.0)
+	var inner := rect.grow(-14.0)
+	var type := String(Dictionary(BASE_ROOM_DEFS.get(room_id, {})).get("type", ""))
+	var alpha := 0.045 + 0.055 * activity
+	if type == "command":
+		var center := inner.position + Vector2(inner.size.x - 54.0, 74.0)
+		for ring in range(3):
+			var radius := 16.0 + float(ring) * 13.0 + sin(t * 1.7 + float(ring)) * 2.0
+			draw_arc(center, radius, fmod(t * (0.7 + float(ring) * 0.18), TAU), fmod(t * (0.7 + float(ring) * 0.18), TAU) + PI * 1.35, 32, Color(accent.r, accent.g, accent.b, alpha + 0.018 * float(ring)), 2.0)
+		draw_line(center, center + Vector2(cos(t * 1.4), sin(t * 1.4)) * 40.0, Color(accent.r, accent.g, accent.b, 0.14 * activity), 2.0)
+	elif type == "trade":
+		var lane := Rect2(inner.position + Vector2(72.0, 84.0), Vector2(inner.size.x - 132.0, 8.0))
+		draw_rect(lane, Color(accent.r, accent.g, accent.b, 0.06 * activity), true)
+		for i in range(4):
+			var p := fmod(t * 0.42 + float(i) * 0.27, 1.0)
+			var chip := Rect2(lane.position + Vector2(lane.size.x * p - 12.0, -8.0), Vector2(24.0, 20.0))
+			draw_rect(chip, Color(accent.r, accent.g, accent.b, 0.14 * activity), true)
+			draw_rect(chip, Color(1.0, 0.88, 0.48, 0.18 * activity), false, 1.0)
+	elif type == "factory":
+		var belt := Rect2(inner.position + Vector2(68.0, 86.0), Vector2(inner.size.x - 122.0, 6.0))
+		draw_rect(belt, Color(0.0, 0.0, 0.0, 0.18), true)
+		for i in range(5):
+			var x := belt.position.x + fmod(t * 34.0 + float(i) * 42.0, belt.size.x)
+			draw_line(Vector2(x, belt.position.y - 14.0), Vector2(x + 12.0, belt.position.y - 30.0), Color(0.86, 1.0, 0.66, 0.12 * activity), 2.0)
+			draw_circle(Vector2(x + 10.0, belt.position.y - 28.0), 3.0, Color(accent.r, accent.g, accent.b, 0.26 * activity))
+	elif type == "power":
+		var origin := inner.position + Vector2(inner.size.x - 74.0, 80.0)
+		for i in range(3):
+			var phase := t * 3.1 + float(i) * 1.9
+			var a := origin + Vector2(-34.0 + float(i) * 20.0, -16.0 + sin(phase) * 6.0)
+			var b := origin + Vector2(-18.0 + float(i) * 24.0, 18.0 + cos(phase * 0.8) * 5.0)
+			draw_line(a, b, Color(0.58, 0.94, 1.0, 0.18 * activity), 2.0)
+		draw_circle(origin + Vector2(sin(t * 2.2) * 8.0, cos(t * 2.8) * 5.0), 6.0, Color(accent.r, accent.g, accent.b, 0.22 * activity))
+	elif type == "dorm":
+		var center := inner.position + Vector2(inner.size.x - 66.0, 82.0)
+		for i in range(3):
+			var wave := fmod(t * 0.38 + float(i) * 0.33, 1.0)
+			draw_circle(center, 14.0 + wave * 46.0, Color(0.72, 0.92, 0.82, (1.0 - wave) * 0.12 * activity), false, 2.0)
+	elif type == "workshop":
+		var hearth := inner.position + Vector2(inner.size.x - 66.0, 88.0)
+		draw_circle(hearth, 18.0 + sin(t * 3.0) * 2.0, Color(1.0, 0.72, 0.28, 0.08 * activity))
+		for i in range(6):
+			var rise := fmod(t * 0.7 + float(i) * 0.17, 1.0)
+			var spark := hearth + Vector2(-20.0 + float(i) * 8.0 + sin(t + float(i)) * 5.0, -rise * 52.0)
+			draw_circle(spark, 2.5, Color(1.0, 0.82, 0.38, (1.0 - rise) * 0.24 * activity))
+	elif type == "training":
+		var target := inner.position + Vector2(inner.size.x - 64.0, 82.0)
+		var sweep := fmod(t * 1.2, TAU)
+		draw_circle(target, 32.0 + sin(t * 2.4) * 2.0, Color(accent.r, accent.g, accent.b, 0.12 * activity), false, 2.0)
+		draw_arc(target, 38.0, sweep, sweep + PI * 0.72, 28, Color(1.0, 0.58, 0.48, 0.2 * activity), 2.0)
+		draw_line(target + Vector2(-42.0, 0.0), target + Vector2(42.0, 0.0), Color(accent.r, accent.g, accent.b, 0.08 * activity), 1.0)
+		draw_line(target + Vector2(0.0, -36.0), target + Vector2(0.0, 36.0), Color(accent.r, accent.g, accent.b, 0.08 * activity), 1.0)
+
+
 func _draw_base_room_card(room_id: String, index: int) -> void:
 	var rect := _base_room_card_rect(index)
 	var def: Dictionary = BASE_ROOM_DEFS[room_id]
@@ -16357,6 +16524,7 @@ func _draw_base_room_card(room_id: String, index: int) -> void:
 		draw_rect(rect.grow(7.0), Color(accent.r, accent.g, accent.b, 0.08 + 0.05 * pulse), true)
 		draw_rect(rect.grow(4.0), Color(accent.r, accent.g, accent.b, 0.42), false, 2.0)
 	_draw_panel_shell(rect, fill, Color(accent.r, accent.g, accent.b, 0.58), 0.18, 0.1)
+	_draw_base_room_idle_fx(room_id, rect, accent, _base_room_efficiency(room_id), index)
 	draw_rect(Rect2(rect.position + Vector2(0.0, 0.0), Vector2(rect.size.x, 34.0)), Color(accent.r, accent.g, accent.b, 0.2), true)
 	draw_rect(Rect2(rect.position + Vector2(12.0, 46.0), Vector2(5.0, 64.0)), accent, true)
 	_draw_text(String(def.get("name", room_id)), rect.position + Vector2(20.0, 25.0), 19, Color(0.94, 0.98, 1.0))
@@ -16478,6 +16646,58 @@ func _draw_base_roster() -> void:
 		draw_rect(ThemeLib.scroll_knob_rect(track, view.size.x, _base_roster_content_width(), base_roster_scroll, 80.0), Color(0.54, 0.78, 0.88, 0.8), true)
 
 
+func _draw_base_transient_fx() -> void:
+	for particle_variant in base_fx_particles:
+		var particle: Dictionary = particle_variant
+		var kind := String(particle.get("kind", ""))
+		var duration := maxf(0.05, float(particle.get("duration", 1.0)))
+		var age := clampf(float(particle.get("age", 0.0)), 0.0, duration)
+		var t := clampf(age / duration, 0.0, 1.0)
+		var fade := 1.0 - t
+		var color := Color(particle.get("color", Color.WHITE))
+		var pos := Vector2(particle.get("pos", Vector2.ZERO))
+		var from_pos := Vector2(particle.get("from", pos))
+		var to_pos := Vector2(particle.get("to", pos))
+		var size := float(particle.get("size", 1.0))
+		if kind == "collect":
+			var trail_color := Color(color.r, color.g, color.b, color.a * fade * 0.22)
+			draw_line(from_pos.lerp(pos, 0.42), pos, trail_color, 2.0 + size)
+			draw_circle(pos, (5.0 + 4.0 * fade) * size, Color(color.r, color.g, color.b, color.a * (0.28 + fade * 0.42)))
+			draw_circle(pos, (2.0 + 2.0 * fade) * size, Color(1.0, 0.98, 0.82, 0.36 * fade))
+		elif kind == "drone":
+			var dir := (to_pos - from_pos).normalized()
+			if dir == Vector2.ZERO:
+				dir = Vector2.RIGHT
+			var tail := pos - dir * (34.0 + 12.0 * size)
+			draw_line(tail, pos, Color(color.r, color.g, color.b, color.a * fade * 0.42), 3.0)
+			draw_circle(pos, 5.0 * size, Color(0.75, 0.96, 1.0, 0.38 * fade))
+			draw_rect(Rect2(pos + Vector2(-7.0, -3.0), Vector2(14.0, 6.0)), Color(color.r, color.g, color.b, 0.52 * fade), true)
+		elif kind == "slot_flash":
+			var radius := 12.0 + t * 34.0 * size
+			draw_circle(from_pos, radius, Color(color.r, color.g, color.b, color.a * fade * 0.22), false, 2.0)
+			draw_rect(Rect2(from_pos - Vector2(24.0, 16.0) * size, Vector2(48.0, 32.0) * size), Color(color.r, color.g, color.b, color.a * fade * 0.28), false, 2.0)
+		elif kind == "assign_line":
+			var mid := from_pos.lerp(to_pos, t)
+			draw_line(from_pos, mid, Color(color.r, color.g, color.b, color.a * fade * 0.5), 2.0)
+			draw_circle(mid, 4.0 + 3.0 * fade, Color(color.r, color.g, color.b, color.a * fade))
+		elif kind == "room_pulse":
+			var room_id := String(particle.get("room_id", ""))
+			if BASE_ROOM_DEFS.has(room_id):
+				var room_rect := _base_room_card_rect(BASE_ROOM_ORDER.find(room_id))
+				draw_rect(room_rect.grow(5.0 + 8.0 * t), Color(color.r, color.g, color.b, color.a * fade * 0.22), false, 3.0)
+				draw_rect(room_rect.grow(12.0 + 10.0 * t), Color(color.r, color.g, color.b, color.a * fade * 0.08), false, 2.0)
+		elif kind == "chip_sweep":
+			var room_id := String(particle.get("room_id", ""))
+			var sweep_rect := Rect2(from_pos - Vector2(56.0, 18.0), Vector2(112.0, 36.0))
+			if room_id == "training":
+				sweep_rect = Rect2(from_pos - Vector2(90.0, 34.0), Vector2(180.0, 68.0))
+			var x := lerpf(sweep_rect.position.x, sweep_rect.end.x, t)
+			draw_rect(sweep_rect, Color(color.r, color.g, color.b, color.a * fade * 0.08), false, 1.5)
+			draw_rect(Rect2(Vector2(x - 6.0, sweep_rect.position.y + 4.0), Vector2(12.0, sweep_rect.size.y - 8.0)), Color(color.r, color.g, color.b, color.a * fade * 0.28), true)
+		else:
+			draw_circle(pos, 5.0 + fade * 7.0, Color(color.r, color.g, color.b, color.a * fade))
+
+
 func _draw_base_scene() -> void:
 	_init_base_defaults()
 	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.035, 0.05, 0.06), Color(0.09, 0.105, 0.09))
@@ -16493,9 +16713,9 @@ func _draw_base_scene() -> void:
 	_draw_text("罗德岛温室基建", top.position + Vector2(150.0, 43.0), 31, Color(0.96, 0.99, 1.0))
 	_draw_text("RIIC / BOTANICAL INFRASTRUCTURE", top.position + Vector2(150.0, 63.0), 13, Color(0.55, 0.7, 0.76))
 	var summary := _base_resource_summary()
-	_draw_base_chip(Rect2(650.0, 40.0, 142.0, 46.0), "金币", str(coins_total), Color(0.95, 0.72, 0.25))
-	_draw_base_chip(Rect2(806.0, 40.0, 142.0, 46.0), "无人机", "%d" % int(floor(base_drones)), Color(0.38, 0.82, 1.0))
-	_draw_base_chip(Rect2(962.0, 40.0, 150.0, 46.0), "待领", "%d/%d/%d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], Color(0.66, 0.9, 0.48))
+	_draw_base_chip(_base_resource_chip_rect("coins"), "金币", str(coins_total), Color(0.95, 0.72, 0.25))
+	_draw_base_chip(_base_resource_chip_rect("drones"), "无人机", "%d" % int(floor(base_drones)), Color(0.38, 0.82, 1.0))
+	_draw_base_chip(_base_resource_chip_rect("pending"), "待领", "%d/%d/%d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], Color(0.66, 0.9, 0.48))
 	var grid := _base_room_grid_rect()
 	_draw_panel_shell(grid, Color(0.048, 0.066, 0.078, 0.97), Color(0.28, 0.42, 0.48, 0.52), 0.18, 0.1)
 	_draw_text("设施总览", grid.position + Vector2(24.0, 36.0), 24, Color(0.92, 0.98, 1.0))
@@ -16507,11 +16727,7 @@ func _draw_base_scene() -> void:
 		draw_rect(Rect2(Vector2(grid.position.x + 12.0, scan_y), Vector2(grid.size.x - 24.0, 4.0)), Color(0.38, 0.86, 1.0, 0.32 * base_scan_pulse), true)
 	_draw_base_detail_panel()
 	_draw_base_roster()
-	for particle_variant in base_fx_particles:
-		var particle: Dictionary = particle_variant
-		var life := clampf(float(particle.get("life", 0.0)), 0.0, 1.0)
-		var color := Color(particle.get("color", Color.WHITE))
-		draw_circle(Vector2(particle.get("pos", Vector2.ZERO)), 5.0 + life * 7.0, Color(color.r, color.g, color.b, color.a * life))
+	_draw_base_transient_fx()
 
 
 func _draw_panel_shell(rect: Rect2, fill_color: Color, border_color: Color, shadow_alpha: float = 0.18, accent_alpha: float = 0.14) -> void:

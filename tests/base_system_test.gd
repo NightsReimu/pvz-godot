@@ -16,6 +16,11 @@ func _run() -> void:
 	failed = not _test_base_offline_elapsed_is_capped() or failed
 	failed = not _test_base_layout_rects_do_not_overlap_or_leave_viewport() or failed
 	failed = not _test_base_roster_draws_complete_cells() or failed
+	failed = not _test_base_collect_spawns_typed_fx_and_decay() or failed
+	failed = not _test_base_drone_boost_spawns_scan_and_drone_fx() or failed
+	failed = not _test_base_assignment_and_selection_spawn_feedback_fx() or failed
+	failed = not _test_base_fx_particles_are_bounded() or failed
+	failed = not _test_base_fx_anchors_stay_inside_layout_rects() or failed
 	failed = not _test_base_save_merge_preserves_progress() or failed
 	quit(1 if failed else 0)
 
@@ -197,6 +202,88 @@ func _test_base_roster_draws_complete_cells() -> bool:
 		for index in range(visible_cols):
 			var cell_rect: Rect2 = game.call("_base_roster_cell_rect", index)
 			passed = _assert_true(view_rect.encloses(cell_rect), "base roster should draw only complete cells in the view") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_base_collect_spawns_typed_fx_and_decay() -> bool:
+	var game := _base_ready_game()
+	var passed := _assert_true(game.has_method("_base_fx_count"), "base should expose typed fx counts") \
+		and _assert_true(game.has_method("_update_base_fx"), "base should update transient fx")
+	if passed:
+		game.base_inventory = {
+			"coins": 90.0,
+			"materials": {"growth_core": 2.0},
+			"fragments": {"peashooter": 1.0},
+		}
+		game.call("_base_collect_all")
+		passed = _assert_true(int(game.call("_base_fx_count", "collect")) >= 3, "collect should spawn typed flying resource fx") and passed
+		var first_fx: Dictionary = game.base_fx_particles[0]
+		passed = _assert_true(first_fx.has("kind") and first_fx.has("from") and first_fx.has("to") and first_fx.has("duration"), "collect fx should carry typed path metadata") and passed
+		game.call("_update_base_fx", 3.0)
+		passed = _assert_true(int(game.call("_base_fx_count", "collect")) == 0, "collect fx should expire after its lifetime") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_base_drone_boost_spawns_scan_and_drone_fx() -> bool:
+	var game := _base_ready_game()
+	var passed := _assert_true(game.has_method("_base_fx_count"), "base should expose typed fx counts")
+	if passed:
+		game.base_drones = 24.0
+		var boosted := bool(game.call("_base_boost_room", "factory"))
+		passed = _assert_true(boosted, "drone boost should succeed when enough drones exist") and passed
+		passed = _assert_true(float(game.base_scan_pulse) > 0.0, "drone boost should start the scan pulse") and passed
+		passed = _assert_true(int(game.call("_base_fx_count", "drone")) >= 3, "drone boost should spawn drone streak fx") and passed
+		passed = _assert_true(int(game.call("_base_fx_count", "room_pulse")) >= 1, "drone boost should pulse the boosted room") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_base_assignment_and_selection_spawn_feedback_fx() -> bool:
+	var game := _base_ready_game()
+	var passed := _assert_true(game.has_method("_base_fx_count"), "base should expose typed fx counts")
+	if passed:
+		var assigned := bool(game.call("_base_assign_plant", "trade", "sunflower"))
+		passed = _assert_true(assigned, "assignment should still succeed") and passed
+		passed = _assert_true(int(game.call("_base_fx_count", "slot_flash")) >= 1, "assignment should flash the target slot") and passed
+		passed = _assert_true(int(game.call("_base_fx_count", "assign_line")) >= 1, "assignment should draw a short roster-to-room feedback line") and passed
+		game.call("_base_set_factory_recipe", "assault_chip")
+		passed = _assert_true(int(game.call("_base_fx_count", "chip_sweep")) >= 1, "recipe changes should sweep the selected material chip") and passed
+		game.call("_base_set_training_target", "sunflower")
+		passed = _assert_true(int(game.call("_base_fx_count", "chip_sweep")) >= 2, "training target changes should sweep the target panel") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_base_fx_particles_are_bounded() -> bool:
+	var game := _base_ready_game()
+	var passed := _assert_true(game.has_method("_base_spawn_fx"), "base should expose a central fx spawn helper") \
+		and _assert_true(game.has_method("_base_fx_count"), "base should expose typed fx counts")
+	if passed:
+		for i in range(140):
+			game.call("_base_spawn_fx", "collect", Vector2(120.0 + float(i), 150.0), Vector2(700.0, 62.0), Color(1.0, 0.8, 0.2), 1.0, {})
+		passed = _assert_true(game.base_fx_particles.size() <= 96, "base fx should be capped to prevent stutter") and passed
+		passed = _assert_true(int(game.call("_base_fx_count", "collect")) <= 96, "typed fx count should respect the cap") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_base_fx_anchors_stay_inside_layout_rects() -> bool:
+	var game := _base_ready_game()
+	var passed := _assert_true(game.has_method("_base_fx_anchor"), "base should expose testable fx anchors")
+	if passed:
+		var viewport_rect := Rect2(Vector2.ZERO, GameScript.BASE_VIEWPORT_SIZE)
+		var grid: Rect2 = game.call("_base_room_grid_rect")
+		var top: Rect2 = game.call("_base_top_bar_rect")
+		for room_id in ["control", "trade", "factory", "power", "dorm", "workshop", "training"]:
+			var room_anchor: Vector2 = game.call("_base_fx_anchor", room_id, "room")
+			var slot_anchor: Vector2 = game.call("_base_fx_anchor", room_id, "slot")
+			passed = _assert_true(grid.has_point(room_anchor), "room fx anchor should stay inside room grid for %s" % room_id) and passed
+			passed = _assert_true(viewport_rect.has_point(slot_anchor), "slot fx anchor should stay inside viewport for %s" % room_id) and passed
+		for target in ["coins", "drones", "pending"]:
+			var target_anchor: Vector2 = game.call("_base_fx_anchor", target, "resource")
+			passed = _assert_true(top.has_point(target_anchor), "resource fx target should stay inside top bar: %s" % target) and passed
 	_free_game(game)
 	return passed
 
