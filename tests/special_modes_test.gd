@@ -17,7 +17,10 @@ func _run() -> void:
 	failed = not _test_daily_challenge_supports_manual_card_clicks_before_start() or failed
 	failed = not _test_daily_challenge_selection_preview_uses_valid_zombie_keys() or failed
 	failed = not _test_selection_buttons_stay_visible_on_smaller_viewports() or failed
+	failed = not _test_selection_pool_uses_wide_desktop_rows() or failed
 	failed = not _test_selection_layout_keeps_two_rows_visible_on_768p() or failed
+	failed = not _test_selection_third_row_right_card_does_not_trigger_legacy_back() or failed
+	failed = not _test_almanac_plant_grid_fits_four_rows_without_clipping() or failed
 	failed = not _test_mobile_selection_layout_stays_inside_small_landscape_viewport() or failed
 	failed = not _test_mobile_selection_scene_skips_legacy_global_ui_scaling() or failed
 	failed = not _test_mobile_portrait_world_select_shows_rotate_prompt() or failed
@@ -91,6 +94,11 @@ func _click_selection_pool_cards(game: Control, count: int) -> void:
 		game.call("_handle_selection_click", card_rect.position + card_rect.size * 0.5)
 
 
+func _click_selection_start(game: Control) -> void:
+	var start_rect: Rect2 = game.call("_selection_start_rect")
+	game.call("_handle_selection_click", start_rect.get_center())
+
+
 func _test_endless_mode_preserves_custom_level_on_selection_start() -> bool:
 	var game := _make_game()
 	game.call("_enter_endless_mode")
@@ -100,7 +108,7 @@ func _test_endless_mode_preserves_custom_level_on_selection_start() -> bool:
 		game.selection_pool_cards = selection_pool.duplicate()
 	var required_count = int(game.call("_required_seed_count", game.current_level))
 	game.selection_cards = selection_pool.slice(0, max(required_count, 1))
-	game.call("_handle_selection_click", game.PREP_START_RECT.position + game.PREP_START_RECT.size * 0.5)
+	_click_selection_start(game)
 	var passed = _assert_true(game.mode == game.MODE_BATTLE, "endless mode should start a battle from the selection screen") \
 		and _assert_true(String(game.current_level.get("id", "")) == "无尽", "starting endless mode should keep the custom endless level instead of replacing it with a campaign stage") \
 		and _assert_true(game.selected_level_index == -1, "endless mode should not bind itself to a campaign level index")
@@ -116,7 +124,7 @@ func _test_endless_mode_does_not_autowin_before_spawning_waves() -> bool:
 		selection_pool = game.call("_player_plant_collection")
 		game.selection_pool_cards = selection_pool.duplicate()
 	game.selection_cards = selection_pool.slice(0, 1)
-	game.call("_handle_selection_click", game.PREP_START_RECT.position + game.PREP_START_RECT.size * 0.5)
+	_click_selection_start(game)
 	game.call("_check_end_state")
 	var passed = _assert_true(game.battle_state == game.BATTLE_PLAYING, "endless mode should not instantly clear itself before the first wave starts")
 	_free_game(game)
@@ -131,7 +139,7 @@ func _test_endless_mode_spawns_runtime_ready_zombies_after_warmup() -> bool:
 		selection_pool = game.call("_player_plant_collection")
 		game.selection_pool_cards = selection_pool.duplicate()
 	game.selection_cards = selection_pool.slice(0, 1)
-	game.call("_handle_selection_click", game.PREP_START_RECT.position + game.PREP_START_RECT.size * 0.5)
+	_click_selection_start(game)
 	game._process(6.1)
 	game._process(0.2)
 	var passed = _assert_true(game.zombies.size() > 0, "endless mode should spawn zombies after the 6 second warmup") \
@@ -171,7 +179,7 @@ func _test_daily_challenge_enters_selection_and_waits_for_spawns() -> bool:
 	if passed:
 		var required_count = int(game.call("_required_seed_count", game.current_level))
 		game.selection_cards = game.selection_pool_cards.slice(0, max(required_count, 1))
-		game.call("_handle_selection_click", game.PREP_START_RECT.position + game.PREP_START_RECT.size * 0.5)
+		_click_selection_start(game)
 		game.call("_check_end_state")
 		game._process(2.3)
 		game._process(0.1)
@@ -192,7 +200,7 @@ func _test_daily_challenge_supports_manual_card_clicks_before_start() -> bool:
 	var passed = _assert_true(game.selection_cards.size() == max(required_count, 1), "daily challenge manual clicks should populate the selected seed slots") \
 		and _assert_true(String(game.selection_cards[0]) == String(game.selection_pool_cards[0]), "manual selection should preserve the clicked pool card kind")
 	if passed:
-		game.call("_handle_selection_click", game.PREP_START_RECT.position + game.PREP_START_RECT.size * 0.5)
+		_click_selection_start(game)
 		passed = _assert_true(game.mode == game.MODE_BATTLE, "daily challenge should enter battle mode after manually clicking cards and pressing start") and passed
 		passed = _assert_true(game.active_cards.size() > 0 and String(game.active_cards[0]) != "", "daily challenge should carry the manually selected cards into battle") and passed
 	_free_game(game)
@@ -227,6 +235,18 @@ func _test_selection_buttons_stay_visible_on_smaller_viewports() -> bool:
 	return passed
 
 
+func _test_selection_pool_uses_wide_desktop_rows() -> bool:
+	var game := _make_game()
+	game.size = Vector2(1600.0, 900.0)
+	game.mode = game.MODE_SELECTION
+	game.current_level = {"id": "wide-layout-test", "terrain": "day", "events": [], "mode": ""}
+	game.selection_pool_cards = game.call("_player_plant_collection")
+	var columns = int(game.call("_selection_pool_columns"))
+	var passed = _assert_true(columns >= 8, "wide desktop selection pool should use more cards per row instead of leaving a large blank area on the right; got %d columns" % columns)
+	_free_game(game)
+	return passed
+
+
 func _test_selection_layout_keeps_two_rows_visible_on_768p() -> bool:
 	var game := _make_game()
 	game.size = Vector2(1365.0, 768.0)
@@ -239,6 +259,64 @@ func _test_selection_layout_keeps_two_rows_visible_on_768p() -> bool:
 	var view_rect: Rect2 = game.call("_selection_pool_view_rect")
 	var second_row_card_rect: Rect2 = game.call("_selection_pool_rect", 6)
 	var passed = _assert_true(view_rect.encloses(second_row_card_rect), "selection layout should keep the second card row fully visible on a 1365x768 window")
+	_free_game(game)
+	return passed
+
+
+func _test_selection_third_row_right_card_does_not_trigger_legacy_back() -> bool:
+	var game := _make_game()
+	game.size = Vector2(1600.0, 900.0)
+	game.mode = game.MODE_SELECTION
+	game.current_level = {"id": "legacy-hit-test", "terrain": "day", "events": [], "mode": ""}
+	game.selection_pool_cards = [
+		"peashooter", "sunflower", "cherry_bomb", "wallnut", "potato_mine", "snow_pea",
+		"chomper", "repeater", "puff_shroom", "sun_shroom", "fume_shroom", "grave_buster",
+		"hypno_shroom", "scaredy_shroom", "ice_shroom", "doom_shroom", "moon_lotus", "prism_grass",
+		"lantern_bloom", "meteor_gourd", "root_snare", "thunder_pine", "dream_drum", "lily_pad",
+		"squash", "threepeater", "tangle_kelp", "jalapeno", "spikeweed", "torchwood",
+	]
+	game.selection_cards = []
+	var columns = int(game.call("_selection_pool_columns"))
+	var legacy_buttons = [game.PREP_BACK_RECT, game.PREP_START_RECT]
+	var target_index := -1
+	var click_pos := Vector2.ZERO
+	for index in range(game.selection_pool_cards.size()):
+		var row = int(floor(float(index) / float(max(columns, 1))))
+		if row != 2:
+			continue
+		var card_rect: Rect2 = game.call("_selection_pool_rect", index)
+		for legacy_rect in legacy_buttons:
+			var x1 = maxf(card_rect.position.x, Rect2(legacy_rect).position.x)
+			var y1 = maxf(card_rect.position.y, Rect2(legacy_rect).position.y)
+			var x2 = minf(card_rect.end.x, Rect2(legacy_rect).end.x)
+			var y2 = minf(card_rect.end.y, Rect2(legacy_rect).end.y)
+			if x2 > x1 and y2 > y1:
+				target_index = index
+				click_pos = Vector2((x1 + x2) * 0.5, (y1 + y2) * 0.5)
+				break
+		if target_index != -1:
+			break
+	var passed = _assert_true(target_index != -1, "test setup should find a third-row card overlapping the old legacy button band")
+	if passed:
+		var expected_kind = String(game.selection_pool_cards[target_index])
+		game.call("_handle_selection_click", click_pos)
+		passed = _assert_true(game.mode == game.MODE_SELECTION, "clicking a third-row card near the right side should stay on the selection screen instead of returning to the map") and passed
+		passed = _assert_true(game.selection_cards.has(expected_kind), "clicking the third-row card should select that plant instead of hitting a hidden legacy button") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_almanac_plant_grid_fits_four_rows_without_clipping() -> bool:
+	var game := _make_game()
+	game.mode = game.MODE_WORLD_SELECT
+	game.plant_stars = {}
+	for i in range(16):
+		game.plant_stars[String(GameScript.Defs.PLANT_ORDER[i])] = 1
+	game.call("_enter_almanac_mode", "plants")
+	var view_rect: Rect2 = game.call("_almanac_list_view_rect")
+	var fourth_row_last_card: Rect2 = game.call("_almanac_item_rect", 15)
+	var passed = _assert_true(view_rect.encloses(fourth_row_last_card), "plant almanac should fit four complete rows in the list view without clipping the last row") \
+		and _assert_true(float(game.call("_almanac_max_scroll")) == 0.0, "exactly four almanac rows should not require scrolling")
 	_free_game(game)
 	return passed
 

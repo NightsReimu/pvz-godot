@@ -123,7 +123,7 @@ const ALMANAC_ZOMBIE_TAB_RECT := Rect2(236.0, 114.0, 112.0, 44.0)
 const ALMANAC_LIST_RECT := Rect2(108.0, 176.0, 404.0, 494.0)
 const ALMANAC_DETAIL_RECT := Rect2(530.0, 176.0, 648.0, 494.0)
 const ALMANAC_GRID_COLUMNS := 4
-const ALMANAC_GRID_STEP := Vector2(94.0, 118.0)
+const ALMANAC_GRID_STEP := Vector2(94.0, 106.0)
 const WORLD_SELECT_ARROW_LEFT_RECT := Rect2(74.0, 390.0, 58.0, 150.0)
 const WORLD_SELECT_ARROW_RIGHT_RECT := Rect2(1468.0, 390.0, 58.0, 150.0)
 const WORLD_SELECT_ENTER_RECT := Rect2(1180.0, 732.0, 236.0, 62.0)
@@ -893,10 +893,10 @@ func _map_touch_target(position: Vector2) -> Dictionary:
 
 func _selection_touch_target(position: Vector2) -> Dictionary:
 	var back_rect = _selection_back_rect()
-	if back_rect.has_point(position) or PREP_BACK_RECT.has_point(position):
+	if back_rect.has_point(position):
 		return {"id": "selection_back", "rect": back_rect}
 	var start_rect = _selection_start_rect()
-	if start_rect.has_point(position) or PREP_START_RECT.has_point(position):
+	if start_rect.has_point(position):
 		return {"id": "selection_start", "rect": start_rect}
 	var selected_index = _selection_slot_at(position)
 	if selected_index != -1:
@@ -3990,7 +3990,7 @@ func _prewarm_level_boss_assets() -> void:
 func _handle_selection_click(mouse_pos: Vector2) -> void:
 	_ensure_selection_scene_ready()
 	var back_rect = _selection_back_rect()
-	if back_rect.has_point(mouse_pos) or PREP_BACK_RECT.has_point(mouse_pos):
+	if back_rect.has_point(mouse_pos):
 		if bool(current_level.get("custom_level", false)):
 			_enter_world_select_mode()
 		else:
@@ -3998,7 +3998,7 @@ func _handle_selection_click(mouse_pos: Vector2) -> void:
 		return
 
 	var start_rect = _selection_start_rect()
-	if start_rect.has_point(mouse_pos) or PREP_START_RECT.has_point(mouse_pos):
+	if start_rect.has_point(mouse_pos):
 		var required_count = _required_seed_count(current_level)
 		if selection_cards.size() < required_count:
 			_show_toast("必须选满 %d 张植物" % required_count)
@@ -13754,9 +13754,15 @@ func _selection_slot_rect(index: int) -> Rect2:
 
 
 func _selection_pool_columns() -> int:
-	if not _is_mobile_runtime():
-		return PREP_POOL_COLUMNS
 	var view_width = _selection_pool_view_rect().size.x
+	if not _is_mobile_runtime():
+		if view_width >= 980.0:
+			return 9
+		if view_width >= 820.0:
+			return 8
+		if view_width >= 680.0:
+			return 7
+		return PREP_POOL_COLUMNS
 	if view_width < 420.0:
 		return 3
 	if view_width < 700.0:
@@ -14126,7 +14132,7 @@ func _almanac_content_height() -> float:
 	var row_count = int(ceil(float(entries.size()) / float(ALMANAC_GRID_COLUMNS)))
 	if row_count <= 0:
 		return 0.0
-	return 102.0 + float(max(row_count - 1, 0)) * ALMANAC_GRID_STEP.y
+	return _almanac_item_size().y + float(max(row_count - 1, 0)) * _almanac_grid_step().y
 
 
 func _almanac_max_scroll() -> float:
@@ -14144,10 +14150,19 @@ func _almanac_item_rect(index: int) -> Rect2:
 	# Fill the view width across all columns so the grid has no right-side gap.
 	var step_x = floor(view_rect.size.x / float(ALMANAC_GRID_COLUMNS))
 	var card_w = step_x - 10.0
+	var item_size = _almanac_item_size()
 	return Rect2(
-		Vector2(view_rect.position.x + col * step_x + 4.0, view_rect.position.y + row * ALMANAC_GRID_STEP.y - almanac_scroll),
-		Vector2(card_w, 102.0)
+		Vector2(view_rect.position.x + col * step_x + 4.0, view_rect.position.y + row * _almanac_grid_step().y - almanac_scroll),
+		Vector2(card_w, item_size.y)
 	)
+
+
+func _almanac_grid_step() -> Vector2:
+	return ALMANAC_GRID_STEP
+
+
+func _almanac_item_size() -> Vector2:
+	return Vector2(ALMANAC_GRID_STEP.x, 94.0)
 
 
 func _level_node_at(mouse_pos: Vector2) -> int:
