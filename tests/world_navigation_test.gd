@@ -11,6 +11,7 @@ func _run() -> void:
 	var failed := false
 	failed = not _test_world_select_supports_screen_drag_and_snap() or failed
 	failed = not _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() or failed
+	failed = not _test_world_select_command_dock_targets_are_unified() or failed
 	failed = not _test_map_supports_screen_drag_scroll() or failed
 	failed = not _test_selection_screen_supports_vertical_touch_drag_scroll() or failed
 	failed = not _test_selection_cards_keep_tap_priority_during_small_touch_motion() or failed
@@ -147,6 +148,31 @@ func _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() ->
 	game._unhandled_input(_screen_drag(tap_pos + Vector2(26.0, 4.0), Vector2(26.0, 4.0)))
 	game._unhandled_input(_screen_touch(tap_pos + Vector2(26.0, 4.0), false))
 	var passed = _assert_true(game.mode == game.MODE_ALMANAC, "small touch motion on a world-select button should still trigger the button instead of starting carousel drag")
+	_free_game(game)
+	return passed
+
+
+func _test_world_select_command_dock_targets_are_unified() -> bool:
+	var game := _make_game()
+	game.mode = game.MODE_WORLD_SELECT
+	game.world_select_index = 1
+	game.world_select_scroll = 1.0
+	var passed := _assert_true(game.has_method("_world_select_action_rects"), "world select should expose one shared command-dock layout helper")
+	if passed:
+		var action_rects: Dictionary = game.call("_world_select_action_rects")
+		for action_variant in ["almanac", "gacha", "enhance", "daily", "endless", "update", "update_info", "enter"]:
+			var action := String(action_variant)
+			passed = _assert_true(action_rects.has(action), "world select command dock should include %s" % action) and passed
+			if not action_rects.has(action):
+				continue
+			var rect := Rect2(action_rects[action])
+			passed = _assert_true(rect.size.x > 0.0 and rect.size.y > 0.0, "%s command rect should have a visible size" % action) and passed
+			var target: Dictionary = game.call("_world_select_touch_target", rect.get_center())
+			passed = _assert_true(String(target.get("id", "")) == "world_%s" % action, "%s command center should resolve to its button target instead of a world card" % action) and passed
+		var dock_rect: Rect2 = game.call("_world_select_command_dock_rect")
+		for action_variant in action_rects.keys():
+			var action_rect := Rect2(action_rects[action_variant])
+			passed = _assert_true(dock_rect.encloses(action_rect), "%s command rect should stay inside the command dock" % String(action_variant)) and passed
 	_free_game(game)
 	return passed
 

@@ -126,13 +126,14 @@ const ALMANAC_GRID_COLUMNS := 4
 const ALMANAC_GRID_STEP := Vector2(94.0, 106.0)
 const WORLD_SELECT_ARROW_LEFT_RECT := Rect2(74.0, 390.0, 58.0, 150.0)
 const WORLD_SELECT_ARROW_RIGHT_RECT := Rect2(1468.0, 390.0, 58.0, 150.0)
-const WORLD_SELECT_ENTER_RECT := Rect2(1180.0, 732.0, 236.0, 62.0)
-const WORLD_SELECT_ALMANAC_RECT := Rect2(924.0, 732.0, 236.0, 62.0)
-const WORLD_SELECT_ENDLESS_RECT := Rect2(74.0, 732.0, 200.0, 62.0)
-const WORLD_SELECT_GACHA_RECT := Rect2(294.0, 732.0, 200.0, 62.0)
-const WORLD_SELECT_DAILY_RECT := Rect2(514.0, 732.0, 200.0, 62.0)
-const WORLD_SELECT_UPDATE_RECT := Rect2(734.0, 732.0, 170.0, 62.0)
-const WORLD_SELECT_UPDATE_INFO_RECT := Rect2(734.0, 802.0, 420.0, 46.0)
+const WORLD_SELECT_ENTER_RECT := Rect2(1136.0, 732.0, 238.0, 62.0)
+const WORLD_SELECT_ALMANAC_RECT := Rect2(946.0, 732.0, 176.0, 62.0)
+const WORLD_SELECT_ENDLESS_RECT := Rect2(74.0, 732.0, 162.0, 62.0)
+const WORLD_SELECT_GACHA_RECT := Rect2(250.0, 732.0, 162.0, 62.0)
+const WORLD_SELECT_ENHANCE_RECT := Rect2(426.0, 732.0, 162.0, 62.0)
+const WORLD_SELECT_DAILY_RECT := Rect2(602.0, 732.0, 162.0, 62.0)
+const WORLD_SELECT_UPDATE_RECT := Rect2(778.0, 732.0, 154.0, 62.0)
+const WORLD_SELECT_UPDATE_INFO_RECT := Rect2(778.0, 802.0, 344.0, 46.0)
 const MAP_VIEW_RECT := Rect2(120.0, 138.0, 716.0, 548.0)
 const MAP_SCROLL_LEFT_RECT := Rect2(1080.0, 32.0, 44.0, 44.0)
 const MAP_SCROLL_RIGHT_RECT := Rect2(1132.0, 32.0, 44.0, 44.0)
@@ -939,19 +940,36 @@ func _is_touch_generated_mouse_suppressed() -> bool:
 	return false
 
 
+func _world_select_command_dock_rect() -> Rect2:
+	return Rect2(50.0, 704.0, 1348.0, 156.0)
+
+
+func _world_select_action_rects() -> Dictionary:
+	return {
+		"endless": WORLD_SELECT_ENDLESS_RECT,
+		"gacha": WORLD_SELECT_GACHA_RECT,
+		"enhance": WORLD_SELECT_ENHANCE_RECT,
+		"daily": WORLD_SELECT_DAILY_RECT,
+		"update": WORLD_SELECT_UPDATE_RECT,
+		"update_info": WORLD_SELECT_UPDATE_INFO_RECT,
+		"almanac": WORLD_SELECT_ALMANAC_RECT,
+		"enter": WORLD_SELECT_ENTER_RECT,
+	}
+
+
 func _world_select_touch_target(position: Vector2) -> Dictionary:
-	var enhance_rect = Rect2(WORLD_SELECT_GACHA_RECT.position.x, WORLD_SELECT_GACHA_RECT.position.y + 72.0, 200.0, 52.0)
+	var action_rects = _world_select_action_rects()
 	var rect_targets = [
 		{"id": "world_arrow_left", "rect": WORLD_SELECT_ARROW_LEFT_RECT},
 		{"id": "world_arrow_right", "rect": WORLD_SELECT_ARROW_RIGHT_RECT},
-		{"id": "world_almanac", "rect": WORLD_SELECT_ALMANAC_RECT},
-		{"id": "world_endless", "rect": WORLD_SELECT_ENDLESS_RECT},
-		{"id": "world_gacha", "rect": WORLD_SELECT_GACHA_RECT},
-		{"id": "world_enhance", "rect": enhance_rect},
-		{"id": "world_daily", "rect": WORLD_SELECT_DAILY_RECT},
-		{"id": "world_update", "rect": WORLD_SELECT_UPDATE_RECT},
-		{"id": "world_update_info", "rect": WORLD_SELECT_UPDATE_INFO_RECT},
-		{"id": "world_enter", "rect": WORLD_SELECT_ENTER_RECT},
+		{"id": "world_almanac", "rect": action_rects["almanac"]},
+		{"id": "world_endless", "rect": action_rects["endless"]},
+		{"id": "world_gacha", "rect": action_rects["gacha"]},
+		{"id": "world_enhance", "rect": action_rects["enhance"]},
+		{"id": "world_daily", "rect": action_rects["daily"]},
+		{"id": "world_update", "rect": action_rects["update"]},
+		{"id": "world_update_info", "rect": action_rects["update_info"]},
+		{"id": "world_enter", "rect": action_rects["enter"]},
 	]
 	for target_variant in rect_targets:
 		var target = Dictionary(target_variant)
@@ -2950,29 +2968,29 @@ func _selected_world_data() -> Dictionary:
 
 
 func _handle_world_select_click(mouse_pos: Vector2) -> void:
+	var action_rects = _world_select_action_rects()
 	if WORLD_SELECT_ARROW_LEFT_RECT.has_point(mouse_pos):
 		_shift_world_select(-1)
 		return
 	if WORLD_SELECT_ARROW_RIGHT_RECT.has_point(mouse_pos):
 		_shift_world_select(1)
 		return
-	if WORLD_SELECT_ALMANAC_RECT.has_point(mouse_pos):
+	if Rect2(action_rects["almanac"]).has_point(mouse_pos):
 		_enter_almanac_mode("plants")
 		return
-	if WORLD_SELECT_ENDLESS_RECT.has_point(mouse_pos):
+	if Rect2(action_rects["endless"]).has_point(mouse_pos):
 		_enter_endless_mode()
 		return
-	if WORLD_SELECT_GACHA_RECT.has_point(mouse_pos):
+	if Rect2(action_rects["gacha"]).has_point(mouse_pos):
 		_enter_gacha_mode()
 		return
-	var enhance_rect = Rect2(WORLD_SELECT_GACHA_RECT.position.x, WORLD_SELECT_GACHA_RECT.position.y + 72.0, 200.0, 52.0)
-	if enhance_rect.has_point(mouse_pos):
+	if Rect2(action_rects["enhance"]).has_point(mouse_pos):
 		_enter_enhance_mode()
 		return
-	if WORLD_SELECT_DAILY_RECT.has_point(mouse_pos):
+	if Rect2(action_rects["daily"]).has_point(mouse_pos):
 		_enter_daily_challenge()
 		return
-	if WORLD_SELECT_UPDATE_RECT.has_point(mouse_pos) or WORLD_SELECT_UPDATE_INFO_RECT.has_point(mouse_pos):
+	if Rect2(action_rects["update"]).has_point(mouse_pos) or Rect2(action_rects["update_info"]).has_point(mouse_pos):
 		match update_state:
 			"checking", "applying":
 				_show_toast("更新流程进行中，请稍候")
@@ -2991,7 +3009,7 @@ func _handle_world_select_click(mouse_pos: Vector2) -> void:
 			"error":
 				_begin_update_check()
 		return
-	if WORLD_SELECT_ENTER_RECT.has_point(mouse_pos):
+	if Rect2(action_rects["enter"]).has_point(mouse_pos):
 		var selected_world = _selected_world_data()
 		var world_key = String(selected_world.get("key", "day"))
 		if not _is_world_unlocked(world_key):
@@ -3063,7 +3081,7 @@ func _handle_gacha_click(mouse_pos: Vector2) -> void:
 
 
 func _enhance_panel_rect() -> Rect2:
-	return Rect2(672.0, 114.0, 888.0, 726.0)
+	return Rect2(448.0, 114.0, 666.0, 726.0)
 
 
 func _enhance_back_rect() -> Rect2:
@@ -3071,17 +3089,25 @@ func _enhance_back_rect() -> Rect2:
 
 
 func _enhance_roster_panel_rect() -> Rect2:
-	return Rect2(40.0, 114.0, 600.0, 726.0)
+	return Rect2(40.0, 114.0, 376.0, 726.0)
 
 
 func _enhance_roster_view_rect() -> Rect2:
 	var panel_rect = _enhance_roster_panel_rect()
-	return Rect2(panel_rect.position + Vector2(18.0, 76.0), Vector2(panel_rect.size.x - 48.0, panel_rect.size.y - 110.0))
+	return Rect2(panel_rect.position + Vector2(18.0, 78.0), Vector2(panel_rect.size.x - 46.0, panel_rect.size.y - 112.0))
+
+
+func _enhance_portrait_rect() -> Rect2:
+	return _enhance_panel_rect()
+
+
+func _enhance_detail_rect() -> Rect2:
+	return Rect2(1146.0, 114.0, 414.0, 726.0)
 
 
 func _enhance_material_strip_rect() -> Rect2:
-	var panel_rect = _enhance_panel_rect()
-	return Rect2(panel_rect.position + Vector2(28.0, panel_rect.size.y - 118.0), Vector2(panel_rect.size.x - 56.0, 82.0))
+	var detail_rect = _enhance_detail_rect()
+	return Rect2(detail_rect.position + Vector2(26.0, detail_rect.size.y - 112.0), Vector2(detail_rect.size.x - 52.0, 78.0))
 
 
 func _enhance_material_defs() -> Dictionary:
@@ -3156,11 +3182,10 @@ func _enhance_owned_plants() -> Array:
 
 func _enhance_grid_layout() -> Dictionary:
 	var view_rect = _enhance_roster_view_rect()
-	var col_w = 126.0
-	var col_h = 96.0
-	var col_gap = 10.0
-	var usable_width = maxf(col_w, view_rect.size.x - 18.0)
-	var cols_per_row = maxi(1, int(floor((usable_width + col_gap) / (col_w + col_gap))))
+	var col_w = view_rect.size.x - 18.0
+	var col_h = 74.0
+	var col_gap = 8.0
+	var cols_per_row = 1
 	return {
 		"col_x": view_rect.position.x,
 		"col_y": view_rect.position.y - enhance_scroll,
@@ -3204,13 +3229,13 @@ func _set_enhance_scroll(value: float) -> void:
 
 
 func _enhance_button_rect() -> Rect2:
-	var panel_rect = _enhance_panel_rect()
-	return Rect2(panel_rect.position.x + panel_rect.size.x - 276.0, panel_rect.position.y + 504.0, 236.0, 58.0)
+	var detail_rect = _enhance_detail_rect()
+	return Rect2(detail_rect.position.x + 26.0, detail_rect.position.y + 480.0, detail_rect.size.x - 52.0, 58.0)
 
 
 func _enhance_stone_button_rect() -> Rect2:
-	var panel_rect = _enhance_panel_rect()
-	return Rect2(panel_rect.position.x + panel_rect.size.x - 276.0, panel_rect.position.y + 576.0, 236.0, 46.0)
+	var detail_rect = _enhance_detail_rect()
+	return Rect2(detail_rect.position.x + 26.0, detail_rect.position.y + 550.0, detail_rect.size.x - 52.0, 46.0)
 
 
 func _custom_level_template(world_key: String) -> Dictionary:
@@ -4070,6 +4095,120 @@ func _draw_enhancement_aura(center: Vector2, kind: String) -> void:
 		ThemeLib.draw_glow_circle(self, center, 38.0 + pulse * 14.0, Color(1.0, 0.86, 0.2, 0.12 + pulse * 0.05), 3)
 
 
+func _enhance_stat_chip_labels(kind: String) -> Array:
+	var bonus = _plant_enhance_bonus(kind)
+	return [
+		{"name": "攻击", "value": "+%d%%" % int(round((float(bonus.get("damage_mult", 1.0)) - 1.0) * 100.0))},
+		{"name": "耐久", "value": "+%d%%" % int(round((float(bonus.get("health_mult", 1.0)) - 1.0) * 100.0))},
+		{"name": "节律", "value": "+%d%%" % int(round((float(bonus.get("attack_speed_mult", 1.0)) - 1.0) * 100.0))},
+		{"name": "效果", "value": "+%d%%" % int(round((float(bonus.get("effect_mult", 1.0)) - 1.0) * 100.0))},
+	]
+
+
+func _draw_enhance_portrait_panel(kind: String, panel_rect: Rect2) -> void:
+	var data = Defs.PLANTS[kind]
+	var profile = _plant_enhance_profile(kind)
+	var role_color = Color(profile.get("color", Color(0.6, 0.72, 0.8)))
+	var level = int(plant_enhance_levels.get(kind, 0))
+	var rarity = String(data.get("rarity", "green"))
+	var rarity_label = "常规" if rarity == "green" else rarity.to_upper()
+	ThemeLib.draw_gradient_rect_v(self, panel_rect, Color(0.065, 0.085, 0.1, 0.96), Color(0.02, 0.03, 0.038, 0.96))
+	draw_rect(panel_rect, Color(role_color.r, role_color.g, role_color.b, 0.5), false, 2.0)
+	for line_index in range(8):
+		var x = panel_rect.position.x + 42.0 + float(line_index) * 74.0
+		draw_line(Vector2(x, panel_rect.position.y + 28.0), Vector2(x - 128.0, panel_rect.end.y - 34.0), Color(1.0, 1.0, 1.0, 0.025), 2.0)
+	var top_band = Rect2(panel_rect.position + Vector2(28.0, 26.0), Vector2(panel_rect.size.x - 56.0, 96.0))
+	draw_rect(top_band, Color(role_color.r, role_color.g, role_color.b, 0.12), true)
+	draw_rect(top_band, Color(role_color.r, role_color.g, role_color.b, 0.42), false, 1.0)
+	_draw_text("OPERATOR", top_band.position + Vector2(22.0, 30.0), 15, Color(0.64, 0.76, 0.82))
+	_draw_text(String(data.get("name", kind)), top_band.position + Vector2(20.0, 68.0), 34, Color(0.94, 0.98, 1.0))
+	_draw_text("%s  %s" % [String(profile.get("name", "")), rarity_label], top_band.position + Vector2(top_band.size.x - 198.0, 68.0), 18, role_color.lightened(0.14))
+	var circle_center = panel_rect.position + Vector2(panel_rect.size.x * 0.5, 350.0)
+	for ring in range(4):
+		var radius = 104.0 + float(ring) * 46.0
+		draw_arc(circle_center, radius, 0.0, TAU, 96, Color(role_color.r, role_color.g, role_color.b, 0.16 - float(ring) * 0.028), 2.0)
+	draw_circle(circle_center + Vector2(0.0, 122.0), 122.0, Color(0.0, 0.0, 0.0, 0.22))
+	_draw_plant_preview(kind, circle_center + Vector2(0.0, 58.0))
+	_draw_card_icon(kind, circle_center + Vector2(0.0, 24.0))
+	var level_rect = Rect2(panel_rect.position + Vector2(52.0, 564.0), Vector2(panel_rect.size.x - 104.0, 76.0))
+	_draw_panel_shell(level_rect, Color(0.02, 0.032, 0.04, 0.86), role_color.darkened(0.12), 0.08, 0.04)
+	_draw_text("强化等级", level_rect.position + Vector2(22.0, 30.0), 16, Color(0.64, 0.76, 0.82))
+	_draw_text("+%d" % level, level_rect.position + Vector2(level_rect.size.x - 86.0, 48.0), 34, Color(1.0, 0.86, 0.34))
+	var bar_rect = Rect2(level_rect.position + Vector2(22.0, 48.0), Vector2(level_rect.size.x - 132.0, 10.0))
+	draw_rect(bar_rect, Color(0.0, 0.0, 0.0, 0.42), true)
+	draw_rect(ThemeLib.progress_fill_rect(bar_rect, float(level) / float(ENHANCE_MAX_LEVEL)), role_color, true)
+	draw_rect(bar_rect, Color(1.0, 1.0, 1.0, 0.18), false, 1.0)
+	var stats = _enhanced_plant_stats(kind)
+	var base_health = int(Defs.PLANTS[kind].get("health", 0))
+	var snapshot = "HP %d -> %d" % [base_health, int(stats.get("health", base_health))]
+	if Defs.PLANTS[kind].has("damage"):
+		snapshot += "    ATK %d -> %d" % [int(Defs.PLANTS[kind]["damage"]), int(stats.get("damage", Defs.PLANTS[kind]["damage"]))]
+	_draw_text(snapshot, panel_rect.position + Vector2(58.0, 682.0), 17, Color(0.72, 0.82, 0.88))
+
+
+func _draw_enhance_terminal_detail_panel(kind: String, panel_rect: Rect2) -> void:
+	var data = Defs.PLANTS[kind]
+	var profile = _plant_enhance_profile(kind)
+	var role_color = Color(profile.get("color", Color(0.6, 0.72, 0.8)))
+	var level = int(plant_enhance_levels.get(kind, 0))
+	var material = String(profile.get("material", ""))
+	var material_def = ENHANCE_MATERIAL_DEFS.get(material, {})
+	_draw_text("强化模块", panel_rect.position + Vector2(26.0, 44.0), 25, Color(0.94, 0.98, 1.0))
+	_draw_text("%s / %s" % [String(data.get("name", kind)), String(material_def.get("name", "强化材料"))], panel_rect.position + Vector2(26.0, 76.0), 15, role_color.lightened(0.2))
+	var tab_rect = Rect2(panel_rect.position + Vector2(26.0, 100.0), Vector2(panel_rect.size.x - 52.0, 42.0))
+	draw_rect(tab_rect, Color(0.02, 0.035, 0.046, 0.72), true)
+	draw_rect(Rect2(tab_rect.position, Vector2(tab_rect.size.x / 3.0, tab_rect.size.y)), Color(role_color.r, role_color.g, role_color.b, 0.28), true)
+	_draw_text("等级", tab_rect.position + Vector2(46.0, 27.0), 15, Color(0.94, 0.98, 1.0))
+	_draw_text("芯片", tab_rect.position + Vector2(tab_rect.size.x / 3.0 + 46.0, 27.0), 15, Color(0.58, 0.7, 0.78))
+	_draw_text("档案", tab_rect.position + Vector2(tab_rect.size.x / 3.0 * 2.0 + 46.0, 27.0), 15, Color(0.58, 0.7, 0.78))
+	_draw_text("词条", panel_rect.position + Vector2(26.0, 176.0), 19, Color(0.9, 0.96, 1.0))
+	var chip_labels = _enhance_stat_chip_labels(kind)
+	for i in range(chip_labels.size()):
+		var chip = chip_labels[i]
+		var chip_rect = Rect2(panel_rect.position + Vector2(26.0 + float(i % 2) * 184.0, 198.0 + floor(float(i) / 2.0) * 86.0), Vector2(168.0, 72.0))
+		_draw_panel_shell(chip_rect, Color(0.08, 0.12, 0.14, 0.94), role_color.darkened(0.16), 0.08, 0.05)
+		draw_circle(chip_rect.position + Vector2(24.0, 24.0), 8.0, role_color)
+		_draw_text(String(chip["name"]), chip_rect.position + Vector2(42.0, 30.0), 14, Color(0.66, 0.78, 0.84))
+		_draw_text(String(chip["value"]), chip_rect.position + Vector2(20.0, 60.0), 23, Color(0.94, 0.98, 1.0))
+	var desc_rect = Rect2(panel_rect.position + Vector2(26.0, 374.0), Vector2(panel_rect.size.x - 52.0, 82.0))
+	_draw_panel_shell(desc_rect, Color(0.055, 0.08, 0.096, 0.94), Color(0.2, 0.32, 0.38), 0.08, 0.04)
+	var bonus_lines: Array = profile.get("bonus_lines", [])
+	for i in range(min(3, bonus_lines.size())):
+		_draw_text("◆ %s" % String(bonus_lines[i]), desc_rect.position + Vector2(20.0, 27.0 + float(i) * 23.0), 15, Color(0.74, 0.84, 0.88))
+	var cost_rect = Rect2(panel_rect.position + Vector2(26.0, 462.0), Vector2(panel_rect.size.x - 52.0, 136.0))
+	_draw_panel_shell(cost_rect, Color(0.055, 0.08, 0.096, 0.94), Color(0.2, 0.32, 0.38), 0.08, 0.04)
+	if level < ENHANCE_MAX_LEVEL:
+		var table = ENHANCE_TABLE[level]
+		var material_cost = _enhance_material_cost_for_level(level)
+		var owned_materials = int(enhance_materials.get(material, 0))
+		var can_afford_material = owned_materials >= material_cost
+		_draw_text("消耗", cost_rect.position + Vector2(18.0, 28.0), 16, Color(0.76, 0.86, 0.92))
+		_draw_text("金币 %d" % int(table["cost"]), cost_rect.position + Vector2(18.0, 56.0), 16, Color(0.96, 0.82, 0.34))
+		_draw_text("%s %d/%d" % [String(material_def.get("short", "材料")), owned_materials, material_cost], cost_rect.position + Vector2(18.0, 84.0), 16, Color(0.74, 0.94, 0.72) if can_afford_material else Color(1.0, 0.46, 0.36))
+		_draw_text("成功率 %d%%" % int(float(table["rate"]) * 100.0), cost_rect.position + Vector2(18.0, 112.0), 16, Color(0.72, 0.86, 0.96))
+		if int(table["penalty"]) > 0:
+			_draw_text("失败 -%d" % int(table["penalty"]), cost_rect.position + Vector2(212.0, 112.0), 16, Color(1.0, 0.48, 0.38))
+		_draw_fancy_button(_enhance_button_rect(), "强化", Color(0.28, 0.58, 0.68), Color(0.62, 0.86, 0.94), 23)
+		var catalyst_label = "催化保底" if enhance_stones > 0 else "无催化剂"
+		_draw_fancy_button(_enhance_stone_button_rect(), catalyst_label, Color(0.26, 0.3, 0.34), Color(0.52, 0.62, 0.68), 19)
+	else:
+		_draw_text("已达最高等级", cost_rect.position + Vector2(98.0, 74.0), 22, Color(1.0, 0.86, 0.34))
+	var strip_rect = _enhance_material_strip_rect()
+	draw_rect(strip_rect, Color(0.02, 0.035, 0.045, 0.62), true)
+	draw_rect(strip_rect, Color(0.24, 0.36, 0.42, 0.72), false, 2.0)
+	var material_keys = ENHANCE_MATERIAL_DEFS.keys()
+	var material_w = strip_rect.size.x / 3.0
+	for i in range(material_keys.size()):
+		var material_key = String(material_keys[i])
+		var def = ENHANCE_MATERIAL_DEFS[material_key]
+		var color = Color(def.get("color", Color(0.7, 0.8, 0.8)))
+		var item_rect = Rect2(strip_rect.position + Vector2(float(i % 3) * material_w + 8.0, 8.0 + floor(float(i) / 3.0) * 33.0), Vector2(material_w - 16.0, 28.0))
+		draw_rect(item_rect, Color(color.r, color.g, color.b, 0.12), true)
+		draw_rect(item_rect, color.darkened(0.1), false, 1.0)
+		draw_circle(item_rect.position + Vector2(14.0, 14.0), 8.0, color)
+		_draw_text("%s x%d" % [String(def.get("short", material_key)), int(enhance_materials.get(material_key, 0))], item_rect.position + Vector2(28.0, 20.0), 12, Color(0.9, 0.96, 1.0))
+
+
 func _draw_enhance_detail_panel(kind: String, panel_rect: Rect2) -> void:
 	var data = Defs.PLANTS[kind]
 	var profile = _plant_enhance_profile(kind)
@@ -4157,11 +4296,14 @@ func _draw_enhance_detail_panel(kind: String, panel_rect: Rect2) -> void:
 
 
 func _draw_enhance_scene() -> void:
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.045, 0.07, 0.09), Color(0.015, 0.022, 0.03))
-	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 104.0)), Color(0.08, 0.12, 0.15, 0.92), true)
-	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 104.0)), Color(0.36, 0.58, 0.72, 0.18), false, 2.0)
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.04, 0.052, 0.06), Color(0.012, 0.018, 0.024))
+	for band_index in range(6):
+		var band_y = 118.0 + float(band_index) * 112.0
+		draw_line(Vector2(0.0, band_y), Vector2(BASE_VIEWPORT_SIZE.x, band_y - 76.0), Color(1.0, 1.0, 1.0, 0.025), 2.0)
+	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 104.0)), Color(0.07, 0.09, 0.105, 0.94), true)
+	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 104.0)), Color(0.72, 0.82, 0.9, 0.16), false, 2.0)
 	_draw_text("植物强化", Vector2(196.0, 68.0), 32, Color(0.94, 0.98, 1.0))
-	_draw_text("芯片 / 等级 / 材料", Vector2(364.0, 68.0), 18, Color(0.56, 0.7, 0.78))
+	_draw_text("终端 / 等级 / 材料", Vector2(364.0, 68.0), 18, Color(0.56, 0.7, 0.78))
 	_draw_fancy_button(_enhance_back_rect(), "返回", Color(0.18, 0.24, 0.28), Color(0.46, 0.58, 0.66), 22)
 
 	var resource_rect = Rect2(BASE_VIEWPORT_SIZE.x - 500.0, 30.0, 452.0, 48.0)
@@ -4173,10 +4315,9 @@ func _draw_enhance_scene() -> void:
 	var roster_panel = _enhance_roster_panel_rect()
 	_draw_panel_shell(roster_panel, Color(0.075, 0.102, 0.12, 0.96), Color(0.28, 0.42, 0.48), 0.16, 0.1)
 	_draw_text("名单", roster_panel.position + Vector2(22.0, 44.0), 24, Color(0.9, 0.96, 1.0))
-	_draw_text("全植物可强化", roster_panel.position + Vector2(98.0, 42.0), 16, Color(0.52, 0.66, 0.72))
+	_draw_text("全植物", roster_panel.position + Vector2(roster_panel.size.x - 92.0, 42.0), 16, Color(0.52, 0.66, 0.72))
 	var view_rect = _enhance_roster_view_rect()
 	draw_rect(view_rect, Color(0.02, 0.035, 0.045, 0.68), true)
-	var layout = _enhance_grid_layout()
 	var owned_plants = _enhance_owned_plants()
 	for i in range(owned_plants.size()):
 		var pk = String(owned_plants[i])
@@ -4189,24 +4330,27 @@ func _draw_enhance_scene() -> void:
 		var fill = Color(0.095, 0.13, 0.15, 0.96) if not is_selected else Color(0.13, 0.19, 0.22, 0.98)
 		var border_color = role_color if is_selected else Color(0.2, 0.3, 0.34)
 		_draw_panel_shell(cell_rect, fill, border_color, 0.08, 0.04)
-		draw_rect(Rect2(cell_rect.position, Vector2(cell_rect.size.x, 4.0)), role_color, true)
-		_draw_card_icon(pk, cell_rect.position + Vector2(34.0, 46.0))
+		draw_rect(Rect2(cell_rect.position, Vector2(5.0, cell_rect.size.y)), role_color, true)
+		_draw_card_icon(pk, cell_rect.position + Vector2(34.0, 42.0))
 		var elevel = int(plant_enhance_levels.get(pk, 0))
-		_draw_text(String(Defs.PLANTS[pk].get("name", pk)), cell_rect.position + Vector2(64.0, 34.0), 13, Color(0.9, 0.94, 0.96))
-		_draw_text(String(profile.get("name", "")), cell_rect.position + Vector2(64.0, 56.0), 12, role_color.lightened(0.12))
-		_draw_text("+%d" % elevel, cell_rect.position + Vector2(cell_rect.size.x - 34.0, cell_rect.size.y - 14.0), 16, Color(1.0, 0.86, 0.34))
+		_draw_text(String(Defs.PLANTS[pk].get("name", pk)), cell_rect.position + Vector2(68.0, 30.0), 14, Color(0.9, 0.94, 0.96))
+		_draw_text(String(profile.get("name", "")), cell_rect.position + Vector2(68.0, 52.0), 12, role_color.lightened(0.12))
+		_draw_text("+%d" % elevel, cell_rect.position + Vector2(cell_rect.size.x - 42.0, 46.0), 17, Color(1.0, 0.86, 0.34))
 	ThemeLib.draw_scroll_mask(self, roster_panel.grow(-8.0), view_rect, Color(0.075, 0.102, 0.12, 0.98), Color(0.26, 0.4, 0.46))
 	if _enhance_max_scroll() > 0.0:
 		var track_rect = Rect2(view_rect.end - Vector2(10.0, view_rect.size.y), Vector2(6.0, view_rect.size.y))
 		draw_rect(track_rect, Color(0.0, 0.0, 0.0, 0.32), true)
 		draw_rect(ThemeLib.scroll_knob_rect(track_rect, view_rect.size.y, _enhance_roster_content_height(), enhance_scroll, 48.0), Color(0.54, 0.72, 0.82, 0.76), true)
 
-	var panel_rect = _enhance_panel_rect()
+	var panel_rect = _enhance_portrait_rect()
+	var detail_rect = _enhance_detail_rect()
 	_draw_panel_shell(panel_rect, Color(0.085, 0.118, 0.14, 0.96), Color(0.3, 0.48, 0.56), 0.2, 0.12)
+	_draw_panel_shell(detail_rect, Color(0.075, 0.102, 0.12, 0.96), Color(0.3, 0.48, 0.56), 0.18, 0.1)
 	if enhance_selected_plant == "" and not owned_plants.is_empty():
 		enhance_selected_plant = String(owned_plants[0])
 	if enhance_selected_plant != "":
-		_draw_enhance_detail_panel(enhance_selected_plant, panel_rect)
+		_draw_enhance_portrait_panel(enhance_selected_plant, panel_rect)
+		_draw_enhance_terminal_detail_panel(enhance_selected_plant, detail_rect)
 
 
 func _begin_level(level_index: int, chosen_cards: Array, level_override: Dictionary = {}) -> void:
@@ -15430,6 +15574,11 @@ func _draw_world_sky(is_night_world: bool) -> void:
 	ThemeLib.draw_world_sky(self, BASE_VIEWPORT_SIZE, ui_time, is_night_world)
 
 
+func _draw_world_command_button(rect: Rect2, label: String, fill_color: Color, border_color: Color, font_size: int = 20) -> void:
+	ThemeLib.draw_soft_shadow(self, rect, Color(0.0, 0.0, 0.0, 0.18), 3, 9.0, 6.0)
+	_draw_fancy_button(rect, label, fill_color, border_color, font_size)
+
+
 func _draw_scroll_mask(content_rect: Rect2, view_rect: Rect2, fill_color: Color, border_color: Color) -> void:
 	ThemeLib.draw_scroll_mask(self, content_rect, view_rect, fill_color, border_color)
 
@@ -15520,42 +15669,45 @@ func _draw_world_select_scene() -> void:
 	var world_key = String(selected_world.get("key", "day"))
 	var unlocked_world = _is_world_unlocked(world_key)
 	var enter_fill = Color(selected_world.get("accent", Color(0.42, 0.76, 0.24)))
+	var action_rects = _world_select_action_rects()
+	var dock_rect = _world_select_command_dock_rect()
+	ThemeLib.draw_soft_shadow(self, dock_rect, Color(0.0, 0.0, 0.0, 0.22), 4, 18.0, 10.0)
+	_draw_panel_shell(dock_rect, Color(0.09, 0.105, 0.12, 0.9), Color(0.72, 0.78, 0.82, 0.22), 0.12, 0.08)
+	draw_rect(Rect2(dock_rect.position + Vector2(18.0, 16.0), Vector2(dock_rect.size.x - 36.0, 2.0)), Color(0.94, 0.98, 1.0, 0.18), true)
+	_draw_text("作战终端", dock_rect.position + Vector2(24.0, 42.0), 17, Color(0.88, 0.94, 1.0))
+	_draw_text("世界 %d/%d" % [world_select_index + 1, WorldDataLib.all().size()], dock_rect.position + Vector2(24.0, 136.0), 16, Color(0.72, 0.82, 0.88))
 	if not unlocked_world:
 		enter_fill = Color(0.44, 0.46, 0.52)
-	ThemeLib.draw_soft_shadow(self, WORLD_SELECT_ENTER_RECT, Color(0.0, 0.0, 0.0, 0.28), 4, 14.0, 10.0)
+	var enter_rect = Rect2(action_rects["enter"])
+	ThemeLib.draw_soft_shadow(self, enter_rect, Color(0.0, 0.0, 0.0, 0.28), 4, 14.0, 10.0)
 	# gentle glow pulse on the enter button when its world is unlocked
 	if unlocked_world:
 		var enter_pulse = 0.4 + 0.25 * sin(ui_time * 2.4)
-		draw_rect(WORLD_SELECT_ENTER_RECT.grow(6.0), Color(enter_fill.r, enter_fill.g, enter_fill.b, enter_pulse * 0.3), false, 4.0)
-	_draw_panel_shell(WORLD_SELECT_ENTER_RECT, enter_fill, Color(0.18, 0.22, 0.16), 0.22, 0.12)
-	_draw_fancy_button(WORLD_SELECT_ALMANAC_RECT, "图鉴", Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 24)
-	_draw_text("进入世界", WORLD_SELECT_ENTER_RECT.position + Vector2(66.0, 38.0), 26, Color(0.1, 0.14, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96))
+		draw_rect(enter_rect.grow(6.0), Color(enter_fill.r, enter_fill.g, enter_fill.b, enter_pulse * 0.3), false, 4.0)
+	_draw_panel_shell(enter_rect, enter_fill, Color(0.18, 0.22, 0.16), 0.22, 0.12)
+	_draw_world_command_button(Rect2(action_rects["almanac"]), "图鉴", Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 22)
+	_draw_text("进入世界", enter_rect.position + Vector2(64.0, 38.0), 26, Color(0.1, 0.14, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96))
 
-	# Endless mode button
-	_draw_fancy_button(WORLD_SELECT_ENDLESS_RECT, "无尽模式", Color(0.86, 0.28, 0.22), Color(0.52, 0.12, 0.1), 22)
-	# Gacha button
-	_draw_fancy_button(WORLD_SELECT_GACHA_RECT, "抽卡系统", Color(0.82, 0.62, 0.18), Color(0.48, 0.34, 0.08), 22)
-	# Enhance button (below gacha)
-	var enhance_rect = Rect2(WORLD_SELECT_GACHA_RECT.position.x, WORLD_SELECT_GACHA_RECT.position.y + 72.0, 200.0, 52.0)
-	_draw_fancy_button(enhance_rect, "植物强化", Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 20)
-	# Daily challenge button
+	_draw_world_command_button(Rect2(action_rects["endless"]), "无尽", Color(0.86, 0.28, 0.22), Color(0.52, 0.12, 0.1), 20)
+	_draw_world_command_button(Rect2(action_rects["gacha"]), "抽卡", Color(0.82, 0.62, 0.18), Color(0.48, 0.34, 0.08), 20)
+	_draw_world_command_button(Rect2(action_rects["enhance"]), "强化", Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 20)
 	var daily_done = daily_challenge_date == _today_string()
 	var daily_fill = Color(0.36, 0.64, 0.86) if not daily_done else Color(0.52, 0.56, 0.6)
-	_draw_fancy_button(WORLD_SELECT_DAILY_RECT, "每日挑战" if not daily_done else "已完成", daily_fill, Color(0.16, 0.32, 0.48), 22)
-	# Update button and status
-	_draw_fancy_button(WORLD_SELECT_UPDATE_RECT, _update_action_text(), _update_badge_fill(), Color(0.18, 0.22, 0.28), 20)
-	_draw_panel_shell(WORLD_SELECT_UPDATE_INFO_RECT, Color(0.14, 0.16, 0.2, 0.9), Color(0.34, 0.4, 0.48), 0.12, 0.08)
-	_draw_text("自动更新", WORLD_SELECT_UPDATE_INFO_RECT.position + Vector2(16.0, 20.0), 16, Color(0.92, 0.96, 1.0))
-	_draw_text(_update_status_line(), WORLD_SELECT_UPDATE_INFO_RECT.position + Vector2(16.0, 40.0), 14, Color(0.84, 0.9, 0.98))
+	_draw_world_command_button(Rect2(action_rects["daily"]), "每日" if not daily_done else "已完成", daily_fill, Color(0.16, 0.32, 0.48), 20)
+	_draw_world_command_button(Rect2(action_rects["update"]), _update_action_text(), _update_badge_fill(), Color(0.18, 0.22, 0.28), 18)
+	var update_info_rect = Rect2(action_rects["update_info"])
+	_draw_panel_shell(update_info_rect, Color(0.14, 0.16, 0.2, 0.9), Color(0.34, 0.4, 0.48), 0.12, 0.08)
+	_draw_text("自动更新", update_info_rect.position + Vector2(16.0, 20.0), 15, Color(0.92, 0.96, 1.0))
+	_draw_text(_update_status_line(), update_info_rect.position + Vector2(16.0, 40.0), 13, Color(0.84, 0.9, 0.98))
 	if update_state == "downloading":
-		var bar_rect = Rect2(WORLD_SELECT_UPDATE_INFO_RECT.position + Vector2(250.0, 13.0), Vector2(148.0, 16.0))
+		var bar_rect = Rect2(update_info_rect.position + Vector2(214.0, 13.0), Vector2(112.0, 16.0))
 		draw_rect(bar_rect, Color(0.08, 0.1, 0.12, 0.82), true)
 		draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * clampf(update_download_progress, 0.0, 1.0), bar_rect.size.y)), Color(0.92, 0.66, 0.22, 0.94), true)
 		draw_rect(bar_rect, Color(0.94, 0.96, 1.0, 0.24), false, 1.0)
 	# Coin display
-	_draw_panel_shell(Rect2(1180.0, 808.0, 236.0, 42.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.1, 0.06)
-	_draw_text("金币: %d" % coins_total, Vector2(1204.0, 838.0), 22, Color(0.33, 0.21, 0.04))
-	_draw_text("滚轮、触控板或手指左右滑动切换世界", Vector2(76.0, 836.0), 18, Color(0.24, 0.18, 0.08) if not sky_night else Color(0.86, 0.9, 0.98))
+	var coin_rect = Rect2(1136.0, 808.0, 238.0, 42.0)
+	_draw_panel_shell(coin_rect, Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.1, 0.06)
+	_draw_text("金币: %d" % coins_total, coin_rect.position + Vector2(22.0, 30.0), 21, Color(0.33, 0.21, 0.04))
 
 
 func _draw_map_scene() -> void:

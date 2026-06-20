@@ -13,6 +13,7 @@ func _run() -> void:
 	failed = not _test_every_plant_has_an_enhance_profile_and_material() or failed
 	failed = not _test_enhance_bonuses_are_distinct_by_plant_role() or failed
 	failed = not _test_enhancement_consumes_matching_material() or failed
+	failed = not _test_enhance_terminal_layout_uses_distinct_operator_panels() or failed
 	failed = not _test_save_merge_preserves_material_inventory() or failed
 	quit(1 if failed else 0)
 
@@ -115,6 +116,28 @@ func _test_enhancement_consumes_matching_material() -> bool:
 	game.call("_try_enhance_plant", "peashooter")
 	var passed := _assert_true(int(game.plant_enhance_levels.get("peashooter", 0)) == 1, "peashooter should enhance when its role material is available") \
 		and _assert_true(int(game.enhance_materials.get(material, 0)) == 1, "enhancing should consume the matching role material")
+	_free_game(game)
+	return passed
+
+
+func _test_enhance_terminal_layout_uses_distinct_operator_panels() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_enhance_portrait_rect"), "enhance UI should expose a central operator portrait panel") \
+		and _assert_true(game.has_method("_enhance_detail_rect"), "enhance UI should expose a right-side detail panel") \
+		and _assert_true(game.has_method("_enhance_material_strip_rect"), "enhance UI should expose a material inventory strip")
+	if passed:
+		var viewport_rect := Rect2(Vector2.ZERO, GameScript.BASE_VIEWPORT_SIZE)
+		var roster_rect: Rect2 = game.call("_enhance_roster_panel_rect")
+		var portrait_rect: Rect2 = game.call("_enhance_portrait_rect")
+		var detail_rect: Rect2 = game.call("_enhance_detail_rect")
+		var material_rect: Rect2 = game.call("_enhance_material_strip_rect")
+		passed = _assert_true(viewport_rect.encloses(roster_rect), "enhance roster panel should stay inside the base viewport") and passed
+		passed = _assert_true(viewport_rect.encloses(portrait_rect), "enhance portrait panel should stay inside the base viewport") and passed
+		passed = _assert_true(viewport_rect.encloses(detail_rect), "enhance detail panel should stay inside the base viewport") and passed
+		passed = _assert_true(viewport_rect.encloses(material_rect), "enhance material strip should stay inside the base viewport") and passed
+		passed = _assert_true(not roster_rect.intersects(portrait_rect), "enhance roster and portrait panels should be distinct columns") and passed
+		passed = _assert_true(not portrait_rect.intersects(detail_rect), "enhance portrait and detail panels should be distinct columns") and passed
+		passed = _assert_true(material_rect.position.y > portrait_rect.position.y, "enhance material inventory should read as a lower terminal strip") and passed
 	_free_game(game)
 	return passed
 
