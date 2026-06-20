@@ -431,7 +431,9 @@ func _test_enhance_button_click_is_not_shadowed_by_hidden_grid_cells() -> bool:
 	game.enhance_selected_plant = "peashooter"
 	game.call("_enter_enhance_mode")
 	game.enhance_selected_plant = "peashooter"
-	var button_center = Vector2(1390.0, 518.0)
+	var profile: Dictionary = game.call("_plant_enhance_profile", "peashooter")
+	game.enhance_materials = {String(profile.get("material", "")): 1}
+	var button_center: Vector2 = game.call("_enhance_button_rect").get_center()
 	game.call("_handle_enhance_click", button_center)
 	var passed = _assert_true(String(game.enhance_selected_plant) == "peashooter", "clicking the enhance button should not select an invisible plant cell underneath the side panel") \
 		and _assert_true(int(game.plant_enhance_levels.get("peashooter", 0)) == 1, "clicking the enhance button should actually enhance the selected plant")

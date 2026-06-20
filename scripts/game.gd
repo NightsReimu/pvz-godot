@@ -316,7 +316,80 @@ var daily_completed_today := false
 var plant_enhance_levels: Dictionary = {}
 var enhance_stones := 0
 var enhance_selected_plant := ""
+var enhance_materials: Dictionary = {}
+var enhance_scroll := 0.0
 const MODE_ENHANCE := "enhance"
+const ENHANCE_MAX_LEVEL := 15
+const ENHANCE_ARCHETYPE_DEFS := {
+	"assault": {
+		"name": "强攻",
+		"material": "assault_chip",
+		"color": Color(0.95, 0.42, 0.28),
+		"damage_scale": 1.1,
+		"health_scale": 0.45,
+		"speed_scale": 0.78,
+		"effect_scale": 0.25,
+		"bonus_lines": ["攻击主词条", "射击/连击节律", "少量耐久"],
+	},
+	"artillery": {
+		"name": "炮击",
+		"material": "burst_crystal",
+		"color": Color(1.0, 0.62, 0.24),
+		"damage_scale": 1.22,
+		"health_scale": 0.36,
+		"speed_scale": 0.48,
+		"effect_scale": 0.55,
+		"bonus_lines": ["爆发伤害", "溅射/范围", "装填节律"],
+	},
+	"defender": {
+		"name": "重装",
+		"material": "guard_plate",
+		"color": Color(0.54, 0.78, 1.0),
+		"damage_scale": 0.32,
+		"health_scale": 1.55,
+		"speed_scale": 0.18,
+		"effect_scale": 0.5,
+		"bonus_lines": ["生命主词条", "护盾/反伤", "抗线稳定性"],
+	},
+	"producer": {
+		"name": "产能",
+		"material": "growth_core",
+		"color": Color(0.98, 0.82, 0.28),
+		"damage_scale": 0.35,
+		"health_scale": 0.42,
+		"speed_scale": 1.2,
+		"effect_scale": 0.9,
+		"bonus_lines": ["产阳效率", "初次启动", "少量生存"],
+	},
+	"control": {
+		"name": "控场",
+		"material": "tempo_coil",
+		"color": Color(0.58, 0.86, 1.0),
+		"damage_scale": 0.72,
+		"health_scale": 0.46,
+		"speed_scale": 0.68,
+		"effect_scale": 1.18,
+		"bonus_lines": ["控制持续", "领域半径", "稳定触发"],
+	},
+	"support": {
+		"name": "辅助",
+		"material": "support_gel",
+		"color": Color(0.68, 0.94, 0.58),
+		"damage_scale": 0.42,
+		"health_scale": 0.82,
+		"speed_scale": 0.88,
+		"effect_scale": 1.1,
+		"bonus_lines": ["治疗/护盾", "功能冷却", "覆盖范围"],
+	},
+}
+const ENHANCE_MATERIAL_DEFS := {
+	"assault_chip": {"name": "强攻芯片", "short": "强攻", "color": Color(0.95, 0.42, 0.28), "desc": "射手与连击植物的主材料"},
+	"burst_crystal": {"name": "爆发结晶", "short": "爆发", "color": Color(1.0, 0.62, 0.24), "desc": "投手、炸弹与范围输出材料"},
+	"guard_plate": {"name": "防护基片", "short": "防护", "color": Color(0.54, 0.78, 1.0), "desc": "坚果、盾卫与承伤植物材料"},
+	"growth_core": {"name": "生长芯核", "short": "生长", "color": Color(0.98, 0.82, 0.28), "desc": "产阳与成长植物材料"},
+	"tempo_coil": {"name": "节律线圈", "short": "节律", "color": Color(0.58, 0.86, 1.0), "desc": "冰冻、减速、牵引与控制材料"},
+	"support_gel": {"name": "支援凝胶", "short": "支援", "color": Color(0.68, 0.94, 0.58), "desc": "治疗、容器与辅助植物材料"},
+}
 const ENHANCE_TABLE = [
 	{"cost": 100, "frag_cost": 0, "rate": 1.0, "penalty": 0, "boost": 0.05},
 	{"cost": 100, "frag_cost": 0, "rate": 1.0, "penalty": 0, "boost": 0.05},
@@ -356,6 +429,26 @@ const ENHANCE_INTERVAL_KEYS := [
 	"support_interval",
 	"glitch_time",
 	"wilt_time",
+]
+const ENHANCE_EFFECT_KEYS := [
+	"radius",
+	"splash_radius",
+	"chain_range",
+	"range",
+	"width",
+	"slow_duration",
+	"freeze_duration",
+	"snare_duration",
+	"root_duration",
+	"pull_radius",
+	"pull_strength",
+	"push_distance",
+	"shield_amount",
+	"shield_hp",
+	"heal_amount",
+	"heal_per_pulse",
+	"sun_amount",
+	"ultimate_sun",
 ]
 
 var current_level = {}
@@ -1418,6 +1511,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			if _handle_scroll_input(ALMANAC_GRID_STEP.y, mouse_pos):
+				queue_redraw()
+			return
+
+	if event is InputEventMouseButton and event.pressed and mode == MODE_ENHANCE:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			if _handle_scroll_input(-106.0, mouse_pos):
+				queue_redraw()
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if _handle_scroll_input(106.0, mouse_pos):
 				queue_redraw()
 			return
 
@@ -2960,33 +3063,112 @@ func _handle_gacha_click(mouse_pos: Vector2) -> void:
 
 
 func _enhance_panel_rect() -> Rect2:
-	return Rect2(BASE_VIEWPORT_SIZE.x - 380.0, 130.0, 340.0, 520.0)
+	return Rect2(672.0, 114.0, 888.0, 726.0)
+
+
+func _enhance_back_rect() -> Rect2:
+	return Rect2(40.0, 40.0, 120.0, 52.0)
+
+
+func _enhance_roster_panel_rect() -> Rect2:
+	return Rect2(40.0, 114.0, 600.0, 726.0)
+
+
+func _enhance_roster_view_rect() -> Rect2:
+	var panel_rect = _enhance_roster_panel_rect()
+	return Rect2(panel_rect.position + Vector2(18.0, 76.0), Vector2(panel_rect.size.x - 48.0, panel_rect.size.y - 110.0))
+
+
+func _enhance_material_strip_rect() -> Rect2:
+	var panel_rect = _enhance_panel_rect()
+	return Rect2(panel_rect.position + Vector2(28.0, panel_rect.size.y - 118.0), Vector2(panel_rect.size.x - 56.0, 82.0))
+
+
+func _enhance_material_defs() -> Dictionary:
+	return ENHANCE_MATERIAL_DEFS
+
+
+func _enhance_material_inventory() -> Dictionary:
+	var inventory: Dictionary = {}
+	for material_variant in ENHANCE_MATERIAL_DEFS.keys():
+		var material = String(material_variant)
+		inventory[material] = max(0, int(enhance_materials.get(material, 0)))
+	return inventory
+
+
+func _add_enhance_material(material: String, amount: int) -> int:
+	if not ENHANCE_MATERIAL_DEFS.has(material):
+		return 0
+	var gained = max(0, amount)
+	if gained <= 0:
+		return int(enhance_materials.get(material, 0))
+	enhance_materials[material] = max(0, int(enhance_materials.get(material, 0))) + gained
+	return int(enhance_materials[material])
+
+
+func _random_enhance_material_key() -> String:
+	var keys = ENHANCE_MATERIAL_DEFS.keys()
+	if keys.is_empty():
+		return ""
+	return String(keys[rng.randi_range(0, keys.size() - 1)])
+
+
+func _preferred_enhance_material_for_world(world_key: String) -> String:
+	match world_key:
+		"night":
+			return "tempo_coil"
+		"pool", "fog":
+			return "support_gel"
+		"roof":
+			return "burst_crystal"
+		"volcano":
+			return "guard_plate"
+		"city":
+			return "assault_chip"
+		_:
+			return "growth_core"
+
+
+func _grant_enhance_material_reward(amount: int, preferred_world: String = "") -> Dictionary:
+	var world_key = preferred_world if not preferred_world.is_empty() else current_world_key
+	var material = _preferred_enhance_material_for_world(world_key)
+	if material.is_empty() or not ENHANCE_MATERIAL_DEFS.has(material) or rng.randf() < 0.35:
+		material = _random_enhance_material_key()
+	if material.is_empty():
+		return {}
+	var granted = maxi(1, amount)
+	_add_enhance_material(material, granted)
+	return {
+		"material": material,
+		"amount": granted,
+		"name": String(ENHANCE_MATERIAL_DEFS[material].get("name", material)),
+	}
 
 
 func _enhance_owned_plants() -> Array:
 	var owned_plants: Array = []
-	for pk in Defs.PLANTS.keys():
-		if plant_stars.has(pk) or not bool(Defs.PLANTS[pk].get("gacha_only", false)):
+	for pk_variant in Defs.PLANT_ORDER:
+		var pk = String(pk_variant)
+		if Defs.PLANTS.has(pk):
 			owned_plants.append(pk)
 	return owned_plants
 
 
 func _enhance_grid_layout() -> Dictionary:
-	var col_x = 40.0
-	var col_y = 130.0
-	var col_w = 86.0
-	var col_h = 110.0
-	var col_gap = 8.0
-	var panel_rect = _enhance_panel_rect()
-	var usable_width = maxf(col_w, panel_rect.position.x - col_x - 24.0)
+	var view_rect = _enhance_roster_view_rect()
+	var col_w = 126.0
+	var col_h = 96.0
+	var col_gap = 10.0
+	var usable_width = maxf(col_w, view_rect.size.x - 18.0)
 	var cols_per_row = maxi(1, int(floor((usable_width + col_gap) / (col_w + col_gap))))
 	return {
-		"col_x": col_x,
-		"col_y": col_y,
+		"col_x": view_rect.position.x,
+		"col_y": view_rect.position.y - enhance_scroll,
 		"col_w": col_w,
 		"col_h": col_h,
 		"col_gap": col_gap,
 		"cols_per_row": cols_per_row,
+		"view_rect": view_rect,
 	}
 
 
@@ -3003,14 +3185,32 @@ func _enhance_cell_rect(index: int) -> Rect2:
 	return Rect2(cx, cy, col_w, col_h)
 
 
+func _enhance_roster_content_height() -> float:
+	var plants = _enhance_owned_plants()
+	if plants.is_empty():
+		return 0.0
+	var layout = _enhance_grid_layout()
+	var cols_per_row = maxi(1, int(layout["cols_per_row"]))
+	var rows = int(ceil(float(plants.size()) / float(cols_per_row)))
+	return float(rows) * (float(layout["col_h"]) + float(layout["col_gap"])) - float(layout["col_gap"])
+
+
+func _enhance_max_scroll() -> float:
+	return maxf(0.0, _enhance_roster_content_height() - _enhance_roster_view_rect().size.y)
+
+
+func _set_enhance_scroll(value: float) -> void:
+	enhance_scroll = clampf(value, 0.0, _enhance_max_scroll())
+
+
 func _enhance_button_rect() -> Rect2:
 	var panel_rect = _enhance_panel_rect()
-	return Rect2(panel_rect.position.x + 60.0, panel_rect.position.y + 360.0, 220.0, 56.0)
+	return Rect2(panel_rect.position.x + panel_rect.size.x - 276.0, panel_rect.position.y + 504.0, 236.0, 58.0)
 
 
 func _enhance_stone_button_rect() -> Rect2:
 	var panel_rect = _enhance_panel_rect()
-	return Rect2(panel_rect.position.x + 60.0, panel_rect.position.y + 430.0, 220.0, 48.0)
+	return Rect2(panel_rect.position.x + panel_rect.size.x - 276.0, panel_rect.position.y + 576.0, 236.0, 46.0)
 
 
 func _custom_level_template(world_key: String) -> Dictionary:
@@ -3195,22 +3395,24 @@ func _selection_start_rect() -> Rect2:
 
 
 func _handle_enhance_click(mouse_pos: Vector2) -> void:
-	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
-	if back_rect.has_point(mouse_pos):
+	if _enhance_back_rect().has_point(mouse_pos):
 		_enter_world_select_mode()
 		return
 
 	if enhance_selected_plant != "":
 		var elevel = int(plant_enhance_levels.get(enhance_selected_plant, 0))
-		if elevel < 15:
+		if elevel < ENHANCE_MAX_LEVEL:
 			if _enhance_button_rect().has_point(mouse_pos) or _enhance_stone_button_rect().has_point(mouse_pos):
 				_try_enhance_plant(enhance_selected_plant)
 				return
 
+	var view_rect = _enhance_roster_view_rect()
+	if not view_rect.has_point(mouse_pos):
+		return
 	var owned_plants = _enhance_owned_plants()
 	for i in range(owned_plants.size()):
 		var cell_rect = _enhance_cell_rect(i)
-		if cell_rect.position.y > size.y - 80.0:
+		if cell_rect.end.y < view_rect.position.y or cell_rect.position.y > view_rect.end.y:
 			continue
 		if cell_rect.has_point(mouse_pos):
 			enhance_selected_plant = String(owned_plants[i])
@@ -3218,7 +3420,10 @@ func _handle_enhance_click(mouse_pos: Vector2) -> void:
 			return
 
 func _enter_enhance_mode() -> void:
-	enhance_selected_plant = ""
+	var plants = _enhance_owned_plants()
+	if enhance_selected_plant == "" and not plants.is_empty():
+		enhance_selected_plant = String(plants[0])
+	_set_enhance_scroll(enhance_scroll)
 	mode = MODE_ENHANCE
 	queue_redraw()
 
@@ -3473,6 +3678,13 @@ func _do_gacha_draw(count: int) -> void:
 			# Enhancement stone
 			enhance_stones += 1
 			result = {"kind": "enhance_stone", "rarity": "rare", "is_new": false, "type": "item", "name": "强化石"}
+		elif roll < gold_rate + orange_rate + 0.30 + 0.15 + 0.18:
+			# Role enhancement materials
+			var material = _random_enhance_material_key()
+			var material_amount = 2 if rng.randf() < 0.22 else 1
+			_add_enhance_material(material, material_amount)
+			var material_def = ENHANCE_MATERIAL_DEFS.get(material, {})
+			result = {"kind": material, "rarity": "rare", "is_new": false, "type": "item", "name": "%sx%d" % [String(material_def.get("name", "强化材料")), material_amount]}
 		elif roll < gold_rate + orange_rate + 0.30 + 0.15 + 0.35:
 			# Green fragments
 			var random_green = Defs.PLANTS.keys()
@@ -3622,42 +3834,101 @@ func _daily_zombie_health_mult() -> float:
 	return 1.0
 
 
-	return 1.0
+func _enhance_level_boost(level: int) -> float:
+	if level <= 0:
+		return 0.0
+	var total_boost := 0.0
+	for i in range(mini(level, ENHANCE_TABLE.size())):
+		total_boost += float(ENHANCE_TABLE[i]["boost"])
+	return total_boost
+
+
+func _plant_enhance_archetype(kind: String) -> String:
+	var data = Defs.PLANTS.get(kind, {})
+	if data.is_empty():
+		return "support"
+	match kind:
+		"wallnut", "tallnut", "pumpkin", "cactus_guard", "garlic", "umbrella_leaf", "brick_guard", "holo_nut", "cork_plug", "crystal_nut", "rock_armor_fruit", "glitch_walnut":
+			return "defender"
+		"sunflower", "sun_shroom", "sun_bean", "moon_lotus", "marigold", "soul_flower", "galaxy_sunflower", "solar_emperor", "honey_blossom":
+			return "producer"
+		"cherry_bomb", "potato_mine", "jalapeno", "ice_shroom", "doom_shroom", "squash", "tangle_kelp", "snow_bloom", "cyclone_grass", "sand_lotus", "ice_cream", "pepper_mortar", "cabbage_pult", "kernel_pult", "melon_pult", "mango_bowling", "skylight_melon", "dragon_bubble_pult", "toxic_gum_pult", "corn_cannon", "gator_cannon", "blast_pomegranate", "meteor_flower", "core_blossom", "magma_stream", "moonforge":
+			return "artillery"
+		"snow_pea", "pulse_bulb", "wind_orchid", "hypno_shroom", "magnet_shroom", "mist_orchid", "anchor_fern", "brine_pot", "storm_reed", "root_snare", "thunder_pine", "dream_drum", "frost_fan", "time_rose", "magnet_daisy", "frost_cypress", "void_shroom", "abyss_tentacle", "glow_ivy", "prism_grass", "lantern_bloom", "nether_shroom":
+			return "control"
+		"lily_pad", "flower_pot", "coffee_bean", "grave_buster", "plantern", "blover", "torchwood", "glowvine", "roof_vane", "healing_gourd", "seraph_flower", "destiny_tree", "aurora_orchid", "bubble_lotus", "mirror_shroom", "holy_lotus", "holy_flower":
+			return "support"
+	if data.has("sun_interval") or data.has("coin_interval") or data.has("first_sun_delay") or data.has("sun_amount"):
+		return "producer"
+	if float(data.get("health", 0.0)) >= 1200.0 or data.has("armor_layers") or data.has("reflect_ratio") or data.has("thorns"):
+		return "defender"
+	if bool(data.get("one_shot", false)) or data.has("fuse") or data.has("arm_time") or data.has("splash_radius") or data.has("cluster_damage") or data.has("zone_damage"):
+		return "artillery"
+	if data.has("slow_duration") or data.has("freeze_duration") or data.has("snare_duration") or data.has("pull_radius") or data.has("slow_ratio") or data.has("rooted_timer") or data.has("push_distance"):
+		return "control"
+	if data.has("support_interval") or data.has("heal_interval") or data.has("shield_hp") or data.has("shield_amount") or data.has("buff_radius") or data.has("reveal_range"):
+		return "support"
+	return "assault"
+
+
+func _plant_enhance_profile(kind: String) -> Dictionary:
+	var archetype = _plant_enhance_archetype(kind)
+	var profile: Dictionary = Dictionary(ENHANCE_ARCHETYPE_DEFS.get(archetype, ENHANCE_ARCHETYPE_DEFS["support"])).duplicate(true)
+	profile["archetype"] = archetype
+	return profile
+
+
+func _plant_enhance_bonus(kind: String) -> Dictionary:
+	var level = int(plant_enhance_levels.get(kind, 0))
+	var raw_boost = _enhance_level_boost(level)
+	var profile = _plant_enhance_profile(kind)
+	var effect_boost = raw_boost * float(profile.get("effect_scale", 0.0))
+	var interval_boost = raw_boost * float(profile.get("speed_scale", 0.0)) * 0.72
+	return {
+		"level": level,
+		"raw_boost": raw_boost,
+		"damage_mult": 1.0 + raw_boost * float(profile.get("damage_scale", 0.0)),
+		"health_mult": 1.0 + raw_boost * float(profile.get("health_scale", 0.0)),
+		"attack_speed_mult": 1.0 + raw_boost * float(profile.get("speed_scale", 0.0)) * 0.9,
+		"interval_mult": 1.0 / maxf(0.2, 1.0 + interval_boost),
+		"effect_mult": 1.0 + effect_boost,
+		"cost_mult": maxf(0.82, 1.0 - raw_boost * 0.06),
+	}
 
 
 func _get_enhance_multiplier(kind: String) -> float:
-	var level = int(plant_enhance_levels.get(kind, 0))
-	if level <= 0:
-		return 1.0
-	var total_boost = 0.0
-	for i in range(mini(level, ENHANCE_TABLE.size())):
-		total_boost += float(ENHANCE_TABLE[i]["boost"])
-	return 1.0 + total_boost
+	return float(_plant_enhance_bonus(kind).get("damage_mult", 1.0))
 
 
 func _get_enhance_attack_speed_multiplier(kind: String) -> float:
-	var boost = _get_enhance_multiplier(kind) - 1.0
-	if boost <= 0.0:
-		return 1.0
-	return 1.0 + boost * 0.9
+	return float(_plant_enhance_bonus(kind).get("attack_speed_mult", 1.0))
 
 
 func _enhanced_plant_stats(kind: String) -> Dictionary:
 	var stats: Dictionary = Dictionary(Defs.PLANTS[kind]).duplicate(true)
-	var enhance_mult = _get_enhance_multiplier(kind)
-	if enhance_mult <= 1.0:
+	var bonus = _plant_enhance_bonus(kind)
+	if int(bonus.get("level", 0)) <= 0:
 		return stats
-	var attack_speed_mult = _get_enhance_attack_speed_multiplier(kind)
+	var damage_mult = float(bonus.get("damage_mult", 1.0))
+	var health_mult = float(bonus.get("health_mult", 1.0))
+	var interval_mult = float(bonus.get("interval_mult", 1.0))
+	var effect_mult = float(bonus.get("effect_mult", 1.0))
 	if stats.has("health"):
-		stats["health"] = float(stats["health"]) * enhance_mult
+		stats["health"] = float(stats["health"]) * health_mult
 	for key_variant in ENHANCE_DAMAGE_KEYS:
 		var key = String(key_variant)
 		if stats.has(key):
-			stats[key] = float(stats[key]) * enhance_mult
+			stats[key] = float(stats[key]) * damage_mult
 	for key_variant in ENHANCE_INTERVAL_KEYS:
 		var key = String(key_variant)
 		if stats.has(key):
-			stats[key] = maxf(0.05, float(stats[key]) / attack_speed_mult)
+			stats[key] = maxf(0.05, float(stats[key]) * interval_mult)
+	for key_variant in ENHANCE_EFFECT_KEYS:
+		var key = String(key_variant)
+		if stats.has(key):
+			stats[key] = float(stats[key]) * effect_mult
+	if stats.has("cost"):
+		stats["cost"] = maxi(0, int(round(float(stats["cost"]) * float(bonus.get("cost_mult", 1.0)))))
 	return stats
 
 
@@ -3718,20 +3989,30 @@ func _projectile_damage_multiplier_for_spawn(row: int, spawn_position: Vector2, 
 
 func _try_enhance_plant(kind: String) -> void:
 	var level = int(plant_enhance_levels.get(kind, 0))
-	if level >= 15:
+	if level >= ENHANCE_MAX_LEVEL:
 		_show_toast("已达最高强化等级!")
 		return
 	var table = ENHANCE_TABLE[level]
 	var cost = int(table["cost"])
 	var frag_cost = int(table["frag_cost"])
+	var profile = _plant_enhance_profile(kind)
+	var material = String(profile.get("material", ""))
+	var material_def = ENHANCE_MATERIAL_DEFS.get(material, {})
+	var material_cost = int(_enhance_material_cost_for_level(level))
+	var owned_materials = int(enhance_materials.get(material, 0))
 	var frags = int(plant_fragments.get(kind, 0))
 	if coins_total < cost:
 		_show_toast("金币不足! 需要 %d" % cost)
+		return
+	if material_cost > 0 and owned_materials < material_cost:
+		_show_toast("%s不足! 需要 %d" % [String(material_def.get("name", "强化材料")), material_cost])
 		return
 	if frag_cost > 0 and frags < frag_cost:
 		_show_toast("碎片不足! 需要 %d" % frag_cost)
 		return
 	coins_total -= cost
+	if material_cost > 0:
+		enhance_materials[material] = max(0, owned_materials - material_cost)
 	if frag_cost > 0:
 		plant_fragments[kind] = frags - frag_cost
 	# Use enhance stone for guaranteed success
@@ -3759,6 +4040,18 @@ func _try_enhance_plant(kind: String) -> void:
 	queue_redraw()
 
 
+func _enhance_material_cost_for_level(level: int) -> int:
+	if level < 3:
+		return 1
+	if level < 6:
+		return 2
+	if level < 9:
+		return 3
+	if level < 12:
+		return 4
+	return 6
+
+
 func _draw_enhancement_aura(center: Vector2, kind: String) -> void:
 	var level = int(plant_enhance_levels.get(kind, 0))
 	if level <= 0:
@@ -3777,66 +4070,143 @@ func _draw_enhancement_aura(center: Vector2, kind: String) -> void:
 		ThemeLib.draw_glow_circle(self, center, 38.0 + pulse * 14.0, Color(1.0, 0.86, 0.2, 0.12 + pulse * 0.05), 3)
 
 
+func _draw_enhance_detail_panel(kind: String, panel_rect: Rect2) -> void:
+	var data = Defs.PLANTS[kind]
+	var profile = _plant_enhance_profile(kind)
+	var bonus = _plant_enhance_bonus(kind)
+	var role_color = Color(profile.get("color", Color(0.6, 0.72, 0.8)))
+	var level = int(plant_enhance_levels.get(kind, 0))
+	var material = String(profile.get("material", ""))
+	var material_def = ENHANCE_MATERIAL_DEFS.get(material, {})
+
+	var header_rect = Rect2(panel_rect.position + Vector2(28.0, 28.0), Vector2(panel_rect.size.x - 56.0, 152.0))
+	ThemeLib.draw_gradient_rect_h(self, header_rect, Color(0.1, 0.15, 0.18, 0.98), Color(role_color.r, role_color.g, role_color.b, 0.22))
+	draw_rect(header_rect, Color(role_color.r, role_color.g, role_color.b, 0.56), false, 2.0)
+	_draw_card_icon(kind, header_rect.position + Vector2(76.0, 82.0))
+	_draw_text(String(data.get("name", kind)), header_rect.position + Vector2(148.0, 56.0), 30, Color(0.94, 0.98, 1.0))
+	_draw_text("%s / %s" % [String(profile.get("name", "")), String(material_def.get("name", "强化材料"))], header_rect.position + Vector2(150.0, 88.0), 17, role_color.lightened(0.2))
+	var rarity = String(data.get("rarity", "green"))
+	var rarity_label = "常规" if rarity == "green" else rarity.to_upper()
+	_draw_text(rarity_label, header_rect.position + Vector2(header_rect.size.x - 116.0, 48.0), 16, _gacha_rarity_color(rarity) if rarity != "green" else Color(0.68, 0.84, 0.5))
+	_draw_text("+%d / %d" % [level, ENHANCE_MAX_LEVEL], header_rect.position + Vector2(header_rect.size.x - 118.0, 96.0), 26, Color(1.0, 0.86, 0.34))
+	var bar_rect = Rect2(header_rect.position + Vector2(150.0, 118.0), Vector2(header_rect.size.x - 280.0, 12.0))
+	draw_rect(bar_rect, Color(0.0, 0.0, 0.0, 0.32), true)
+	draw_rect(ThemeLib.progress_fill_rect(bar_rect, float(level) / float(ENHANCE_MAX_LEVEL)), role_color, true)
+	draw_rect(bar_rect, Color(1.0, 1.0, 1.0, 0.2), false, 1.0)
+
+	_draw_text("强化词条", panel_rect.position + Vector2(34.0, 214.0), 21, Color(0.9, 0.96, 1.0))
+	var chip_labels = [
+		{"name": "攻击", "value": "+%d%%" % int(round((float(bonus.get("damage_mult", 1.0)) - 1.0) * 100.0))},
+		{"name": "耐久", "value": "+%d%%" % int(round((float(bonus.get("health_mult", 1.0)) - 1.0) * 100.0))},
+		{"name": "节律", "value": "+%d%%" % int(round((float(bonus.get("attack_speed_mult", 1.0)) - 1.0) * 100.0))},
+		{"name": "效果", "value": "+%d%%" % int(round((float(bonus.get("effect_mult", 1.0)) - 1.0) * 100.0))},
+	]
+	for i in range(chip_labels.size()):
+		var chip = chip_labels[i]
+		var chip_rect = Rect2(panel_rect.position + Vector2(34.0 + float(i) * 204.0, 236.0), Vector2(184.0, 92.0))
+		_draw_panel_shell(chip_rect, Color(0.08, 0.12, 0.14, 0.94), role_color.darkened(0.16), 0.08, 0.05)
+		draw_circle(chip_rect.position + Vector2(26.0, 30.0), 9.0, role_color)
+		_draw_text(String(chip["name"]), chip_rect.position + Vector2(46.0, 36.0), 15, Color(0.66, 0.78, 0.84))
+		_draw_text(String(chip["value"]), chip_rect.position + Vector2(22.0, 72.0), 25, Color(0.94, 0.98, 1.0))
+
+	var desc_rect = Rect2(panel_rect.position + Vector2(34.0, 356.0), Vector2(484.0, 120.0))
+	_draw_panel_shell(desc_rect, Color(0.055, 0.08, 0.096, 0.94), Color(0.2, 0.32, 0.38), 0.08, 0.04)
+	var bonus_lines: Array = profile.get("bonus_lines", [])
+	for i in range(min(3, bonus_lines.size())):
+		_draw_text("◆ %s" % String(bonus_lines[i]), desc_rect.position + Vector2(24.0, 34.0 + float(i) * 30.0), 17, Color(0.74, 0.84, 0.88))
+	var stats = _enhanced_plant_stats(kind)
+	var base_health = int(Defs.PLANTS[kind].get("health", 0))
+	var next_line = "耐久 %d → %d" % [base_health, int(stats.get("health", base_health))]
+	if Defs.PLANTS[kind].has("damage"):
+		next_line += "   攻击 %d → %d" % [int(Defs.PLANTS[kind]["damage"]), int(stats.get("damage", Defs.PLANTS[kind]["damage"]))]
+	_draw_text(next_line, desc_rect.position + Vector2(24.0, 112.0), 15, Color(0.56, 0.7, 0.76))
+
+	var cost_rect = Rect2(panel_rect.position + Vector2(552.0, 356.0), Vector2(284.0, 120.0))
+	_draw_panel_shell(cost_rect, Color(0.055, 0.08, 0.096, 0.94), Color(0.2, 0.32, 0.38), 0.08, 0.04)
+	if level < ENHANCE_MAX_LEVEL:
+		var table = ENHANCE_TABLE[level]
+		var material_cost = _enhance_material_cost_for_level(level)
+		var owned_materials = int(enhance_materials.get(material, 0))
+		var can_afford_material = owned_materials >= material_cost
+		_draw_text("金币 %d" % int(table["cost"]), cost_rect.position + Vector2(20.0, 34.0), 16, Color(0.96, 0.82, 0.34))
+		_draw_text("%s %d/%d" % [String(material_def.get("short", "材料")), owned_materials, material_cost], cost_rect.position + Vector2(20.0, 62.0), 16, Color(0.74, 0.94, 0.72) if can_afford_material else Color(1.0, 0.46, 0.36))
+		_draw_text("成功率 %d%%" % int(float(table["rate"]) * 100.0), cost_rect.position + Vector2(20.0, 90.0), 16, Color(0.72, 0.86, 0.96))
+		if int(table["penalty"]) > 0:
+			_draw_text("失败 -%d" % int(table["penalty"]), cost_rect.position + Vector2(168.0, 90.0), 16, Color(1.0, 0.48, 0.38))
+		_draw_fancy_button(_enhance_button_rect(), "强化", Color(0.28, 0.58, 0.68), Color(0.62, 0.86, 0.94), 23)
+		var catalyst_label = "催化保底" if enhance_stones > 0 else "无催化剂"
+		_draw_fancy_button(_enhance_stone_button_rect(), catalyst_label, Color(0.26, 0.3, 0.34), Color(0.52, 0.62, 0.68), 19)
+	else:
+		_draw_text("已达最高等级", cost_rect.position + Vector2(44.0, 70.0), 22, Color(1.0, 0.86, 0.34))
+
+	var strip_rect = _enhance_material_strip_rect()
+	draw_rect(strip_rect, Color(0.02, 0.035, 0.045, 0.62), true)
+	draw_rect(strip_rect, Color(0.24, 0.36, 0.42, 0.72), false, 2.0)
+	var material_keys = ENHANCE_MATERIAL_DEFS.keys()
+	var material_w = strip_rect.size.x / float(max(material_keys.size(), 1))
+	for i in range(material_keys.size()):
+		var material_key = String(material_keys[i])
+		var def = ENHANCE_MATERIAL_DEFS[material_key]
+		var color = Color(def.get("color", Color(0.7, 0.8, 0.8)))
+		var item_rect = Rect2(strip_rect.position + Vector2(float(i) * material_w + 8.0, 10.0), Vector2(material_w - 16.0, 62.0))
+		draw_rect(item_rect, Color(color.r, color.g, color.b, 0.12), true)
+		draw_rect(item_rect, color.darkened(0.1), false, 1.0)
+		draw_circle(item_rect.position + Vector2(20.0, 31.0), 12.0, color)
+		_draw_text(String(def.get("short", material_key)), item_rect.position + Vector2(40.0, 28.0), 13, Color(0.78, 0.88, 0.92))
+		_draw_text("x%d" % int(enhance_materials.get(material_key, 0)), item_rect.position + Vector2(40.0, 52.0), 15, Color(0.94, 0.98, 1.0))
+
+
 func _draw_enhance_scene() -> void:
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.08, 0.06, 0.14), Color(0.04, 0.03, 0.08))
-	# Title
-	var title_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 180.0, 30.0, 360.0, 72.0)
-	_draw_panel_shell(title_rect, Color(0.62, 0.36, 0.82, 0.96), Color(0.38, 0.18, 0.52), 0.2, 0.12)
-	_draw_text("植物强化", title_rect.position + Vector2(112.0, 46.0), 32, Color(1.0, 0.96, 1.0))
-	# Coin + stone display
-	_draw_panel_shell(Rect2(BASE_VIEWPORT_SIZE.x - 280.0, 40.0, 240.0, 52.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.12, 0.06)
-	_draw_text("金币: %d" % coins_total, Vector2(BASE_VIEWPORT_SIZE.x - 256.0, 72.0), 20, Color(0.33, 0.21, 0.04))
-	_draw_text("强化石: %d" % enhance_stones, Vector2(BASE_VIEWPORT_SIZE.x - 256.0, 92.0), 16, Color(0.33, 0.21, 0.04))
-	# Plant grid
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.045, 0.07, 0.09), Color(0.015, 0.022, 0.03))
+	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 104.0)), Color(0.08, 0.12, 0.15, 0.92), true)
+	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 104.0)), Color(0.36, 0.58, 0.72, 0.18), false, 2.0)
+	_draw_text("植物强化", Vector2(196.0, 68.0), 32, Color(0.94, 0.98, 1.0))
+	_draw_text("芯片 / 等级 / 材料", Vector2(364.0, 68.0), 18, Color(0.56, 0.7, 0.78))
+	_draw_fancy_button(_enhance_back_rect(), "返回", Color(0.18, 0.24, 0.28), Color(0.46, 0.58, 0.66), 22)
+
+	var resource_rect = Rect2(BASE_VIEWPORT_SIZE.x - 500.0, 30.0, 452.0, 48.0)
+	_draw_panel_shell(resource_rect, Color(0.12, 0.18, 0.2, 0.95), Color(0.36, 0.5, 0.56), 0.12, 0.08)
+	_draw_text("金币 %d" % coins_total, resource_rect.position + Vector2(22.0, 31.0), 18, Color(0.96, 0.82, 0.34))
+	_draw_text("催化剂 %d" % enhance_stones, resource_rect.position + Vector2(174.0, 31.0), 18, Color(0.86, 0.92, 1.0))
+	_draw_text("植物 %d" % _enhance_owned_plants().size(), resource_rect.position + Vector2(332.0, 31.0), 18, Color(0.72, 0.86, 0.76))
+
+	var roster_panel = _enhance_roster_panel_rect()
+	_draw_panel_shell(roster_panel, Color(0.075, 0.102, 0.12, 0.96), Color(0.28, 0.42, 0.48), 0.16, 0.1)
+	_draw_text("名单", roster_panel.position + Vector2(22.0, 44.0), 24, Color(0.9, 0.96, 1.0))
+	_draw_text("全植物可强化", roster_panel.position + Vector2(98.0, 42.0), 16, Color(0.52, 0.66, 0.72))
+	var view_rect = _enhance_roster_view_rect()
+	draw_rect(view_rect, Color(0.02, 0.035, 0.045, 0.68), true)
 	var layout = _enhance_grid_layout()
 	var owned_plants = _enhance_owned_plants()
 	for i in range(owned_plants.size()):
 		var pk = String(owned_plants[i])
 		var cell_rect = _enhance_cell_rect(i)
-		if cell_rect.position.y > BASE_VIEWPORT_SIZE.y - 80.0:
+		if cell_rect.end.y < view_rect.position.y or cell_rect.position.y > view_rect.end.y:
 			continue
 		var is_selected = pk == enhance_selected_plant
-		var border_color = Color(0.82, 0.62, 0.18) if is_selected else Color(0.38, 0.32, 0.48)
-		_draw_panel_shell(cell_rect, Color(0.16, 0.12, 0.24, 0.92), border_color, 0.1, 0.06)
-		_draw_card_icon(pk, cell_rect.position + Vector2(cell_rect.size.x * 0.5, 48.0))
+		var profile = _plant_enhance_profile(pk)
+		var role_color = Color(profile.get("color", Color(0.6, 0.72, 0.8)))
+		var fill = Color(0.095, 0.13, 0.15, 0.96) if not is_selected else Color(0.13, 0.19, 0.22, 0.98)
+		var border_color = role_color if is_selected else Color(0.2, 0.3, 0.34)
+		_draw_panel_shell(cell_rect, fill, border_color, 0.08, 0.04)
+		draw_rect(Rect2(cell_rect.position, Vector2(cell_rect.size.x, 4.0)), role_color, true)
+		_draw_card_icon(pk, cell_rect.position + Vector2(34.0, 46.0))
 		var elevel = int(plant_enhance_levels.get(pk, 0))
-		if elevel > 0:
-			_draw_text("+%d" % elevel, cell_rect.position + Vector2(4.0, float(layout["col_h"]) - 4.0), 14, Color(0.82, 0.72, 0.18))
-		# Rarity indicator
-		var rarity = String(Defs.PLANTS[pk].get("rarity", "green"))
-		var rarity_color = _gacha_rarity_color(rarity) if rarity != "green" else Color(0.52, 0.72, 0.42)
-		draw_rect(Rect2(cell_rect.position + Vector2(0.0, 0.0), Vector2(cell_rect.size.x, 3.0)), rarity_color, true)
-	# Enhancement panel (right side)
+		_draw_text(String(Defs.PLANTS[pk].get("name", pk)), cell_rect.position + Vector2(64.0, 34.0), 13, Color(0.9, 0.94, 0.96))
+		_draw_text(String(profile.get("name", "")), cell_rect.position + Vector2(64.0, 56.0), 12, role_color.lightened(0.12))
+		_draw_text("+%d" % elevel, cell_rect.position + Vector2(cell_rect.size.x - 34.0, cell_rect.size.y - 14.0), 16, Color(1.0, 0.86, 0.34))
+	ThemeLib.draw_scroll_mask(self, roster_panel.grow(-8.0), view_rect, Color(0.075, 0.102, 0.12, 0.98), Color(0.26, 0.4, 0.46))
+	if _enhance_max_scroll() > 0.0:
+		var track_rect = Rect2(view_rect.end - Vector2(10.0, view_rect.size.y), Vector2(6.0, view_rect.size.y))
+		draw_rect(track_rect, Color(0.0, 0.0, 0.0, 0.32), true)
+		draw_rect(ThemeLib.scroll_knob_rect(track_rect, view_rect.size.y, _enhance_roster_content_height(), enhance_scroll, 48.0), Color(0.54, 0.72, 0.82, 0.76), true)
+
+	var panel_rect = _enhance_panel_rect()
+	_draw_panel_shell(panel_rect, Color(0.085, 0.118, 0.14, 0.96), Color(0.3, 0.48, 0.56), 0.2, 0.12)
+	if enhance_selected_plant == "" and not owned_plants.is_empty():
+		enhance_selected_plant = String(owned_plants[0])
 	if enhance_selected_plant != "":
-		var panel_rect = _enhance_panel_rect()
-		_draw_panel_shell(panel_rect, Color(0.14, 0.1, 0.22, 0.96), Color(0.42, 0.32, 0.56), 0.16, 0.08)
-		var pk = enhance_selected_plant
-		var data = Defs.PLANTS[pk]
-		_draw_card_icon(pk, panel_rect.position + Vector2(170.0, 80.0))
-		_draw_text(String(data["name"]), panel_rect.position + Vector2(120.0, 120.0), 24, Color(0.92, 0.88, 0.96))
-		var elevel = int(plant_enhance_levels.get(pk, 0))
-		_draw_text("强化等级: +%d / 15" % elevel, panel_rect.position + Vector2(20.0, 160.0), 18, Color(0.78, 0.72, 0.86))
-		var mult = _get_enhance_multiplier(pk)
-		_draw_text("属性加成: x%.2f" % mult, panel_rect.position + Vector2(20.0, 190.0), 16, Color(0.72, 0.82, 0.62))
-		if elevel < 15:
-			var table = ENHANCE_TABLE[elevel]
-			_draw_text("费用: %d 金币" % int(table["cost"]), panel_rect.position + Vector2(20.0, 230.0), 16, Color(0.82, 0.78, 0.62))
-			if int(table["frag_cost"]) > 0:
-				_draw_text("碎片: %d / %d" % [int(plant_fragments.get(pk, 0)), int(table["frag_cost"])], panel_rect.position + Vector2(20.0, 256.0), 16, Color(0.82, 0.78, 0.62))
-			_draw_text("成功率: %d%%" % int(float(table["rate"]) * 100.0), panel_rect.position + Vector2(20.0, 282.0), 16, Color(0.72, 0.82, 0.62) if float(table["rate"]) >= 0.6 else Color(0.92, 0.52, 0.42))
-			if int(table["penalty"]) > 0:
-				_draw_text("失败降级: -%d" % int(table["penalty"]), panel_rect.position + Vector2(20.0, 308.0), 16, Color(0.92, 0.42, 0.36))
-			# Enhance button
-			var btn_rect = _enhance_button_rect()
-			_draw_fancy_button(btn_rect, "强化!", Color(0.72, 0.36, 0.92), Color(0.48, 0.22, 0.62), 24)
-			if enhance_stones > 0:
-				var stone_btn = _enhance_stone_button_rect()
-				_draw_fancy_button(stone_btn, "使用强化石", Color(0.82, 0.62, 0.18), Color(0.52, 0.36, 0.08), 20)
-		else:
-			_draw_text("已达最高等级!", panel_rect.position + Vector2(80.0, 260.0), 22, Color(1.0, 0.86, 0.2))
-	# Back button
-	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
-	_draw_fancy_button(back_rect, "返回", Color(0.56, 0.52, 0.62), Color(0.36, 0.32, 0.42), 22)
+		_draw_enhance_detail_panel(enhance_selected_plant, panel_rect)
 
 
 func _begin_level(level_index: int, chosen_cards: Array, level_override: Dictionary = {}) -> void:
@@ -4045,6 +4415,9 @@ func _handle_scroll_input(delta_y: float, mouse_pos: Vector2) -> bool:
 		return true
 	if mode == MODE_ALMANAC and (ALMANAC_LIST_RECT.has_point(mouse_pos) or _almanac_list_view_rect().has_point(mouse_pos)):
 		_set_almanac_scroll(almanac_scroll + delta_y)
+		return true
+	if mode == MODE_ENHANCE and (_enhance_roster_panel_rect().has_point(mouse_pos) or _enhance_roster_view_rect().has_point(mouse_pos)):
+		_set_enhance_scroll(enhance_scroll + delta_y)
 		return true
 	return false
 
@@ -9264,10 +9637,12 @@ func _win_level() -> void:
 	if current_level.get("id", "") == "每日":
 		var first_clear_today = daily_challenge_date != _today_string()
 		var reward = 200 if first_clear_today else 0
+		var material_reward: Dictionary = {}
 		if first_clear_today:
 			daily_challenge_date = _today_string()
 			daily_completed_today = true
 			coins_total += reward
+			material_reward = _grant_enhance_material_reward(3, current_world_key)
 		_mark_save_dirty(true)
 		var mod_names = ""
 		for mod in daily_modifiers:
@@ -9275,6 +9650,8 @@ func _win_level() -> void:
 				mod_names += ", "
 			mod_names += String(mod["name"])
 		var reward_line = "今日奖励已领取，本次为练习通关" if not first_clear_today else "奖励金币 +%d" % reward
+		if not material_reward.is_empty():
+			reward_line += "\n强化材料 +%d %s" % [int(material_reward.get("amount", 0)), String(material_reward.get("name", "强化材料"))]
 		_show_message("每日挑战完成!\n修饰: %s\n已消灭 %d 只僵尸\n%s" % [mod_names, total_kills, reward_line], "world_select", "返回")
 		return
 
@@ -9287,12 +9664,19 @@ func _win_level() -> void:
 
 	if _is_endless_level():
 		coins_total += max(0, endless_wave * 10)
+		var material_reward = _grant_enhance_material_reward(maxi(2, 1 + int(floor(float(endless_wave) / 4.0))), current_world_key)
 		_mark_save_dirty(true)
-		_show_message("无尽模式结束\n坚持波数: %d\n奖励金币 +%d" % [endless_wave, 50 + max(0, endless_wave * 10)], "world_select", "返回")
+		var endless_reward_line = "奖励金币 +%d" % (50 + max(0, endless_wave * 10))
+		if not material_reward.is_empty():
+			endless_reward_line += "\n强化材料 +%d %s" % [int(material_reward.get("amount", 0)), String(material_reward.get("name", "强化材料"))]
+		_show_message("无尽模式结束\n坚持波数: %d\n%s" % [endless_wave, endless_reward_line], "world_select", "返回")
 		return
 
+	var material_reward = _grant_enhance_material_reward(2 if custom_level else 3, current_world_key)
 	_mark_save_dirty(true)
 	var message = "%s 通关\n已消灭 %d 只僵尸\n奖励金币 +50" % [current_level["title"], total_kills]
+	if not material_reward.is_empty():
+		message += "\n强化材料 +%d %s" % [int(material_reward.get("amount", 0)), String(material_reward.get("name", "强化材料"))]
 	if unlocked_new and String(current_level.get("unlock_plant", "")) != "":
 		message += "\n解锁植物：%s" % Defs.PLANTS[String(current_level["unlock_plant"])]["name"]
 
@@ -26514,9 +26898,21 @@ func _merge_enhance_progress(existing_save: Dictionary, candidate_save: Dictiona
 		for kind_variant in candidate_levels.keys():
 			var kind = String(kind_variant)
 			merged_levels[kind] = max(int(merged_levels.get(kind, 0)), int(candidate_levels[kind_variant]))
+	var merged_materials: Dictionary = {}
+	var existing_materials = existing_save.get("enhance_materials", {})
+	if existing_materials is Dictionary:
+		for material_variant in existing_materials.keys():
+			var material = String(material_variant)
+			merged_materials[material] = max(int(merged_materials.get(material, 0)), int(existing_materials[material_variant]))
+	var candidate_materials = candidate_save.get("enhance_materials", {})
+	if candidate_materials is Dictionary:
+		for material_variant in candidate_materials.keys():
+			var material = String(material_variant)
+			merged_materials[material] = max(int(merged_materials.get(material, 0)), int(candidate_materials[material_variant]))
 	return {
 		"plant_enhance_levels": merged_levels,
 		"enhance_stones": max(int(existing_save.get("enhance_stones", 0)), int(candidate_save.get("enhance_stones", 0))),
+		"enhance_materials": merged_materials,
 	}
 
 
@@ -26600,6 +26996,7 @@ func _merge_save_data_preserving_progress(existing_save: Dictionary, candidate_s
 	var enhance_progress = _merge_enhance_progress(existing_save, candidate_save)
 	merged["plant_enhance_levels"] = enhance_progress.get("plant_enhance_levels", {})
 	merged["enhance_stones"] = int(enhance_progress.get("enhance_stones", 0))
+	merged["enhance_materials"] = enhance_progress.get("enhance_materials", {})
 	var collection_progress = _merge_plant_collection_progress(existing_save, candidate_save)
 	merged["plant_stars"] = collection_progress.get("plant_stars", {})
 	merged["plant_fragments"] = collection_progress.get("plant_fragments", {})
@@ -26668,6 +27065,7 @@ func _save_game() -> void:
 		"daily_challenge_date": daily_challenge_date,
 		"plant_enhance_levels": plant_enhance_levels,
 		"enhance_stones": enhance_stones,
+		"enhance_materials": enhance_materials,
 	}
 	var existing_save_data = _read_existing_save_data()
 	if not existing_save_data.is_empty():
@@ -26727,6 +27125,8 @@ func _apply_loaded_save_data(save_data: Dictionary) -> bool:
 	if save_data.has("plant_enhance_levels") and save_data["plant_enhance_levels"] is Dictionary:
 		plant_enhance_levels = save_data["plant_enhance_levels"]
 	enhance_stones = int(save_data.get("enhance_stones", 0))
+	if save_data.has("enhance_materials") and save_data["enhance_materials"] is Dictionary:
+		enhance_materials = save_data["enhance_materials"]
 
 	completed_levels.resize(Defs.LEVELS.size())
 	for i in range(completed_levels.size()):
