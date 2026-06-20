@@ -25,6 +25,7 @@ const MODE_BATTLE := "battle"
 const MODE_ENDLESS := "endless"
 const MODE_GACHA := "gacha"
 const MODE_DAILY := "daily"
+const MODE_BASE := "base"
 
 const BATTLE_PLAYING := "playing"
 const BATTLE_WON := "won"
@@ -452,6 +453,35 @@ const ENHANCE_EFFECT_KEYS := [
 	"ultimate_sun",
 ]
 
+# Base management system
+const BASE_MAX_MORALE := 24.0
+const BASE_OFFLINE_CAP_SECONDS := 8.0 * 3600.0
+const BASE_DRONE_BOOST_SECONDS := 30.0 * 60.0
+const BASE_DRONE_BOOST_COST := 12.0
+const BASE_ROOM_ORDER := ["control", "trade", "factory", "power", "dorm", "workshop", "training"]
+const BASE_ROOM_DEFS := {
+	"control": {"name": "控制中枢", "type": "command", "slots": 2, "rate": 0.0, "color": Color(0.38, 0.78, 0.92), "desc": "提升全局生产效率"},
+	"trade": {"name": "贸易站", "type": "trade", "slots": 2, "rate": 60.0, "color": Color(0.95, 0.66, 0.25), "desc": "把订单结算为金币"},
+	"factory": {"name": "制造站", "type": "factory", "slots": 2, "rate": 2.0, "color": Color(0.44, 0.82, 0.62), "desc": "制造强化材料"},
+	"power": {"name": "发电站", "type": "power", "slots": 1, "rate": 12.0, "color": Color(0.5, 0.86, 1.0), "desc": "生产无人机加速产能"},
+	"dorm": {"name": "宿舍", "type": "dorm", "slots": 3, "rate": 12.0, "color": Color(0.72, 0.82, 0.96), "desc": "恢复植物心情"},
+	"workshop": {"name": "加工站", "type": "workshop", "slots": 1, "rate": 1.0, "color": Color(0.96, 0.78, 0.34), "desc": "定向合成强化材料"},
+	"training": {"name": "训练室", "type": "training", "slots": 1, "rate": 1.0, "color": Color(0.88, 0.44, 0.38), "desc": "产出指定植物碎片"},
+}
+var base_rooms: Dictionary = {}
+var base_assignments: Dictionary = {}
+var base_morale: Dictionary = {}
+var base_inventory: Dictionary = {}
+var base_drones := 0.0
+var base_last_tick_unix := 0
+var base_selected_room := "control"
+var base_selected_plant := ""
+var base_selected_material := ""
+var base_selected_fragment_plant := "peashooter"
+var base_roster_scroll := 0.0
+var base_fx_particles: Array = []
+var base_scan_pulse := 0.0
+
 var current_level = {}
 var active_cards: Array = []
 var active_rows: Array = []
@@ -735,7 +765,7 @@ func _is_ui_scaled_mode(m: String) -> bool:
 
 
 func _uses_legacy_landscape_ui_mode(m: String) -> bool:
-	return m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_ENHANCE
+	return m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_ENHANCE or m == MODE_BASE
 
 
 func _uses_mobile_fill_ui_scaling(_target_mode: String = mode) -> bool:
@@ -768,6 +798,8 @@ func _mode_mobile_prompt_title(target_mode: String) -> String:
 			return "抽卡"
 		MODE_ENHANCE:
 			return "强化"
+		MODE_BASE:
+			return "基建"
 		_:
 			return "菜单"
 
@@ -944,16 +976,33 @@ func _world_select_command_dock_rect() -> Rect2:
 	return Rect2(50.0, 704.0, 1348.0, 156.0)
 
 
+func _world_select_small_action_rect(index: int) -> Rect2:
+	var dock_rect := _world_select_command_dock_rect()
+	var cols := 6
+	var gap := 12.0
+	var button_w := 130.0
+	var button_h := 48.0
+	var start_x := dock_rect.position.x + 24.0
+	var start_y := dock_rect.position.y + 52.0
+	return Rect2(
+		start_x + float(index % cols) * (button_w + gap),
+		start_y + float(index / cols) * (button_h + 10.0),
+		button_w,
+		button_h
+	)
+
+
 func _world_select_action_rects() -> Dictionary:
 	return {
-		"endless": WORLD_SELECT_ENDLESS_RECT,
-		"gacha": WORLD_SELECT_GACHA_RECT,
-		"enhance": WORLD_SELECT_ENHANCE_RECT,
-		"daily": WORLD_SELECT_DAILY_RECT,
-		"update": WORLD_SELECT_UPDATE_RECT,
-		"update_info": WORLD_SELECT_UPDATE_INFO_RECT,
-		"almanac": WORLD_SELECT_ALMANAC_RECT,
-		"enter": WORLD_SELECT_ENTER_RECT,
+		"almanac": _world_select_small_action_rect(0),
+		"endless": _world_select_small_action_rect(1),
+		"gacha": _world_select_small_action_rect(2),
+		"enhance": _world_select_small_action_rect(3),
+		"base": _world_select_small_action_rect(4),
+		"daily": _world_select_small_action_rect(5),
+		"update": Rect2(930.0, 748.0, 148.0, 48.0),
+		"update_info": Rect2(930.0, 812.0, 276.0, 36.0),
+		"enter": Rect2(1224.0, 748.0, 150.0, 62.0),
 	}
 
 
@@ -966,6 +1015,7 @@ func _world_select_touch_target(position: Vector2) -> Dictionary:
 		{"id": "world_endless", "rect": action_rects["endless"]},
 		{"id": "world_gacha", "rect": action_rects["gacha"]},
 		{"id": "world_enhance", "rect": action_rects["enhance"]},
+		{"id": "world_base", "rect": action_rects["base"]},
 		{"id": "world_daily", "rect": action_rects["daily"]},
 		{"id": "world_update", "rect": action_rects["update"]},
 		{"id": "world_update_info", "rect": action_rects["update_info"]},
@@ -1290,6 +1340,11 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		return
 
+	if mode == MODE_BASE:
+		_update_base_fx(delta)
+		queue_redraw()
+		return
+
 	if mode == MODE_SELECTION:
 		_ensure_selection_scene_ready()
 		queue_redraw()
@@ -1383,6 +1438,10 @@ func _handle_primary_click(mouse_pos: Vector2) -> void:
 
 	if mode == MODE_ENHANCE:
 		_handle_enhance_click(mouse_pos)
+		return
+
+	if mode == MODE_BASE:
+		_handle_base_click(mouse_pos)
 		return
 
 	if mode == MODE_MAP:
@@ -1539,6 +1598,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			if _handle_scroll_input(106.0, mouse_pos):
+				queue_redraw()
+			return
+
+	if event is InputEventMouseButton and event.pressed and mode == MODE_BASE:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			if _handle_scroll_input(-112.0, mouse_pos):
+				queue_redraw()
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if _handle_scroll_input(112.0, mouse_pos):
 				queue_redraw()
 			return
 
@@ -2987,6 +3056,9 @@ func _handle_world_select_click(mouse_pos: Vector2) -> void:
 	if Rect2(action_rects["enhance"]).has_point(mouse_pos):
 		_enter_enhance_mode()
 		return
+	if Rect2(action_rects["base"]).has_point(mouse_pos):
+		_enter_base_mode()
+		return
 	if Rect2(action_rects["daily"]).has_point(mouse_pos):
 		_enter_daily_challenge()
 		return
@@ -3094,7 +3166,7 @@ func _enhance_roster_panel_rect() -> Rect2:
 
 func _enhance_roster_view_rect() -> Rect2:
 	var panel_rect = _enhance_roster_panel_rect()
-	return Rect2(panel_rect.position + Vector2(18.0, 78.0), Vector2(panel_rect.size.x - 46.0, panel_rect.size.y - 112.0))
+	return Rect2(panel_rect.position + Vector2(18.0, 78.0), Vector2(panel_rect.size.x - 46.0, 600.0))
 
 
 func _enhance_portrait_rect() -> Rect2:
@@ -3107,7 +3179,20 @@ func _enhance_detail_rect() -> Rect2:
 
 func _enhance_material_strip_rect() -> Rect2:
 	var detail_rect = _enhance_detail_rect()
-	return Rect2(detail_rect.position + Vector2(26.0, detail_rect.size.y - 112.0), Vector2(detail_rect.size.x - 52.0, 78.0))
+	return Rect2(detail_rect.position + Vector2(26.0, 646.0), Vector2(detail_rect.size.x - 52.0, 76.0))
+
+
+func _enhance_material_item_rect(index: int) -> Rect2:
+	var strip_rect = _enhance_material_strip_rect()
+	var cols = 3
+	var rows = 2
+	var gap = 8.0
+	var pad = Vector2(12.0, 9.0)
+	var item_w = (strip_rect.size.x - pad.x * 2.0 - gap * float(cols - 1)) / float(cols)
+	var item_h = (strip_rect.size.y - pad.y * 2.0 - gap * float(rows - 1)) / float(rows)
+	var ix = index % cols
+	var iy = int(floor(float(index) / float(cols)))
+	return Rect2(strip_rect.position + pad + Vector2(float(ix) * (item_w + gap), float(iy) * (item_h + gap)), Vector2(item_w, item_h))
 
 
 func _enhance_material_defs() -> Dictionary:
@@ -3183,7 +3268,7 @@ func _enhance_owned_plants() -> Array:
 func _enhance_grid_layout() -> Dictionary:
 	var view_rect = _enhance_roster_view_rect()
 	var col_w = view_rect.size.x - 18.0
-	var col_h = 74.0
+	var col_h = 68.0
 	var col_gap = 8.0
 	var cols_per_row = 1
 	return {
@@ -3225,17 +3310,51 @@ func _enhance_max_scroll() -> float:
 
 
 func _set_enhance_scroll(value: float) -> void:
-	enhance_scroll = clampf(value, 0.0, _enhance_max_scroll())
+	var layout = _enhance_grid_layout()
+	var row_step = float(layout["col_h"]) + float(layout["col_gap"])
+	var snapped = round(value / maxf(row_step, 1.0)) * row_step
+	enhance_scroll = clampf(snapped, 0.0, _enhance_max_scroll())
+
+
+func _enhance_cost_rect() -> Rect2:
+	var detail_rect = _enhance_detail_rect()
+	return Rect2(detail_rect.position.x + 26.0, detail_rect.position.y + 434.0, detail_rect.size.x - 52.0, 86.0)
 
 
 func _enhance_button_rect() -> Rect2:
 	var detail_rect = _enhance_detail_rect()
-	return Rect2(detail_rect.position.x + 26.0, detail_rect.position.y + 480.0, detail_rect.size.x - 52.0, 58.0)
+	return Rect2(detail_rect.position.x + 26.0, detail_rect.position.y + 532.0, detail_rect.size.x - 52.0, 52.0)
 
 
 func _enhance_stone_button_rect() -> Rect2:
 	var detail_rect = _enhance_detail_rect()
-	return Rect2(detail_rect.position.x + 26.0, detail_rect.position.y + 550.0, detail_rect.size.x - 52.0, 46.0)
+	return Rect2(detail_rect.position.x + 26.0, detail_rect.position.y + 596.0, detail_rect.size.x - 52.0, 42.0)
+
+
+func _first_visible_enhance_roster_index() -> int:
+	var owned_plants = _enhance_owned_plants()
+	if owned_plants.is_empty():
+		return -1
+	var layout = _enhance_grid_layout()
+	var cols_per_row = maxi(1, int(layout["cols_per_row"]))
+	var row_step = float(layout["col_h"]) + float(layout["col_gap"])
+	var first_row = int(ceil(enhance_scroll / maxf(row_step, 1.0) - 0.001))
+	return clampi(first_row * cols_per_row, 0, owned_plants.size() - 1)
+
+
+func _last_visible_enhance_roster_index() -> int:
+	var owned_plants = _enhance_owned_plants()
+	if owned_plants.is_empty():
+		return -1
+	var layout = _enhance_grid_layout()
+	var view_rect = _enhance_roster_view_rect()
+	var cols_per_row = maxi(1, int(layout["cols_per_row"]))
+	var row_h = float(layout["col_h"])
+	var row_step = row_h + float(layout["col_gap"])
+	var first_row = int(ceil(enhance_scroll / maxf(row_step, 1.0) - 0.001))
+	var visible_rows = int(floor((view_rect.size.y + float(layout["col_gap"])) / maxf(row_step, 1.0)))
+	var last_row = first_row + maxi(visible_rows, 1) - 1
+	return clampi((last_row + 1) * cols_per_row - 1, 0, owned_plants.size() - 1)
 
 
 func _custom_level_template(world_key: String) -> Dictionary:
@@ -3451,6 +3570,612 @@ func _enter_enhance_mode() -> void:
 	_set_enhance_scroll(enhance_scroll)
 	mode = MODE_ENHANCE
 	queue_redraw()
+
+
+func _base_room_defs() -> Dictionary:
+	return BASE_ROOM_DEFS
+
+
+func _base_room_order() -> Array:
+	return BASE_ROOM_ORDER.duplicate()
+
+
+func _base_default_inventory() -> Dictionary:
+	return {"coins": 0.0, "materials": {}, "fragments": {}}
+
+
+func _init_base_defaults() -> void:
+	for room_id_variant in BASE_ROOM_ORDER:
+		var room_id := String(room_id_variant)
+		var def: Dictionary = BASE_ROOM_DEFS[room_id]
+		if not base_rooms.has(room_id) or not (base_rooms[room_id] is Dictionary):
+			base_rooms[room_id] = {"level": 1}
+		var room_state: Dictionary = base_rooms[room_id]
+		room_state["level"] = max(1, int(room_state.get("level", 1)))
+		if room_id == "factory":
+			var recipe := String(room_state.get("recipe", ""))
+			if recipe.is_empty() or not ENHANCE_MATERIAL_DEFS.has(recipe):
+				room_state["recipe"] = "growth_core"
+		if room_id == "training":
+			var target := String(room_state.get("target", ""))
+			if target.is_empty() or not Defs.PLANTS.has(target):
+				room_state["target"] = "peashooter"
+		base_rooms[room_id] = room_state
+		if not base_assignments.has(room_id) or not (base_assignments[room_id] is Array):
+			base_assignments[room_id] = []
+		var cleaned: Array = []
+		for plant_variant in Array(base_assignments[room_id]):
+			var plant := String(plant_variant)
+			if Defs.PLANTS.has(plant) and not cleaned.has(plant) and cleaned.size() < int(def.get("slots", 1)):
+				cleaned.append(plant)
+		base_assignments[room_id] = cleaned
+	if base_inventory.is_empty():
+		base_inventory = _base_default_inventory()
+	if not base_inventory.has("coins"):
+		base_inventory["coins"] = 0.0
+	if not base_inventory.has("materials") or not (base_inventory["materials"] is Dictionary):
+		base_inventory["materials"] = {}
+	if not base_inventory.has("fragments") or not (base_inventory["fragments"] is Dictionary):
+		base_inventory["fragments"] = {}
+	for kind_variant in Defs.PLANT_ORDER:
+		var kind := String(kind_variant)
+		base_morale[kind] = clampf(float(base_morale.get(kind, BASE_MAX_MORALE)), 0.0, BASE_MAX_MORALE)
+	if not BASE_ROOM_DEFS.has(base_selected_room):
+		base_selected_room = "control"
+	if not ENHANCE_MATERIAL_DEFS.has(base_selected_material):
+		base_selected_material = String(Dictionary(base_rooms.get("factory", {})).get("recipe", "growth_core"))
+	if not Defs.PLANTS.has(base_selected_fragment_plant):
+		base_selected_fragment_plant = String(Dictionary(base_rooms.get("training", {})).get("target", "peashooter"))
+	base_drones = maxf(0.0, float(base_drones))
+
+
+func _base_owned_plants() -> Array:
+	return _enhance_owned_plants()
+
+
+func _base_assigned_plants(room_id: String) -> Array:
+	return Array(base_assignments.get(room_id, []))
+
+
+func _base_room_capacity(room_id: String) -> int:
+	var def: Dictionary = BASE_ROOM_DEFS.get(room_id, {})
+	return max(1, int(def.get("slots", 1)))
+
+
+func _base_assigned_room_for_plant(kind: String) -> String:
+	for room_id_variant in BASE_ROOM_ORDER:
+		var room_id := String(room_id_variant)
+		if _base_assigned_plants(room_id).has(kind):
+			return room_id
+	return ""
+
+
+func _base_room_morale_average(room_id: String) -> float:
+	var assigned := _base_assigned_plants(room_id)
+	if assigned.is_empty():
+		return BASE_MAX_MORALE
+	var total := 0.0
+	for kind_variant in assigned:
+		total += float(base_morale.get(String(kind_variant), BASE_MAX_MORALE))
+	return total / float(assigned.size())
+
+
+func _base_synergy_bonus(room_id: String, kind: String) -> float:
+	var room_type := String(Dictionary(BASE_ROOM_DEFS.get(room_id, {})).get("type", ""))
+	var archetype := _plant_enhance_archetype(kind)
+	if room_type == "trade" and archetype == "producer":
+		return 0.16
+	if room_type == "factory" and (archetype == "artillery" or archetype == "assault"):
+		return 0.14
+	if room_type == "power" and (archetype == "defender" or archetype == "control"):
+		return 0.12
+	if room_type == "dorm" and (archetype == "support" or archetype == "producer"):
+		return 0.14
+	if room_type == "workshop" and (archetype == "support" or archetype == "control"):
+		return 0.12
+	if room_type == "training" and (archetype == "assault" or archetype == "artillery"):
+		return 0.12
+	if room_type == "command":
+		return 0.08
+	return 0.04
+
+
+func _base_global_efficiency_bonus() -> float:
+	var assigned := _base_assigned_plants("control")
+	var bonus := 1.0
+	for kind_variant in assigned:
+		var kind := String(kind_variant)
+		var morale_ratio := clampf(float(base_morale.get(kind, BASE_MAX_MORALE)) / BASE_MAX_MORALE, 0.0, 1.0)
+		bonus += (0.05 + _base_synergy_bonus("control", kind) * 0.5) * morale_ratio
+	return bonus
+
+
+func _base_room_efficiency(room_id: String) -> float:
+	_init_base_defaults()
+	var assigned := _base_assigned_plants(room_id)
+	if assigned.is_empty():
+		return 0.0
+	var total_bonus := 1.0
+	var active_count := 0
+	for kind_variant in assigned:
+		var kind := String(kind_variant)
+		var morale_ratio := clampf(float(base_morale.get(kind, BASE_MAX_MORALE)) / BASE_MAX_MORALE, 0.0, 1.0)
+		if morale_ratio <= 0.0:
+			continue
+		active_count += 1
+		total_bonus += _base_synergy_bonus(room_id, kind) * morale_ratio
+	if active_count <= 0:
+		return 0.0
+	var slot_ratio := float(active_count) / float(max(1, _base_room_capacity(room_id)))
+	var level_bonus := 1.0 + float(int(Dictionary(base_rooms.get(room_id, {})).get("level", 1)) - 1) * 0.12
+	var global_bonus := _base_global_efficiency_bonus() if room_id != "control" else 1.0
+	return maxf(0.0, slot_ratio * total_bonus * level_bonus * global_bonus)
+
+
+func _base_assign_plant(room_id: String, kind: String) -> bool:
+	_init_base_defaults()
+	if not BASE_ROOM_DEFS.has(room_id) or not Defs.PLANTS.has(kind):
+		return false
+	var assigned := _base_assigned_plants(room_id)
+	if not assigned.has(kind) and assigned.size() >= _base_room_capacity(room_id):
+		return false
+	var old_room := _base_assigned_room_for_plant(kind)
+	if old_room != "" and old_room != room_id:
+		var old_assigned := _base_assigned_plants(old_room)
+		old_assigned.erase(kind)
+		base_assignments[old_room] = old_assigned
+	if not assigned.has(kind):
+		assigned.append(kind)
+	base_assignments[room_id] = assigned
+	base_morale[kind] = clampf(float(base_morale.get(kind, BASE_MAX_MORALE)), 0.0, BASE_MAX_MORALE)
+	base_selected_room = room_id
+	base_selected_plant = kind
+	_mark_save_dirty(true)
+	queue_redraw()
+	return true
+
+
+func _base_unassign_plant(room_id: String, kind: String) -> bool:
+	_init_base_defaults()
+	if not base_assignments.has(room_id):
+		return false
+	var assigned := _base_assigned_plants(room_id)
+	if not assigned.has(kind):
+		return false
+	assigned.erase(kind)
+	base_assignments[room_id] = assigned
+	_mark_save_dirty(true)
+	queue_redraw()
+	return true
+
+
+func _base_add_pending_material(material: String, amount: float) -> void:
+	if amount <= 0.0 or not ENHANCE_MATERIAL_DEFS.has(material):
+		return
+	var materials: Dictionary = base_inventory.get("materials", {})
+	materials[material] = float(materials.get(material, 0.0)) + amount
+	base_inventory["materials"] = materials
+
+
+func _base_add_pending_fragment(kind: String, amount: float) -> void:
+	if amount <= 0.0 or not Defs.PLANTS.has(kind):
+		return
+	var fragments: Dictionary = base_inventory.get("fragments", {})
+	fragments[kind] = float(fragments.get(kind, 0.0)) + amount
+	base_inventory["fragments"] = fragments
+
+
+func _apply_base_elapsed(seconds: float) -> void:
+	_init_base_defaults()
+	var elapsed := clampf(float(seconds), 0.0, BASE_OFFLINE_CAP_SECONDS)
+	if elapsed <= 0.0:
+		return
+	var hours := elapsed / 3600.0
+	for room_id_variant in BASE_ROOM_ORDER:
+		var room_id := String(room_id_variant)
+		var room_type := String(Dictionary(BASE_ROOM_DEFS[room_id]).get("type", ""))
+		for kind_variant in _base_assigned_plants(room_id):
+			var kind := String(kind_variant)
+			if room_type == "dorm":
+				base_morale[kind] = clampf(float(base_morale.get(kind, BASE_MAX_MORALE)) + float(BASE_ROOM_DEFS[room_id].get("rate", 12.0)) * hours, 0.0, BASE_MAX_MORALE)
+			else:
+				base_morale[kind] = clampf(float(base_morale.get(kind, BASE_MAX_MORALE)) - hours, 0.0, BASE_MAX_MORALE)
+	for room_id_variant in BASE_ROOM_ORDER:
+		var room_id := String(room_id_variant)
+		var room_type := String(Dictionary(BASE_ROOM_DEFS[room_id]).get("type", ""))
+		if room_type == "command" or room_type == "dorm" or room_type == "workshop":
+			continue
+		var efficiency := _base_room_efficiency(room_id)
+		if efficiency <= 0.0:
+			continue
+		var amount := float(Dictionary(BASE_ROOM_DEFS[room_id]).get("rate", 0.0)) * hours * efficiency
+		if room_type == "trade":
+			base_inventory["coins"] = float(base_inventory.get("coins", 0.0)) + amount
+		elif room_type == "factory":
+			var material := String(Dictionary(base_rooms.get(room_id, {})).get("recipe", base_selected_material))
+			if not ENHANCE_MATERIAL_DEFS.has(material):
+				material = "growth_core"
+			_base_add_pending_material(material, amount)
+		elif room_type == "power":
+			base_drones += amount
+		elif room_type == "training":
+			var target := String(Dictionary(base_rooms.get(room_id, {})).get("target", base_selected_fragment_plant))
+			if not Defs.PLANTS.has(target):
+				target = "peashooter"
+			_base_add_pending_fragment(target, amount)
+	_mark_save_dirty()
+	queue_redraw()
+
+
+func _base_collect_all() -> Dictionary:
+	_init_base_defaults()
+	var collected := {"coins": 0, "materials": {}, "fragments": {}}
+	var pending_coins := int(floor(float(base_inventory.get("coins", 0.0))))
+	if pending_coins > 0:
+		coins_total += pending_coins
+		collected["coins"] = pending_coins
+		base_inventory["coins"] = maxf(0.0, float(base_inventory.get("coins", 0.0)) - float(pending_coins))
+	var materials: Dictionary = base_inventory.get("materials", {})
+	var collected_materials := {}
+	for material_variant in materials.keys():
+		var material := String(material_variant)
+		var amount := int(floor(float(materials[material_variant])))
+		if amount <= 0:
+			continue
+		enhance_materials[material] = int(enhance_materials.get(material, 0)) + amount
+		collected_materials[material] = amount
+		materials[material] = maxf(0.0, float(materials[material_variant]) - float(amount))
+	base_inventory["materials"] = materials
+	var fragments: Dictionary = base_inventory.get("fragments", {})
+	var collected_fragments := {}
+	for kind_variant in fragments.keys():
+		var kind := String(kind_variant)
+		var amount := int(floor(float(fragments[kind_variant])))
+		if amount <= 0:
+			continue
+		plant_fragments[kind] = int(plant_fragments.get(kind, 0)) + amount
+		collected_fragments[kind] = amount
+		fragments[kind] = maxf(0.0, float(fragments[kind_variant]) - float(amount))
+	base_inventory["fragments"] = fragments
+	collected["materials"] = collected_materials
+	collected["fragments"] = collected_fragments
+	if pending_coins > 0 or not collected_materials.is_empty() or not collected_fragments.is_empty():
+		_spawn_base_collect_fx()
+		_mark_save_dirty(true)
+		_show_toast("基建收益已领取")
+	queue_redraw()
+	return collected
+
+
+func _base_boost_room(room_id: String) -> bool:
+	_init_base_defaults()
+	if not BASE_ROOM_DEFS.has(room_id):
+		return false
+	if base_drones < BASE_DRONE_BOOST_COST:
+		_show_toast("无人机不足")
+		return false
+	base_drones -= BASE_DRONE_BOOST_COST
+	base_scan_pulse = 1.0
+	_apply_base_elapsed(BASE_DRONE_BOOST_SECONDS)
+	_mark_save_dirty(true)
+	return true
+
+
+func _base_workshop_convert(material: String) -> bool:
+	_init_base_defaults()
+	if not ENHANCE_MATERIAL_DEFS.has(material):
+		return false
+	if _base_room_efficiency("workshop") <= 0.0:
+		_show_toast("加工站需要进驻植物")
+		return false
+	if coins_total < 150:
+		_show_toast("金币不足")
+		return false
+	coins_total -= 150
+	_add_enhance_material(material, 1)
+	_mark_save_dirty(true)
+	_show_toast("加工完成：%s +1" % String(ENHANCE_MATERIAL_DEFS[material].get("name", material)))
+	return true
+
+
+func _base_set_factory_recipe(material: String) -> void:
+	_init_base_defaults()
+	if not ENHANCE_MATERIAL_DEFS.has(material):
+		return
+	base_selected_material = material
+	var factory: Dictionary = base_rooms.get("factory", {})
+	factory["recipe"] = material
+	base_rooms["factory"] = factory
+	_mark_save_dirty(true)
+	queue_redraw()
+
+
+func _base_set_training_target(kind: String) -> void:
+	_init_base_defaults()
+	if not Defs.PLANTS.has(kind):
+		return
+	base_selected_fragment_plant = kind
+	var training: Dictionary = base_rooms.get("training", {})
+	training["target"] = kind
+	base_rooms["training"] = training
+	_mark_save_dirty(true)
+	queue_redraw()
+
+
+func _enter_base_mode() -> void:
+	_init_base_defaults()
+	var now := int(Time.get_unix_time_from_system())
+	if base_last_tick_unix > 0:
+		_apply_base_elapsed(float(max(0, now - base_last_tick_unix)))
+	base_last_tick_unix = now
+	mode = MODE_BASE
+	selected_tool = ""
+	message_panel.visible = false
+	queue_redraw()
+
+
+func _merge_base_number_dict(existing_value, candidate_value) -> Dictionary:
+	var merged: Dictionary = {}
+	if existing_value is Dictionary:
+		for key_variant in Dictionary(existing_value).keys():
+			var key := String(key_variant)
+			merged[key] = maxf(float(merged.get(key, 0.0)), float(Dictionary(existing_value)[key_variant]))
+	if candidate_value is Dictionary:
+		for key_variant in Dictionary(candidate_value).keys():
+			var key := String(key_variant)
+			merged[key] = maxf(float(merged.get(key, 0.0)), float(Dictionary(candidate_value)[key_variant]))
+	return merged
+
+
+func _merge_base_progress(existing_save: Dictionary, candidate_save: Dictionary) -> Dictionary:
+	var merged_rooms: Dictionary = {}
+	for room_id_variant in BASE_ROOM_ORDER:
+		var room_id := String(room_id_variant)
+		var existing_rooms = existing_save.get("base_rooms", {})
+		var candidate_rooms = candidate_save.get("base_rooms", {})
+		var existing_room: Dictionary = Dictionary(existing_rooms).get(room_id, {}) if existing_rooms is Dictionary else {}
+		var candidate_room: Dictionary = Dictionary(candidate_rooms).get(room_id, {}) if candidate_rooms is Dictionary else {}
+		var room_state := candidate_room.duplicate(true)
+		room_state["level"] = max(int(existing_room.get("level", 1)), int(candidate_room.get("level", 1)))
+		if not String(existing_room.get("recipe", "")).is_empty():
+			room_state["recipe"] = String(existing_room.get("recipe", ""))
+		if String(room_state.get("recipe", "")).is_empty() and not String(candidate_room.get("recipe", "")).is_empty():
+			room_state["recipe"] = String(candidate_room.get("recipe", ""))
+		if not String(existing_room.get("target", "")).is_empty():
+			room_state["target"] = String(existing_room.get("target", ""))
+		if String(room_state.get("target", "")).is_empty() and not String(candidate_room.get("target", "")).is_empty():
+			room_state["target"] = String(candidate_room.get("target", ""))
+		merged_rooms[room_id] = room_state
+	var merged_assignments: Dictionary = {}
+	var seen_plants := {}
+	for source in [existing_save.get("base_assignments", {}), candidate_save.get("base_assignments", {})]:
+		if not (source is Dictionary):
+			continue
+		for room_id_variant in BASE_ROOM_ORDER:
+			var room_id := String(room_id_variant)
+			if not Dictionary(source).has(room_id):
+				continue
+			if not merged_assignments.has(room_id):
+				merged_assignments[room_id] = []
+			var assigned := Array(merged_assignments[room_id])
+			for kind_variant in Array(Dictionary(source).get(room_id, [])):
+				var kind := String(kind_variant)
+				if seen_plants.has(kind) or not Defs.PLANTS.has(kind) or assigned.size() >= _base_room_capacity(room_id):
+					continue
+				seen_plants[kind] = true
+				assigned.append(kind)
+			merged_assignments[room_id] = assigned
+	for room_id_variant in BASE_ROOM_ORDER:
+		var room_id := String(room_id_variant)
+		if not merged_assignments.has(room_id):
+			merged_assignments[room_id] = []
+	var existing_inventory = existing_save.get("base_inventory", {})
+	var candidate_inventory = candidate_save.get("base_inventory", {})
+	var merged_inventory := _base_default_inventory()
+	if existing_inventory is Dictionary:
+		merged_inventory["coins"] = maxf(float(merged_inventory.get("coins", 0.0)), float(Dictionary(existing_inventory).get("coins", 0.0)))
+	if candidate_inventory is Dictionary:
+		merged_inventory["coins"] = maxf(float(merged_inventory.get("coins", 0.0)), float(Dictionary(candidate_inventory).get("coins", 0.0)))
+	merged_inventory["materials"] = _merge_base_number_dict(Dictionary(existing_inventory).get("materials", {}) if existing_inventory is Dictionary else {}, Dictionary(candidate_inventory).get("materials", {}) if candidate_inventory is Dictionary else {})
+	merged_inventory["fragments"] = _merge_base_number_dict(Dictionary(existing_inventory).get("fragments", {}) if existing_inventory is Dictionary else {}, Dictionary(candidate_inventory).get("fragments", {}) if candidate_inventory is Dictionary else {})
+	return {
+		"base_rooms": merged_rooms,
+		"base_assignments": merged_assignments,
+		"base_morale": _merge_base_number_dict(existing_save.get("base_morale", {}), candidate_save.get("base_morale", {})),
+		"base_inventory": merged_inventory,
+		"base_drones": maxf(float(existing_save.get("base_drones", 0.0)), float(candidate_save.get("base_drones", 0.0))),
+		"base_last_tick_unix": max(int(existing_save.get("base_last_tick_unix", 0)), int(candidate_save.get("base_last_tick_unix", 0))),
+	}
+
+
+func _base_top_bar_rect() -> Rect2:
+	return Rect2(44.0, 28.0, 1412.0, 72.0)
+
+
+func _base_back_rect() -> Rect2:
+	return Rect2(60.0, 44.0, 112.0, 42.0)
+
+
+func _base_room_grid_rect() -> Rect2:
+	return Rect2(48.0, 126.0, 982.0, 548.0)
+
+
+func _base_detail_rect() -> Rect2:
+	return Rect2(1054.0, 126.0, 498.0, 548.0)
+
+
+func _base_roster_panel_rect() -> Rect2:
+	return Rect2(48.0, 700.0, 1504.0, 146.0)
+
+
+func _base_roster_view_rect() -> Rect2:
+	var panel := _base_roster_panel_rect()
+	return Rect2(panel.position + Vector2(20.0, 46.0), Vector2(1446.0, 82.0))
+
+
+func _base_collect_rect() -> Rect2:
+	var detail := _base_detail_rect()
+	return Rect2(detail.position + Vector2(28.0, detail.size.y - 78.0), Vector2(208.0, 48.0))
+
+
+func _base_boost_rect() -> Rect2:
+	var detail := _base_detail_rect()
+	return Rect2(detail.position + Vector2(262.0, detail.size.y - 78.0), Vector2(208.0, 48.0))
+
+
+func _base_roster_layout() -> Dictionary:
+	var view := _base_roster_view_rect()
+	var cell_w := 102.0
+	var cell_h := 82.0
+	var cell_gap := 10.0
+	var visible_cols := int(floor((view.size.x + cell_gap) / (cell_w + cell_gap)))
+	view.size.x = float(visible_cols) * cell_w + float(max(0, visible_cols - 1)) * cell_gap
+	return {
+		"view_rect": view,
+		"cell_w": cell_w,
+		"cell_h": cell_h,
+		"cell_gap": cell_gap,
+		"visible_cols": visible_cols,
+	}
+
+
+func _base_roster_cell_rect(index: int) -> Rect2:
+	var layout := _base_roster_layout()
+	var view: Rect2 = layout.get("view_rect", _base_roster_view_rect())
+	var cell_w := float(layout.get("cell_w", 102.0))
+	var cell_h := float(layout.get("cell_h", 82.0))
+	var cell_gap := float(layout.get("cell_gap", 10.0))
+	return Rect2(view.position + Vector2(float(index) * (cell_w + cell_gap) - base_roster_scroll, 0.0), Vector2(cell_w, cell_h))
+
+
+func _base_roster_content_width() -> float:
+	var plants := _base_owned_plants()
+	var layout := _base_roster_layout()
+	var cell_w := float(layout.get("cell_w", 102.0))
+	var cell_gap := float(layout.get("cell_gap", 10.0))
+	return float(plants.size()) * cell_w + float(max(0, plants.size() - 1)) * cell_gap
+
+
+func _base_max_roster_scroll() -> float:
+	var layout := _base_roster_layout()
+	var view: Rect2 = layout.get("view_rect", _base_roster_view_rect())
+	var cell_w := float(layout.get("cell_w", 102.0))
+	var cell_gap := float(layout.get("cell_gap", 10.0))
+	var max_scroll := maxf(0.0, _base_roster_content_width() - view.size.x)
+	if max_scroll <= 0.0:
+		return 0.0
+	return ceil(max_scroll / (cell_w + cell_gap)) * (cell_w + cell_gap)
+
+
+func _set_base_roster_scroll(value: float) -> void:
+	var layout := _base_roster_layout()
+	var step := float(layout.get("cell_w", 102.0)) + float(layout.get("cell_gap", 10.0))
+	base_roster_scroll = clampf(roundf(value / maxf(step, 1.0)) * step, 0.0, _base_max_roster_scroll())
+
+
+func _base_first_visible_roster_index() -> int:
+	var layout := _base_roster_layout()
+	var step := float(layout.get("cell_w", 102.0)) + float(layout.get("cell_gap", 10.0))
+	return clampi(int(floor(base_roster_scroll / maxf(step, 1.0))), 0, max(_base_owned_plants().size() - 1, 0))
+
+
+func _base_last_visible_roster_index() -> int:
+	var layout := _base_roster_layout()
+	return mini(_base_owned_plants().size() - 1, _base_first_visible_roster_index() + int(layout.get("visible_cols", 1)) - 1)
+
+
+func _base_room_card_rect(index: int) -> Rect2:
+	var grid := _base_room_grid_rect()
+	var cols := 3
+	var gap := Vector2(18.0, 18.0)
+	var card_size := Vector2((grid.size.x - 48.0 - gap.x * 2.0) / 3.0, 150.0)
+	var start := grid.position + Vector2(24.0, 62.0)
+	return Rect2(start + Vector2(float(index % cols) * (card_size.x + gap.x), float(index / cols) * (card_size.y + gap.y)), card_size)
+
+
+func _base_room_at(position: Vector2) -> String:
+	for i in range(BASE_ROOM_ORDER.size()):
+		if _base_room_card_rect(i).has_point(position):
+			return String(BASE_ROOM_ORDER[i])
+	return ""
+
+
+func _base_roster_plant_at(position: Vector2) -> String:
+	var view := _base_roster_view_rect()
+	if not view.has_point(position):
+		return ""
+	var plants := _base_owned_plants()
+	for i in range(_base_first_visible_roster_index(), _base_last_visible_roster_index() + 1):
+		if i < 0 or i >= plants.size():
+			continue
+		if _base_roster_cell_rect(i).has_point(position):
+			return String(plants[i])
+	return ""
+
+
+func _base_material_chip_rect(index: int) -> Rect2:
+	var detail := _base_detail_rect()
+	return Rect2(detail.position + Vector2(28.0 + float(index % 3) * 148.0, 260.0 + floor(float(index) / 3.0) * 42.0), Vector2(134.0, 32.0))
+
+
+func _spawn_base_collect_fx() -> void:
+	base_fx_particles.append({"pos": _base_collect_rect().get_center(), "vel": Vector2(-120.0, -140.0), "life": 0.65, "color": Color(1.0, 0.78, 0.24, 0.86)})
+	base_fx_particles.append({"pos": _base_collect_rect().get_center() + Vector2(30.0, 2.0), "vel": Vector2(-80.0, -170.0), "life": 0.72, "color": Color(0.38, 0.86, 1.0, 0.74)})
+
+
+func _update_base_fx(delta: float) -> void:
+	base_scan_pulse = maxf(0.0, base_scan_pulse - delta * 1.6)
+	for i in range(base_fx_particles.size() - 1, -1, -1):
+		var particle: Dictionary = base_fx_particles[i]
+		particle["life"] = float(particle.get("life", 0.0)) - delta
+		if float(particle.get("life", 0.0)) <= 0.0:
+			base_fx_particles.remove_at(i)
+			continue
+		particle["pos"] = Vector2(particle.get("pos", Vector2.ZERO)) + Vector2(particle.get("vel", Vector2.ZERO)) * delta
+		particle["vel"] = Vector2(particle.get("vel", Vector2.ZERO)) + Vector2(0.0, 160.0) * delta
+		base_fx_particles[i] = particle
+
+
+func _handle_base_click(mouse_pos: Vector2) -> void:
+	_init_base_defaults()
+	if _base_back_rect().has_point(mouse_pos):
+		_enter_world_select_mode()
+		return
+	var room_hit := _base_room_at(mouse_pos)
+	if room_hit != "":
+		base_selected_room = room_hit
+		queue_redraw()
+		return
+	if _base_collect_rect().has_point(mouse_pos):
+		_base_collect_all()
+		return
+	if _base_boost_rect().has_point(mouse_pos):
+		_base_boost_room(base_selected_room)
+		return
+	var selected_type := String(Dictionary(BASE_ROOM_DEFS.get(base_selected_room, {})).get("type", ""))
+	var material_keys := ENHANCE_MATERIAL_DEFS.keys()
+	for i in range(material_keys.size()):
+		var chip_rect := _base_material_chip_rect(i)
+		if chip_rect.has_point(mouse_pos):
+			var material := String(material_keys[i])
+			if selected_type == "factory":
+				_base_set_factory_recipe(material)
+			elif selected_type == "workshop":
+				_base_workshop_convert(material)
+			return
+	var plant_hit := _base_roster_plant_at(mouse_pos)
+	if plant_hit != "":
+		if selected_type == "training":
+			_base_set_training_target(plant_hit)
+		else:
+			_base_assign_plant(base_selected_room, plant_hit)
+		return
+	var assigned := _base_assigned_plants(base_selected_room)
+	for i in range(assigned.size()):
+		var slot_rect := Rect2(_base_detail_rect().position + Vector2(28.0 + float(i) * 150.0, 154.0), Vector2(136.0, 72.0))
+		if slot_rect.has_point(mouse_pos):
+			_base_unassign_plant(base_selected_room, String(assigned[i]))
+			return
 
 
 func _start_level(level_index: int) -> void:
@@ -4153,60 +4878,80 @@ func _draw_enhance_terminal_detail_panel(kind: String, panel_rect: Rect2) -> voi
 	var level = int(plant_enhance_levels.get(kind, 0))
 	var material = String(profile.get("material", ""))
 	var material_def = ENHANCE_MATERIAL_DEFS.get(material, {})
-	_draw_text("强化模块", panel_rect.position + Vector2(26.0, 44.0), 25, Color(0.94, 0.98, 1.0))
-	_draw_text("%s / %s" % [String(data.get("name", kind)), String(material_def.get("name", "强化材料"))], panel_rect.position + Vector2(26.0, 76.0), 15, role_color.lightened(0.2))
+	var header_rect = Rect2(panel_rect.position + Vector2(18.0, 18.0), Vector2(panel_rect.size.x - 36.0, 72.0))
+	ThemeLib.draw_gradient_rect_h(self, header_rect, Color(0.055, 0.078, 0.092, 0.96), Color(role_color.r, role_color.g, role_color.b, 0.22))
+	draw_rect(Rect2(header_rect.position, Vector2(5.0, header_rect.size.y)), role_color, true)
+	draw_rect(header_rect, Color(role_color.r, role_color.g, role_color.b, 0.44), false, 1.5)
+	_draw_text("强化模块", header_rect.position + Vector2(22.0, 31.0), 24, Color(0.94, 0.98, 1.0))
+	_draw_text("%s / %s" % [String(data.get("name", kind)), String(material_def.get("name", "强化材料"))], header_rect.position + Vector2(22.0, 58.0), 14, role_color.lightened(0.2))
 	var tab_rect = Rect2(panel_rect.position + Vector2(26.0, 100.0), Vector2(panel_rect.size.x - 52.0, 42.0))
 	draw_rect(tab_rect, Color(0.02, 0.035, 0.046, 0.72), true)
 	draw_rect(Rect2(tab_rect.position, Vector2(tab_rect.size.x / 3.0, tab_rect.size.y)), Color(role_color.r, role_color.g, role_color.b, 0.28), true)
+	draw_rect(tab_rect, Color(role_color.r, role_color.g, role_color.b, 0.28), false, 1.0)
 	_draw_text("等级", tab_rect.position + Vector2(46.0, 27.0), 15, Color(0.94, 0.98, 1.0))
 	_draw_text("芯片", tab_rect.position + Vector2(tab_rect.size.x / 3.0 + 46.0, 27.0), 15, Color(0.58, 0.7, 0.78))
 	_draw_text("档案", tab_rect.position + Vector2(tab_rect.size.x / 3.0 * 2.0 + 46.0, 27.0), 15, Color(0.58, 0.7, 0.78))
-	_draw_text("词条", panel_rect.position + Vector2(26.0, 176.0), 19, Color(0.9, 0.96, 1.0))
+	_draw_text("词条", panel_rect.position + Vector2(26.0, 168.0), 18, Color(0.9, 0.96, 1.0))
 	var chip_labels = _enhance_stat_chip_labels(kind)
 	for i in range(chip_labels.size()):
 		var chip = chip_labels[i]
-		var chip_rect = Rect2(panel_rect.position + Vector2(26.0 + float(i % 2) * 184.0, 198.0 + floor(float(i) / 2.0) * 86.0), Vector2(168.0, 72.0))
-		_draw_panel_shell(chip_rect, Color(0.08, 0.12, 0.14, 0.94), role_color.darkened(0.16), 0.08, 0.05)
+		var chip_rect = Rect2(panel_rect.position + Vector2(26.0 + float(i % 2) * 184.0, 188.0 + floor(float(i) / 2.0) * 78.0), Vector2(168.0, 64.0))
+		ThemeLib.draw_gradient_rect_v(self, chip_rect, Color(0.095, 0.13, 0.148, 0.96), Color(0.046, 0.066, 0.078, 0.96))
+		draw_rect(Rect2(chip_rect.position, Vector2(chip_rect.size.x, 4.0)), Color(role_color.r, role_color.g, role_color.b, 0.42), true)
+		draw_rect(chip_rect, role_color.darkened(0.16), false, 1.5)
 		draw_circle(chip_rect.position + Vector2(24.0, 24.0), 8.0, role_color)
 		_draw_text(String(chip["name"]), chip_rect.position + Vector2(42.0, 30.0), 14, Color(0.66, 0.78, 0.84))
-		_draw_text(String(chip["value"]), chip_rect.position + Vector2(20.0, 60.0), 23, Color(0.94, 0.98, 1.0))
-	var desc_rect = Rect2(panel_rect.position + Vector2(26.0, 374.0), Vector2(panel_rect.size.x - 52.0, 82.0))
-	_draw_panel_shell(desc_rect, Color(0.055, 0.08, 0.096, 0.94), Color(0.2, 0.32, 0.38), 0.08, 0.04)
+		_draw_text(String(chip["value"]), chip_rect.position + Vector2(20.0, 56.0), 21, Color(0.94, 0.98, 1.0))
+	var desc_rect = Rect2(panel_rect.position + Vector2(26.0, 336.0), Vector2(panel_rect.size.x - 52.0, 82.0))
+	ThemeLib.draw_gradient_rect_h(self, desc_rect, Color(0.04, 0.062, 0.074, 0.96), Color(role_color.r, role_color.g, role_color.b, 0.13))
+	draw_rect(desc_rect, Color(0.22, 0.34, 0.39, 0.9), false, 1.5)
 	var bonus_lines: Array = profile.get("bonus_lines", [])
 	for i in range(min(3, bonus_lines.size())):
 		_draw_text("◆ %s" % String(bonus_lines[i]), desc_rect.position + Vector2(20.0, 27.0 + float(i) * 23.0), 15, Color(0.74, 0.84, 0.88))
-	var cost_rect = Rect2(panel_rect.position + Vector2(26.0, 462.0), Vector2(panel_rect.size.x - 52.0, 136.0))
-	_draw_panel_shell(cost_rect, Color(0.055, 0.08, 0.096, 0.94), Color(0.2, 0.32, 0.38), 0.08, 0.04)
+	var cost_rect = _enhance_cost_rect()
+	ThemeLib.draw_gradient_rect_h(self, cost_rect, Color(0.042, 0.06, 0.072, 0.96), Color(role_color.r, role_color.g, role_color.b, 0.16))
+	draw_rect(cost_rect, Color(0.22, 0.34, 0.39, 0.9), false, 1.5)
 	if level < ENHANCE_MAX_LEVEL:
 		var table = ENHANCE_TABLE[level]
 		var material_cost = _enhance_material_cost_for_level(level)
 		var owned_materials = int(enhance_materials.get(material, 0))
 		var can_afford_material = owned_materials >= material_cost
-		_draw_text("消耗", cost_rect.position + Vector2(18.0, 28.0), 16, Color(0.76, 0.86, 0.92))
-		_draw_text("金币 %d" % int(table["cost"]), cost_rect.position + Vector2(18.0, 56.0), 16, Color(0.96, 0.82, 0.34))
-		_draw_text("%s %d/%d" % [String(material_def.get("short", "材料")), owned_materials, material_cost], cost_rect.position + Vector2(18.0, 84.0), 16, Color(0.74, 0.94, 0.72) if can_afford_material else Color(1.0, 0.46, 0.36))
-		_draw_text("成功率 %d%%" % int(float(table["rate"]) * 100.0), cost_rect.position + Vector2(18.0, 112.0), 16, Color(0.72, 0.86, 0.96))
+		_draw_text("下一等级 +%d" % (level + 1), cost_rect.position + Vector2(18.0, 24.0), 14, Color(0.76, 0.86, 0.92))
+		var cost_items = [
+			{"label": "金币", "value": str(int(table["cost"])), "color": Color(0.96, 0.82, 0.34)},
+			{"label": String(material_def.get("short", "材料")), "value": "%d/%d" % [owned_materials, material_cost], "color": Color(0.74, 0.94, 0.72) if can_afford_material else Color(1.0, 0.46, 0.36)},
+			{"label": "成功率", "value": "%d%%" % int(float(table["rate"]) * 100.0), "color": Color(0.72, 0.86, 0.96)},
+		]
+		for i in range(cost_items.size()):
+			var cost_item = cost_items[i]
+			var item_rect = Rect2(cost_rect.position + Vector2(16.0 + float(i) * 112.0, 36.0), Vector2(104.0, 34.0))
+			var item_color = Color(cost_item["color"])
+			draw_rect(item_rect, Color(item_color.r, item_color.g, item_color.b, 0.13), true)
+			draw_rect(item_rect, Color(item_color.r, item_color.g, item_color.b, 0.42), false, 1.0)
+			_draw_text(String(cost_item["label"]), item_rect.position + Vector2(10.0, 14.0), 10, Color(0.72, 0.82, 0.88))
+			_draw_text(String(cost_item["value"]), item_rect.position + Vector2(10.0, 30.0), 13, item_color)
 		if int(table["penalty"]) > 0:
-			_draw_text("失败 -%d" % int(table["penalty"]), cost_rect.position + Vector2(212.0, 112.0), 16, Color(1.0, 0.48, 0.38))
-		_draw_fancy_button(_enhance_button_rect(), "强化", Color(0.28, 0.58, 0.68), Color(0.62, 0.86, 0.94), 23)
-		var catalyst_label = "催化保底" if enhance_stones > 0 else "无催化剂"
+			_draw_text("失败惩罚 -%d" % int(table["penalty"]), cost_rect.position + Vector2(230.0, 24.0), 12, Color(1.0, 0.48, 0.38))
+		draw_line(Vector2(panel_rect.position.x + 26.0, _enhance_button_rect().position.y - 12.0), Vector2(panel_rect.end.x - 26.0, _enhance_button_rect().position.y - 12.0), Color(role_color.r, role_color.g, role_color.b, 0.25), 1.0)
+		_draw_fancy_button(_enhance_button_rect(), "强化 +%d" % (level + 1), Color(0.28, 0.58, 0.68), Color(0.62, 0.86, 0.94), 23)
+		var catalyst_label = "催化保底 x%d" % enhance_stones if enhance_stones > 0 else "无催化剂"
 		_draw_fancy_button(_enhance_stone_button_rect(), catalyst_label, Color(0.26, 0.3, 0.34), Color(0.52, 0.62, 0.68), 19)
 	else:
-		_draw_text("已达最高等级", cost_rect.position + Vector2(98.0, 74.0), 22, Color(1.0, 0.86, 0.34))
+		_draw_text("已达最高等级", cost_rect.position + Vector2(98.0, 58.0), 22, Color(1.0, 0.86, 0.34))
 	var strip_rect = _enhance_material_strip_rect()
-	draw_rect(strip_rect, Color(0.02, 0.035, 0.045, 0.62), true)
-	draw_rect(strip_rect, Color(0.24, 0.36, 0.42, 0.72), false, 2.0)
+	ThemeLib.draw_gradient_rect_v(self, strip_rect, Color(0.045, 0.072, 0.084, 0.9), Color(0.018, 0.03, 0.038, 0.94))
+	draw_rect(strip_rect, Color(role_color.r, role_color.g, role_color.b, 0.24), false, 1.5)
 	var material_keys = ENHANCE_MATERIAL_DEFS.keys()
-	var material_w = strip_rect.size.x / 3.0
 	for i in range(material_keys.size()):
 		var material_key = String(material_keys[i])
 		var def = ENHANCE_MATERIAL_DEFS[material_key]
 		var color = Color(def.get("color", Color(0.7, 0.8, 0.8)))
-		var item_rect = Rect2(strip_rect.position + Vector2(float(i % 3) * material_w + 8.0, 8.0 + floor(float(i) / 3.0) * 33.0), Vector2(material_w - 16.0, 28.0))
-		draw_rect(item_rect, Color(color.r, color.g, color.b, 0.12), true)
-		draw_rect(item_rect, color.darkened(0.1), false, 1.0)
-		draw_circle(item_rect.position + Vector2(14.0, 14.0), 8.0, color)
-		_draw_text("%s x%d" % [String(def.get("short", material_key)), int(enhance_materials.get(material_key, 0))], item_rect.position + Vector2(28.0, 20.0), 12, Color(0.9, 0.96, 1.0))
+		var item_rect = _enhance_material_item_rect(i)
+		var is_required = material_key == material
+		draw_rect(item_rect, Color(color.r, color.g, color.b, 0.22 if is_required else 0.11), true)
+		draw_rect(item_rect, color if is_required else color.darkened(0.12), false, 1.4 if is_required else 1.0)
+		draw_circle(item_rect.position + Vector2(12.0, 12.5), 6.0, color)
+		_draw_text("%s x%d" % [String(def.get("short", material_key)), int(enhance_materials.get(material_key, 0))], item_rect.position + Vector2(24.0, 17.0), 11, Color(0.9, 0.96, 1.0))
 
 
 func _draw_enhance_detail_panel(kind: String, panel_rect: Rect2) -> void:
@@ -4317,25 +5062,38 @@ func _draw_enhance_scene() -> void:
 	_draw_text("名单", roster_panel.position + Vector2(22.0, 44.0), 24, Color(0.9, 0.96, 1.0))
 	_draw_text("全植物", roster_panel.position + Vector2(roster_panel.size.x - 92.0, 42.0), 16, Color(0.52, 0.66, 0.72))
 	var view_rect = _enhance_roster_view_rect()
-	draw_rect(view_rect, Color(0.02, 0.035, 0.045, 0.68), true)
+	ThemeLib.draw_gradient_rect_v(self, view_rect, Color(0.024, 0.04, 0.048, 0.76), Color(0.012, 0.022, 0.028, 0.82))
+	draw_rect(view_rect, Color(0.18, 0.3, 0.34, 0.72), false, 1.0)
 	var owned_plants = _enhance_owned_plants()
-	for i in range(owned_plants.size()):
+	var first_visible_index = _first_visible_enhance_roster_index()
+	var last_visible_index = _last_visible_enhance_roster_index()
+	if first_visible_index == -1:
+		first_visible_index = 0
+		last_visible_index = -1
+	for i in range(first_visible_index, last_visible_index + 1):
 		var pk = String(owned_plants[i])
 		var cell_rect = _enhance_cell_rect(i)
-		if cell_rect.end.y < view_rect.position.y or cell_rect.position.y > view_rect.end.y:
+		if not view_rect.encloses(cell_rect):
 			continue
 		var is_selected = pk == enhance_selected_plant
 		var profile = _plant_enhance_profile(pk)
 		var role_color = Color(profile.get("color", Color(0.6, 0.72, 0.8)))
-		var fill = Color(0.095, 0.13, 0.15, 0.96) if not is_selected else Color(0.13, 0.19, 0.22, 0.98)
-		var border_color = role_color if is_selected else Color(0.2, 0.3, 0.34)
-		_draw_panel_shell(cell_rect, fill, border_color, 0.08, 0.04)
-		draw_rect(Rect2(cell_rect.position, Vector2(5.0, cell_rect.size.y)), role_color, true)
-		_draw_card_icon(pk, cell_rect.position + Vector2(34.0, 42.0))
+		var fill = Color(0.06, 0.09, 0.104, 0.94) if not is_selected else Color(0.12, 0.18, 0.205, 0.98)
+		var border_color = role_color if is_selected else Color(0.17, 0.27, 0.31)
+		var draw_cell = cell_rect.grow_individual(0.0, 0.0, -2.0, 0.0)
+		ThemeLib.draw_gradient_rect_h(self, draw_cell, fill, Color(role_color.r, role_color.g, role_color.b, 0.18 if is_selected else 0.05))
+		draw_rect(draw_cell, border_color, false, 1.5 if is_selected else 1.0)
+		draw_rect(Rect2(draw_cell.position, Vector2(6.0, draw_cell.size.y)), role_color, true)
+		if is_selected:
+			draw_rect(draw_cell.grow(-3.0), Color(role_color.r, role_color.g, role_color.b, 0.18), false, 1.0)
+		_draw_card_icon(pk, draw_cell.position + Vector2(34.0, 38.0))
 		var elevel = int(plant_enhance_levels.get(pk, 0))
-		_draw_text(String(Defs.PLANTS[pk].get("name", pk)), cell_rect.position + Vector2(68.0, 30.0), 14, Color(0.9, 0.94, 0.96))
-		_draw_text(String(profile.get("name", "")), cell_rect.position + Vector2(68.0, 52.0), 12, role_color.lightened(0.12))
-		_draw_text("+%d" % elevel, cell_rect.position + Vector2(cell_rect.size.x - 42.0, 46.0), 17, Color(1.0, 0.86, 0.34))
+		_draw_text(String(Defs.PLANTS[pk].get("name", pk)), draw_cell.position + Vector2(68.0, 28.0), 14, Color(0.9, 0.94, 0.96))
+		_draw_text(String(profile.get("name", "")), draw_cell.position + Vector2(68.0, 49.0), 12, role_color.lightened(0.12))
+		var level_chip = Rect2(draw_cell.end - Vector2(64.0, 46.0), Vector2(46.0, 28.0))
+		draw_rect(level_chip, Color(0.0, 0.0, 0.0, 0.28), true)
+		draw_rect(level_chip, Color(1.0, 0.86, 0.34, 0.38), false, 1.0)
+		_draw_text("+%d" % elevel, level_chip.position + Vector2(10.0, 21.0), 15, Color(1.0, 0.86, 0.34))
 	ThemeLib.draw_scroll_mask(self, roster_panel.grow(-8.0), view_rect, Color(0.075, 0.102, 0.12, 0.98), Color(0.26, 0.4, 0.46))
 	if _enhance_max_scroll() > 0.0:
 		var track_rect = Rect2(view_rect.end - Vector2(10.0, view_rect.size.y), Vector2(6.0, view_rect.size.y))
@@ -4562,6 +5320,9 @@ func _handle_scroll_input(delta_y: float, mouse_pos: Vector2) -> bool:
 		return true
 	if mode == MODE_ENHANCE and (_enhance_roster_panel_rect().has_point(mouse_pos) or _enhance_roster_view_rect().has_point(mouse_pos)):
 		_set_enhance_scroll(enhance_scroll + delta_y)
+		return true
+	if mode == MODE_BASE and (_base_roster_panel_rect().has_point(mouse_pos) or _base_roster_view_rect().has_point(mouse_pos)):
+		_set_base_roster_scroll(base_roster_scroll + delta_y)
 		return true
 	return false
 
@@ -15417,6 +16178,8 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 		_draw_gacha_scene()
 	elif draw_mode == MODE_ENHANCE:
 		_draw_enhance_scene()
+	elif draw_mode == MODE_BASE:
+		_draw_base_scene()
 	elif draw_mode == MODE_ENDLESS:
 		_draw_battle_scene()
 	elif draw_mode == MODE_DAILY:
@@ -15556,6 +16319,201 @@ func _draw_gacha_scene() -> void:
 	_draw_fancy_button(back_rect, "返回", Color(0.56, 0.52, 0.62), Color(0.36, 0.32, 0.42), 22)
 
 
+func _base_resource_summary() -> Dictionary:
+	_init_base_defaults()
+	var materials: Dictionary = base_inventory.get("materials", {})
+	var fragments: Dictionary = base_inventory.get("fragments", {})
+	var material_total := 0
+	var fragment_total := 0
+	for value in materials.values():
+		material_total += int(floor(float(value)))
+	for value in fragments.values():
+		fragment_total += int(floor(float(value)))
+	return {
+		"coins": int(floor(float(base_inventory.get("coins", 0.0)))),
+		"materials": material_total,
+		"fragments": fragment_total,
+	}
+
+
+func _draw_base_chip(rect: Rect2, label: String, value: String, accent: Color) -> void:
+	_draw_panel_shell(rect, Color(0.075, 0.094, 0.11, 0.94), Color(accent.r, accent.g, accent.b, 0.7), 0.12, 0.08)
+	draw_rect(Rect2(rect.position, Vector2(5.0, rect.size.y)), accent, true)
+	_draw_text(label, rect.position + Vector2(16.0, 18.0), 12, Color(0.68, 0.76, 0.8))
+	_draw_text(value, rect.position + Vector2(16.0, 42.0), 22, Color(0.94, 0.98, 1.0))
+
+
+func _draw_base_room_card(room_id: String, index: int) -> void:
+	var rect := _base_room_card_rect(index)
+	var def: Dictionary = BASE_ROOM_DEFS[room_id]
+	var room_state: Dictionary = base_rooms.get(room_id, {})
+	var assigned := _base_assigned_plants(room_id)
+	var selected := room_id == base_selected_room
+	var accent := Color(def.get("color", Color(0.5, 0.75, 0.82)))
+	var pulse := 0.55 + 0.45 * sin(ui_time * 2.2 + float(index) * 0.6)
+	var fill := Color(0.07, 0.095, 0.112, 0.96)
+	if selected:
+		fill = Color(0.1, 0.14, 0.16, 0.98)
+		draw_rect(rect.grow(7.0), Color(accent.r, accent.g, accent.b, 0.08 + 0.05 * pulse), true)
+		draw_rect(rect.grow(4.0), Color(accent.r, accent.g, accent.b, 0.42), false, 2.0)
+	_draw_panel_shell(rect, fill, Color(accent.r, accent.g, accent.b, 0.58), 0.18, 0.1)
+	draw_rect(Rect2(rect.position + Vector2(0.0, 0.0), Vector2(rect.size.x, 34.0)), Color(accent.r, accent.g, accent.b, 0.2), true)
+	draw_rect(Rect2(rect.position + Vector2(12.0, 46.0), Vector2(5.0, 64.0)), accent, true)
+	_draw_text(String(def.get("name", room_id)), rect.position + Vector2(20.0, 25.0), 19, Color(0.94, 0.98, 1.0))
+	_draw_text("Lv.%d  %s/%s" % [int(room_state.get("level", 1)), assigned.size(), int(def.get("slots", 1))], rect.position + Vector2(rect.size.x - 104.0, 25.0), 15, Color(0.72, 0.84, 0.88))
+	var type := String(def.get("type", ""))
+	var output_label := "效率 %.0f%%" % (_base_room_efficiency(room_id) * 100.0)
+	if type == "trade":
+		output_label = "+金币 %.0f/h" % (float(def.get("rate", 0.0)) * _base_room_efficiency(room_id))
+	elif type == "factory":
+		var material := String(room_state.get("recipe", "growth_core"))
+		output_label = "%s %.1f/h" % [String(Dictionary(ENHANCE_MATERIAL_DEFS.get(material, {})).get("short", "材料")), float(def.get("rate", 0.0)) * _base_room_efficiency(room_id)]
+	elif type == "power":
+		output_label = "+无人机 %.0f/h" % (float(def.get("rate", 0.0)) * _base_room_efficiency(room_id))
+	elif type == "dorm":
+		output_label = "心情恢复 %.0f/h" % float(def.get("rate", 0.0))
+	elif type == "training":
+		output_label = "碎片 %.1f/h" % (float(def.get("rate", 0.0)) * _base_room_efficiency(room_id))
+	_draw_text(output_label, rect.position + Vector2(28.0, 70.0), 16, accent.lightened(0.2))
+	var morale_ratio := clampf(_base_room_morale_average(room_id) / BASE_MAX_MORALE, 0.0, 1.0)
+	var bar_rect := Rect2(rect.position + Vector2(28.0, 94.0), Vector2(rect.size.x - 56.0, 10.0))
+	draw_rect(bar_rect, Color(0.0, 0.0, 0.0, 0.35), true)
+	draw_rect(ThemeLib.progress_fill_rect(bar_rect, morale_ratio), Color(0.44, 0.9, 0.58, 0.9) if morale_ratio > 0.35 else Color(0.95, 0.46, 0.3, 0.9), true)
+	draw_rect(bar_rect, Color(0.86, 0.94, 1.0, 0.18), false, 1.0)
+	for slot in range(int(def.get("slots", 1))):
+		var slot_rect := Rect2(rect.position + Vector2(28.0 + float(slot) * 48.0, 114.0), Vector2(38.0, 28.0))
+		draw_rect(slot_rect, Color(0.0, 0.0, 0.0, 0.2), true)
+		draw_rect(slot_rect, Color(accent.r, accent.g, accent.b, 0.4), false, 1.0)
+		if slot < assigned.size():
+			_draw_card_icon(String(assigned[slot]), slot_rect.get_center() + Vector2(0.0, 2.0))
+
+
+func _draw_base_detail_panel() -> void:
+	var detail := _base_detail_rect()
+	var room_id := base_selected_room
+	var def: Dictionary = BASE_ROOM_DEFS.get(room_id, {})
+	var room_state: Dictionary = base_rooms.get(room_id, {})
+	var accent := Color(def.get("color", Color(0.5, 0.76, 0.86)))
+	_draw_panel_shell(detail, Color(0.058, 0.075, 0.088, 0.98), Color(accent.r, accent.g, accent.b, 0.5), 0.2, 0.12)
+	draw_rect(Rect2(detail.position, Vector2(detail.size.x, 76.0)), Color(accent.r, accent.g, accent.b, 0.13), true)
+	_draw_text(String(def.get("name", room_id)), detail.position + Vector2(28.0, 42.0), 31, Color(0.96, 0.99, 1.0))
+	_draw_text("效率 %.0f%%  心情 %.0f/24" % [_base_room_efficiency(room_id) * 100.0, _base_room_morale_average(room_id)], detail.position + Vector2(30.0, 70.0), 15, Color(0.7, 0.82, 0.86))
+	_draw_text(String(def.get("desc", "")), detail.position + Vector2(30.0, 108.0), 18, Color(0.78, 0.88, 0.9))
+	var assigned := _base_assigned_plants(room_id)
+	_draw_text("进驻", detail.position + Vector2(30.0, 142.0), 16, Color(0.6, 0.72, 0.76))
+	for i in range(_base_room_capacity(room_id)):
+		var slot_rect := Rect2(detail.position + Vector2(28.0 + float(i) * 150.0, 154.0), Vector2(136.0, 72.0))
+		_draw_panel_shell(slot_rect, Color(0.07, 0.092, 0.105, 0.96), Color(accent.r, accent.g, accent.b, 0.42), 0.08, 0.06)
+		if i < assigned.size():
+			var kind := String(assigned[i])
+			_draw_card_icon(kind, slot_rect.position + Vector2(34.0, 40.0))
+			_draw_text(String(Defs.PLANTS[kind].get("name", kind)), slot_rect.position + Vector2(64.0, 30.0), 13, Color(0.9, 0.96, 1.0))
+			_draw_text("%.0f/24" % float(base_morale.get(kind, BASE_MAX_MORALE)), slot_rect.position + Vector2(64.0, 52.0), 13, Color(0.56, 0.9, 0.64))
+		else:
+			_draw_text("空槽", slot_rect.position + Vector2(46.0, 44.0), 16, Color(0.45, 0.56, 0.6))
+	var room_type := String(def.get("type", ""))
+	if room_type == "factory" or room_type == "workshop":
+		_draw_text("材料目标", detail.position + Vector2(30.0, 250.0), 16, Color(0.6, 0.72, 0.76))
+		var keys := ENHANCE_MATERIAL_DEFS.keys()
+		for i in range(keys.size()):
+			var material := String(keys[i])
+			var material_def: Dictionary = ENHANCE_MATERIAL_DEFS[material]
+			var chip_rect := _base_material_chip_rect(i)
+			var selected := String(room_state.get("recipe", base_selected_material)) == material
+			var chip_color := Color(material_def.get("color", accent))
+			_draw_panel_shell(chip_rect, Color(0.09, 0.11, 0.12, 0.96) if not selected else Color(chip_color.r * 0.22, chip_color.g * 0.22, chip_color.b * 0.22, 0.98), Color(chip_color.r, chip_color.g, chip_color.b, 0.72), 0.06, 0.05)
+			_draw_text(String(material_def.get("short", material)), chip_rect.position + Vector2(12.0, 22.0), 15, Color(0.94, 0.98, 1.0))
+	elif room_type == "training":
+		var target := String(room_state.get("target", base_selected_fragment_plant))
+		_draw_text("训练目标", detail.position + Vector2(30.0, 250.0), 16, Color(0.6, 0.72, 0.76))
+		_draw_panel_shell(Rect2(detail.position + Vector2(28.0, 264.0), Vector2(210.0, 86.0)), Color(0.08, 0.1, 0.115, 0.96), Color(accent.r, accent.g, accent.b, 0.46), 0.1, 0.06)
+		if Defs.PLANTS.has(target):
+			_draw_card_icon(target, detail.position + Vector2(72.0, 312.0))
+			_draw_text(String(Defs.PLANTS[target].get("name", target)), detail.position + Vector2(116.0, 300.0), 18, Color(0.92, 0.98, 1.0))
+			_draw_text("点击底部植物切换", detail.position + Vector2(116.0, 324.0), 13, Color(0.6, 0.72, 0.76))
+	var summary := _base_resource_summary()
+	_draw_text("待领取：金币 %d  材料 %d  碎片 %d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], detail.position + Vector2(30.0, 406.0), 17, Color(0.9, 0.94, 0.84))
+	_draw_fancy_button(_base_collect_rect(), "领取收益", Color(0.88, 0.6, 0.2), Color(0.4, 0.24, 0.08), 20)
+	var boost_fill := Color(0.25, 0.58, 0.78) if base_drones >= BASE_DRONE_BOOST_COST else Color(0.24, 0.28, 0.3)
+	_draw_fancy_button(_base_boost_rect(), "无人机加速", boost_fill, Color(0.12, 0.24, 0.3), 19)
+
+
+func _draw_base_roster() -> void:
+	var panel := _base_roster_panel_rect()
+	var layout := _base_roster_layout()
+	var view: Rect2 = layout.get("view_rect", _base_roster_view_rect())
+	_draw_panel_shell(panel, Color(0.055, 0.072, 0.083, 0.98), Color(0.28, 0.42, 0.48, 0.58), 0.18, 0.1)
+	_draw_text("植物干员", panel.position + Vector2(24.0, 30.0), 20, Color(0.9, 0.98, 1.0))
+	var plants := _base_owned_plants()
+	for i in range(_base_first_visible_roster_index(), _base_last_visible_roster_index() + 1):
+		if i < 0 or i >= plants.size():
+			continue
+		var kind := String(plants[i])
+		var rect := _base_roster_cell_rect(i)
+		if not view.encloses(rect):
+			continue
+		var room := _base_assigned_room_for_plant(kind)
+		var morale_ratio := clampf(float(base_morale.get(kind, BASE_MAX_MORALE)) / BASE_MAX_MORALE, 0.0, 1.0)
+		var role_color := Color(_plant_enhance_profile(kind).get("color", Color(0.6, 0.76, 0.82)))
+		var disabled := morale_ratio <= 0.05
+		_draw_panel_shell(rect, Color(0.08, 0.1, 0.11, 0.96) if not disabled else Color(0.06, 0.065, 0.07, 0.92), Color(role_color.r, role_color.g, role_color.b, 0.52), 0.08, 0.05)
+		_draw_card_icon(kind, rect.position + Vector2(34.0, 42.0))
+		var name := String(Defs.PLANTS[kind].get("name", kind))
+		if name.length() > 5:
+			name = name.left(5)
+		_draw_text(name, rect.position + Vector2(58.0, 24.0), 12, Color(0.92, 0.98, 1.0))
+		_draw_text(String(_plant_enhance_profile(kind).get("name", "")), rect.position + Vector2(58.0, 42.0), 11, role_color.lightened(0.1))
+		var bar := Rect2(rect.position + Vector2(58.0, 57.0), Vector2(34.0, 6.0))
+		draw_rect(bar, Color(0.0, 0.0, 0.0, 0.38), true)
+		draw_rect(ThemeLib.progress_fill_rect(bar, morale_ratio), Color(0.44, 0.88, 0.56) if morale_ratio > 0.35 else Color(0.9, 0.42, 0.3), true)
+		if room != "":
+			var tag_rect := Rect2(rect.position + Vector2(7.0, 6.0), Vector2(48.0, 18.0))
+			draw_rect(tag_rect, Color(0.0, 0.0, 0.0, 0.32), true)
+			_draw_text(String(Dictionary(BASE_ROOM_DEFS.get(room, {})).get("name", room)).left(3), tag_rect.position + Vector2(4.0, 14.0), 10, Color(0.9, 0.96, 1.0))
+		if disabled:
+			draw_rect(rect, Color(0.0, 0.0, 0.0, 0.28), true)
+	if _base_max_roster_scroll() > 0.0:
+		var track := Rect2(view.position + Vector2(0.0, view.size.y + 8.0), Vector2(view.size.x, 5.0))
+		draw_rect(track, Color(0.0, 0.0, 0.0, 0.35), true)
+		draw_rect(ThemeLib.scroll_knob_rect(track, view.size.x, _base_roster_content_width(), base_roster_scroll, 80.0), Color(0.54, 0.78, 0.88, 0.8), true)
+
+
+func _draw_base_scene() -> void:
+	_init_base_defaults()
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.035, 0.05, 0.06), Color(0.09, 0.105, 0.09))
+	for line_index in range(16):
+		var y := 112.0 + float(line_index) * 38.0 + fmod(ui_time * 12.0, 38.0)
+		draw_line(Vector2(0.0, y), Vector2(BASE_VIEWPORT_SIZE.x, y), Color(0.6, 0.82, 0.9, 0.025), 1.0)
+	for col_index in range(12):
+		var x := float(col_index) * 140.0
+		draw_line(Vector2(x, 110.0), Vector2(x + 90.0, 874.0), Color(0.5, 0.72, 0.78, 0.018), 1.0)
+	var top := _base_top_bar_rect()
+	_draw_panel_shell(top, Color(0.052, 0.07, 0.082, 0.98), Color(0.38, 0.58, 0.66, 0.62), 0.2, 0.12)
+	_draw_fancy_button(_base_back_rect(), "返回", Color(0.18, 0.25, 0.28), Color(0.42, 0.58, 0.64), 18)
+	_draw_text("罗德岛温室基建", top.position + Vector2(150.0, 43.0), 31, Color(0.96, 0.99, 1.0))
+	_draw_text("RIIC / BOTANICAL INFRASTRUCTURE", top.position + Vector2(150.0, 63.0), 13, Color(0.55, 0.7, 0.76))
+	var summary := _base_resource_summary()
+	_draw_base_chip(Rect2(650.0, 40.0, 142.0, 46.0), "金币", str(coins_total), Color(0.95, 0.72, 0.25))
+	_draw_base_chip(Rect2(806.0, 40.0, 142.0, 46.0), "无人机", "%d" % int(floor(base_drones)), Color(0.38, 0.82, 1.0))
+	_draw_base_chip(Rect2(962.0, 40.0, 150.0, 46.0), "待领", "%d/%d/%d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], Color(0.66, 0.9, 0.48))
+	var grid := _base_room_grid_rect()
+	_draw_panel_shell(grid, Color(0.048, 0.066, 0.078, 0.97), Color(0.28, 0.42, 0.48, 0.52), 0.18, 0.1)
+	_draw_text("设施总览", grid.position + Vector2(24.0, 36.0), 24, Color(0.92, 0.98, 1.0))
+	_draw_text("进驻植物后自动生产，心情越高效率越稳。", grid.position + Vector2(152.0, 36.0), 15, Color(0.58, 0.7, 0.74))
+	for i in range(BASE_ROOM_ORDER.size()):
+		_draw_base_room_card(String(BASE_ROOM_ORDER[i]), i)
+	if base_scan_pulse > 0.0:
+		var scan_y := lerpf(grid.position.y, grid.end.y, 1.0 - base_scan_pulse)
+		draw_rect(Rect2(Vector2(grid.position.x + 12.0, scan_y), Vector2(grid.size.x - 24.0, 4.0)), Color(0.38, 0.86, 1.0, 0.32 * base_scan_pulse), true)
+	_draw_base_detail_panel()
+	_draw_base_roster()
+	for particle_variant in base_fx_particles:
+		var particle: Dictionary = particle_variant
+		var life := clampf(float(particle.get("life", 0.0)), 0.0, 1.0)
+		var color := Color(particle.get("color", Color.WHITE))
+		draw_circle(Vector2(particle.get("pos", Vector2.ZERO)), 5.0 + life * 7.0, Color(color.r, color.g, color.b, color.a * life))
+
+
 func _draw_panel_shell(rect: Rect2, fill_color: Color, border_color: Color, shadow_alpha: float = 0.18, accent_alpha: float = 0.14) -> void:
 	ThemeLib.draw_panel_shell(self, rect, fill_color, border_color, shadow_alpha, accent_alpha)
 
@@ -15686,28 +16644,29 @@ func _draw_world_select_scene() -> void:
 		draw_rect(enter_rect.grow(6.0), Color(enter_fill.r, enter_fill.g, enter_fill.b, enter_pulse * 0.3), false, 4.0)
 	_draw_panel_shell(enter_rect, enter_fill, Color(0.18, 0.22, 0.16), 0.22, 0.12)
 	_draw_world_command_button(Rect2(action_rects["almanac"]), "图鉴", Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 22)
-	_draw_text("进入世界", enter_rect.position + Vector2(64.0, 38.0), 26, Color(0.1, 0.14, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96))
+	_draw_text("进入", enter_rect.position + Vector2(44.0, 38.0), 25, Color(0.1, 0.14, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96))
 
-	_draw_world_command_button(Rect2(action_rects["endless"]), "无尽", Color(0.86, 0.28, 0.22), Color(0.52, 0.12, 0.1), 20)
-	_draw_world_command_button(Rect2(action_rects["gacha"]), "抽卡", Color(0.82, 0.62, 0.18), Color(0.48, 0.34, 0.08), 20)
-	_draw_world_command_button(Rect2(action_rects["enhance"]), "强化", Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 20)
+	_draw_world_command_button(Rect2(action_rects["endless"]), "无尽", Color(0.86, 0.28, 0.22), Color(0.52, 0.12, 0.1), 18)
+	_draw_world_command_button(Rect2(action_rects["gacha"]), "抽卡", Color(0.82, 0.62, 0.18), Color(0.48, 0.34, 0.08), 18)
+	_draw_world_command_button(Rect2(action_rects["enhance"]), "强化", Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 18)
+	_draw_world_command_button(Rect2(action_rects["base"]), "基建", Color(0.28, 0.62, 0.72), Color(0.12, 0.34, 0.42), 18)
 	var daily_done = daily_challenge_date == _today_string()
 	var daily_fill = Color(0.36, 0.64, 0.86) if not daily_done else Color(0.52, 0.56, 0.6)
-	_draw_world_command_button(Rect2(action_rects["daily"]), "每日" if not daily_done else "已完成", daily_fill, Color(0.16, 0.32, 0.48), 20)
-	_draw_world_command_button(Rect2(action_rects["update"]), _update_action_text(), _update_badge_fill(), Color(0.18, 0.22, 0.28), 18)
+	_draw_world_command_button(Rect2(action_rects["daily"]), "每日" if not daily_done else "已完成", daily_fill, Color(0.16, 0.32, 0.48), 17)
+	_draw_world_command_button(Rect2(action_rects["update"]), _update_action_text(), _update_badge_fill(), Color(0.18, 0.22, 0.28), 16)
 	var update_info_rect = Rect2(action_rects["update_info"])
 	_draw_panel_shell(update_info_rect, Color(0.14, 0.16, 0.2, 0.9), Color(0.34, 0.4, 0.48), 0.12, 0.08)
-	_draw_text("自动更新", update_info_rect.position + Vector2(16.0, 20.0), 15, Color(0.92, 0.96, 1.0))
-	_draw_text(_update_status_line(), update_info_rect.position + Vector2(16.0, 40.0), 13, Color(0.84, 0.9, 0.98))
+	_draw_text("自动更新", update_info_rect.position + Vector2(14.0, 17.0), 13, Color(0.92, 0.96, 1.0))
+	_draw_text(_update_status_line(), update_info_rect.position + Vector2(86.0, 17.0), 11, Color(0.84, 0.9, 0.98))
 	if update_state == "downloading":
-		var bar_rect = Rect2(update_info_rect.position + Vector2(214.0, 13.0), Vector2(112.0, 16.0))
+		var bar_rect = Rect2(update_info_rect.position + Vector2(156.0, 13.0), Vector2(104.0, 12.0))
 		draw_rect(bar_rect, Color(0.08, 0.1, 0.12, 0.82), true)
 		draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * clampf(update_download_progress, 0.0, 1.0), bar_rect.size.y)), Color(0.92, 0.66, 0.22, 0.94), true)
 		draw_rect(bar_rect, Color(0.94, 0.96, 1.0, 0.24), false, 1.0)
 	# Coin display
-	var coin_rect = Rect2(1136.0, 808.0, 238.0, 42.0)
+	var coin_rect = Rect2(1224.0, 818.0, 150.0, 30.0)
 	_draw_panel_shell(coin_rect, Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.1, 0.06)
-	_draw_text("金币: %d" % coins_total, coin_rect.position + Vector2(22.0, 30.0), 21, Color(0.33, 0.21, 0.04))
+	_draw_text("金币 %d" % coins_total, coin_rect.position + Vector2(14.0, 22.0), 16, Color(0.33, 0.21, 0.04))
 
 
 func _draw_map_scene() -> void:
@@ -27155,6 +28114,13 @@ func _merge_save_data_preserving_progress(existing_save: Dictionary, candidate_s
 	merged["gacha_pity_counter"] = int(collection_progress.get("gacha_pity_counter", 0))
 	merged["endless_best_wave"] = int(collection_progress.get("endless_best_wave", 0))
 	merged["daily_challenge_date"] = String(collection_progress.get("daily_challenge_date", ""))
+	var base_progress = _merge_base_progress(existing_save, candidate_save)
+	merged["base_rooms"] = base_progress.get("base_rooms", {})
+	merged["base_assignments"] = base_progress.get("base_assignments", {})
+	merged["base_morale"] = base_progress.get("base_morale", {})
+	merged["base_inventory"] = base_progress.get("base_inventory", _base_default_inventory())
+	merged["base_drones"] = float(base_progress.get("base_drones", 0.0))
+	merged["base_last_tick_unix"] = int(base_progress.get("base_last_tick_unix", 0))
 	if regresses:
 		merged["last_level_index"] = max(int(existing.get("last_level_index", -1)), int(candidate.get("last_level_index", -1)))
 		var existing_world = String(existing.get("current_world_key", ""))
@@ -27202,6 +28168,8 @@ func _best_legacy_save_data() -> Dictionary:
 
 
 func _save_game() -> void:
+	_init_base_defaults()
+	base_last_tick_unix = int(Time.get_unix_time_from_system())
 	var save_data = {
 		"version": 2,
 		"unlocked_levels": unlocked_levels,
@@ -27218,6 +28186,12 @@ func _save_game() -> void:
 		"plant_enhance_levels": plant_enhance_levels,
 		"enhance_stones": enhance_stones,
 		"enhance_materials": enhance_materials,
+		"base_rooms": base_rooms,
+		"base_assignments": base_assignments,
+		"base_morale": base_morale,
+		"base_inventory": base_inventory,
+		"base_drones": base_drones,
+		"base_last_tick_unix": base_last_tick_unix,
 	}
 	var existing_save_data = _read_existing_save_data()
 	if not existing_save_data.is_empty():
@@ -27261,6 +28235,7 @@ func _should_recover_inconsistent_blank_save(save_version: int, completed_count:
 
 func _apply_loaded_save_data(save_data: Dictionary) -> bool:
 	var save_version = int(save_data.get("version", 1))
+	var migrated := false
 	unlocked_levels = clampi(int(save_data.get("unlocked_levels", 1)), 1, Defs.LEVELS.size())
 	coins_total = max(0, int(save_data.get("coins_total", 0)))
 	selected_level_index = clampi(int(save_data.get("last_level_index", -1)), -1, Defs.LEVELS.size() - 1)
@@ -27279,12 +28254,27 @@ func _apply_loaded_save_data(save_data: Dictionary) -> bool:
 	enhance_stones = int(save_data.get("enhance_stones", 0))
 	if save_data.has("enhance_materials") and save_data["enhance_materials"] is Dictionary:
 		enhance_materials = save_data["enhance_materials"]
+	if save_data.has("base_rooms") and save_data["base_rooms"] is Dictionary:
+		base_rooms = save_data["base_rooms"]
+	if save_data.has("base_assignments") and save_data["base_assignments"] is Dictionary:
+		base_assignments = save_data["base_assignments"]
+	if save_data.has("base_morale") and save_data["base_morale"] is Dictionary:
+		base_morale = save_data["base_morale"]
+	if save_data.has("base_inventory") and save_data["base_inventory"] is Dictionary:
+		base_inventory = save_data["base_inventory"]
+	base_drones = maxf(0.0, float(save_data.get("base_drones", 0.0)))
+	base_last_tick_unix = int(save_data.get("base_last_tick_unix", 0))
+	_init_base_defaults()
+	var now := int(Time.get_unix_time_from_system())
+	if base_last_tick_unix > 0 and now > base_last_tick_unix:
+		_apply_base_elapsed(float(now - base_last_tick_unix))
+		base_last_tick_unix = now
+		migrated = true
 
 	completed_levels.resize(Defs.LEVELS.size())
 	for i in range(completed_levels.size()):
 		completed_levels[i] = false
 
-	var migrated := false
 	var saved_completed_ids = save_data.get("completed_level_ids", [])
 	if saved_completed_ids is Array and not saved_completed_ids.is_empty():
 		for level_id_variant in saved_completed_ids:

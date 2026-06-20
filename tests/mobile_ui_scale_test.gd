@@ -33,7 +33,7 @@ func _test_landscape_menus_scale_uniformly() -> bool:
 	var passed := true
 	# Common Android landscape aspect ratios that previously distorted under FILL.
 	var resolutions = [Vector2(2400, 1080), Vector2(2340, 1080), Vector2(2160, 1080), Vector2(1920, 1080), Vector2(2560, 1080)]
-	var menu_modes = ["world_select", "map", "almanac", "gacha", "enhance"]
+	var menu_modes = ["world_select", "map", "almanac", "gacha", "enhance", "base"]
 	for res in resolutions:
 		var game = _make_mobile_game(res)
 		for m in menu_modes:

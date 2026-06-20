@@ -143,7 +143,8 @@ func _test_world_select_supports_screen_drag_and_snap() -> bool:
 func _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() -> bool:
 	var game := _make_game()
 	game.mode = game.MODE_WORLD_SELECT
-	var tap_pos = game.WORLD_SELECT_ALMANAC_RECT.get_center()
+	var action_rects: Dictionary = game.call("_world_select_action_rects")
+	var tap_pos = Rect2(action_rects["almanac"]).get_center()
 	game._unhandled_input(_screen_touch(tap_pos, true))
 	game._unhandled_input(_screen_drag(tap_pos + Vector2(26.0, 4.0), Vector2(26.0, 4.0)))
 	game._unhandled_input(_screen_touch(tap_pos + Vector2(26.0, 4.0), false))
@@ -160,7 +161,7 @@ func _test_world_select_command_dock_targets_are_unified() -> bool:
 	var passed := _assert_true(game.has_method("_world_select_action_rects"), "world select should expose one shared command-dock layout helper")
 	if passed:
 		var action_rects: Dictionary = game.call("_world_select_action_rects")
-		for action_variant in ["almanac", "gacha", "enhance", "daily", "endless", "update", "update_info", "enter"]:
+		for action_variant in ["almanac", "gacha", "enhance", "base", "daily", "endless", "update", "update_info", "enter"]:
 			var action := String(action_variant)
 			passed = _assert_true(action_rects.has(action), "world select command dock should include %s" % action) and passed
 			if not action_rects.has(action):
@@ -173,6 +174,14 @@ func _test_world_select_command_dock_targets_are_unified() -> bool:
 		for action_variant in action_rects.keys():
 			var action_rect := Rect2(action_rects[action_variant])
 			passed = _assert_true(dock_rect.encloses(action_rect), "%s command rect should stay inside the command dock" % String(action_variant)) and passed
+		var keys := action_rects.keys()
+		for i in range(keys.size()):
+			var first_key := String(keys[i])
+			var first_rect := Rect2(action_rects[first_key])
+			for j in range(i + 1, keys.size()):
+				var second_key := String(keys[j])
+				var second_rect := Rect2(action_rects[second_key])
+				passed = _assert_true(not first_rect.intersects(second_rect), "%s and %s command rects should not overlap" % [first_key, second_key]) and passed
 	_free_game(game)
 	return passed
 

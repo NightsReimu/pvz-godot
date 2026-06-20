@@ -14,6 +14,9 @@ func _run() -> void:
 	failed = not _test_enhance_bonuses_are_distinct_by_plant_role() or failed
 	failed = not _test_enhancement_consumes_matching_material() or failed
 	failed = not _test_enhance_terminal_layout_uses_distinct_operator_panels() or failed
+	failed = not _test_enhance_terminal_actions_do_not_overlap() or failed
+	failed = not _test_enhance_material_items_fit_strip() or failed
+	failed = not _test_enhance_roster_view_fits_whole_rows() or failed
 	failed = not _test_save_merge_preserves_material_inventory() or failed
 	quit(1 if failed else 0)
 
@@ -138,6 +141,69 @@ func _test_enhance_terminal_layout_uses_distinct_operator_panels() -> bool:
 		passed = _assert_true(not roster_rect.intersects(portrait_rect), "enhance roster and portrait panels should be distinct columns") and passed
 		passed = _assert_true(not portrait_rect.intersects(detail_rect), "enhance portrait and detail panels should be distinct columns") and passed
 		passed = _assert_true(material_rect.position.y > portrait_rect.position.y, "enhance material inventory should read as a lower terminal strip") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_enhance_terminal_actions_do_not_overlap() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_enhance_cost_rect"), "enhance UI should expose a cost panel rect") \
+		and _assert_true(game.has_method("_enhance_material_strip_rect"), "enhance UI should expose a material strip rect")
+	if passed:
+		var detail_rect: Rect2 = game.call("_enhance_detail_rect")
+		var cost_rect: Rect2 = game.call("_enhance_cost_rect")
+		var button_rect: Rect2 = game.call("_enhance_button_rect")
+		var stone_rect: Rect2 = game.call("_enhance_stone_button_rect")
+		var material_rect: Rect2 = game.call("_enhance_material_strip_rect")
+		passed = _assert_true(detail_rect.encloses(cost_rect), "enhance cost panel should stay inside the detail column") and passed
+		passed = _assert_true(detail_rect.encloses(button_rect), "enhance button should stay inside the detail column") and passed
+		passed = _assert_true(detail_rect.encloses(stone_rect), "enhance catalyst button should stay inside the detail column") and passed
+		passed = _assert_true(detail_rect.encloses(material_rect), "enhance material strip should stay inside the detail column") and passed
+		passed = _assert_true(not cost_rect.intersects(button_rect), "enhance button should not overlap the cost panel text") and passed
+		passed = _assert_true(not button_rect.intersects(stone_rect), "enhance and catalyst buttons should not overlap") and passed
+		passed = _assert_true(not stone_rect.intersects(material_rect), "catalyst button should not overlap material inventory") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_enhance_material_items_fit_strip() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_enhance_material_item_rect"), "enhance UI should expose material item rects")
+	if passed:
+		var strip_rect: Rect2 = game.call("_enhance_material_strip_rect")
+		var material_defs: Dictionary = game.call("_enhance_material_defs")
+		passed = _assert_true(material_defs.size() <= 6, "enhance material strip is designed for two compact rows") and passed
+		for i in range(material_defs.size()):
+			var item_rect: Rect2 = game.call("_enhance_material_item_rect", i)
+			passed = _assert_true(strip_rect.encloses(item_rect), "enhance material item should stay inside strip") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_enhance_roster_view_fits_whole_rows() -> bool:
+	var game := _make_game()
+	var layout: Dictionary = game.call("_enhance_grid_layout")
+	var view_rect: Rect2 = game.call("_enhance_roster_view_rect")
+	var row_h = float(layout.get("col_h", 0.0))
+	var row_gap = float(layout.get("col_gap", 0.0))
+	var visible_rows = int(floor((view_rect.size.y + row_gap) / maxf(row_h + row_gap, 1.0)))
+	var used_height = float(visible_rows) * row_h + float(max(0, visible_rows - 1)) * row_gap
+	var passed := _assert_true(visible_rows >= 1, "enhance roster should show at least one full row") \
+		and _assert_true(absf(view_rect.size.y - used_height) < 0.01, "enhance roster view height should fit whole item rows without clipping; view %.2f used %.2f" % [view_rect.size.y, used_height])
+	if passed:
+		game.enhance_scroll = row_h * 0.5
+		game.call("_set_enhance_scroll", game.enhance_scroll)
+		var first_visible: int = game.call("_first_visible_enhance_roster_index")
+		var last_visible: int = game.call("_last_visible_enhance_roster_index")
+		for index in range(first_visible, last_visible + 1):
+			var cell_rect: Rect2 = game.call("_enhance_cell_rect", index)
+			passed = _assert_true(view_rect.encloses(cell_rect), "enhance roster should draw only complete cells inside the view") and passed
+		game.call("_set_enhance_scroll", game.call("_enhance_max_scroll"))
+		first_visible = game.call("_first_visible_enhance_roster_index")
+		last_visible = game.call("_last_visible_enhance_roster_index")
+		for index in range(first_visible, last_visible + 1):
+			var bottom_cell_rect: Rect2 = game.call("_enhance_cell_rect", index)
+			passed = _assert_true(view_rect.encloses(bottom_cell_rect), "enhance roster should keep bottom scroll aligned to complete cells") and passed
 	_free_game(game)
 	return passed
 
