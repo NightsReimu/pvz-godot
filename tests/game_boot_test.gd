@@ -8,6 +8,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_game_script_loads() or failed
+	failed = not _test_game_starts_on_home_terminal() or failed
 	quit(1 if failed else 0)
 
 
@@ -27,5 +28,16 @@ func _test_game_script_loads() -> bool:
 	passed = _assert_true(game.has_method("_draw_shovel_icon"), "expected game boot script to expose the shovel icon draw helper used by the seed bank") and passed
 	passed = _assert_true(game.has_method("_draw_heather_shooter"), "expected game boot script to expose city plant draw helpers") and passed
 	passed = _assert_true(game.has_method("_draw_wenjie_zombie"), "expected game boot script to expose city zombie draw helpers") and passed
+	game.free()
+	return passed
+
+
+func _test_game_starts_on_home_terminal() -> bool:
+	var script = load("res://scripts/game.gd")
+	if not _assert_true(script != null, "expected scripts/game.gd to load before checking startup mode"):
+		return false
+	var game = script.new()
+	var passed = _assert_true(game.get("MODE_HOME") != null, "game should expose a home mode for the top-level terminal") \
+		and _assert_true(String(game.mode) == String(game.get("MODE_HOME")), "game should boot to the home terminal instead of directly opening world selection")
 	game.free()
 	return passed

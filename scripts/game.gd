@@ -17,6 +17,7 @@ const ROWS := 6
 const COLS := 9
 const DEFAULT_BOARD_ROWS := 5
 
+const MODE_HOME := "home"
 const MODE_WORLD_SELECT := "world_select"
 const MODE_MAP := "map"
 const MODE_ALMANAC := "almanac"
@@ -278,7 +279,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 var rng = RandomNumberGenerator.new()
 var ui_font: Font
 
-var mode := MODE_WORLD_SELECT
+var mode := MODE_HOME
 var battle_state := BATTLE_PLAYING
 var battle_paused := false
 var panel_action := ""
@@ -393,21 +394,21 @@ const ENHANCE_MATERIAL_DEFS := {
 	"support_gel": {"name": "支援凝胶", "short": "支援", "color": Color(0.68, 0.94, 0.58), "desc": "治疗、容器与辅助植物材料"},
 }
 const ENHANCE_TABLE = [
-	{"cost": 100, "frag_cost": 0, "rate": 1.0, "penalty": 0, "boost": 0.05},
-	{"cost": 100, "frag_cost": 0, "rate": 1.0, "penalty": 0, "boost": 0.05},
-	{"cost": 100, "frag_cost": 0, "rate": 1.0, "penalty": 0, "boost": 0.05},
-	{"cost": 200, "frag_cost": 0, "rate": 0.8, "penalty": 0, "boost": 0.05},
-	{"cost": 200, "frag_cost": 0, "rate": 0.8, "penalty": 0, "boost": 0.05},
-	{"cost": 200, "frag_cost": 0, "rate": 0.8, "penalty": 0, "boost": 0.05},
-	{"cost": 400, "frag_cost": 5, "rate": 0.6, "penalty": 0, "boost": 0.08},
-	{"cost": 400, "frag_cost": 5, "rate": 0.6, "penalty": 1, "boost": 0.08},
-	{"cost": 400, "frag_cost": 5, "rate": 0.6, "penalty": 1, "boost": 0.08},
-	{"cost": 800, "frag_cost": 10, "rate": 0.4, "penalty": 1, "boost": 0.10},
-	{"cost": 800, "frag_cost": 10, "rate": 0.4, "penalty": 1, "boost": 0.10},
-	{"cost": 800, "frag_cost": 10, "rate": 0.4, "penalty": 1, "boost": 0.10},
-	{"cost": 1500, "frag_cost": 20, "rate": 0.25, "penalty": 2, "boost": 0.15},
-	{"cost": 1500, "frag_cost": 20, "rate": 0.25, "penalty": 2, "boost": 0.15},
-	{"cost": 1500, "frag_cost": 20, "rate": 0.25, "penalty": 2, "boost": 0.15},
+	{"cost": 100, "frag_cost": 0, "rate": 1.0, "penalty": 0, "boost": 0.08},
+	{"cost": 100, "frag_cost": 0, "rate": 1.0, "penalty": 0, "boost": 0.08},
+	{"cost": 100, "frag_cost": 0, "rate": 1.0, "penalty": 0, "boost": 0.08},
+	{"cost": 200, "frag_cost": 0, "rate": 0.8, "penalty": 0, "boost": 0.08},
+	{"cost": 200, "frag_cost": 0, "rate": 0.8, "penalty": 0, "boost": 0.08},
+	{"cost": 200, "frag_cost": 0, "rate": 0.8, "penalty": 0, "boost": 0.08},
+	{"cost": 400, "frag_cost": 5, "rate": 0.6, "penalty": 0, "boost": 0.105},
+	{"cost": 400, "frag_cost": 5, "rate": 0.6, "penalty": 1, "boost": 0.105},
+	{"cost": 400, "frag_cost": 5, "rate": 0.6, "penalty": 1, "boost": 0.105},
+	{"cost": 800, "frag_cost": 10, "rate": 0.4, "penalty": 1, "boost": 0.13},
+	{"cost": 800, "frag_cost": 10, "rate": 0.4, "penalty": 1, "boost": 0.13},
+	{"cost": 800, "frag_cost": 10, "rate": 0.4, "penalty": 1, "boost": 0.13},
+	{"cost": 1500, "frag_cost": 20, "rate": 0.25, "penalty": 2, "boost": 0.19},
+	{"cost": 1500, "frag_cost": 20, "rate": 0.25, "penalty": 2, "boost": 0.19},
+	{"cost": 1500, "frag_cost": 20, "rate": 0.25, "penalty": 2, "boost": 0.19},
 ]
 const ENHANCE_DAMAGE_KEYS := [
 	"damage",
@@ -766,7 +767,7 @@ func _is_ui_scaled_mode(m: String) -> bool:
 
 
 func _uses_legacy_landscape_ui_mode(m: String) -> bool:
-	return m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_ENHANCE or m == MODE_BASE
+	return m == MODE_HOME or m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_ENHANCE or m == MODE_BASE
 
 
 func _uses_mobile_fill_ui_scaling(_target_mode: String = mode) -> bool:
@@ -789,6 +790,8 @@ func _should_show_mobile_rotate_prompt(target_mode: String = mode) -> bool:
 
 func _mode_mobile_prompt_title(target_mode: String) -> String:
 	match target_mode:
+		MODE_HOME:
+			return "主界面"
 		MODE_WORLD_SELECT:
 			return "世界选择"
 		MODE_MAP:
@@ -974,33 +977,12 @@ func _is_touch_generated_mouse_suppressed() -> bool:
 
 
 func _world_select_command_dock_rect() -> Rect2:
-	return Rect2(50.0, 704.0, 1348.0, 156.0)
-
-
-func _world_select_small_action_rect(index: int) -> Rect2:
-	var dock_rect := _world_select_command_dock_rect()
-	var cols := 6
-	var gap := 12.0
-	var button_w := 130.0
-	var button_h := 48.0
-	var start_x := dock_rect.position.x + 24.0
-	var start_y := dock_rect.position.y + 52.0
-	return Rect2(
-		start_x + float(index % cols) * (button_w + gap),
-		start_y + float(index / cols) * (button_h + 10.0),
-		button_w,
-		button_h
-	)
+	return Rect2(50.0, 704.0, 1490.0, 156.0)
 
 
 func _world_select_action_rects() -> Dictionary:
 	return {
-		"almanac": _world_select_small_action_rect(0),
-		"endless": _world_select_small_action_rect(1),
-		"gacha": _world_select_small_action_rect(2),
-		"enhance": _world_select_small_action_rect(3),
-		"base": _world_select_small_action_rect(4),
-		"daily": _world_select_small_action_rect(5),
+		"home": Rect2(1412.0, 748.0, 112.0, 62.0),
 		"update": Rect2(930.0, 748.0, 148.0, 48.0),
 		"update_info": Rect2(930.0, 812.0, 276.0, 36.0),
 		"enter": Rect2(1224.0, 748.0, 150.0, 62.0),
@@ -1012,12 +994,7 @@ func _world_select_touch_target(position: Vector2) -> Dictionary:
 	var rect_targets = [
 		{"id": "world_arrow_left", "rect": WORLD_SELECT_ARROW_LEFT_RECT},
 		{"id": "world_arrow_right", "rect": WORLD_SELECT_ARROW_RIGHT_RECT},
-		{"id": "world_almanac", "rect": action_rects["almanac"]},
-		{"id": "world_endless", "rect": action_rects["endless"]},
-		{"id": "world_gacha", "rect": action_rects["gacha"]},
-		{"id": "world_enhance", "rect": action_rects["enhance"]},
-		{"id": "world_base", "rect": action_rects["base"]},
-		{"id": "world_daily", "rect": action_rects["daily"]},
+		{"id": "world_home", "rect": action_rects["home"]},
 		{"id": "world_update", "rect": action_rects["update"]},
 		{"id": "world_update_info", "rect": action_rects["update_info"]},
 		{"id": "world_enter", "rect": action_rects["enter"]},
@@ -1031,6 +1008,35 @@ func _world_select_touch_target(position: Vector2) -> Dictionary:
 		var card_rect = _world_card_rect(i)
 		if card_rect.has_point(position):
 			return {"id": "world_card_%d" % i, "rect": card_rect}
+	return {}
+
+
+func _home_action_rects() -> Dictionary:
+	var left_x := 80.0
+	var right_x := 1078.0
+	var top_y := 164.0
+	var card_w := 438.0
+	var card_h := 132.0
+	var gap_y := 18.0
+	return {
+		"mainline": Rect2(left_x, top_y, 470.0, 300.0),
+		"daily": Rect2(left_x + 494.0, top_y, 250.0, 140.0),
+		"entertainment": Rect2(left_x + 494.0, top_y + 160.0, 250.0, 140.0),
+		"events": Rect2(left_x, top_y + 324.0, 744.0, 124.0),
+		"base": Rect2(right_x, top_y, card_w, card_h),
+		"enhance": Rect2(right_x, top_y + (card_h + gap_y), card_w, card_h),
+		"gacha": Rect2(right_x, top_y + (card_h + gap_y) * 2.0, card_w, card_h),
+		"almanac": Rect2(right_x, top_y + (card_h + gap_y) * 3.0, card_w, card_h),
+	}
+
+
+func _home_touch_target(position: Vector2) -> Dictionary:
+	var action_rects := _home_action_rects()
+	for action_variant in ["mainline", "daily", "entertainment", "events", "base", "enhance", "gacha", "almanac"]:
+		var action := String(action_variant)
+		var rect := Rect2(action_rects.get(action, Rect2()))
+		if rect.has_point(position):
+			return {"id": "home_%s" % action, "rect": rect}
 	return {}
 
 
@@ -1081,6 +1087,8 @@ func _selection_touch_target_allows_drag(target_id: String) -> bool:
 
 
 func _touch_navigation_target(position: Vector2, target_mode: String) -> Dictionary:
+	if target_mode == MODE_HOME:
+		return _home_touch_target(position)
 	if target_mode == MODE_WORLD_SELECT:
 		return _world_select_touch_target(position)
 	if target_mode == MODE_MAP:
@@ -1091,7 +1099,9 @@ func _touch_navigation_target(position: Vector2, target_mode: String) -> Diction
 
 
 func _handle_touch_navigation_tap(released_mode: String, released_pos: Vector2) -> void:
-	if released_mode == MODE_WORLD_SELECT:
+	if released_mode == MODE_HOME:
+		_handle_home_click(released_pos)
+	elif released_mode == MODE_WORLD_SELECT:
 		_handle_world_select_click(released_pos)
 	elif released_mode == MODE_MAP:
 		_handle_map_click(released_pos)
@@ -1100,7 +1110,7 @@ func _handle_touch_navigation_tap(released_mode: String, released_pos: Vector2) 
 
 
 func _begin_touch_navigation(event: InputEventScreenTouch) -> bool:
-	if mode != MODE_WORLD_SELECT and mode != MODE_MAP and mode != MODE_SELECTION:
+	if mode != MODE_HOME and mode != MODE_WORLD_SELECT and mode != MODE_MAP and mode != MODE_SELECTION:
 		return false
 	_suppress_touch_generated_mouse()
 	touch_navigation_index = event.index
@@ -1149,9 +1159,11 @@ func _handle_touch_navigation_drag(event: InputEventScreenDrag) -> bool:
 					return false
 			elif absf(delta_total.y) <= absf(delta_total.x):
 				return false
-		else:
+		elif touch_navigation_mode == MODE_WORLD_SELECT or touch_navigation_mode == MODE_MAP:
 			if absf(delta_total.x) <= absf(delta_total.y):
 				return false
+		else:
+			return false
 		touch_navigation_dragging = true
 		touch_navigation_press_target = ""
 		touch_navigation_press_rect = Rect2()
@@ -1183,6 +1195,10 @@ func _finish_touch_navigation(event: InputEventScreenTouch) -> bool:
 	var press_target = touch_navigation_press_target
 	var press_rect = touch_navigation_press_rect
 	_reset_touch_navigation()
+	if released_mode == MODE_HOME:
+		if not was_dragging and (press_target == "" or press_rect.has_point(released_pos)):
+			_handle_touch_navigation_tap(released_mode, released_pos)
+		return true
 	if released_mode == MODE_WORLD_SELECT:
 		if was_dragging:
 			var release_cards_per_second = clampf(-release_velocity.x / WORLD_CARD_SPACING, -4.8, 4.8)
@@ -1324,6 +1340,12 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		return
 
+	if mode == MODE_HOME:
+		_begin_auto_update_check_if_needed()
+		map_time += delta
+		queue_redraw()
+		return
+
 	if mode == MODE_WORLD_SELECT:
 		_begin_auto_update_check_if_needed()
 		map_time += delta
@@ -1429,6 +1451,10 @@ func _update_page_transition(delta: float) -> void:
 
 
 func _handle_primary_click(mouse_pos: Vector2) -> void:
+	if mode == MODE_HOME:
+		_handle_home_click(mouse_pos)
+		return
+
 	if mode == MODE_WORLD_SELECT:
 		_handle_world_select_click(mouse_pos)
 		return
@@ -2927,7 +2953,7 @@ func _init_campaign() -> void:
 	_finalize_campaign_init(bool(load_state.get("loaded", false)), bool(load_state.get("had_file", false)))
 	world_select_index = WorldDataLib.index_of(current_world_key)
 	world_select_scroll = float(world_select_index)
-	_enter_world_select_mode(false)
+	_enter_home_mode(false)
 	_begin_startup_loading()
 
 
@@ -2950,6 +2976,20 @@ func _begin_startup_loading() -> void:
 	startup_loading_active = startup_loading_total_tasks > 0
 
 
+func _enter_home_mode(animated: bool = true) -> void:
+	almanac_selected_kind = ""
+	selected_tool = ""
+	battle_paused = false
+	message_panel.visible = false
+	_stop_bgm()
+	if animated and mode != MODE_HOME:
+		_begin_page_transition(MODE_HOME, "", -1)
+		return
+	page_transition_active = false
+	mode = MODE_HOME
+	queue_redraw()
+
+
 func _enter_world_select_mode(animated: bool = true) -> void:
 	almanac_selected_kind = ""
 	selected_tool = ""
@@ -2965,6 +3005,34 @@ func _enter_world_select_mode(animated: bool = true) -> void:
 	current_world_key = target_world
 	mode = MODE_WORLD_SELECT
 	queue_redraw()
+
+
+func _handle_home_click(mouse_pos: Vector2) -> void:
+	var action_rects := _home_action_rects()
+	if Rect2(action_rects["mainline"]).has_point(mouse_pos):
+		_enter_world_select_mode(false)
+		return
+	if Rect2(action_rects["daily"]).has_point(mouse_pos):
+		_enter_daily_challenge()
+		return
+	if Rect2(action_rects["entertainment"]).has_point(mouse_pos):
+		_enter_endless_mode()
+		return
+	if Rect2(action_rects["events"]).has_point(mouse_pos):
+		_show_toast("活动关卡筹备中")
+		return
+	if Rect2(action_rects["base"]).has_point(mouse_pos):
+		_enter_base_mode()
+		return
+	if Rect2(action_rects["enhance"]).has_point(mouse_pos):
+		_enter_enhance_mode()
+		return
+	if Rect2(action_rects["gacha"]).has_point(mouse_pos):
+		_enter_gacha_mode()
+		return
+	if Rect2(action_rects["almanac"]).has_point(mouse_pos):
+		_enter_almanac_mode("plants")
+		return
 
 
 func _enter_map_mode(animated: bool = false) -> void:
@@ -3037,6 +3105,14 @@ func _selected_world_data() -> Dictionary:
 	return worlds[clampi(world_select_index, 0, worlds.size() - 1)]
 
 
+func _completed_level_count() -> int:
+	var total := 0
+	for completed_variant in completed_levels:
+		if bool(completed_variant):
+			total += 1
+	return total
+
+
 func _handle_world_select_click(mouse_pos: Vector2) -> void:
 	var action_rects = _world_select_action_rects()
 	if WORLD_SELECT_ARROW_LEFT_RECT.has_point(mouse_pos):
@@ -3044,24 +3120,6 @@ func _handle_world_select_click(mouse_pos: Vector2) -> void:
 		return
 	if WORLD_SELECT_ARROW_RIGHT_RECT.has_point(mouse_pos):
 		_shift_world_select(1)
-		return
-	if Rect2(action_rects["almanac"]).has_point(mouse_pos):
-		_enter_almanac_mode("plants")
-		return
-	if Rect2(action_rects["endless"]).has_point(mouse_pos):
-		_enter_endless_mode()
-		return
-	if Rect2(action_rects["gacha"]).has_point(mouse_pos):
-		_enter_gacha_mode()
-		return
-	if Rect2(action_rects["enhance"]).has_point(mouse_pos):
-		_enter_enhance_mode()
-		return
-	if Rect2(action_rects["base"]).has_point(mouse_pos):
-		_enter_base_mode()
-		return
-	if Rect2(action_rects["daily"]).has_point(mouse_pos):
-		_enter_daily_challenge()
 		return
 	if Rect2(action_rects["update"]).has_point(mouse_pos) or Rect2(action_rects["update_info"]).has_point(mouse_pos):
 		match update_state:
@@ -3105,6 +3163,9 @@ func _handle_world_select_click(mouse_pos: Vector2) -> void:
 		else:
 			_show_toast("该世界尚未解锁")
 		return
+	if Rect2(action_rects["home"]).has_point(mouse_pos):
+		_enter_home_mode(false)
+		return
 
 
 func _handle_map_click(mouse_pos: Vector2) -> void:
@@ -3129,7 +3190,7 @@ func _handle_gacha_click(mouse_pos: Vector2) -> void:
 	# Back button
 	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
 	if back_rect.has_point(mouse_pos):
-		_enter_world_select_mode()
+		_enter_home_mode()
 		return
 	# Standard single draw
 	var single_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 360.0, 140.0, 220.0, 72.0)
@@ -3541,7 +3602,7 @@ func _selection_start_rect() -> Rect2:
 
 func _handle_enhance_click(mouse_pos: Vector2) -> void:
 	if _enhance_back_rect().has_point(mouse_pos):
-		_enter_world_select_mode()
+		_enter_home_mode()
 		return
 
 	if enhance_selected_plant != "":
@@ -4250,7 +4311,7 @@ func _update_base_fx(delta: float) -> void:
 func _handle_base_click(mouse_pos: Vector2) -> void:
 	_init_base_defaults()
 	if _base_back_rect().has_point(mouse_pos):
-		_enter_world_select_mode()
+		_enter_home_mode()
 		return
 	var room_hit := _base_room_at(mouse_pos)
 	if room_hit != "":
@@ -5375,7 +5436,7 @@ func _handle_selection_click(mouse_pos: Vector2) -> void:
 	var back_rect = _selection_back_rect()
 	if back_rect.has_point(mouse_pos):
 		if bool(current_level.get("custom_level", false)):
-			_enter_world_select_mode()
+			_enter_home_mode()
 		else:
 			_enter_map_mode()
 		return
@@ -5440,7 +5501,9 @@ func _handle_scroll_input(delta_y: float, mouse_pos: Vector2) -> bool:
 
 func _handle_almanac_click(mouse_pos: Vector2) -> void:
 	if ALMANAC_CLOSE_RECT.has_point(mouse_pos):
-		if almanac_return_mode == MODE_WORLD_SELECT:
+		if almanac_return_mode == MODE_HOME:
+			_enter_home_mode(false)
+		elif almanac_return_mode == MODE_WORLD_SELECT:
 			_enter_world_select_mode(false)
 		elif almanac_return_mode == MODE_BATTLE:
 			mode = MODE_BATTLE
@@ -10668,7 +10731,7 @@ func _win_level() -> void:
 		var reward_line = "今日奖励已领取，本次为练习通关" if not first_clear_today else "奖励金币 +%d" % reward
 		if not material_reward.is_empty():
 			reward_line += "\n强化材料 +%d %s" % [int(material_reward.get("amount", 0)), String(material_reward.get("name", "强化材料"))]
-		_show_message("每日挑战完成!\n修饰: %s\n已消灭 %d 只僵尸\n%s" % [mod_names, total_kills, reward_line], "world_select", "返回")
+		_show_message("每日挑战完成!\n修饰: %s\n已消灭 %d 只僵尸\n%s" % [mod_names, total_kills, reward_line], "home", "返回")
 		return
 
 	var unlocked_new = false
@@ -10685,7 +10748,7 @@ func _win_level() -> void:
 		var endless_reward_line = "奖励金币 +%d" % (50 + max(0, endless_wave * 10))
 		if not material_reward.is_empty():
 			endless_reward_line += "\n强化材料 +%d %s" % [int(material_reward.get("amount", 0)), String(material_reward.get("name", "强化材料"))]
-		_show_message("无尽模式结束\n坚持波数: %d\n%s" % [endless_wave, endless_reward_line], "world_select", "返回")
+		_show_message("无尽模式结束\n坚持波数: %d\n%s" % [endless_wave, endless_reward_line], "home", "返回")
 		return
 
 	var material_reward = _grant_enhance_material_reward(2 if custom_level else 3, current_world_key)
@@ -10733,6 +10796,8 @@ func _on_message_button_pressed() -> void:
 			_enter_endless_mode()
 		"retry_daily":
 			_enter_daily_challenge()
+		"home":
+			_enter_home_mode()
 		"world_select":
 			_enter_world_select_mode()
 		_:
@@ -16255,6 +16320,9 @@ func _draw_menu_backdrop_fill(draw_mode: String) -> void:
 	var night := draw_mode == MODE_WORLD_SELECT and roundi(world_select_scroll) >= 3
 	if draw_mode == MODE_MAP:
 		night = current_world_key == "night"
+	if draw_mode == MODE_HOME:
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.035, 0.05, 0.058), Color(0.012, 0.018, 0.022))
+		return
 	var top := Color(0.46, 0.74, 1.0) if not night else Color(0.05, 0.08, 0.18)
 	var bottom := Color(0.62, 0.8, 0.5) if not night else Color(0.1, 0.14, 0.22)
 	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), top, bottom)
@@ -16277,7 +16345,9 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 		draw_set_transform(battle_offset, 0.0, Vector2.ONE)
 		glow_draw_offset = battle_offset
 		glow_draw_scale = Vector2.ONE
-	if draw_mode == MODE_WORLD_SELECT:
+	if draw_mode == MODE_HOME:
+		_draw_home_scene()
+	elif draw_mode == MODE_WORLD_SELECT:
 		_draw_world_select_scene()
 	elif draw_mode == MODE_MAP:
 		_draw_map_scene()
@@ -16773,6 +16843,77 @@ func _world_card_rect(index: int) -> Rect2:
 	return Rect2(Vector2(center_x - card_size.x * 0.5, 150.0 + delta * 18.0), card_size)
 
 
+func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Color, fill: Color, glyph: String, large: bool = false, disabled: bool = false) -> void:
+	var pointer := _pointer_local_position()
+	var hovered := rect.has_point(pointer)
+	var pulse := 0.5 + 0.5 * sin(ui_time * 2.6 + rect.position.x * 0.01)
+	var actual_fill := fill.darkened(0.18) if disabled else fill
+	var actual_accent := accent.darkened(0.24) if disabled else accent
+	ThemeLib.draw_soft_shadow(self, rect, Color(0.0, 0.0, 0.0, 0.26), 4, 16.0, 10.0)
+	if hovered and not disabled:
+		draw_rect(rect.grow(6.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.08 + pulse * 0.08), true)
+		draw_rect(rect.grow(4.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.44), false, 2.0)
+	_draw_panel_shell(rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), 0.2, 0.12)
+	draw_rect(Rect2(rect.position, Vector2(7.0, rect.size.y)), actual_accent, true)
+	draw_rect(Rect2(rect.position + Vector2(7.0, 0.0), Vector2(rect.size.x - 7.0, 36.0)), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.12), true)
+	var glyph_center := rect.position + Vector2(rect.size.x - (76.0 if large else 58.0), 68.0 if large else rect.size.y * 0.5)
+	draw_circle(glyph_center, 36.0 if large else 28.0, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.14 + pulse * 0.06))
+	draw_circle(glyph_center, 22.0 if large else 17.0, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.24))
+	_draw_text(glyph, glyph_center + Vector2(-11.0 if large else -8.0, 9.0 if large else 7.0), 28 if large else 22, Color(0.94, 0.99, 1.0, 0.92))
+	var title_size := 34 if large else 24
+	var subtitle_size := 18 if large else 15
+	_draw_text(title, rect.position + Vector2(26.0, 50.0 if large else 40.0), title_size, Color(0.94, 0.99, 1.0) if not disabled else Color(0.62, 0.68, 0.7))
+	var subtitle_rect := Rect2(rect.position + Vector2(26.0, 76.0 if large else 62.0), Vector2(rect.size.x - (132.0 if large else 112.0), rect.size.y - (96.0 if large else 72.0)))
+	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.68, 0.8, 0.84) if not disabled else Color(0.48, 0.54, 0.56), 4.0, 3 if large else 2)
+
+
+func _draw_home_scene() -> void:
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.036, 0.052, 0.06), Color(0.012, 0.018, 0.022))
+	for line_index in range(9):
+		var y := 110.0 + float(line_index) * 86.0
+		draw_line(Vector2(0.0, y), Vector2(BASE_VIEWPORT_SIZE.x, y - 46.0), Color(0.72, 0.9, 1.0, 0.026), 2.0)
+	for node_index in range(12):
+		var x := 80.0 + float(node_index) * 132.0
+		var y := 112.0 + fmod(float(node_index * 47), 640.0)
+		var alpha := 0.08 + 0.05 * sin(ui_time * 1.8 + float(node_index))
+		draw_circle(Vector2(x, y), 3.0, Color(0.54, 0.9, 1.0, alpha))
+
+	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 112.0)), Color(0.068, 0.088, 0.1, 0.96), true)
+	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 112.0)), Color(0.78, 0.9, 0.96, 0.14), false, 2.0)
+	_draw_text("蜂蜜庭院终端", Vector2(80.0, 56.0), 34, Color(0.94, 0.99, 1.0))
+	_draw_text("主线关卡 / 每日关卡 / 娱乐关卡 / 活动关卡", Vector2(80.0, 88.0), 18, Color(0.62, 0.74, 0.78))
+	var resource_rect := Rect2(1046.0, 30.0, 474.0, 50.0)
+	_draw_panel_shell(resource_rect, Color(0.096, 0.13, 0.142, 0.94), Color(0.28, 0.44, 0.5), 0.12, 0.08)
+	_draw_coin_icon(resource_rect.position + Vector2(28.0, 26.0), 0.8)
+	_draw_text("金币 %d" % coins_total, resource_rect.position + Vector2(52.0, 32.0), 18, Color(0.98, 0.84, 0.38))
+	_draw_text("基建无人机 %.0f" % base_drones, resource_rect.position + Vector2(190.0, 32.0), 18, Color(0.58, 0.9, 1.0))
+	_draw_text(_update_status_line(), resource_rect.position + Vector2(338.0, 31.0), 13, Color(0.72, 0.84, 0.9))
+
+	var action_rects := _home_action_rects()
+	var mainline_rect := Rect2(action_rects["mainline"])
+	_draw_home_entry(mainline_rect, "主线关卡", "进入世界选择，推进各世界地图与 Boss 关卡。当前世界：%s" % _map_mode_title_for_world(current_world_key), Color(0.94, 0.68, 0.24), Color(0.092, 0.118, 0.128, 0.96), ">", true)
+	var worlds := WorldDataLib.all()
+	var preview_count = mini(5, worlds.size())
+	for i in range(preview_count):
+		var world := Dictionary(worlds[i])
+		var unlocked := _is_world_unlocked(String(world.get("key", "day")))
+		var chip_rect := Rect2(mainline_rect.position + Vector2(28.0 + float(i) * 78.0, 196.0), Vector2(58.0, 58.0))
+		var accent := Color(world.get("accent", Color(0.62, 0.78, 0.42)))
+		draw_rect(chip_rect, Color(accent.r, accent.g, accent.b, 0.18 if unlocked else 0.05), true)
+		draw_rect(chip_rect, Color(accent.r, accent.g, accent.b, 0.72 if unlocked else 0.22), false, 1.5)
+		_draw_text(str(i + 1), chip_rect.position + Vector2(20.0, 36.0), 21, Color(0.92, 0.98, 1.0) if unlocked else Color(0.46, 0.52, 0.54))
+	_draw_text("进度 %d/%d 关" % [_completed_level_count(), Defs.LEVELS.size()], mainline_rect.position + Vector2(28.0, 274.0), 17, Color(0.82, 0.9, 0.78))
+
+	var daily_done := daily_challenge_date == _today_string()
+	_draw_home_entry(Rect2(action_rects["daily"]), "每日关卡" if not daily_done else "每日已领", "今日修饰挑战，奖励金币和强化材料。", Color(0.38, 0.78, 1.0), Color(0.07, 0.105, 0.128, 0.96), "D")
+	_draw_home_entry(Rect2(action_rects["entertainment"]), "娱乐关卡", "无尽模式入口，尸潮会持续变强。", Color(0.98, 0.42, 0.32), Color(0.12, 0.078, 0.076, 0.96), "E")
+	_draw_home_entry(Rect2(action_rects["events"]), "活动关卡", "限时活动入口已预留，后续版本开放。", Color(0.48, 0.86, 0.56), Color(0.07, 0.108, 0.09, 0.96), "A", false, true)
+	_draw_home_entry(Rect2(action_rects["base"]), "基建", "生产金币、材料、碎片，并管理植物心情。", Color(0.32, 0.86, 0.95), Color(0.058, 0.084, 0.096, 0.96), "B")
+	_draw_home_entry(Rect2(action_rects["enhance"]), "植物强化", "按植物类型提升属性，消耗材料与金币。", Color(0.86, 0.66, 0.28), Color(0.094, 0.086, 0.064, 0.96), "+")
+	_draw_home_entry(Rect2(action_rects["gacha"]), "抽卡", "获取稀有植物、碎片和强化材料。", Color(0.82, 0.48, 0.92), Color(0.086, 0.066, 0.104, 0.96), "*")
+	_draw_home_entry(Rect2(action_rects["almanac"]), "图鉴", "查看植物、僵尸和 Boss 资料。", Color(0.66, 0.86, 0.52), Color(0.07, 0.095, 0.078, 0.96), "?")
+
+
 func _draw_world_select_scene() -> void:
 	var blend = clampf(world_select_scroll / float(max(WorldDataLib.all().size() - 1, 1)), 0.0, 1.0)
 	var sky_night = blend >= 0.5
@@ -16859,16 +17000,9 @@ func _draw_world_select_scene() -> void:
 		var enter_pulse = 0.4 + 0.25 * sin(ui_time * 2.4)
 		draw_rect(enter_rect.grow(6.0), Color(enter_fill.r, enter_fill.g, enter_fill.b, enter_pulse * 0.3), false, 4.0)
 	_draw_panel_shell(enter_rect, enter_fill, Color(0.18, 0.22, 0.16), 0.22, 0.12)
-	_draw_world_command_button(Rect2(action_rects["almanac"]), "图鉴", Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 22)
+	_draw_world_command_button(Rect2(action_rects["home"]), "主页", Color(0.28, 0.38, 0.44), Color(0.54, 0.7, 0.78), 18)
 	_draw_text("进入", enter_rect.position + Vector2(44.0, 38.0), 25, Color(0.1, 0.14, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96))
 
-	_draw_world_command_button(Rect2(action_rects["endless"]), "无尽", Color(0.86, 0.28, 0.22), Color(0.52, 0.12, 0.1), 18)
-	_draw_world_command_button(Rect2(action_rects["gacha"]), "抽卡", Color(0.82, 0.62, 0.18), Color(0.48, 0.34, 0.08), 18)
-	_draw_world_command_button(Rect2(action_rects["enhance"]), "强化", Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 18)
-	_draw_world_command_button(Rect2(action_rects["base"]), "基建", Color(0.28, 0.62, 0.72), Color(0.12, 0.34, 0.42), 18)
-	var daily_done = daily_challenge_date == _today_string()
-	var daily_fill = Color(0.36, 0.64, 0.86) if not daily_done else Color(0.52, 0.56, 0.6)
-	_draw_world_command_button(Rect2(action_rects["daily"]), "每日" if not daily_done else "已完成", daily_fill, Color(0.16, 0.32, 0.48), 17)
 	_draw_world_command_button(Rect2(action_rects["update"]), _update_action_text(), _update_badge_fill(), Color(0.18, 0.22, 0.28), 16)
 	var update_info_rect = Rect2(action_rects["update_info"])
 	_draw_panel_shell(update_info_rect, Color(0.14, 0.16, 0.2, 0.9), Color(0.34, 0.4, 0.48), 0.12, 0.08)

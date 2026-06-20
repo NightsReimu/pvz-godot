@@ -8,6 +8,7 @@ func _run() -> void:
 	var failed := false
 	failed = not _test_progress_fill_rect_clamps_ratio() or failed
 	failed = not _test_scroll_knob_rect_tracks_viewport() or failed
+	failed = not _test_scroll_mask_does_not_fill_over_visible_content() or failed
 	quit(1 if failed else 0)
 
 
@@ -49,3 +50,11 @@ func _test_scroll_knob_rect_tracks_viewport() -> bool:
 	var knob_rect: Rect2 = theme_script.call("scroll_knob_rect", Rect2(6.0, 12.0, 12.0, 300.0), 120.0, 360.0, 120.0)
 	return _assert_float_eq(knob_rect.position.y, 112.0, "scroll knob should move proportionally through the track") \
 		and _assert_float_eq(knob_rect.size.y, 100.0, "scroll knob height should reflect visible fraction")
+
+
+func _test_scroll_mask_does_not_fill_over_visible_content() -> bool:
+	if not _assert_true(_script_has_method("scroll_mask_fill_rects"), "expected scroll_mask_fill_rects helper to expose visible fill regions"):
+		return false
+	var theme_script = load("res://scripts/ui/game_theme.gd")
+	var fill_rects: Array = theme_script.call("scroll_mask_fill_rects", Rect2(10.0, 20.0, 520.0, 260.0), Rect2(28.0, 68.0, 460.0, 180.0))
+	return _assert_true(fill_rects.is_empty(), "scroll masks should not draw solid fill over visible scrolled cards; only fades and border are allowed")

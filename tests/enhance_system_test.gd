@@ -12,6 +12,7 @@ func _run() -> void:
 	failed = not _test_enhance_roster_includes_every_plant() or failed
 	failed = not _test_every_plant_has_an_enhance_profile_and_material() or failed
 	failed = not _test_enhance_bonuses_are_distinct_by_plant_role() or failed
+	failed = not _test_mid_level_enhance_bonuses_feel_impactful() or failed
 	failed = not _test_enhancement_consumes_matching_material() or failed
 	failed = not _test_enhance_terminal_layout_uses_distinct_operator_panels() or failed
 	failed = not _test_enhance_terminal_actions_do_not_overlap() or failed
@@ -102,6 +103,23 @@ func _test_enhance_bonuses_are_distinct_by_plant_role() -> bool:
 	var passed := _assert_true(float(pea_bonus.get("damage_mult", 1.0)) > float(sun_bonus.get("damage_mult", 1.0)), "attacker enhancement should emphasize damage more than economy plants") \
 		and _assert_true(float(sun_bonus.get("interval_mult", 1.0)) < float(pea_bonus.get("interval_mult", 1.0)), "producer enhancement should speed up sun production more than attacker cadence") \
 		and _assert_true(float(nut_bonus.get("health_mult", 1.0)) > float(pea_bonus.get("health_mult", 1.0)), "defender enhancement should emphasize durability")
+	_free_game(game)
+	return passed
+
+
+func _test_mid_level_enhance_bonuses_feel_impactful() -> bool:
+	var game := _make_game()
+	game.plant_enhance_levels = {
+		"peashooter": 6,
+		"wallnut": 6,
+		"sunflower": 6,
+	}
+	var pea_bonus: Dictionary = game.call("_plant_enhance_bonus", "peashooter")
+	var nut_bonus: Dictionary = game.call("_plant_enhance_bonus", "wallnut")
+	var sun_bonus: Dictionary = game.call("_plant_enhance_bonus", "sunflower")
+	var passed := _assert_true(float(pea_bonus.get("damage_mult", 1.0)) >= 1.44, "level 6 assault plants should gain a more noticeable damage boost") \
+		and _assert_true(float(nut_bonus.get("health_mult", 1.0)) >= 1.62, "level 6 defender plants should gain a more noticeable durability boost") \
+		and _assert_true(float(sun_bonus.get("interval_mult", 1.0)) <= 0.72, "level 6 producer plants should produce meaningfully faster")
 	_free_game(game)
 	return passed
 

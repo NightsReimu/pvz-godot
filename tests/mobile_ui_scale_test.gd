@@ -33,7 +33,7 @@ func _test_landscape_menus_scale_uniformly() -> bool:
 	var passed := true
 	# Common Android landscape aspect ratios that previously distorted under FILL.
 	var resolutions = [Vector2(2400, 1080), Vector2(2340, 1080), Vector2(2160, 1080), Vector2(1920, 1080), Vector2(2560, 1080)]
-	var menu_modes = ["world_select", "map", "almanac", "gacha", "enhance", "base"]
+	var menu_modes = ["home", "world_select", "map", "almanac", "gacha", "enhance", "base"]
 	for res in resolutions:
 		var game = _make_mobile_game(res)
 		for m in menu_modes:
@@ -46,8 +46,8 @@ func _test_landscape_menus_scale_uniformly() -> bool:
 func _test_menus_are_centered_on_widescreen() -> bool:
 	var passed := true
 	var game = _make_mobile_game(Vector2(2400, 1080))  # 20:9
-	game.mode = "world_select"
-	var off = game._ui_offset("world_select")
+	game.mode = "home"
+	var off = game._ui_offset("home")
 	# uniform scale = min(2400/1600, 1080/900) = min(1.5, 1.2) = 1.2
 	# content width = 1600*1.2 = 1920; margin = (2400-1920)/2 = 240
 	passed = _assert_true(off.x > 100.0, "widescreen menu should be horizontally centered with a left margin, got x=%.1f" % off.x) and passed
@@ -58,6 +58,8 @@ func _test_menus_are_centered_on_widescreen() -> bool:
 func _test_fill_scaling_is_disabled() -> bool:
 	var passed := true
 	var game = _make_mobile_game(Vector2(2400, 1080))
+	game.mode = "home"
+	passed = _assert_true(not game._uses_mobile_fill_ui_scaling("home"), "home menu must keep the uniform menu scaler") and passed
 	game.mode = "world_select"
 	passed = _assert_true(not game._uses_mobile_fill_ui_scaling("world_select"), "FILL scaling must stay disabled (it distorted non-16:9 menus)") and passed
 	game.free()

@@ -9,7 +9,12 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed := false
+	failed = not _test_home_terminal_routes_mainline_to_world_select() or failed
+	failed = not _test_home_terminal_mode_entries_are_inside_viewport() or failed
+	failed = not _test_home_terminal_touch_targets_match_action_rects() or failed
 	failed = not _test_world_select_supports_screen_drag_and_snap() or failed
+	failed = not _test_world_select_home_button_returns_to_terminal() or failed
+	failed = not _test_world_select_excludes_home_duplicate_mode_buttons() or failed
 	failed = not _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() or failed
 	failed = not _test_world_select_command_dock_targets_are_unified() or failed
 	failed = not _test_map_supports_screen_drag_scroll() or failed
@@ -123,6 +128,58 @@ func _mouse_button(position: Vector2, pressed: bool, button_index: MouseButton =
 	return event
 
 
+func _test_home_terminal_routes_mainline_to_world_select() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_home_action_rects"), "home terminal should expose one shared action layout helper") \
+		and _assert_true(game.has_method("_handle_home_click"), "home terminal should handle its own mode clicks")
+	if passed:
+		game.mode = game.MODE_HOME
+		var action_rects: Dictionary = game.call("_home_action_rects")
+		passed = _assert_true(action_rects.has("mainline"), "home terminal should include a mainline campaign entry") and passed
+		if action_rects.has("mainline"):
+			game.call("_handle_home_click", Rect2(action_rects["mainline"]).get_center())
+			passed = _assert_true(game.mode == game.MODE_WORLD_SELECT, "clicking 主线关卡 should open the old world selection screen") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_terminal_mode_entries_are_inside_viewport() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_home_action_rects"), "home terminal should expose action rects for layout tests")
+	if passed:
+		var viewport_rect := Rect2(Vector2.ZERO, GameScript.BASE_VIEWPORT_SIZE)
+		var action_rects: Dictionary = game.call("_home_action_rects")
+		for action_variant in ["mainline", "daily", "entertainment", "events", "base", "enhance", "gacha", "almanac"]:
+			var action := String(action_variant)
+			passed = _assert_true(action_rects.has(action), "home terminal should include %s entry" % action) and passed
+			if action_rects.has(action):
+				var rect := Rect2(action_rects[action])
+				passed = _assert_true(viewport_rect.encloses(rect), "%s entry should stay inside the home viewport" % action) and passed
+				passed = _assert_true(rect.size.x >= 150.0 and rect.size.y >= 58.0, "%s entry should keep a comfortable tap target" % action) and passed
+		var keys := action_rects.keys()
+		for i in range(keys.size()):
+			var first_rect := Rect2(action_rects[keys[i]])
+			for j in range(i + 1, keys.size()):
+				var second_rect := Rect2(action_rects[keys[j]])
+				passed = _assert_true(not first_rect.intersects(second_rect), "home terminal entries should not overlap: %s and %s" % [String(keys[i]), String(keys[j])]) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_terminal_touch_targets_match_action_rects() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_home_touch_target"), "home terminal should expose touch targets from its shared action rects")
+	if passed:
+		var action_rects: Dictionary = game.call("_home_action_rects")
+		for action_variant in ["mainline", "daily", "entertainment", "events", "base", "enhance", "gacha", "almanac"]:
+			var action := String(action_variant)
+			var rect := Rect2(action_rects[action])
+			var target: Dictionary = game.call("_home_touch_target", rect.get_center())
+			passed = _assert_true(String(target.get("id", "")) == "home_%s" % action, "%s center should resolve to its home touch target" % action) and passed
+	_free_game(game)
+	return passed
+
+
 func _test_world_select_supports_screen_drag_and_snap() -> bool:
 	var game := _make_game()
 	game.mode = game.MODE_WORLD_SELECT
@@ -140,15 +197,38 @@ func _test_world_select_supports_screen_drag_and_snap() -> bool:
 	return passed
 
 
+func _test_world_select_home_button_returns_to_terminal() -> bool:
+	var game := _make_game()
+	game.mode = game.MODE_WORLD_SELECT
+	var action_rects: Dictionary = game.call("_world_select_action_rects")
+	var passed = _assert_true(action_rects.has("home"), "world select should expose a home return button in the command dock")
+	if passed:
+		game.call("_handle_world_select_click", Rect2(action_rects["home"]).get_center())
+		passed = _assert_true(game.mode == game.MODE_HOME, "world select home button should return to the top-level terminal") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_world_select_excludes_home_duplicate_mode_buttons() -> bool:
+	var game := _make_game()
+	var action_rects: Dictionary = game.call("_world_select_action_rects")
+	var passed := true
+	for duplicate_variant in ["almanac", "gacha", "enhance", "base", "daily", "endless"]:
+		var duplicate := String(duplicate_variant)
+		passed = _assert_true(not action_rects.has(duplicate), "mainline world select should not duplicate the %s home entry" % duplicate) and passed
+	_free_game(game)
+	return passed
+
+
 func _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() -> bool:
 	var game := _make_game()
 	game.mode = game.MODE_WORLD_SELECT
 	var action_rects: Dictionary = game.call("_world_select_action_rects")
-	var tap_pos = Rect2(action_rects["almanac"]).get_center()
+	var tap_pos = Rect2(action_rects["home"]).get_center()
 	game._unhandled_input(_screen_touch(tap_pos, true))
 	game._unhandled_input(_screen_drag(tap_pos + Vector2(26.0, 4.0), Vector2(26.0, 4.0)))
 	game._unhandled_input(_screen_touch(tap_pos + Vector2(26.0, 4.0), false))
-	var passed = _assert_true(game.mode == game.MODE_ALMANAC, "small touch motion on a world-select button should still trigger the button instead of starting carousel drag")
+	var passed = _assert_true(game.mode == game.MODE_HOME, "small touch motion on the world-select home button should still trigger the button instead of starting carousel drag")
 	_free_game(game)
 	return passed
 
@@ -161,7 +241,7 @@ func _test_world_select_command_dock_targets_are_unified() -> bool:
 	var passed := _assert_true(game.has_method("_world_select_action_rects"), "world select should expose one shared command-dock layout helper")
 	if passed:
 		var action_rects: Dictionary = game.call("_world_select_action_rects")
-		for action_variant in ["almanac", "gacha", "enhance", "base", "daily", "endless", "update", "update_info", "enter"]:
+		for action_variant in ["home", "update", "update_info", "enter"]:
 			var action := String(action_variant)
 			passed = _assert_true(action_rects.has(action), "world select command dock should include %s" % action) and passed
 			if not action_rects.has(action):

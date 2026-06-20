@@ -377,19 +377,13 @@ static func draw_world_sky(canvas: CanvasItem, viewport_size: Vector2, ui_time: 
 
 # --- Scroll Mask ---
 
+static func scroll_mask_fill_rects(_content_rect: Rect2, _view_rect: Rect2) -> Array:
+	return []
+
+
 static func draw_scroll_mask(canvas: CanvasItem, content_rect: Rect2, view_rect: Rect2, fill_color: Color, border_color: Color) -> void:
-	if view_rect.position.y > content_rect.position.y:
-		canvas.draw_rect(Rect2(content_rect.position, Vector2(content_rect.size.x, view_rect.position.y - content_rect.position.y)), fill_color, true)
-	if view_rect.position.x > content_rect.position.x:
-		canvas.draw_rect(Rect2(Vector2(content_rect.position.x, view_rect.position.y), Vector2(view_rect.position.x - content_rect.position.x, view_rect.size.y)), fill_color, true)
-	var right_x = view_rect.position.x + view_rect.size.x
-	var content_end_x = content_rect.position.x + content_rect.size.x
-	if content_end_x > right_x:
-		canvas.draw_rect(Rect2(Vector2(right_x, view_rect.position.y), Vector2(content_end_x - right_x, view_rect.size.y)), fill_color, true)
-	var bottom_y = view_rect.position.y + view_rect.size.y
-	var content_end_y = content_rect.position.y + content_rect.size.y
-	if content_end_y > bottom_y:
-		canvas.draw_rect(Rect2(Vector2(content_rect.position.x, bottom_y), Vector2(content_rect.size.x, content_end_y - bottom_y)), fill_color, true)
+	for fill_rect_variant in scroll_mask_fill_rects(content_rect, view_rect):
+		canvas.draw_rect(Rect2(fill_rect_variant), fill_color, true)
 	# Top fade
 	draw_gradient_rect_v(canvas, Rect2(view_rect.position, Vector2(view_rect.size.x, 16.0)), Color(1.0, 1.0, 1.0, 0.06), Color(1.0, 1.0, 1.0, 0.0))
 	# Bottom fade
