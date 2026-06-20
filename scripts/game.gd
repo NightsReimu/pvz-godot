@@ -136,6 +136,11 @@ const WORLD_SELECT_ENHANCE_RECT := Rect2(426.0, 732.0, 162.0, 62.0)
 const WORLD_SELECT_DAILY_RECT := Rect2(602.0, 732.0, 162.0, 62.0)
 const WORLD_SELECT_UPDATE_RECT := Rect2(778.0, 732.0, 154.0, 62.0)
 const WORLD_SELECT_UPDATE_INFO_RECT := Rect2(778.0, 802.0, 344.0, 46.0)
+const DAILY_BACK_RECT := Rect2(40.0, 40.0, 120.0, 52.0)
+const DAILY_SERIES_PANEL_RECT := Rect2(54.0, 128.0, 390.0, 704.0)
+const DAILY_STAGE_PANEL_RECT := Rect2(472.0, 128.0, 1074.0, 704.0)
+const DAILY_SERIES_CARD_STEP := 126.0
+const DAILY_STAGE_CARD_STEP := 116.0
 const MAP_VIEW_RECT := Rect2(120.0, 138.0, 716.0, 548.0)
 const MAP_SCROLL_LEFT_RECT := Rect2(1080.0, 32.0, 44.0, 44.0)
 const MAP_SCROLL_RIGHT_RECT := Rect2(1132.0, 32.0, 44.0, 44.0)
@@ -150,6 +155,74 @@ const TOUCH_MOUSE_SUPPRESS_MS := 240
 const TOUCH_MOUSE_PENDING_CLICK_MS := 1200
 const WORLD_DRAG_RELEASE_BIAS := 0.32
 const MAP_DRAG_RELEASE_MULTIPLIER := 3.4
+
+const DAILY_SERIES_DEFS := [
+	{
+		"id": "cargo",
+		"code": "CE",
+		"name": "货运护送",
+		"subtitle": "守住运输线，获取大量金币。",
+		"reward": "金币",
+		"reward_kind": "coins",
+		"world": "day",
+		"color": Color(0.96, 0.68, 0.24),
+		"open_days": [1, 3, 5, 6],
+		"mods": ["rich_start"],
+		"zombies": ["normal", "conehead", "buckethead", "newspaper", "pole_vault"],
+	},
+	{
+		"id": "tactics",
+		"code": "LS",
+		"name": "战术演习",
+		"subtitle": "高压尸潮训练，获取强化材料。",
+		"reward": "强化材料",
+		"reward_kind": "materials",
+		"world": "night",
+		"color": Color(0.36, 0.78, 1.0),
+		"open_days": [0, 2, 4, 6],
+		"mods": ["fast_zombie"],
+		"zombies": ["normal", "conehead", "screen_door", "football", "newspaper"],
+	},
+	{
+		"id": "resource",
+		"code": "SK",
+		"name": "资源保障",
+		"subtitle": "清理施工区域，获取基建库存。",
+		"reward": "基建物资",
+		"reward_kind": "base_parts",
+		"world": "pool",
+		"color": Color(0.38, 0.86, 0.58),
+		"open_days": [1, 2, 5, 0],
+		"mods": ["costly"],
+		"zombies": ["normal", "lifebuoy_normal", "lifebuoy_cone", "lifebuoy_bucket", "football"],
+	},
+	{
+		"id": "chip",
+		"code": "AP",
+		"name": "芯片搜索",
+		"subtitle": "探索雾区节点，获取植物碎片。",
+		"reward": "植物碎片",
+		"reward_kind": "fragments",
+		"world": "fog",
+		"color": Color(0.72, 0.58, 1.0),
+		"open_days": [2, 3, 6, 0],
+		"mods": ["sun_drought"],
+		"zombies": ["normal", "conehead", "buckethead", "balloon_zombie", "digger_zombie"],
+	},
+	{
+		"id": "fortress",
+		"code": "CA",
+		"name": "防线突破",
+		"subtitle": "屋顶压力测试，获取强化石与金币。",
+		"reward": "强化石",
+		"reward_kind": "stones",
+		"world": "roof",
+		"color": Color(0.98, 0.48, 0.34),
+		"open_days": [1, 4, 5, 0],
+		"mods": ["tough_zombie"],
+		"zombies": ["normal", "conehead", "buckethead", "gargantuar", "imp"],
+	},
+]
 
 const RUMIA_FRAME_COUNT := 8
 const CIRNO_FRAME_COUNT := 8
@@ -314,6 +387,8 @@ var gacha_mode_scroll := 0.0
 # Daily challenge state
 var daily_modifiers: Array = []
 var daily_completed_today := false
+var daily_selected_series_id := "cargo"
+var daily_hover_stage_index := -1
 
 # Enhancement system
 var plant_enhance_levels: Dictionary = {}
@@ -763,11 +838,11 @@ func _spring_ui_value(current: float, target: float, velocity: float, delta: flo
 
 
 func _is_ui_scaled_mode(m: String) -> bool:
-	return m != MODE_BATTLE and m != MODE_ENDLESS and m != MODE_DAILY and m != MODE_SELECTION
+	return m != MODE_BATTLE and m != MODE_ENDLESS and m != MODE_SELECTION
 
 
 func _uses_legacy_landscape_ui_mode(m: String) -> bool:
-	return m == MODE_HOME or m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_ENHANCE or m == MODE_BASE
+	return m == MODE_HOME or m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_DAILY or m == MODE_ENHANCE or m == MODE_BASE
 
 
 func _uses_mobile_fill_ui_scaling(_target_mode: String = mode) -> bool:
@@ -800,6 +875,8 @@ func _mode_mobile_prompt_title(target_mode: String) -> String:
 			return "图鉴"
 		MODE_GACHA:
 			return "抽卡"
+		MODE_DAILY:
+			return "每日关卡"
 		MODE_ENHANCE:
 			return "强化"
 		MODE_BASE:
@@ -1246,8 +1323,8 @@ func _restart_current_battle() -> void:
 	if _is_endless_level():
 		_enter_endless_mode()
 		return
-	if String(current_level.get("id", "")) == "每日":
-		_enter_daily_challenge()
+	if _is_daily_level():
+		_enter_daily_challenge(String(current_level.get("daily_series_id", daily_selected_series_id)), int(current_level.get("daily_stage_index", 0)))
 		return
 	if selected_level_index >= 0:
 		_start_level(selected_level_index)
@@ -1363,6 +1440,11 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		return
 
+	if mode == MODE_DAILY:
+		daily_hover_stage_index = _daily_stage_index_at(_pointer_local_position())
+		queue_redraw()
+		return
+
 	if mode == MODE_BASE:
 		_update_base_fx(delta)
 		queue_redraw()
@@ -1461,6 +1543,10 @@ func _handle_primary_click(mouse_pos: Vector2) -> void:
 
 	if mode == MODE_GACHA:
 		_handle_gacha_click(mouse_pos)
+		return
+
+	if mode == MODE_DAILY:
+		_handle_daily_click(mouse_pos)
 		return
 
 	if mode == MODE_ENHANCE:
@@ -3013,7 +3099,7 @@ func _handle_home_click(mouse_pos: Vector2) -> void:
 		_enter_world_select_mode(false)
 		return
 	if Rect2(action_rects["daily"]).has_point(mouse_pos):
-		_enter_daily_challenge()
+		_enter_daily_mode(false)
 		return
 	if Rect2(action_rects["entertainment"]).has_point(mouse_pos):
 		_enter_endless_mode()
@@ -3032,6 +3118,43 @@ func _handle_home_click(mouse_pos: Vector2) -> void:
 		return
 	if Rect2(action_rects["almanac"]).has_point(mouse_pos):
 		_enter_almanac_mode("plants")
+		return
+
+
+func _enter_daily_mode(animated: bool = true) -> void:
+	almanac_selected_kind = ""
+	selected_tool = ""
+	battle_paused = false
+	message_panel.visible = false
+	_stop_bgm()
+	if not _daily_series_by_id(daily_selected_series_id).is_empty():
+		pass
+	else:
+		var series_defs := _daily_series_defs()
+		if not series_defs.is_empty():
+			daily_selected_series_id = String(Dictionary(series_defs[0]).get("id", "cargo"))
+	if animated and mode != MODE_DAILY:
+		_begin_page_transition(MODE_DAILY, "", -1)
+		return
+	page_transition_active = false
+	mode = MODE_DAILY
+	queue_redraw()
+
+
+func _handle_daily_click(mouse_pos: Vector2) -> void:
+	if DAILY_BACK_RECT.has_point(mouse_pos):
+		_enter_home_mode()
+		return
+	for i in range(_daily_series_defs().size()):
+		var rect := _daily_series_card_rect(i)
+		if rect.has_point(mouse_pos):
+			var series := Dictionary(_daily_series_defs()[i])
+			daily_selected_series_id = String(series.get("id", daily_selected_series_id))
+			queue_redraw()
+			return
+	var stage_index := _daily_stage_index_at(mouse_pos)
+	if stage_index != -1:
+		_try_enter_daily_challenge(daily_selected_series_id, stage_index)
 		return
 
 
@@ -4379,6 +4502,10 @@ func _is_endless_level() -> bool:
 	return String(current_level.get("id", "")) == "无尽"
 
 
+func _is_daily_level() -> bool:
+	return bool(current_level.get("daily_level", false)) or String(current_level.get("id", "")) == "每日"
+
+
 func _enter_endless_mode() -> void:
 	endless_wave = 0
 	endless_difficulty_mult = 1.0
@@ -4627,20 +4754,20 @@ func _do_gacha_draw(count: int) -> void:
 	queue_redraw()
 
 
-func _enter_daily_challenge() -> void:
-	var today = _today_string()
-	var reward_claimed_today = daily_challenge_date == today
-	if reward_claimed_today:
-		_show_toast("今日奖励已领取，可继续重玩练习")
-	# Generate daily challenge from date seed
-	var rng = RandomNumberGenerator.new()
-	rng.seed = hash(today)
-	var worlds = ["day", "night", "pool", "fog", "roof"]
-	var world_key = worlds[rng.randi_range(0, worlds.size() - 1)]
-	current_world_key = world_key
-	# Pick modifiers
-	daily_modifiers = []
-	var all_mods = [
+func _daily_series_defs() -> Array:
+	return DAILY_SERIES_DEFS.duplicate(true)
+
+
+func _daily_series_by_id(series_id: String) -> Dictionary:
+	for series_variant in DAILY_SERIES_DEFS:
+		var series := Dictionary(series_variant)
+		if String(series.get("id", "")) == series_id:
+			return series.duplicate(true)
+	return {}
+
+
+func _daily_modifier_defs() -> Array:
+	return [
 		{"id": "costly", "name": "高消费", "desc": "植物费用+50%"},
 		{"id": "fast_zombie", "name": "急速尸潮", "desc": "僵尸速度x1.5"},
 		{"id": "rich_start", "name": "富裕开局", "desc": "初始500阳光"},
@@ -4648,42 +4775,192 @@ func _enter_daily_challenge() -> void:
 		{"id": "sun_drought", "name": "阳光干旱", "desc": "天降阳光减半"},
 		{"id": "speed_plant", "name": "快速装填", "desc": "冷却时间减半"},
 	]
-	var mod_count = rng.randi_range(1, 2)
-	for i in range(mod_count):
-		var mod_index = rng.randi_range(0, all_mods.size() - 1)
-		daily_modifiers.append(all_mods[mod_index])
-		all_mods.remove_at(mod_index)
-		if all_mods.is_empty():
-			break
-	# Build a daily level
-	var rows = [0, 1, 2, 3, 4]
-	var zombie_count = rng.randi_range(20, 35)
+
+
+func _daily_modifier_by_id(mod_id: String) -> Dictionary:
+	for mod_variant in _daily_modifier_defs():
+		var mod := Dictionary(mod_variant)
+		if String(mod.get("id", "")) == mod_id:
+			return mod.duplicate(true)
+	return {}
+
+
+func _current_weekday() -> int:
+	var dt = Time.get_date_dict_from_system()
+	return clampi(int(dt.get("weekday", 0)), 0, 6)
+
+
+func _daily_weekday_label(weekday: int) -> String:
+	var names := ["日", "一", "二", "三", "四", "五", "六"]
+	return "周%s" % String(names[clampi(weekday, 0, names.size() - 1)])
+
+
+func _daily_open_days_label(series: Dictionary) -> String:
+	var parts: Array = []
+	for day_variant in Array(series.get("open_days", [])):
+		parts.append(_daily_weekday_label(int(day_variant)))
+	return " / ".join(parts)
+
+
+func _daily_series_open_on_weekday(series: Dictionary, weekday: int) -> bool:
+	return Array(series.get("open_days", [])).has(clampi(weekday, 0, 6))
+
+
+func _daily_stage_defs_for_series(series: Dictionary) -> Array:
+	var stages: Array = []
+	var code := String(series.get("code", "DC"))
+	var reward := String(series.get("reward", "奖励"))
+	for i in range(5):
+		stages.append({
+			"id": "%s-%d" % [code, i + 1],
+			"name": "%s-%d" % [code, i + 1],
+			"title": "%s %d" % [String(series.get("name", "每日关卡")), i + 1],
+			"subtitle": "推荐阶段 %d，奖励：%s" % [i + 1, reward],
+			"difficulty": i + 1,
+			"zombie_count": 18 + i * 8,
+			"time_step": maxf(1.6, 3.3 - float(i) * 0.32),
+			"start_sun": 175 + i * 25,
+			"reward_amount": [160, 220, 310, 430, 600][i],
+			"material_amount": [2, 3, 4, 5, 7][i],
+			"fragment_amount": [3, 4, 6, 8, 10][i],
+		})
+	return stages
+
+
+func _daily_stage_rect(index: int) -> Rect2:
+	var panel := DAILY_STAGE_PANEL_RECT
+	var cols := 2
+	var gap := 18.0
+	var card_w := (panel.size.x - 52.0 - gap) / 2.0
+	var card_h := 102.0
+	var start := panel.position + Vector2(26.0, 112.0)
+	var col := index % cols
+	var row := int(floor(float(index) / float(cols)))
+	return Rect2(start + Vector2(float(col) * (card_w + gap), float(row) * DAILY_STAGE_CARD_STEP), Vector2(card_w, card_h))
+
+
+func _daily_series_card_rect(index: int) -> Rect2:
+	return Rect2(DAILY_SERIES_PANEL_RECT.position + Vector2(20.0, 86.0 + float(index) * DAILY_SERIES_CARD_STEP), Vector2(DAILY_SERIES_PANEL_RECT.size.x - 40.0, 108.0))
+
+
+func _daily_stage_index_at(mouse_pos: Vector2) -> int:
+	var series := _daily_series_by_id(daily_selected_series_id)
+	if series.is_empty():
+		return -1
+	var stages := _daily_stage_defs_for_series(series)
+	for i in range(stages.size()):
+		if _daily_stage_rect(i).has_point(mouse_pos):
+			return i
+	return -1
+
+
+func _daily_stage_seed(series: Dictionary, stage_index: int) -> int:
+	return hash("%s:%s:%d" % [_today_string(), String(series.get("id", "")), stage_index])
+
+
+func _build_daily_stage_events(series: Dictionary, stage: Dictionary, seed_value: int) -> Array:
+	var local_rng := RandomNumberGenerator.new()
+	local_rng.seed = seed_value
+	var rows: Array = [0, 1, 2, 3, 4]
 	var events: Array = []
-	var available_kinds = ["normal", "conehead", "buckethead", "pole_vault", "newspaper"]
-	if world_key == "night":
-		available_kinds.append("screen_door")
-	if world_key == "pool" or world_key == "fog":
-		available_kinds.append("football")
+	var available_kinds := Array(series.get("zombies", ["normal", "conehead", "buckethead"]))
+	var zombie_count := int(stage.get("zombie_count", 22))
+	var time_step := float(stage.get("time_step", 2.8))
 	for i in range(zombie_count):
-		var kind = available_kinds[rng.randi_range(0, available_kinds.size() - 1)]
-		var row = rng.randi_range(0, rows.size() - 1)
-		events.append({"type": "zombie", "kind": kind, "row": rows[row], "time": 8.0 + float(i) * 3.2 + rng.randf_range(0.0, 2.0)})
+		var kind := String(available_kinds[local_rng.randi_range(0, available_kinds.size() - 1)])
+		var row := int(rows[local_rng.randi_range(0, rows.size() - 1)])
+		events.append({"type": "zombie", "kind": kind, "row": row, "time": 6.0 + float(i) * time_step + local_rng.randf_range(0.0, 1.4)})
+	if int(stage.get("difficulty", 1)) >= 4:
+		events.append({"type": "zombie", "kind": "flag", "row": rows[local_rng.randi_range(0, rows.size() - 1)], "time": 5.0})
 	events.sort_custom(func(a, b): return float(a["time"]) < float(b["time"]))
-	var start_sun = 150
+	return events
+
+
+func _daily_modifiers_for_stage(series: Dictionary, stage_index: int, seed_value: int) -> Array:
+	var result: Array = []
+	for mod_id_variant in Array(series.get("mods", [])):
+		var base_mod := _daily_modifier_by_id(String(mod_id_variant))
+		if not base_mod.is_empty():
+			result.append(base_mod)
+	var local_rng := RandomNumberGenerator.new()
+	local_rng.seed = seed_value + 991
+	var pool := _daily_modifier_defs()
+	var target_count := 1 + int(stage_index >= 2) + int(stage_index >= 4)
+	while result.size() < target_count and not pool.is_empty():
+		var pick := local_rng.randi_range(0, pool.size() - 1)
+		var candidate := Dictionary(pool[pick])
+		pool.remove_at(pick)
+		var exists := false
+		for current_variant in result:
+			if String(Dictionary(current_variant).get("id", "")) == String(candidate.get("id", "")):
+				exists = true
+				break
+		if not exists:
+			result.append(candidate)
+	return result
+
+
+func _daily_modifier_names() -> String:
+	var names := ""
 	for mod in daily_modifiers:
-		if String(mod["id"]) == "rich_start":
-			start_sun = 500
-	var modifier_desc = ""
-	for mod in daily_modifiers:
-		if modifier_desc != "":
-			modifier_desc += " / "
-		modifier_desc += String(mod["name"])
+		if names != "":
+			names += ", "
+		names += String(Dictionary(mod).get("name", "修饰"))
+	return names if names != "" else "无"
+
+
+func _try_enter_daily_challenge(series_id: String, stage_index: int, weekday_override: int = -1) -> bool:
+	var series := _daily_series_by_id(series_id)
+	if series.is_empty():
+		_show_toast("每日系列不存在")
+		return false
+	var weekday := _current_weekday() if weekday_override < 0 else clampi(weekday_override, 0, 6)
+	if not _daily_series_open_on_weekday(series, weekday):
+		_show_toast("%s 未开放：%s开放" % [String(series.get("name", "该系列")), _daily_open_days_label(series)])
+		mode = MODE_DAILY
+		return false
+	var stages := _daily_stage_defs_for_series(series)
+	if stage_index < 0 or stage_index >= stages.size():
+		_show_toast("每日关卡不存在")
+		mode = MODE_DAILY
+		return false
+	_enter_daily_challenge(series_id, stage_index)
+	return true
+
+
+func _enter_daily_challenge(series_id: String = "", stage_index: int = 0) -> void:
+	var series := _daily_series_by_id(series_id if not series_id.is_empty() else daily_selected_series_id)
+	if series.is_empty():
+		series = Dictionary(DAILY_SERIES_DEFS[0]).duplicate(true)
+	var stages := _daily_stage_defs_for_series(series)
+	stage_index = clampi(stage_index, 0, stages.size() - 1)
+	var stage := Dictionary(stages[stage_index])
+	var seed_value := _daily_stage_seed(series, stage_index)
+	var world_key := String(series.get("world", "day"))
+	current_world_key = world_key
+	daily_selected_series_id = String(series.get("id", daily_selected_series_id))
+	daily_modifiers = _daily_modifiers_for_stage(series, stage_index, seed_value)
+	var start_sun := int(stage.get("start_sun", 175))
+	for mod_variant in daily_modifiers:
+		if String(Dictionary(mod_variant).get("id", "")) == "rich_start":
+			start_sun = max(start_sun, 500)
+	var modifier_desc := _daily_modifier_names()
 	selected_level_index = -1
-	current_level = _build_custom_level(world_key, "每日", "每日挑战", "世界: %s  修饰: %s" % [_map_mode_title_for_world(world_key), modifier_desc], {
-		"events": events,
+	current_level = _build_custom_level(world_key, "daily:%s:%d" % [String(series.get("id", "series")), stage_index + 1], String(stage.get("title", "每日关卡")), "%s  开放: %s  修饰: %s" % [String(series.get("subtitle", "")), _daily_open_days_label(series), modifier_desc], {
+		"events": _build_daily_stage_events(series, stage, seed_value),
 		"available_plants": _player_plant_collection(),
 		"start_sun": start_sun,
-		"row_count": rows.size(),
+		"row_count": 5,
+		"daily_level": true,
+		"daily_series_id": String(series.get("id", "")),
+		"daily_series_name": String(series.get("name", "")),
+		"daily_reward_kind": String(series.get("reward_kind", "")),
+		"daily_reward_name": String(series.get("reward", "")),
+		"daily_stage_index": stage_index,
+		"daily_stage_name": String(stage.get("name", "")),
+		"daily_reward_amount": int(stage.get("reward_amount", 160)),
+		"daily_material_amount": int(stage.get("material_amount", 2)),
+		"daily_fragment_amount": int(stage.get("fragment_amount", 3)),
 	})
 	mode = MODE_SELECTION
 	battle_state = BATTLE_PLAYING
@@ -4695,7 +4972,7 @@ func _enter_daily_challenge() -> void:
 	selection_pool_cards = _resolved_selection_pool_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
-	daily_completed_today = reward_claimed_today
+	daily_completed_today = daily_challenge_date == _today_string()
 	queue_redraw()
 
 
@@ -4718,7 +4995,7 @@ func _enter_seed_selection(level_index: int) -> void:
 
 
 func _apply_daily_modifiers(_delta: float) -> void:
-	if current_level.get("id", "") != "每日":
+	if not _is_daily_level():
 		return
 	for mod in daily_modifiers:
 		match String(mod["id"]):
@@ -4730,7 +5007,7 @@ func _apply_daily_modifiers(_delta: float) -> void:
 
 
 func _daily_cost_multiplier() -> float:
-	if current_level.get("id", "") != "每日":
+	if not _is_daily_level():
 		return 1.0
 	for mod in daily_modifiers:
 		if String(mod["id"]) == "costly":
@@ -4739,7 +5016,7 @@ func _daily_cost_multiplier() -> float:
 
 
 func _daily_zombie_speed_mult() -> float:
-	if current_level.get("id", "") != "每日":
+	if not _is_daily_level():
 		return 1.0
 	for mod in daily_modifiers:
 		if String(mod["id"]) == "fast_zombie":
@@ -4748,7 +5025,7 @@ func _daily_zombie_speed_mult() -> float:
 
 
 func _daily_zombie_health_mult() -> float:
-	if current_level.get("id", "") != "每日":
+	if not _is_daily_level():
 		return 1.0
 	for mod in daily_modifiers:
 		if String(mod["id"]) == "tough_zombie":
@@ -5327,7 +5604,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	batch_spawn_remaining = 0
 	batch_spawn_queue = []
 	spawn_director_timer = 2.0 * _level_time_scale()
-	if String(current_level.get("id", "")) == "每日":
+	if _is_daily_level():
 		spawn_director_timer = minf(spawn_director_timer, 0.9)
 	conveyor_spawn_timer = 0.35
 	level_end_time = float(current_level["events"].size())
@@ -10713,25 +10990,45 @@ func _win_level() -> void:
 		current_world_key = _world_key_for_level(current_level)
 
 	# Daily challenge completion
-	if current_level.get("id", "") == "每日":
+	if _is_daily_level():
 		var first_clear_today = daily_challenge_date != _today_string()
-		var reward = 200 if first_clear_today else 0
+		var reward = int(current_level.get("daily_reward_amount", 200)) if first_clear_today else 0
 		var material_reward: Dictionary = {}
+		var bonus_line := ""
 		if first_clear_today:
 			daily_challenge_date = _today_string()
 			daily_completed_today = true
-			coins_total += reward
-			material_reward = _grant_enhance_material_reward(3, current_world_key)
+			match String(current_level.get("daily_reward_kind", "coins")):
+				"coins":
+					coins_total += reward
+					bonus_line = "奖励金币 +%d" % reward
+				"materials":
+					material_reward = _grant_enhance_material_reward(int(current_level.get("daily_material_amount", 3)), current_world_key)
+					bonus_line = "强化材料 +%d %s" % [int(material_reward.get("amount", 0)), String(material_reward.get("name", "强化材料"))]
+				"base_parts":
+					_init_base_defaults()
+					var stock_gain := int(current_level.get("daily_reward_amount", 200))
+					base_inventory["materials"] = max(0, int(base_inventory.get("materials", 0))) + stock_gain
+					bonus_line = "基建材料 +%d" % stock_gain
+				"fragments":
+					var fragment_gain := int(current_level.get("daily_fragment_amount", 5))
+					var fragment_pool := _player_plant_collection()
+					var fragment_kind := "peashooter" if fragment_pool.is_empty() else String(fragment_pool[abs(hash(_today_string() + String(current_level.get("daily_series_id", "")))) % fragment_pool.size()])
+					plant_fragments[fragment_kind] = int(plant_fragments.get(fragment_kind, 0)) + fragment_gain
+					bonus_line = "%s碎片 +%d" % [String(Defs.PLANTS.get(fragment_kind, {}).get("name", fragment_kind)), fragment_gain]
+				"stones":
+					enhance_stones += 1
+					coins_total += maxi(0, int(floor(float(reward) * 0.35)))
+					bonus_line = "强化石 +1 / 金币 +%d" % maxi(0, int(floor(float(reward) * 0.35)))
+				_:
+					coins_total += reward
+					bonus_line = "奖励金币 +%d" % reward
 		_mark_save_dirty(true)
-		var mod_names = ""
-		for mod in daily_modifiers:
-			if mod_names != "":
-				mod_names += ", "
-			mod_names += String(mod["name"])
-		var reward_line = "今日奖励已领取，本次为练习通关" if not first_clear_today else "奖励金币 +%d" % reward
-		if not material_reward.is_empty():
+		var mod_names = _daily_modifier_names()
+		var reward_line = "今日奖励已领取，本次为练习通关" if not first_clear_today else bonus_line
+		if not material_reward.is_empty() and not reward_line.contains("强化材料"):
 			reward_line += "\n强化材料 +%d %s" % [int(material_reward.get("amount", 0)), String(material_reward.get("name", "强化材料"))]
-		_show_message("每日挑战完成!\n修饰: %s\n已消灭 %d 只僵尸\n%s" % [mod_names, total_kills, reward_line], "home", "返回")
+		_show_message("%s完成!\n修饰: %s\n已消灭 %d 只僵尸\n%s" % [String(current_level.get("daily_stage_name", "每日关卡")), mod_names, total_kills, reward_line], "daily", "返回每日")
 		return
 
 	var unlocked_new = false
@@ -10773,7 +11070,7 @@ func _lose_level(reason: String = "") -> void:
 		_mark_save_dirty(true)
 		_show_message("%s 失败\n坚持到第 %d 波" % [current_level["title"], max(endless_wave, 1)], "retry_endless", "再次挑战")
 		return
-	if String(current_level.get("id", "")) == "每日":
+	if _is_daily_level():
 		_show_message("%s 失败\n今日挑战尚未完成" % current_level["title"], "retry_daily", "重试挑战")
 		return
 	var lose_text = "%s 失败\n%s" % [current_level["title"], reason] if reason != "" else "%s 失败\n僵尸闯进了房子" % current_level["title"]
@@ -10795,9 +11092,11 @@ func _on_message_button_pressed() -> void:
 		"retry_endless":
 			_enter_endless_mode()
 		"retry_daily":
-			_enter_daily_challenge()
+			_enter_daily_challenge(String(current_level.get("daily_series_id", daily_selected_series_id)), int(current_level.get("daily_stage_index", 0)))
 		"home":
 			_enter_home_mode()
+		"daily":
+			_enter_daily_mode()
 		"world_select":
 			_enter_world_select_mode()
 		_:
@@ -16320,7 +16619,7 @@ func _draw_menu_backdrop_fill(draw_mode: String) -> void:
 	var night := draw_mode == MODE_WORLD_SELECT and roundi(world_select_scroll) >= 3
 	if draw_mode == MODE_MAP:
 		night = current_world_key == "night"
-	if draw_mode == MODE_HOME:
+	if draw_mode == MODE_HOME or draw_mode == MODE_DAILY:
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.035, 0.05, 0.058), Color(0.012, 0.018, 0.022))
 		return
 	var top := Color(0.46, 0.74, 1.0) if not night else Color(0.05, 0.08, 0.18)
@@ -16357,13 +16656,13 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 		_draw_seed_selection_scene()
 	elif draw_mode == MODE_GACHA:
 		_draw_gacha_scene()
+	elif draw_mode == MODE_DAILY:
+		_draw_daily_scene()
 	elif draw_mode == MODE_ENHANCE:
 		_draw_enhance_scene()
 	elif draw_mode == MODE_BASE:
 		_draw_base_scene()
 	elif draw_mode == MODE_ENDLESS:
-		_draw_battle_scene()
-	elif draw_mode == MODE_DAILY:
 		_draw_battle_scene()
 	else:
 		_draw_battle_scene()
@@ -16912,6 +17211,79 @@ func _draw_home_scene() -> void:
 	_draw_home_entry(Rect2(action_rects["enhance"]), "植物强化", "按植物类型提升属性，消耗材料与金币。", Color(0.86, 0.66, 0.28), Color(0.094, 0.086, 0.064, 0.96), "+")
 	_draw_home_entry(Rect2(action_rects["gacha"]), "抽卡", "获取稀有植物、碎片和强化材料。", Color(0.82, 0.48, 0.92), Color(0.086, 0.066, 0.104, 0.96), "*")
 	_draw_home_entry(Rect2(action_rects["almanac"]), "图鉴", "查看植物、僵尸和 Boss 资料。", Color(0.66, 0.86, 0.52), Color(0.07, 0.095, 0.078, 0.96), "?")
+
+
+func _draw_daily_scene() -> void:
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.028, 0.04, 0.048), Color(0.012, 0.016, 0.02))
+	for i in range(12):
+		var y := 104.0 + float(i) * 58.0
+		draw_line(Vector2(0.0, y), Vector2(BASE_VIEWPORT_SIZE.x, y - 28.0), Color(0.55, 0.82, 1.0, 0.025), 1.5)
+	var header := Rect2(0.0, 0.0, BASE_VIEWPORT_SIZE.x, 108.0)
+	draw_rect(header, Color(0.06, 0.078, 0.088, 0.96), true)
+	draw_rect(header, Color(0.72, 0.88, 0.96, 0.16), false, 2.0)
+	_draw_fancy_button(DAILY_BACK_RECT, "返回", Color(0.18, 0.25, 0.28), Color(0.42, 0.58, 0.64), 18)
+	_draw_text("每日关卡 / 物资筹备", Vector2(190.0, 48.0), 34, Color(0.94, 0.99, 1.0))
+	_draw_text("今日 %s  开放系列会高亮，未开放关卡可查看但无法出击。" % _daily_weekday_label(_current_weekday()), Vector2(190.0, 82.0), 18, Color(0.64, 0.78, 0.84))
+	var reward_chip := Rect2(1198.0, 30.0, 328.0, 52.0)
+	_draw_panel_shell(reward_chip, Color(0.078, 0.104, 0.118, 0.94), Color(0.34, 0.5, 0.58), 0.1, 0.06)
+	_draw_text("今日首通奖励：每日本一次", reward_chip.position + Vector2(22.0, 33.0), 18, Color(0.9, 0.98, 1.0))
+
+	_draw_panel_shell(DAILY_SERIES_PANEL_RECT, Color(0.052, 0.068, 0.078, 0.97), Color(0.28, 0.42, 0.48, 0.52), 0.18, 0.1)
+	_draw_text("作战系列", DAILY_SERIES_PANEL_RECT.position + Vector2(24.0, 44.0), 26, Color(0.92, 0.98, 1.0))
+	_draw_text("按开放日轮换", DAILY_SERIES_PANEL_RECT.position + Vector2(250.0, 42.0), 15, Color(0.58, 0.72, 0.78))
+	var weekday := _current_weekday()
+	var series_defs := _daily_series_defs()
+	for i in range(series_defs.size()):
+		var series := Dictionary(series_defs[i])
+		var rect := _daily_series_card_rect(i)
+		var selected := String(series.get("id", "")) == daily_selected_series_id
+		var open := _daily_series_open_on_weekday(series, weekday)
+		var accent := Color(series.get("color", Color(0.42, 0.74, 0.86)))
+		var fill := Color(0.082, 0.104, 0.116, 0.96) if open else Color(0.052, 0.058, 0.064, 0.94)
+		if selected:
+			draw_rect(rect.grow(5.0), Color(accent.r, accent.g, accent.b, 0.16), true)
+			draw_rect(rect.grow(4.0), Color(accent.r, accent.g, accent.b, 0.72), false, 2.0)
+		_draw_panel_shell(rect, fill, Color(accent.r, accent.g, accent.b, 0.62 if open else 0.22), 0.08, 0.05)
+		draw_rect(Rect2(rect.position, Vector2(6.0, rect.size.y)), Color(accent.r, accent.g, accent.b, 0.95 if open else 0.35), true)
+		_draw_text(String(series.get("code", "DC")), rect.position + Vector2(22.0, 40.0), 24, Color(0.96, 0.98, 1.0) if open else Color(0.5, 0.56, 0.58))
+		_draw_text(String(series.get("name", "")), rect.position + Vector2(92.0, 38.0), 22, Color(0.94, 0.99, 1.0) if open else Color(0.54, 0.6, 0.62))
+		_draw_text(String(series.get("reward", "")), rect.position + Vector2(92.0, 66.0), 15, Color(0.98, 0.82, 0.44) if open else Color(0.48, 0.52, 0.54))
+		_draw_text("开放 %s" % _daily_open_days_label(series), rect.position + Vector2(92.0, 90.0), 13, Color(0.58, 0.76, 0.82) if open else Color(0.42, 0.48, 0.5))
+		if not open:
+			_draw_text("休整", rect.position + Vector2(rect.size.x - 58.0, 40.0), 14, Color(0.46, 0.52, 0.54))
+
+	var selected_series := _daily_series_by_id(daily_selected_series_id)
+	if selected_series.is_empty() and not series_defs.is_empty():
+		selected_series = Dictionary(series_defs[0])
+	var selected_accent := Color(selected_series.get("color", Color(0.38, 0.78, 1.0)))
+	var stage_open := _daily_series_open_on_weekday(selected_series, weekday)
+	_draw_panel_shell(DAILY_STAGE_PANEL_RECT, Color(0.046, 0.06, 0.07, 0.97), Color(selected_accent.r, selected_accent.g, selected_accent.b, 0.5), 0.18, 0.1)
+	_draw_text(String(selected_series.get("name", "每日系列")), DAILY_STAGE_PANEL_RECT.position + Vector2(28.0, 44.0), 30, Color(0.94, 0.99, 1.0))
+	_draw_text(String(selected_series.get("subtitle", "")), DAILY_STAGE_PANEL_RECT.position + Vector2(28.0, 76.0), 17, Color(0.62, 0.78, 0.84))
+	var status_text := "今日开放" if stage_open else "今日未开放"
+	_draw_text("%s  %s" % [status_text, _daily_open_days_label(selected_series)], DAILY_STAGE_PANEL_RECT.position + Vector2(760.0, 48.0), 18, Color(0.62, 0.94, 0.78) if stage_open else Color(0.72, 0.58, 0.54))
+	var stages := _daily_stage_defs_for_series(selected_series)
+	for i in range(stages.size()):
+		var stage := Dictionary(stages[i])
+		var rect := _daily_stage_rect(i)
+		var hovered := i == daily_hover_stage_index
+		var difficulty := int(stage.get("difficulty", i + 1))
+		var fill := Color(0.076, 0.098, 0.11, 0.96) if stage_open else Color(0.052, 0.058, 0.064, 0.94)
+		if hovered and stage_open:
+			draw_rect(rect.grow(4.0), Color(selected_accent.r, selected_accent.g, selected_accent.b, 0.14), true)
+			draw_rect(rect.grow(3.0), Color(selected_accent.r, selected_accent.g, selected_accent.b, 0.58), false, 2.0)
+		_draw_panel_shell(rect, fill, Color(selected_accent.r, selected_accent.g, selected_accent.b, 0.62 if stage_open else 0.2), 0.08, 0.05)
+		var code_rect := Rect2(rect.position + Vector2(18.0, 20.0), Vector2(82.0, 62.0))
+		draw_rect(code_rect, Color(selected_accent.r, selected_accent.g, selected_accent.b, 0.2 if stage_open else 0.07), true)
+		draw_rect(code_rect, Color(selected_accent.r, selected_accent.g, selected_accent.b, 0.72 if stage_open else 0.24), false, 1.5)
+		_draw_text(String(stage.get("name", "")), code_rect.position + Vector2(14.0, 38.0), 22, Color(0.96, 0.99, 1.0) if stage_open else Color(0.48, 0.54, 0.56))
+		_draw_text(String(stage.get("title", "")), rect.position + Vector2(120.0, 34.0), 22, Color(0.94, 0.99, 1.0) if stage_open else Color(0.55, 0.61, 0.63))
+		_draw_text("难度 %d  奖励 %s x%d" % [difficulty, String(selected_series.get("reward", "奖励")), int(stage.get("reward_amount", 0))], rect.position + Vector2(120.0, 64.0), 15, Color(0.78, 0.9, 0.92) if stage_open else Color(0.44, 0.5, 0.52))
+		for star in range(5):
+			var star_pos := rect.position + Vector2(rect.size.x - 150.0 + float(star) * 22.0, 37.0)
+			draw_circle(star_pos, 5.5, Color(0.98, 0.76, 0.24, 0.9) if star < difficulty else Color(0.26, 0.3, 0.32, 0.8))
+		var action_text := "出击" if stage_open else "未开放"
+		_draw_text(action_text, rect.position + Vector2(rect.size.x - 92.0, 78.0), 17, Color(0.92, 0.98, 1.0) if stage_open else Color(0.48, 0.54, 0.56))
 
 
 func _draw_world_select_scene() -> void:
@@ -19334,14 +19706,14 @@ func _draw_wave_bar() -> void:	# Endless mode: show wave counter instead of prog
 		_draw_text(diff_text, WAVE_BAR_RECT.position + Vector2(WAVE_BAR_RECT.size.x * 0.5 - 40.0, 17.0), 12, Color(1.0, 0.72, 0.52))
 		return
 	# Daily mode: show modifiers
-	if current_level.get("id", "") == "每日":
+	if _is_daily_level():
 		ThemeLib.draw_rounded_panel(self, WAVE_BAR_RECT, Color(0.18, 0.36, 0.52), Color(0.12, 0.24, 0.36), 8.0, 0.14, 0.06)
-		_draw_text("每日挑战", WAVE_BAR_RECT.position + Vector2(-68.0, 20.0), 18, Color(0.28, 0.56, 0.82))
+		_draw_text(String(current_level.get("daily_stage_name", "每日")), WAVE_BAR_RECT.position + Vector2(-86.0, 20.0), 16, Color(0.28, 0.56, 0.82))
 		var mod_text = ""
 		for mod in daily_modifiers:
 			if mod_text != "":
 				mod_text += " | "
-			mod_text += String(mod["name"])
+			mod_text += String(Dictionary(mod).get("name", "修饰"))
 		_draw_text(mod_text, WAVE_BAR_RECT.position + Vector2(11.0, 17.0), 14, Color(0.0, 0.0, 0.0, 0.3))
 		_draw_text(mod_text, WAVE_BAR_RECT.position + Vector2(10.0, 16.0), 14, Color(0.92, 0.96, 1.0))
 		var progress_ratio = _battle_progress_ratio()

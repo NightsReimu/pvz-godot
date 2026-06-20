@@ -12,6 +12,7 @@ func _run() -> void:
 	failed = not _test_home_terminal_routes_mainline_to_world_select() or failed
 	failed = not _test_home_terminal_mode_entries_are_inside_viewport() or failed
 	failed = not _test_home_terminal_touch_targets_match_action_rects() or failed
+	failed = not _test_daily_terminal_stage_layout_stays_inside_viewport() or failed
 	failed = not _test_world_select_supports_screen_drag_and_snap() or failed
 	failed = not _test_world_select_home_button_returns_to_terminal() or failed
 	failed = not _test_world_select_excludes_home_duplicate_mode_buttons() or failed
@@ -176,6 +177,32 @@ func _test_home_terminal_touch_targets_match_action_rects() -> bool:
 			var rect := Rect2(action_rects[action])
 			var target: Dictionary = game.call("_home_touch_target", rect.get_center())
 			passed = _assert_true(String(target.get("id", "")) == "home_%s" % action, "%s center should resolve to its home touch target" % action) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_daily_terminal_stage_layout_stays_inside_viewport() -> bool:
+	var game := _make_game()
+	var viewport_rect := Rect2(Vector2.ZERO, GameScript.BASE_VIEWPORT_SIZE)
+	var passed := _assert_true(game.has_method("_daily_series_defs"), "daily terminal should expose series definitions for layout validation") \
+		and _assert_true(game.has_method("_daily_series_card_rect"), "daily terminal should expose series card rects") \
+		and _assert_true(game.has_method("_daily_stage_rect"), "daily terminal should expose stage card rects")
+	if passed:
+		var series_defs: Array = game.call("_daily_series_defs")
+		for i in range(series_defs.size()):
+			var series_rect: Rect2 = game.call("_daily_series_card_rect", i)
+			passed = _assert_true(viewport_rect.encloses(series_rect), "daily series card %d should stay inside the viewport" % i) and passed
+			for j in range(i + 1, series_defs.size()):
+				var next_series_rect: Rect2 = game.call("_daily_series_card_rect", j)
+				passed = _assert_true(not series_rect.intersects(next_series_rect), "daily series cards should not overlap") and passed
+		var first_series := Dictionary(series_defs[0])
+		var stages: Array = game.call("_daily_stage_defs_for_series", first_series)
+		for i in range(stages.size()):
+			var stage_rect: Rect2 = game.call("_daily_stage_rect", i)
+			passed = _assert_true(viewport_rect.encloses(stage_rect), "daily stage card %d should stay inside the viewport" % i) and passed
+			for j in range(i + 1, stages.size()):
+				var next_stage_rect: Rect2 = game.call("_daily_stage_rect", j)
+				passed = _assert_true(not stage_rect.intersects(next_stage_rect), "daily stage cards should not overlap") and passed
 	_free_game(game)
 	return passed
 

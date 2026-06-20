@@ -13,6 +13,10 @@ func _run() -> void:
 	failed = not _test_endless_mode_does_not_autowin_before_spawning_waves() or failed
 	failed = not _test_endless_mode_spawns_runtime_ready_zombies_after_warmup() or failed
 	failed = not _test_endless_mode_uses_full_non_boss_zombie_pool_and_normal_spawn_edge() or failed
+	failed = not _test_daily_mode_lists_weekday_series_and_many_stages() or failed
+	failed = not _test_daily_home_opens_daily_terminal() or failed
+	failed = not _test_daily_series_open_schedule_blocks_closed_stages() or failed
+	failed = not _test_daily_open_stage_enters_selection() or failed
 	failed = not _test_daily_challenge_enters_selection_and_waits_for_spawns() or failed
 	failed = not _test_daily_challenge_supports_manual_card_clicks_before_start() or failed
 	failed = not _test_daily_challenge_selection_preview_uses_valid_zombie_keys() or failed
@@ -99,6 +103,16 @@ func _click_selection_start(game: Control) -> void:
 	game.call("_handle_selection_click", start_rect.get_center())
 
 
+func _first_open_daily_pick(game: Control) -> Dictionary:
+	var weekday = int(game.call("_current_weekday"))
+	var series_defs: Array = game.call("_daily_series_defs")
+	for series_variant in series_defs:
+		var series := Dictionary(series_variant)
+		if bool(game.call("_daily_series_open_on_weekday", series, weekday)):
+			return {"series_id": String(series.get("id", "")), "stage_index": 0}
+	return {"series_id": String(Dictionary(series_defs[0]).get("id", "")), "stage_index": 0}
+
+
 func _test_endless_mode_preserves_custom_level_on_selection_start() -> bool:
 	var game := _make_game()
 	game.call("_enter_endless_mode")
@@ -168,14 +182,76 @@ func _test_endless_mode_uses_full_non_boss_zombie_pool_and_normal_spawn_edge() -
 	return passed
 
 
+func _test_daily_mode_lists_weekday_series_and_many_stages() -> bool:
+	var game := _make_game()
+	var series_defs: Array = game.call("_daily_series_defs")
+	var passed = _assert_true(series_defs.size() >= 5, "daily terminal should expose multiple resource series") \
+		and _assert_true(game.has_method("_daily_stage_defs_for_series"), "daily terminal should expose stage definitions per series") \
+		and _assert_true(game.has_method("_daily_series_open_on_weekday"), "daily terminal should expose weekday availability checks")
+	for series_variant in series_defs:
+		var series := Dictionary(series_variant)
+		var stages: Array = game.call("_daily_stage_defs_for_series", series)
+		passed = _assert_true(stages.size() >= 5, "daily series %s should contain a stack of stages" % String(series.get("id", ""))) and passed
+		passed = _assert_true(Array(series.get("open_days", [])).size() >= 3, "daily series %s should list weekday openings" % String(series.get("id", ""))) and passed
+		passed = _assert_true(not String(series.get("reward", "")).is_empty(), "daily series %s should declare its reward identity" % String(series.get("id", ""))) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_daily_home_opens_daily_terminal() -> bool:
+	var game := _make_game()
+	var daily_rect: Rect2 = Dictionary(game.call("_home_action_rects"))["daily"]
+	game.call("_handle_home_click", daily_rect.get_center())
+	var passed = _assert_true(game.mode == game.MODE_DAILY, "home daily entry should open the daily terminal instead of immediately starting a random fight")
+	_free_game(game)
+	return passed
+
+
+func _test_daily_series_open_schedule_blocks_closed_stages() -> bool:
+	var game := _make_game()
+	var series_defs: Array = game.call("_daily_series_defs")
+	var series := Dictionary(series_defs[0])
+	var open_days: Array = Array(series.get("open_days", []))
+	var open_weekday := int(open_days[0])
+	var closed_weekday := -1
+	for weekday in range(7):
+		if not open_days.has(weekday):
+			closed_weekday = weekday
+			break
+	var passed = _assert_true(closed_weekday != -1, "daily series should have at least one closed weekday") \
+		and _assert_true(bool(game.call("_daily_series_open_on_weekday", series, open_weekday)), "daily series should be open on configured weekdays") \
+		and _assert_true(not bool(game.call("_daily_series_open_on_weekday", series, closed_weekday)), "daily series should block non-configured weekdays")
+	if passed:
+		var started_closed = bool(game.call("_try_enter_daily_challenge", String(series.get("id", "")), 0, closed_weekday))
+		passed = _assert_true(not started_closed, "closed daily stages should not enter seed selection") and passed
+		passed = _assert_true(game.mode != game.MODE_SELECTION, "closed daily stages should keep the player in the terminal") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_daily_open_stage_enters_selection() -> bool:
+	var game := _make_game()
+	var series_defs: Array = game.call("_daily_series_defs")
+	var series := Dictionary(series_defs[0])
+	var open_weekday := int(Array(series.get("open_days", []))[0])
+	var started = bool(game.call("_try_enter_daily_challenge", String(series.get("id", "")), 1, open_weekday))
+	var passed = _assert_true(started, "open daily stages should be launchable") \
+		and _assert_true(game.mode == game.MODE_SELECTION, "open daily stages should enter seed selection") \
+		and _assert_true(bool(game.current_level.get("daily_level", false)), "daily stage level data should be marked as daily") \
+		and _assert_true(String(game.current_level.get("daily_series_id", "")) == String(series.get("id", "")), "daily stage should remember its series id") \
+		and _assert_true(int(game.current_level.get("daily_stage_index", -1)) == 1, "daily stage should remember its stage index")
+	_free_game(game)
+	return passed
+
+
 func _test_daily_challenge_enters_selection_and_waits_for_spawns() -> bool:
 	var game := _make_game()
-	game.daily_challenge_date = game.call("_today_string")
-	game.call("_enter_daily_challenge")
+	var pick := _first_open_daily_pick(game)
+	game.call("_enter_daily_challenge", String(pick["series_id"]), int(pick["stage_index"]))
 	var passed = _assert_true(game.mode == game.MODE_SELECTION, "daily challenge should open the seed selection screen") \
-		and _assert_true(String(game.current_level.get("id", "")) == "每日", "daily challenge should build a custom level tagged as 每日") \
-		and _assert_true(game.selection_pool_cards.size() > 0, "daily challenge should expose a usable plant pool") \
-		and _assert_true(bool(game.daily_completed_today), "re-entering a finished daily challenge should mark the reward as already claimed instead of blocking entry")
+		and _assert_true(bool(game.current_level.get("daily_level", false)), "daily challenge should build a custom daily level") \
+		and _assert_true(String(game.current_level.get("id", "")).begins_with("daily:"), "daily challenge should use a stable daily id") \
+		and _assert_true(game.selection_pool_cards.size() > 0, "daily challenge should expose a usable plant pool")
 	if passed:
 		var required_count = int(game.call("_required_seed_count", game.current_level))
 		game.selection_cards = game.selection_pool_cards.slice(0, max(required_count, 1))
@@ -193,8 +269,8 @@ func _test_daily_challenge_enters_selection_and_waits_for_spawns() -> bool:
 
 func _test_daily_challenge_supports_manual_card_clicks_before_start() -> bool:
 	var game := _make_game()
-	game.daily_challenge_date = game.call("_today_string")
-	game.call("_enter_daily_challenge")
+	var pick := _first_open_daily_pick(game)
+	game.call("_enter_daily_challenge", String(pick["series_id"]), int(pick["stage_index"]))
 	var required_count = int(game.call("_required_seed_count", game.current_level))
 	_click_selection_pool_cards(game, max(required_count, 1))
 	var passed = _assert_true(game.selection_cards.size() == max(required_count, 1), "daily challenge manual clicks should populate the selected seed slots") \
@@ -209,8 +285,8 @@ func _test_daily_challenge_supports_manual_card_clicks_before_start() -> bool:
 
 func _test_daily_challenge_selection_preview_uses_valid_zombie_keys() -> bool:
 	var game := _make_game()
-	game.daily_challenge_date = game.call("_today_string")
-	game.call("_enter_daily_challenge")
+	var pick := _first_open_daily_pick(game)
+	game.call("_enter_daily_challenge", String(pick["series_id"]), int(pick["stage_index"]))
 	var passed := true
 	for kind_variant in game.call("_selection_zombie_kinds"):
 		var kind = String(kind_variant)
