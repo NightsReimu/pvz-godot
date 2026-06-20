@@ -1690,6 +1690,7 @@ const PLANTS: Dictionary = {
 			"health": 80.0,
 			"shield_amount": 600.0,
 			"shield_refresh": 12.0,
+			"stacks_on_plant": true,
 			"ultimate_name": "圣盾天幕",
 			"ultimate_charge_time": 50.0,
 			"ultimate_duration": 0.8,

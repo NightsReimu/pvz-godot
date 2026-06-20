@@ -417,14 +417,7 @@ func activate(row: int, col: int) -> bool:
 		"flower_pot":
 			plant["plant_food_mode"] = "pot_rain"
 			plant["plant_food_timer"] = 0.45
-			for lane in game.active_rows:
-				for pot_col in range(game.COLS):
-					if game._targetable_plant_at(int(lane), pot_col) != null:
-						continue
-					if game._cell_terrain_kind(int(lane), pot_col) != "roof":
-						continue
-					game.support_grid[int(lane)][pot_col] = game._create_plant("flower_pot", int(lane), pot_col)
-					game.support_grid[int(lane)][pot_col]["flash"] = 0.18
+			game._execute_flower_pot_fullscreen_bloom(row, col)
 		"kernel_pult":
 			plant["plant_food_mode"] = "butter_barrage"
 			plant["plant_food_timer"] = 2.0
@@ -1368,9 +1361,10 @@ func activate(row: int, col: int) -> bool:
 			game.effects.append({"position": center, "radius": 300.0, "time": 0.44, "duration": 0.44, "color": Color(0.8, 0.4, 1.0, 0.3)})
 		# Volcano world plants — plant food overrides
 		"dragon_bubble_pult":
-			plant["plant_food_mode"] = "cabbage_barrage"
+			plant["plant_food_mode"] = "dragon_bubble_barrage"
 			plant["plant_food_timer"] = 2.2
 			plant["plant_food_interval"] = 0.01
+			game._execute_volcano_dragon_bubble_ultimate(row, col)
 		"frost_boomerang":
 			plant["plant_food_mode"] = "cabbage_barrage"
 			plant["plant_food_timer"] = 2.0
@@ -1445,7 +1439,7 @@ func activate(row: int, col: int) -> bool:
 						game._seal_lava_cell(r, c)
 			plant["plant_food_timer"] = 0.5
 		_:
-			return false
+			plant = _activate_fallback_plant_food(plant, kind, row, col, center)
 
 	plant["flash"] = maxf(float(plant["flash"]), 0.22)
 	game._set_targetable_plant(row, col, plant)
@@ -1458,3 +1452,25 @@ func activate(row: int, col: int) -> bool:
 	})
 	game._show_toast("%s 大招启动" % Defs.PLANTS[kind]["name"])
 	return true
+
+
+func _activate_fallback_plant_food(plant: Dictionary, kind: String, row: int, col: int, center: Vector2) -> Dictionary:
+	var data: Dictionary = Defs.PLANTS.get(kind, {})
+	plant["plant_food_mode"] = "vital_burst"
+	plant["plant_food_timer"] = 0.55
+	plant["plant_food_interval"] = 0.0
+	plant["health"] = minf(float(plant.get("max_health", plant.get("health", 120.0))), float(plant.get("health", 120.0)) + maxf(160.0, float(data.get("health", 120.0)) * 0.35))
+	if data.has("damage"):
+		var burst_damage = maxf(float(data.get("damage", 20.0)) * 3.0, 80.0)
+		game._damage_zombies_in_circle(center + Vector2(64.0, 0.0), 150.0, burst_damage)
+	else:
+		plant["armor_health"] = maxf(float(plant.get("armor_health", 0.0)), maxf(300.0, float(data.get("health", 120.0)) * 0.5))
+		plant["max_armor_health"] = maxf(float(plant.get("max_armor_health", 0.0)), float(plant["armor_health"]))
+	game.effects.append({
+		"position": center,
+		"radius": 130.0,
+		"time": 0.34,
+		"duration": 0.34,
+		"color": Color(0.64, 1.0, 0.42, 0.28),
+	})
+	return plant

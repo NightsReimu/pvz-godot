@@ -264,6 +264,13 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"sakuya_boss",
 	"remilia_boss",
 	"flandre_boss",
+	"umbrella_zombie",
+	"shania_zombie",
+	"shade_zombie",
+	"crab_zombie",
+	"crabling",
+	"camel_zombie",
+	"volcano_boss",
 ]
 
 var rng = RandomNumberGenerator.new()
@@ -5192,6 +5199,14 @@ func _placement_error(kind: String, row: int, col: int) -> String:
 		return "这块地皮已经腐化"
 	if _has_ice_tile(row, col):
 		return "冰道上不能种植"
+	if kind == "holy_flower" or kind == "ice_cream":
+		if top_plant == null:
+			return "需要放在已有植物上"
+		if kind == "holy_flower" and support_plant != null and String(support_plant.get("kind", "")) == "holy_flower":
+			return "这里已经有圣光花"
+		if kind == "ice_cream" and _ultimate_profile_for_kind(String(top_plant.get("kind", ""))).is_empty():
+			return "这株植物没有可充能的大招"
+		return ""
 	if kind == "coffee_bean":
 		if top_plant == null:
 			return "咖啡豆要种在睡着的蘑菇上"
@@ -5483,6 +5498,11 @@ func _handle_board_click(cell: Vector2i) -> void:
 				stack["detonated"] = true
 				effects.append({"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -18.0), "radius": 48.0, "time": 0.3, "duration": 0.3, "color": Color(0.8, 0.94, 1.0, 0.3)})
 			else:
+				var shield = float(Defs.PLANTS["holy_flower"].get("shield_amount", 600.0))
+				host["armor_health"] = maxf(float(host.get("armor_health", 0.0)), shield)
+				host["max_armor_health"] = maxf(float(host.get("max_armor_health", 0.0)), shield)
+				host["shell_kind"] = "holy_shield"
+				host["flash"] = maxf(float(host.get("flash", 0.0)), 0.18)
 				grid[cell.x][cell.y] = host
 				support_grid[cell.x][cell.y] = stack
 	elif selected_tool == "cyclone_grass" or selected_tool == "sand_lotus":
@@ -6306,18 +6326,7 @@ func _execute_generic_ultimate(plant: Dictionary, kind: String, row: int, col: i
 					pad_count += 1
 			effects.append({"position": center, "radius": 132.0 + float(pad_count) * 3.0, "time": 0.3, "duration": 0.3, "color": Color(0.42, 0.86, 0.96, 0.26)})
 		"pot_bloom":
-			var pot_count := 0
-			for active_row in active_rows:
-				var support_row = int(active_row)
-				for support_col in range(COLS):
-					var terrain = _cell_terrain_kind(support_row, support_col)
-					if terrain != "roof" and terrain != "city_tile" and terrain != "rail" and terrain != "snowfield":
-						continue
-					if _support_plant_at(support_row, support_col) != null or _top_plant_at(support_row, support_col) != null:
-						continue
-					support_grid[support_row][support_col] = _create_plant("flower_pot", support_row, support_col)
-					support_grid[support_row][support_col]["flash"] = 0.18
-					pot_count += 1
+			var pot_count := _execute_flower_pot_fullscreen_bloom(row, col)
 			effects.append({"position": center, "radius": 140.0 + float(pot_count) * 3.0, "time": 0.3, "duration": 0.3, "color": Color(0.8, 0.66, 0.38, 0.28)})
 		"support_bloom":
 			var any_heal := false
@@ -6360,6 +6369,23 @@ func _execute_volcano_dragon_bubble_ultimate(row: int, col: int) -> void:
 		_append_volcano_ultimate_effect("volcano_dragon_bubble_barrage", lane_center, radius, Color(1.0, 0.48, 0.18, 0.32), 0.44, board_size.x * 0.82, CELL_SIZE.y * 0.72)
 	_play_sfx(SFX_HIT_EXPLOSION_PATH, -13.0, 1.04)
 	_trigger_screen_shake(9.0)
+
+
+func _execute_flower_pot_fullscreen_bloom(row: int, col: int) -> int:
+	var pot_count := 0
+	for active_row in active_rows:
+		var support_row = int(active_row)
+		for support_col in range(COLS):
+			var terrain = _cell_terrain_kind(support_row, support_col)
+			if terrain != "roof" and terrain != "city_tile" and terrain != "rail" and terrain != "snowfield" and terrain != "volcano_tile":
+				continue
+			if _support_plant_at(support_row, support_col) != null or _top_plant_at(support_row, support_col) != null:
+				continue
+			support_grid[support_row][support_col] = _create_plant("flower_pot", support_row, support_col)
+			support_grid[support_row][support_col]["flash"] = 0.2
+			pot_count += 1
+	_append_volcano_ultimate_effect("volcano_cork_seal", _cell_center(row, col) + Vector2(board_size.x * 0.28, 0.0), board_size.x * 0.5, Color(0.8, 0.66, 0.38, 0.28), 0.38, board_size.x * 0.9, CELL_SIZE.y * float(active_rows.size()))
+	return pot_count
 
 
 func _execute_volcano_cork_plug_ultimate(row: int, col: int) -> void:
@@ -14048,6 +14074,8 @@ func _visible_almanac_zombies() -> Array:
 			encountered[String(event["kind"])] = true
 	if encountered.has("gargantuar"):
 		encountered["imp"] = true
+	if encountered.has("crab_zombie"):
+		encountered["crabling"] = true
 	var result: Array = []
 	for kind in ZOMBIE_ALMANAC_ORDER:
 		if encountered.has(kind) and not seen.has(kind):
@@ -26788,26 +26816,75 @@ func _draw_cork_plug(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 
 func _draw_dragon_bubble_pult(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	# A lava-podded pult on a stone base that lobs magma bubbles.
-	_draw_flower_pot(center + Vector2(0.0, 14.0 * size_scale), size_scale * 0.82, flash, alpha)
-	var pod = Color(0.92, 0.38, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	var glow = Color(1.0, 0.6, 0.2, alpha * 0.6)
-	# Launcher arm
-	draw_line(center + Vector2(2.0 * size_scale, 10.0 * size_scale), center + Vector2(18.0 * size_scale, -14.0 * size_scale), Color(0.3, 0.5, 0.2, alpha), 5.0 * size_scale)
-	# Leaves
-	draw_circle(center + Vector2(-14.0 * size_scale, 12.0 * size_scale), 8.0 * size_scale, Color(0.26, 0.6, 0.2, alpha))
-	draw_circle(center + Vector2(-14.0 * size_scale, 12.0 * size_scale), 5.0 * size_scale, Color(0.3, 0.68, 0.24, alpha))
-	# Bubble reservoir (the lobbed payload resting in the cup)
-	draw_circle(center + Vector2(18.0 * size_scale, -18.0 * size_scale), 12.0 * size_scale, glow)
-	draw_circle(center + Vector2(18.0 * size_scale, -18.0 * size_scale), 9.0 * size_scale, pod)
-	draw_circle(center + Vector2(15.0 * size_scale, -21.0 * size_scale), 3.5 * size_scale, Color(1.0, 0.92, 0.5, alpha))
-	# Fuming embers
-	for ember_index in range(3):
-		var ember_phase = level_time * 2.0 + float(ember_index) * 1.3
-		draw_circle(center + Vector2(18.0 * size_scale + sin(ember_phase) * 4.0, -30.0 * size_scale - ember_index * 3.0), 2.0 * size_scale, Color(1.0, 0.66, 0.22, alpha * 0.5))
-	# Eyes on the pod
-	draw_circle(center + Vector2(15.0 * size_scale, -19.0 * size_scale), 1.6 * size_scale, Color(0.1, 0.08, 0.06, alpha))
-	draw_circle(center + Vector2(21.0 * size_scale, -19.0 * size_scale), 1.6 * size_scale, Color(0.1, 0.08, 0.06, alpha))
+	# Original dragon-themed tactical pult: sharper silhouette, dragon horns,
+	# armor plates, and a glassy magma-bubble launcher.
+	_draw_flower_pot(center + Vector2(0.0, 17.0 * size_scale), size_scale * 0.78, flash, alpha)
+	_draw_ground_shadow(center + Vector2(0.0, 18.0 * size_scale), 18.0 * size_scale, alpha, 42.0 * size_scale)
+	var body = Color(0.16, 0.46, 0.38, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.45)
+	var body_dark = Color(0.08, 0.24, 0.22, alpha)
+	var armor = Color(0.92, 0.72, 0.36, alpha)
+	var magma = Color(1.0, 0.42, 0.18, alpha)
+	var glass = Color(0.48, 0.92, 1.0, alpha * 0.42)
+	var core = center + Vector2(-5.0 * size_scale, -2.0 * size_scale)
+	# Curved dragon neck / plant body.
+	draw_line(center + Vector2(-3.0 * size_scale, 20.0 * size_scale), core + Vector2(0.0, -10.0 * size_scale), body_dark, 10.0 * size_scale)
+	draw_line(center + Vector2(-3.0 * size_scale, 20.0 * size_scale), core + Vector2(0.0, -10.0 * size_scale), body, 7.0 * size_scale)
+	draw_circle(core + Vector2(-2.0 * size_scale, 2.0 * size_scale), 17.0 * size_scale, body)
+	draw_circle(core + Vector2(-6.0 * size_scale, 6.0 * size_scale), 10.0 * size_scale, Color(0.22, 0.6, 0.48, alpha))
+	# Tactical armor plates across the chest.
+	for plate_index in range(3):
+		var plate_y = (-6.0 + float(plate_index) * 7.0) * size_scale
+		draw_line(core + Vector2(-17.0 * size_scale, plate_y), core + Vector2(6.0 * size_scale, plate_y - 2.0 * size_scale), armor.darkened(0.08), 2.4 * size_scale)
+	# Head, horns, and crest.
+	var head = center + Vector2(-4.0 * size_scale, -24.0 * size_scale)
+	draw_circle(head, 15.0 * size_scale, body)
+	draw_circle(head + Vector2(4.0 * size_scale, 3.0 * size_scale), 9.0 * size_scale, Color(0.2, 0.56, 0.46, alpha))
+	draw_polygon(
+		PackedVector2Array([
+			head + Vector2(-12.0 * size_scale, -11.0 * size_scale),
+			head + Vector2(-22.0 * size_scale, -25.0 * size_scale),
+			head + Vector2(-5.0 * size_scale, -15.0 * size_scale),
+		]),
+		PackedColorArray([armor, armor.lightened(0.16), armor.darkened(0.08)])
+	)
+	draw_polygon(
+		PackedVector2Array([
+			head + Vector2(5.0 * size_scale, -12.0 * size_scale),
+			head + Vector2(11.0 * size_scale, -28.0 * size_scale),
+			head + Vector2(14.0 * size_scale, -9.0 * size_scale),
+		]),
+		PackedColorArray([armor.darkened(0.04), armor.lightened(0.18), armor.darkened(0.1)])
+	)
+	for crest_index in range(3):
+		draw_circle(head + Vector2((-6.0 + float(crest_index) * 6.0) * size_scale, -14.0 * size_scale), 2.4 * size_scale, magma.lightened(0.1))
+	# Focused face, not a cute generic blob.
+	draw_circle(head + Vector2(-5.0 * size_scale, -2.0 * size_scale), 2.2 * size_scale, Color(0.04, 0.08, 0.08, alpha))
+	draw_circle(head + Vector2(5.0 * size_scale, -3.0 * size_scale), 2.2 * size_scale, Color(0.04, 0.08, 0.08, alpha))
+	draw_line(head + Vector2(-8.0 * size_scale, 5.0 * size_scale), head + Vector2(7.0 * size_scale, 4.0 * size_scale), Color(0.04, 0.12, 0.1, alpha), 1.4 * size_scale)
+	# Launcher rail and glass bubble chamber.
+	var muzzle = center + Vector2(21.0 * size_scale, -18.0 * size_scale)
+	draw_line(core + Vector2(8.0 * size_scale, 2.0 * size_scale), muzzle, Color(0.08, 0.18, 0.2, alpha), 8.0 * size_scale)
+	draw_line(core + Vector2(8.0 * size_scale, 2.0 * size_scale), muzzle, armor.darkened(0.05), 4.0 * size_scale)
+	draw_circle(muzzle, 14.0 * size_scale, Color(0.1, 0.2, 0.22, alpha))
+	draw_circle(muzzle, 11.0 * size_scale, glass)
+	draw_circle(muzzle + Vector2(0.0, 1.0 * size_scale), 7.5 * size_scale, magma)
+	draw_circle(muzzle + Vector2(-4.0 * size_scale, -5.0 * size_scale), 3.2 * size_scale, Color(1.0, 0.88, 0.5, alpha))
+	draw_arc(muzzle, 13.0 * size_scale, -0.2, TAU * 0.64, 20, Color(0.86, 1.0, 1.0, alpha * 0.62), 1.6 * size_scale)
+	# Side leaves as dragon wings.
+	draw_polygon(
+		PackedVector2Array([
+			center + Vector2(-17.0 * size_scale, 7.0 * size_scale),
+			center + Vector2(-34.0 * size_scale, -2.0 * size_scale),
+			center + Vector2(-24.0 * size_scale, 19.0 * size_scale),
+		]),
+		PackedColorArray([Color(0.18, 0.54, 0.34, alpha), Color(0.32, 0.72, 0.38, alpha), Color(0.12, 0.38, 0.28, alpha)])
+	)
+	draw_line(center + Vector2(-18.0 * size_scale, 8.0 * size_scale), center + Vector2(-31.0 * size_scale, 0.0), Color(0.72, 0.9, 0.46, alpha * 0.75), 1.6 * size_scale)
+	# Animated embers inside and above the launcher.
+	for ember_index in range(4):
+		var ember_phase = level_time * 2.8 + float(ember_index) * 1.1
+		var ember_pos = muzzle + Vector2(sin(ember_phase) * 7.0 * size_scale, (-20.0 - float(ember_index) * 3.0 + cos(ember_phase) * 2.0) * size_scale)
+		draw_circle(ember_pos, (1.8 + float(ember_index % 2) * 0.5) * size_scale, Color(1.0, 0.64, 0.22, alpha * 0.62))
 
 
 func _draw_cyclone_grass(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:

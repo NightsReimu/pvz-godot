@@ -407,6 +407,9 @@ func update_plants(delta: float) -> void:
 			support["push_timer"] = maxf(0.0, float(support.get("push_timer", 0.0)) - delta)
 			if float(support.get("push_timer", 0.0)) <= 0.0:
 				support["push_offset_x"] = 0.0
+			match String(support.get("kind", "")):
+				"holy_flower":
+					update_holy_flower(support, delta, row, col)
 			support["plant_food_timer"] = maxf(0.0, float(support.get("plant_food_timer", 0.0)) - delta)
 			if float(support.get("plant_food_timer", 0.0)) <= 0.0 and String(support.get("plant_food_mode", "")) != "":
 				support["plant_food_mode"] = ""
@@ -4282,6 +4285,26 @@ func update_chaos_shroom(plant: Dictionary, delta: float, row: int, col: int) ->
 func update_dragon_bubble_pult(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	var cadence_delta = game._plant_cadence_delta(delta, row, col)
 	var center = game._cell_center(row, col)
+	if String(plant.get("plant_food_mode", "")) == "dragon_bubble_barrage" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
+		plant["plant_food_interval"] -= cadence_delta
+		while float(plant["plant_food_interval"]) <= 0.0:
+			var barrage_target = game._find_throw_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
+			var target = Vector2(game.BOARD_ORIGIN.x + game.board_size.x - 8.0, game._row_center_y(row) - 8.0)
+			if barrage_target != -1:
+				var barrage_zombie = game.zombies[barrage_target]
+				target = Vector2(float(barrage_zombie["x"]), game._row_center_y(int(barrage_zombie["row"])) - 8.0)
+			spawn_roof_lobbed_projectile("dragon_bubble", row, center + Vector2(12.0, -30.0), target, float(Defs.PLANTS["dragon_bubble_pult"]["damage"]) * 1.45, Color(1.0, 0.5, 0.18), 76.0, 12.0, float(Defs.PLANTS["dragon_bubble_pult"]["splash_radius"]) + 18.0, 0.0, "dragon_bubble_pult")
+			if not game.projectiles.is_empty():
+				var last = game.projectiles[game.projectiles.size() - 1]
+				if String(last.get("kind", "")) == "dragon_bubble":
+					last["split_count"] = int(Defs.PLANTS["dragon_bubble_pult"]["split_count"]) + 1
+					last["split_damage"] = float(Defs.PLANTS["dragon_bubble_pult"]["split_damage"]) * 1.35
+					last["color"] = Color(1.0, 0.5, 0.18)
+					game.projectiles[game.projectiles.size() - 1] = last
+			plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.16)
+			game._trigger_plant_action(plant, 0.18)
+			plant["plant_food_interval"] += 0.18
+		return
 	plant["shot_cooldown"] -= cadence_delta
 	if float(plant["shot_cooldown"]) > 0.0:
 		return
@@ -4412,4 +4435,3 @@ func update_holy_flower(plant: Dictionary, delta: float, row: int, col: int) -> 
 func update_ice_cream(plant: Dictionary, delta: float, row: int, col: int) -> void:
 	if not bool(plant.get("detonated", false)):
 		return
-

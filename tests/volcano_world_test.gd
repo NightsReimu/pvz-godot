@@ -37,11 +37,15 @@ func _run() -> void:
 	failed = not _test_volcano_new_plants_have_defs_and_costs() or failed
 	failed = not _test_volcano_new_zombies_have_defs_and_health() or failed
 	failed = not _test_volcano_plants_and_zombies_have_almanac_text() or failed
+	failed = not _test_volcano_new_zombies_are_visible_in_almanac_order() or failed
 	failed = not _test_cyclone_grass_detonate_pulls_and_damages_nearby_zombies() or failed
 	failed = not _test_corn_cannon_right_click_fires_at_target() or failed
 	failed = not _test_volcano_boss_is_flagged_and_has_reinforcement_pool() or failed
 	failed = not _test_dragon_bubble_pult_fires_and_erupts_whole_row() or failed
 	failed = not _test_toxic_gum_pult_fires_without_runtime_error() or failed
+	failed = not _test_dragon_bubble_pult_plant_food_has_visible_barrage() or failed
+	failed = not _test_stackable_volcano_plants_can_be_placed_on_hosts() or failed
+	failed = not _test_flower_pot_ultimate_fills_empty_volcano_tiles() or failed
 	failed = not _test_volcano_new_plants_have_named_click_ultimates() or failed
 	failed = not _test_volcano_click_ultimates_emit_dedicated_effects() or failed
 	failed = not _test_volcano_click_ultimates_affect_board_state() or failed
@@ -343,6 +347,22 @@ func _test_volcano_plants_and_zombies_have_almanac_text() -> bool:
 	return passed
 
 
+func _test_volcano_new_zombies_are_visible_in_almanac_order() -> bool:
+	var game = _make_game()
+	var previous_completed = game.completed_levels
+	game.completed_levels = []
+	game.completed_levels.resize(Defs.LEVELS.size())
+	for i in range(game.completed_levels.size()):
+		game.completed_levels[i] = true
+	var entries: Array = game.call("_visible_almanac_zombies")
+	var passed := true
+	for kind in ["umbrella_zombie", "shania_zombie", "shade_zombie", "crab_zombie", "crabling", "camel_zombie", "volcano_boss"]:
+		passed = _assert_true(entries.has(kind), "volcano zombie %s should appear in the visible almanac zombie list after volcano levels unlock" % kind) and passed
+	game.completed_levels = previous_completed
+	_free_game(game)
+	return passed
+
+
 func _test_cyclone_grass_detonate_pulls_and_damages_nearby_zombies() -> bool:
 	var game = _make_game()
 	var row := 2
@@ -462,6 +482,79 @@ func _test_toxic_gum_pult_fires_without_runtime_error() -> bool:
 	for _step in range(40):
 		game._update_projectiles(0.05)
 	passed = _assert_true(true, "toxic gum pult projectile should resolve without runtime error") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_dragon_bubble_pult_plant_food_has_visible_barrage() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	game.cell_terrain_mask[row][col] = "volcano_tile"
+	game.support_grid[row][col] = game._create_plant("flower_pot", row, col)
+	game.grid[row][col] = game._create_plant("dragon_bubble_pult", row, col)
+	game._spawn_zombie_at("normal", row, game._cell_center(row, 6).x)
+	var before_effects := _count_effect_shape(game, "volcano_dragon_bubble_barrage")
+	var activated := bool(game.call("_activate_plant_food", row, col))
+	var after_effects := _count_effect_shape(game, "volcano_dragon_bubble_barrage")
+	var passed := _assert_true(activated, "dragon_bubble_pult should accept plant food activation") \
+		and _assert_true(after_effects > before_effects, "dragon_bubble_pult plant food should emit a visible volcano_dragon_bubble_barrage effect immediately")
+	_free_game(game)
+	return passed
+
+
+func _test_stackable_volcano_plants_can_be_placed_on_hosts() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	game.cell_terrain_mask[row][col] = "volcano_tile"
+	game.support_grid[row][col] = game._create_plant("flower_pot", row, col)
+	game.grid[row][col] = game._create_plant("peashooter", row, col)
+	var holy_error = String(game.call("_placement_error", "holy_flower", row, col))
+	var ice_error = String(game.call("_placement_error", "ice_cream", row, col))
+	game.sun_points = 1000
+	game.card_cooldowns = {"holy_flower": 0.0, "ice_cream": 0.0}
+	game.selected_tool = "holy_flower"
+	game.call("_handle_board_click", Vector2i(row, col))
+	var support = game.support_grid[row][col]
+	var host_after_holy = game.grid[row][col]
+	var passed := _assert_true(holy_error == "", "holy_flower should be placeable on top of an existing host plant") \
+		and _assert_true(ice_error == "", "ice_cream should be placeable on top of an existing host plant") \
+		and _assert_true(support != null and String(support.get("kind", "")) == "holy_flower", "placing holy_flower on a host should attach it as support") \
+		and _assert_true(float(host_after_holy.get("armor_health", 0.0)) > 0.0 or String(host_after_holy.get("shell_kind", "")) == "holy_shield", "holy_flower placement should immediately give the host a shield")
+	host_after_holy["armor_health"] = 0.0
+	game.grid[row][col] = host_after_holy
+	support["support_timer"] = 0.0
+	game.support_grid[row][col] = support
+	game.call("_update_plants", 0.1)
+	var host_after_refresh = game.grid[row][col]
+	passed = _assert_true(float(host_after_refresh.get("armor_health", 0.0)) > 0.0, "attached holy_flower should refresh the host shield from the support layer") and passed
+	game.selected_tool = "ice_cream"
+	game.card_cooldowns["ice_cream"] = 0.0
+	game.call("_handle_board_click", Vector2i(row, col))
+	var host_after_ice = game.grid[row][col]
+	passed = _assert_true(float(host_after_ice.get("ultimate_charge", 0.0)) >= 1.0, "placing ice_cream on a host should fully charge that host's click ultimate") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_flower_pot_ultimate_fills_empty_volcano_tiles() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	game.support_grid[row][col] = game._create_plant("flower_pot", row, col)
+	game.support_grid[row][col]["ultimate_charge"] = 1.0
+	game.support_grid[row][col]["ultimate_cooldown"] = 0.0
+	game.support_grid[0][0] = null
+	game.support_grid[4][8] = null
+	game.grid[0][0] = null
+	game.grid[4][8] = null
+	var activated := bool(game.call("_try_activate_ultimate", row, col))
+	var top_left = game.support_grid[0][0]
+	var bottom_right = game.support_grid[4][8]
+	var passed := _assert_true(activated, "flower_pot click ultimate should activate on volcano terrain") \
+		and _assert_true(top_left != null and String(top_left.get("kind", "")) == "flower_pot", "flower_pot click ultimate should fill empty volcano tiles across the full board") \
+		and _assert_true(bottom_right != null and String(bottom_right.get("kind", "")) == "flower_pot", "flower_pot click ultimate should reach far empty volcano tiles")
 	_free_game(game)
 	return passed
 
