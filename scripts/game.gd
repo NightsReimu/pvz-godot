@@ -86,6 +86,17 @@ const IMAGE2_ASSET_CATEGORIES := {
 	"projectiles": true,
 	"effects": true,
 }
+# 主页入口 → 装饰用的植物 PNG 图标（art/image2/plants/）。
+const HOME_ENTRY_ICON_KINDS := {
+	"mainline": "sunflower",
+	"daily": "sakura_shooter",
+	"entertainment": "mango_bowling",
+	"events": "starfruit",
+	"base": "flower_pot",
+	"enhance": "magnet_shroom",
+	"gacha": "marigold",
+	"almanac": "plantern",
+}
 const POLISHED_PLANT_TEXTURE_PATHS := {
 	"peashooter": "res://art/polish/peashooter-polished.png",
 	"sunflower": "res://art/polish/sunflower-polished.png",
@@ -17125,7 +17136,11 @@ func _draw_menu_backdrop_fill(draw_mode: String) -> void:
 	var night := draw_mode == MODE_WORLD_SELECT and roundi(world_select_scroll) >= 3
 	if draw_mode == MODE_MAP:
 		night = current_world_key == "night"
-	if draw_mode == MODE_HOME or draw_mode == MODE_DAILY:
+	if draw_mode == MODE_HOME:
+		# 明亮花园风：天空蓝 → 草地绿，与 _draw_home_scene 的白天天空一致。
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.46, 0.74, 1.0), Color(0.62, 0.8, 0.5))
+		return
+	if draw_mode == MODE_DAILY:
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.035, 0.05, 0.058), Color(0.012, 0.018, 0.022))
 		return
 	var top := Color(0.46, 0.74, 1.0) if not night else Color(0.05, 0.08, 0.18)
@@ -17648,55 +17663,78 @@ func _world_card_rect(index: int) -> Rect2:
 	return Rect2(Vector2(center_x - card_size.x * 0.5, 150.0 + delta * 18.0), card_size)
 
 
-func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Color, fill: Color, glyph: String, large: bool = false, disabled: bool = false) -> void:
+func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Color, fill: Color, entry_id: String, large: bool = false, disabled: bool = false) -> void:
 	var pointer := _pointer_local_position()
 	var hovered := rect.has_point(pointer)
 	var pulse := 0.5 + 0.5 * sin(ui_time * 2.6 + rect.position.x * 0.01)
 	var actual_fill := fill.darkened(0.18) if disabled else fill
 	var actual_accent := accent.darkened(0.24) if disabled else accent
-	ThemeLib.draw_soft_shadow(self, rect, Color(0.0, 0.0, 0.0, 0.26), 4, 16.0, 10.0)
+	# hover 时整张卡片轻微上浮 + 加重阴影。
+	var lift := 4.0 if (hovered and not disabled) else 0.0
+	var card_rect := Rect2(rect.position - Vector2(0.0, lift), rect.size)
+	ThemeLib.draw_soft_shadow(self, card_rect, Color(0.0, 0.0, 0.0, 0.30 if hovered else 0.24), 4, 16.0, 10.0 + lift)
 	if hovered and not disabled:
-		draw_rect(rect.grow(6.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.08 + pulse * 0.08), true)
-		draw_rect(rect.grow(4.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.44), false, 2.0)
-	_draw_panel_shell(rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), 0.2, 0.12)
-	draw_rect(Rect2(rect.position, Vector2(7.0, rect.size.y)), actual_accent, true)
-	draw_rect(Rect2(rect.position + Vector2(7.0, 0.0), Vector2(rect.size.x - 7.0, 36.0)), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.12), true)
-	var glyph_center := rect.position + Vector2(rect.size.x - (76.0 if large else 58.0), 68.0 if large else rect.size.y * 0.5)
-	draw_circle(glyph_center, 36.0 if large else 28.0, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.14 + pulse * 0.06))
-	draw_circle(glyph_center, 22.0 if large else 17.0, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.24))
-	_draw_text(glyph, glyph_center + Vector2(-11.0 if large else -8.0, 9.0 if large else 7.0), 28 if large else 22, Color(0.94, 0.99, 1.0, 0.92))
+		draw_rect(card_rect.grow(6.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.10 + pulse * 0.10), true)
+		draw_rect(card_rect.grow(4.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.50), false, 2.4)
+	# 卡片本体：用光泽圆角面板（渐变填充 + 顶部高光 + 内描边）。
+	_draw_panel_shell(card_rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), 0.20, 0.14)
+	draw_rect(Rect2(card_rect.position, Vector2(7.0, card_rect.size.y)), actual_accent, true)
+	draw_rect(Rect2(card_rect.position + Vector2(7.0, 0.0), Vector2(card_rect.size.x - 7.0, 36.0)), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.14), true)
+	# 装饰：植物图标（带轻微浮动）替换原来的 ASCII 字符双圆。
+	var icon_kind := String(HOME_ENTRY_ICON_KINDS.get(entry_id, ""))
+	var icon_size := 92.0 if large else 72.0
+	var bob := sin(ui_time * 1.8 + rect.position.x * 0.02) * (3.0 if large else 2.0) if not disabled else 0.0
+	var icon_center := card_rect.position + Vector2(card_rect.size.x - (78.0 if large else 60.0), (76.0 if large else card_rect.size.y * 0.42)) - Vector2(0.0, bob)
+	# 图标背光圆。
+	draw_circle(icon_center, icon_size * (0.62 if large else 0.58), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.16 + pulse * 0.07))
+	var icon_alpha := 0.42 if disabled else 1.0
+	if icon_kind != "":
+		var texture := _image2_texture("plants", icon_kind)
+		if texture != null:
+			var tex_size := Vector2(icon_size, icon_size)
+			draw_texture_rect(texture, Rect2(icon_center + Vector2(-tex_size.x * 0.5, -tex_size.y * 0.72), tex_size), false, Color(1.0, 1.0, 1.0, icon_alpha))
+		else:
+			# 图标缺失时回退到小圆点占位。
+			draw_circle(icon_center, icon_size * 0.3, Color(actual_accent.r, actual_accent.g, actual_accent.b, icon_alpha * 0.5))
 	var title_size := 34 if large else 24
 	var subtitle_size := 18 if large else 15
-	_draw_text(title, rect.position + Vector2(26.0, 50.0 if large else 40.0), title_size, Color(0.94, 0.99, 1.0) if not disabled else Color(0.62, 0.68, 0.7))
-	var subtitle_rect := Rect2(rect.position + Vector2(26.0, 76.0 if large else 62.0), Vector2(rect.size.x - (132.0 if large else 112.0), rect.size.y - (96.0 if large else 72.0)))
-	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.68, 0.8, 0.84) if not disabled else Color(0.48, 0.54, 0.56), 4.0, 3 if large else 2)
+	# 标题/副标题配色调成暖白，比原来的冷灰更明亮亲切。
+	_draw_text(title, card_rect.position + Vector2(26.0, 50.0 if large else 40.0), title_size, Color(0.98, 0.97, 0.92) if not disabled else Color(0.62, 0.68, 0.7))
+	var subtitle_rect := Rect2(card_rect.position + Vector2(26.0, 76.0 if large else 62.0), Vector2(card_rect.size.x - (132.0 if large else 112.0), card_rect.size.y - (96.0 if large else 72.0)))
+	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.86, 0.84, 0.74) if not disabled else Color(0.48, 0.54, 0.56), 4.0, 3 if large else 2)
 
 
 func _draw_home_scene() -> void:
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.036, 0.052, 0.06), Color(0.012, 0.018, 0.022))
-	for line_index in range(9):
-		var y := 110.0 + float(line_index) * 86.0
-		draw_line(Vector2(0.0, y), Vector2(BASE_VIEWPORT_SIZE.x, y - 46.0), Color(0.72, 0.9, 1.0, 0.026), 2.0)
-	for node_index in range(12):
-		var x := 80.0 + float(node_index) * 132.0
-		var y := 112.0 + fmod(float(node_index * 47), 640.0)
-		var alpha := 0.08 + 0.05 * sin(ui_time * 1.8 + float(node_index))
-		draw_circle(Vector2(x, y), 3.0, Color(0.54, 0.9, 1.0, alpha))
+	# 明亮花园风背景：白天天空（蓝天渐变 + 太阳光晕 + 视差云朵 + 远山 + 草地）。
+	ThemeLib.draw_world_sky(self, BASE_VIEWPORT_SIZE, ui_time, false)
+	# 底部叠加草坪带，让庭院感落地。
+	ThemeLib.draw_grass_tufts(self, Rect2(0.0, BASE_VIEWPORT_SIZE.y - 110.0, BASE_VIEWPORT_SIZE.x, 110.0), ui_time, 12, Color(0.34, 0.62, 0.22))
+	# 暖色浮动光点 + 飘动云朵，让画面有生气。
+	ThemeLib.draw_ambient_particles(self, BASE_VIEWPORT_SIZE, ui_time, "fireflies", 16)
+	ThemeLib.draw_cloud(self, Vector2(260.0, 120.0 + sin(ui_time * 0.4) * 8.0), 1.1, 0.9, Color(1.0, 1.0, 1.0))
+	ThemeLib.draw_cloud(self, Vector2(1180.0, 86.0 + sin(ui_time * 0.5 + 1.5) * 7.0), 0.9, 0.8, Color(1.0, 0.99, 0.96))
 
-	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 112.0)), Color(0.068, 0.088, 0.1, 0.96), true)
-	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 112.0)), Color(0.78, 0.9, 0.96, 0.14), false, 2.0)
-	_draw_text("蜂蜜庭院终端", Vector2(80.0, 56.0), 34, Color(0.94, 0.99, 1.0))
-	_draw_text("主线关卡 / 每日关卡 / 娱乐关卡 / 活动关卡", Vector2(80.0, 88.0), 18, Color(0.62, 0.74, 0.78))
-	var resource_rect := Rect2(1046.0, 30.0, 474.0, 50.0)
-	_draw_panel_shell(resource_rect, Color(0.096, 0.13, 0.142, 0.94), Color(0.28, 0.44, 0.5), 0.12, 0.08)
-	_draw_coin_icon(resource_rect.position + Vector2(28.0, 26.0), 0.8)
-	_draw_text("金币 %d" % coins_total, resource_rect.position + Vector2(52.0, 32.0), 18, Color(0.98, 0.84, 0.38))
-	_draw_text("基建无人机 %.0f" % base_drones, resource_rect.position + Vector2(190.0, 32.0), 18, Color(0.58, 0.9, 1.0))
-	_draw_text(_update_status_line(), resource_rect.position + Vector2(338.0, 31.0), 13, Color(0.72, 0.84, 0.9))
+	# 居中大标题：标题下方叠柔光，文字带投影。
+	var title_text := "植物大战僵尸"
+	var title_center_x := BASE_VIEWPORT_SIZE.x * 0.5
+	var title_y := 70.0
+	ThemeLib.draw_glow_circle(self, Vector2(title_center_x, title_y + 6.0), 220.0, Color(1.0, 0.95, 0.62), 4)
+	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(title_center_x - 256.0, title_y), title_text, 60, Color(0.98, 0.86, 0.24), Vector2(2.0, 4.0), 0.34)
+	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(title_center_x - 256.0, title_y), title_text, 60, Color(0.18, 0.32, 0.12), Vector2(0.0, 0.0), 0.0)
+	# 副标题。
+	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(title_center_x - 178.0, title_y + 58.0), "主线 / 每日 / 娱乐 / 活动", 20, Color(0.22, 0.38, 0.18), Vector2(1.0, 2.0), 0.28)
+
+	# 资源条：右上角半透明悬浮卡。
+	var resource_rect := Rect2(BASE_VIEWPORT_SIZE.x - 484.0, 24.0, 460.0, 56.0)
+	ThemeLib.draw_rounded_panel(self, resource_rect, Color(0.1, 0.16, 0.12, 0.78), Color(0.5, 0.74, 0.42, 0.8), 14.0, 0.18, 0.1)
+	_draw_coin_icon(resource_rect.position + Vector2(30.0, 30.0), 0.85)
+	_draw_text("金币 %d" % coins_total, resource_rect.position + Vector2(56.0, 36.0), 19, Color(1.0, 0.9, 0.46))
+	_draw_text("基建无人机 %.0f" % base_drones, resource_rect.position + Vector2(196.0, 36.0), 19, Color(0.7, 0.95, 1.0))
+	_draw_text(_update_status_line(), resource_rect.position + Vector2(350.0, 34.0), 13, Color(0.82, 0.9, 0.78))
 
 	var action_rects := _home_action_rects()
 	var mainline_rect := Rect2(action_rects["mainline"])
-	_draw_home_entry(mainline_rect, "主线关卡", "进入世界选择，推进各世界地图与 Boss 关卡。当前世界：%s" % _map_mode_title_for_world(current_world_key), Color(0.94, 0.68, 0.24), Color(0.092, 0.118, 0.128, 0.96), ">", true)
+	_draw_home_entry(mainline_rect, "主线关卡", "进入世界选择，推进各世界地图与 Boss 关卡。当前世界：%s" % _map_mode_title_for_world(current_world_key), Color(0.96, 0.74, 0.22), Color(0.16, 0.22, 0.16, 0.9), "mainline", true)
 	var worlds := WorldDataLib.all()
 	var preview_count = mini(5, worlds.size())
 	for i in range(preview_count):
@@ -17704,19 +17742,19 @@ func _draw_home_scene() -> void:
 		var unlocked := _is_world_unlocked(String(world.get("key", "day")))
 		var chip_rect := Rect2(mainline_rect.position + Vector2(28.0 + float(i) * 78.0, 196.0), Vector2(58.0, 58.0))
 		var accent := Color(world.get("accent", Color(0.62, 0.78, 0.42)))
-		draw_rect(chip_rect, Color(accent.r, accent.g, accent.b, 0.18 if unlocked else 0.05), true)
-		draw_rect(chip_rect, Color(accent.r, accent.g, accent.b, 0.72 if unlocked else 0.22), false, 1.5)
-		_draw_text(str(i + 1), chip_rect.position + Vector2(20.0, 36.0), 21, Color(0.92, 0.98, 1.0) if unlocked else Color(0.46, 0.52, 0.54))
-	_draw_text("进度 %d/%d 关" % [_completed_level_count(), Defs.LEVELS.size()], mainline_rect.position + Vector2(28.0, 274.0), 17, Color(0.82, 0.9, 0.78))
+		draw_rect(chip_rect, Color(accent.r, accent.g, accent.b, 0.22 if unlocked else 0.06), true)
+		draw_rect(chip_rect, Color(accent.r, accent.g, accent.b, 0.82 if unlocked else 0.22), false, 1.5)
+		_draw_text(str(i + 1), chip_rect.position + Vector2(20.0, 36.0), 21, Color(0.99, 0.97, 0.9) if unlocked else Color(0.46, 0.52, 0.54))
+	_draw_text("进度 %d/%d 关" % [_completed_level_count(), Defs.LEVELS.size()], mainline_rect.position + Vector2(28.0, 274.0), 17, Color(0.2, 0.36, 0.16))
 
 	var daily_done := daily_challenge_date == _today_string()
-	_draw_home_entry(Rect2(action_rects["daily"]), "每日关卡" if not daily_done else "每日已领", "今日修饰挑战，奖励金币和强化材料。", Color(0.38, 0.78, 1.0), Color(0.07, 0.105, 0.128, 0.96), "D")
-	_draw_home_entry(Rect2(action_rects["entertainment"]), "娱乐关卡", "无尽模式入口，尸潮会持续变强。", Color(0.98, 0.42, 0.32), Color(0.12, 0.078, 0.076, 0.96), "E")
-	_draw_home_entry(Rect2(action_rects["events"]), "活动关卡", "限时活动入口已预留，后续版本开放。", Color(0.48, 0.86, 0.56), Color(0.07, 0.108, 0.09, 0.96), "A", false, true)
-	_draw_home_entry(Rect2(action_rects["base"]), "基建", "生产金币、材料、碎片，并管理植物心情。", Color(0.32, 0.86, 0.95), Color(0.058, 0.084, 0.096, 0.96), "B")
-	_draw_home_entry(Rect2(action_rects["enhance"]), "植物强化", "按植物类型提升属性，消耗材料与金币。", Color(0.86, 0.66, 0.28), Color(0.094, 0.086, 0.064, 0.96), "+")
-	_draw_home_entry(Rect2(action_rects["gacha"]), "抽卡", "获取稀有植物、碎片和强化材料。", Color(0.82, 0.48, 0.92), Color(0.086, 0.066, 0.104, 0.96), "*")
-	_draw_home_entry(Rect2(action_rects["almanac"]), "图鉴", "查看植物、僵尸和 Boss 资料。", Color(0.66, 0.86, 0.52), Color(0.07, 0.095, 0.078, 0.96), "?")
+	_draw_home_entry(Rect2(action_rects["daily"]), "每日关卡" if not daily_done else "每日已领", "今日修饰挑战，奖励金币和强化材料。", Color(0.4, 0.82, 1.0), Color(0.12, 0.2, 0.16, 0.9), "daily")
+	_draw_home_entry(Rect2(action_rects["entertainment"]), "娱乐关卡", "无尽模式入口，尸潮会持续变强。", Color(0.98, 0.44, 0.34), Color(0.2, 0.14, 0.12, 0.9), "entertainment")
+	_draw_home_entry(Rect2(action_rects["events"]), "活动关卡", "限时活动入口已预留，后续版本开放。", Color(0.5, 0.88, 0.58), Color(0.12, 0.2, 0.14, 0.9), "events", false, true)
+	_draw_home_entry(Rect2(action_rects["base"]), "基建", "生产金币、材料、碎片，并管理植物心情。", Color(0.34, 0.86, 0.92), Color(0.12, 0.2, 0.18, 0.9), "base")
+	_draw_home_entry(Rect2(action_rects["enhance"]), "植物强化", "按植物类型提升属性，消耗材料与金币。", Color(0.9, 0.7, 0.28), Color(0.2, 0.16, 0.1, 0.9), "enhance")
+	_draw_home_entry(Rect2(action_rects["gacha"]), "抽卡", "获取稀有植物、碎片和强化材料。", Color(0.84, 0.5, 0.92), Color(0.18, 0.12, 0.2, 0.9), "gacha")
+	_draw_home_entry(Rect2(action_rects["almanac"]), "图鉴", "查看植物、僵尸和 Boss 资料。", Color(0.66, 0.86, 0.52), Color(0.14, 0.2, 0.14, 0.9), "almanac")
 
 
 func _draw_daily_scene() -> void:
