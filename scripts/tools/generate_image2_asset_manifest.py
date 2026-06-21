@@ -28,6 +28,7 @@ TOUHOU_BOSSES = {
     "patchouli_boss",
     "sakuya_boss",
     "remilia_boss",
+    "letty_boss",
     "flandre_boss",
 }
 

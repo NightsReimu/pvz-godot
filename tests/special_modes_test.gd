@@ -715,6 +715,7 @@ func _test_selection_background_preview_styles_cover_level_terrains() -> bool:
 			{"id": "6-preview", "terrain": "city", "row_count": 5, "cell_terrain_mask": [["city_tile"], ["rail"], ["snowfield"]], "events": []},
 			{"id": "7-preview", "terrain": "volcano", "row_count": 5, "lava_cells": [Vector2i(2, 4)], "events": []},
 			{"id": "1-18", "terrain": "frozen_lake", "row_count": 5, "water_rows": [2, 3], "events": []},
+			{"id": "2-25-preview", "terrain": "winter_forest", "row_count": 5, "events": []},
 			{"id": "1-19", "terrain": "blood_moon", "row_count": 5, "events": []},
 		]
 		for level_variant in levels:

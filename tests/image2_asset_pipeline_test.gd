@@ -62,7 +62,7 @@ func _test_touhou_bosses_are_not_overridden_by_image2_zombie_assets() -> bool:
 	if passed:
 		# v1.0.26: image2 zombie art was reverted to procedural drawing everywhere.
 		# Touhou bosses use their own multi-frame pipeline; no zombie uses image2.
-		for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "flandre_boss"]:
+		for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "flandre_boss"]:
 			passed = _assert_true(not bool(game.call("_should_use_image2_zombie_texture", kind)), "%s should keep the Touhou boss frame pipeline (not image2)" % kind) and passed
 		passed = _assert_true(not bool(game.call("_should_use_image2_zombie_texture", "normal")), "normal zombies should use procedural drawing (v1.0.26)") and passed
 		passed = _assert_true(not bool(game.call("_should_use_image2_zombie_texture", "day_boss")), "non-Touhou bosses should use procedural drawing (v1.0.26)") and passed
