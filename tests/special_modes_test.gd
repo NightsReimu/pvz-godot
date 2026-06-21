@@ -30,6 +30,9 @@ func _run() -> void:
 	failed = not _test_selection_pool_uses_wide_desktop_rows() or failed
 	failed = not _test_selection_layout_keeps_two_rows_visible_on_768p() or failed
 	failed = not _test_selection_third_row_right_card_does_not_trigger_legacy_back() or failed
+	failed = not _test_selection_background_preview_button_layouts_do_not_overlap() or failed
+	failed = not _test_selection_background_preview_click_guards_bottom_layer() or failed
+	failed = not _test_selection_background_preview_styles_cover_level_terrains() or failed
 	failed = not _test_almanac_plant_grid_fits_four_rows_without_clipping() or failed
 	failed = not _test_mobile_selection_layout_stays_inside_small_landscape_viewport() or failed
 	failed = not _test_mobile_selection_scene_skips_legacy_global_ui_scaling() or failed
@@ -555,6 +558,104 @@ func _test_selection_third_row_right_card_does_not_trigger_legacy_back() -> bool
 		game.call("_handle_selection_click", click_pos)
 		passed = _assert_true(game.mode == game.MODE_SELECTION, "clicking a third-row card near the right side should stay on the selection screen instead of returning to the map") and passed
 		passed = _assert_true(game.selection_cards.has(expected_kind), "clicking the third-row card should select that plant instead of hitting a hidden legacy button") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_selection_background_preview_button_layouts_do_not_overlap() -> bool:
+	var game := _make_game()
+	var passed = _assert_true(game.has_method("_selection_preview_button_rect"), "selection scene should expose a background preview button helper")
+	if passed:
+		var configs = [
+			{"size": Vector2(1600.0, 900.0), "mobile": 0},
+			{"size": Vector2(1365.0, 768.0), "mobile": 0},
+			{"size": Vector2(896.0, 414.0), "mobile": 1},
+		]
+		for config_variant in configs:
+			var config := Dictionary(config_variant)
+			game.size = Vector2(config.get("size", Vector2(1600.0, 900.0)))
+			game.mobile_runtime_override = int(config.get("mobile", 0))
+			game.mode = game.MODE_SELECTION
+			game.current_level = {"id": "preview-layout-test", "terrain": "day", "events": [], "mode": ""}
+			game.selection_pool_cards = game.call("_player_plant_collection")
+			game.selection_cards = []
+			var viewport_rect := Rect2(Vector2.ZERO, game.size)
+			var preview_rect: Rect2 = game.call("_selection_preview_button_rect")
+			passed = _assert_true(viewport_rect.encloses(preview_rect), "selection background preview button should stay inside viewport %s" % str(game.size)) and passed
+			passed = _assert_true(not preview_rect.intersects(Rect2(game.call("_selection_back_rect"))), "selection background preview button should not overlap back button") and passed
+			passed = _assert_true(not preview_rect.intersects(Rect2(game.call("_selection_start_rect"))), "selection background preview button should not overlap start button") and passed
+			passed = _assert_true(not preview_rect.intersects(Rect2(game.call("_selection_pool_track_rect"))), "selection background preview button should not overlap the pool scrollbar") and passed
+			var pool_view_rect: Rect2 = game.call("_selection_pool_view_rect")
+			for index in range(mini(8, game.selection_pool_cards.size())):
+				var card_rect: Rect2 = game.call("_selection_pool_rect", index)
+				if pool_view_rect.encloses(card_rect):
+					passed = _assert_true(not preview_rect.intersects(card_rect), "selection background preview button should not overlap visible card %d" % index) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_selection_background_preview_click_guards_bottom_layer() -> bool:
+	var game := _make_game()
+	game.size = Vector2(1600.0, 900.0)
+	game.mode = game.MODE_SELECTION
+	game.current_level = {"id": "preview-click-test", "terrain": "pool", "events": [], "mode": "", "title": "泳池预览", "description": ""}
+	game.selection_pool_cards = [
+		"peashooter", "sunflower", "cherry_bomb", "wallnut", "potato_mine", "snow_pea",
+		"chomper", "repeater", "puff_shroom", "sun_shroom", "fume_shroom", "grave_buster",
+	]
+	game.selection_cards = []
+	var passed = _assert_true(game.has_method("_selection_preview_button_rect"), "selection scene should expose a background preview button helper") \
+		and _assert_true(game.has_method("_selection_preview_close_rect"), "selection scene should expose a background preview close helper")
+	if passed:
+		var preview_rect: Rect2 = game.call("_selection_preview_button_rect")
+		game.call("_handle_selection_click", preview_rect.get_center())
+		passed = _assert_true(game.mode == game.MODE_SELECTION, "opening the background preview should stay on the selection screen") and passed
+		passed = _assert_true(bool(game.get("selection_background_preview_open")), "clicking the background preview button should open the modal") and passed
+		var first_card_rect: Rect2 = game.call("_selection_pool_rect", 0)
+		game.call("_handle_selection_click", first_card_rect.get_center())
+		passed = _assert_true(game.selection_cards.is_empty(), "clicking cards under an open background preview should not change selected cards") and passed
+		var closed_scroll = float(game.selection_pool_scroll)
+		game.call("_handle_scroll_input", 120.0, first_card_rect.get_center())
+		passed = _assert_true(is_equal_approx(float(game.selection_pool_scroll), closed_scroll), "scrolling under an open background preview should not move the card pool") and passed
+		var close_rect: Rect2 = game.call("_selection_preview_close_rect")
+		game.call("_handle_selection_click", close_rect.get_center())
+		passed = _assert_true(not bool(game.get("selection_background_preview_open")), "clicking close should dismiss the background preview modal") and passed
+		game.call("_handle_selection_click", first_card_rect.get_center())
+		passed = _assert_true(game.selection_cards.has("peashooter"), "cards should be selectable again after closing the background preview") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_selection_background_preview_styles_cover_level_terrains() -> bool:
+	var game := _make_game()
+	var passed = _assert_true(game.has_method("_selection_level_preview_style"), "selection scene should expose a level preview style helper")
+	if passed:
+		var levels = [
+			{"id": "1-preview", "terrain": "day", "row_count": 5, "events": []},
+			{"id": "2-preview", "terrain": "vasebreaker_night", "row_count": 5, "events": []},
+			{"id": "3-preview", "terrain": "pool", "row_count": 5, "water_rows": [2, 3], "events": []},
+			{"id": "4-preview", "terrain": "fog", "row_count": 5, "water_rows": [2, 3], "events": []},
+			{"id": "5-preview", "terrain": "roof", "row_count": 5, "events": []},
+			{"id": "6-preview", "terrain": "city", "row_count": 5, "cell_terrain_mask": [["city_tile"], ["rail"], ["snowfield"]], "events": []},
+			{"id": "7-preview", "terrain": "volcano", "row_count": 5, "lava_cells": [Vector2i(2, 4)], "events": []},
+			{"id": "1-18", "terrain": "frozen_lake", "row_count": 5, "water_rows": [2, 3], "events": []},
+			{"id": "1-19", "terrain": "blood_moon", "row_count": 5, "events": []},
+		]
+		for level_variant in levels:
+			var level := Dictionary(level_variant)
+			var style: Dictionary = game.call("_selection_level_preview_style", level)
+			passed = _assert_true(not String(style.get("terrain_key", "")).is_empty(), "preview style should expose a terrain key for %s" % String(level.get("terrain", ""))) and passed
+			passed = _assert_true(int(style.get("row_count", 0)) >= 5, "preview style should preserve a playable row count for %s" % String(level.get("terrain", ""))) and passed
+			passed = _assert_true(style.get("sky_top", null) is Color, "preview style should include a sky color for %s" % String(level.get("terrain", ""))) and passed
+			passed = _assert_true(style.get("ground", null) is Color, "preview style should include a ground color for %s" % String(level.get("terrain", ""))) and passed
+		game.call("_enter_endless_mode")
+		var endless_style: Dictionary = game.call("_selection_level_preview_style", game.current_level)
+		passed = _assert_true(String(endless_style.get("terrain_key", "")) == "day", "endless selection should expose its day grass preview style") and passed
+		var daily_series: Dictionary = game.call("_daily_series_by_id", "cargo")
+		var daily_stage: Dictionary = Dictionary(game.call("_daily_stage_defs_for_series", daily_series)[0])
+		var daily_level: Dictionary = game.call("_build_custom_level", String(daily_series.get("world", "day")), "daily-preview", String(daily_stage.get("title", "每日")), "desc", {"events": []})
+		var daily_style: Dictionary = game.call("_selection_level_preview_style", daily_level)
+		passed = _assert_true(not String(daily_style.get("terrain_key", "")).is_empty(), "daily selection should expose a valid preview style") and passed
 	_free_game(game)
 	return passed
 

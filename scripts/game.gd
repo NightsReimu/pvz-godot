@@ -731,6 +731,7 @@ var total_kills := 0
 var selection_cards: Array = []
 var selection_pool_cards: Array = []
 var selection_pool_scroll := 0.0
+var selection_background_preview_open := false
 var almanac_tab := "plants"
 var almanac_selected_kind := ""
 var almanac_scroll := 0.0
@@ -1276,6 +1277,14 @@ func _map_touch_target(position: Vector2) -> Dictionary:
 
 
 func _selection_touch_target(position: Vector2) -> Dictionary:
+	if selection_background_preview_open:
+		var close_rect = _selection_preview_close_rect()
+		if close_rect.has_point(position):
+			return {"id": "selection_preview_close", "rect": close_rect}
+		return {"id": "selection_preview_overlay", "rect": Rect2(Vector2.ZERO, size)}
+	var preview_rect = _selection_preview_button_rect()
+	if preview_rect.has_point(position):
+		return {"id": "selection_preview", "rect": preview_rect}
 	var back_rect = _selection_back_rect()
 	if back_rect.has_point(position):
 		return {"id": "selection_back", "rect": back_rect}
@@ -3867,6 +3876,34 @@ func _selection_start_rect() -> Rect2:
 	)
 
 
+func _selection_preview_button_rect() -> Rect2:
+	var back_rect = _selection_back_rect()
+	return Rect2(
+		back_rect.position.x - 146.0,
+		back_rect.position.y,
+		132.0,
+		back_rect.size.y
+	)
+
+
+func _selection_preview_modal_rect() -> Rect2:
+	var safe_rect = _viewport_safe_rect()
+	var modal_size = Vector2(
+		clampf(safe_rect.size.x - 96.0, 520.0, 1180.0),
+		clampf(safe_rect.size.y - 84.0, 320.0, 690.0)
+	)
+	if safe_rect.size.x < 700.0:
+		modal_size.x = maxf(300.0, safe_rect.size.x - 32.0)
+	if safe_rect.size.y < 460.0:
+		modal_size.y = maxf(260.0, safe_rect.size.y - 28.0)
+	return Rect2(safe_rect.get_center() - modal_size * 0.5, modal_size)
+
+
+func _selection_preview_close_rect() -> Rect2:
+	var modal_rect = _selection_preview_modal_rect()
+	return Rect2(modal_rect.end - Vector2(74.0, modal_rect.size.y - 18.0), Vector2(48.0, 38.0))
+
+
 func _handle_enhance_click(mouse_pos: Vector2) -> void:
 	if _enhance_back_rect().has_point(mouse_pos):
 		_enter_home_mode()
@@ -4679,6 +4716,7 @@ func _enter_endless_mode() -> void:
 	selection_pool_cards = _resolved_selection_pool_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
+	selection_background_preview_open = false
 	queue_redraw()
 
 
@@ -5296,6 +5334,7 @@ func _enter_daily_challenge(series_id: String = "", stage_index: int = 0) -> voi
 	selection_pool_cards = _resolved_selection_pool_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
+	selection_background_preview_open = false
 	daily_completed_today = daily_challenge_date == _today_string()
 	queue_redraw()
 
@@ -5315,6 +5354,7 @@ func _enter_seed_selection(level_index: int) -> void:
 	selection_pool_cards = _resolved_selection_pool_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
+	selection_background_preview_open = false
 	queue_redraw()
 
 
@@ -5909,6 +5949,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	frozen_branch_post_freeze_cards = []
 	selection_cards = []
 	selection_pool_cards = []
+	selection_background_preview_open = false
 	board_rows = clampi(max(DEFAULT_BOARD_ROWS, int(current_level.get("row_count", DEFAULT_BOARD_ROWS))), DEFAULT_BOARD_ROWS, ROWS)
 	_refresh_battle_layout()
 	water_rows = current_level.get("water_rows", []).duplicate()
@@ -6047,6 +6088,17 @@ func _prewarm_level_boss_assets() -> void:
 
 func _handle_selection_click(mouse_pos: Vector2) -> void:
 	_ensure_selection_scene_ready()
+	if selection_background_preview_open:
+		if _selection_preview_close_rect().has_point(mouse_pos):
+			selection_background_preview_open = false
+			queue_redraw()
+		return
+
+	if _selection_preview_button_rect().has_point(mouse_pos):
+		selection_background_preview_open = true
+		queue_redraw()
+		return
+
 	var back_rect = _selection_back_rect()
 	if back_rect.has_point(mouse_pos):
 		if bool(current_level.get("custom_level", false)):
@@ -6098,6 +6150,8 @@ func _handle_selection_click(mouse_pos: Vector2) -> void:
 
 
 func _handle_scroll_input(delta_y: float, mouse_pos: Vector2) -> bool:
+	if mode == MODE_SELECTION and selection_background_preview_open:
+		return true
 	if mode == MODE_SELECTION and (_selection_pool_panel_rect().has_point(mouse_pos) or _selection_pool_view_rect().has_point(mouse_pos)):
 		_set_selection_pool_scroll(selection_pool_scroll + delta_y)
 		return true
@@ -18119,28 +18173,283 @@ func _draw_map_info_panel() -> void:
 		_draw_text("先满足解锁条件", panel_rect.position + Vector2(232.0, 136.0), 16, Color(0.42, 0.18, 0.1))
 
 
+func _selection_preview_color(value, fallback: Color, alpha_scale: float = 1.0) -> Color:
+	var color := fallback
+	if value is Color:
+		color = Color(value)
+	color.a *= alpha_scale
+	return color
+
+
+func _selection_level_preview_style(level: Dictionary) -> Dictionary:
+	var terrain_key := String(level.get("terrain", ""))
+	if terrain_key.is_empty():
+		terrain_key = _world_key_for_level(level)
+	var row_count := clampi(max(DEFAULT_BOARD_ROWS, int(level.get("row_count", DEFAULT_BOARD_ROWS))), DEFAULT_BOARD_ROWS, ROWS)
+	var water_rows: Array = []
+	var source_water_rows = level.get("water_rows", [])
+	if source_water_rows is Array:
+		water_rows = Array(source_water_rows).duplicate()
+	if water_rows.is_empty() and (terrain_key == "pool" or terrain_key == "fog" or terrain_key == "storm_fog" or terrain_key == "clear_backyard"):
+		water_rows = [2, 3]
+	var label := "白天草坪"
+	var sky_top := Color(0.45, 0.72, 1.0)
+	var sky_bottom := Color(0.78, 0.9, 0.62)
+	var ground := Color(0.55, 0.75, 0.34)
+	var lane := Color(0.46, 0.68, 0.26)
+	var lane_alt := Color(0.55, 0.76, 0.34)
+	var accent := Color(0.95, 0.74, 0.28)
+	var water := Color(0.2, 0.56, 0.72)
+	var hazard := Color(0.96, 0.36, 0.12)
+	match terrain_key:
+		"night", "vasebreaker_night":
+			label = "夜晚庭院"
+			sky_top = Color(0.04, 0.07, 0.17)
+			sky_bottom = Color(0.1, 0.16, 0.25)
+			ground = Color(0.18, 0.3, 0.22)
+			lane = Color(0.16, 0.28, 0.18)
+			lane_alt = Color(0.22, 0.34, 0.22)
+			accent = Color(0.72, 0.82, 1.0)
+		"pool", "clear_backyard":
+			label = "泳池后院"
+			sky_top = Color(0.5, 0.78, 1.0)
+			sky_bottom = Color(0.72, 0.9, 0.62)
+			ground = Color(0.62, 0.72, 0.42)
+			lane = Color(0.56, 0.74, 0.34)
+			lane_alt = Color(0.64, 0.78, 0.4)
+			accent = Color(0.46, 0.86, 1.0)
+		"fog", "storm_fog":
+			label = "浓雾泳池"
+			sky_top = Color(0.22, 0.32, 0.38)
+			sky_bottom = Color(0.54, 0.64, 0.58)
+			ground = Color(0.36, 0.48, 0.36)
+			lane = Color(0.32, 0.46, 0.32)
+			lane_alt = Color(0.4, 0.52, 0.38)
+			accent = Color(0.72, 0.9, 0.86)
+		"roof":
+			label = "屋顶斜坡"
+			sky_top = Color(0.66, 0.78, 0.92)
+			sky_bottom = Color(0.86, 0.82, 0.68)
+			ground = Color(0.64, 0.3, 0.18)
+			lane = Color(0.58, 0.24, 0.14)
+			lane_alt = Color(0.7, 0.34, 0.2)
+			accent = Color(1.0, 0.66, 0.36)
+		"city":
+			label = "城市街区"
+			sky_top = Color(0.06, 0.1, 0.2)
+			sky_bottom = Color(0.16, 0.26, 0.38)
+			ground = Color(0.18, 0.22, 0.24)
+			lane = Color(0.34, 0.4, 0.44)
+			lane_alt = Color(0.24, 0.28, 0.32)
+			accent = Color(0.5, 0.88, 1.0)
+		"volcano":
+			label = "火山熔岩"
+			sky_top = Color(0.12, 0.03, 0.02)
+			sky_bottom = Color(0.44, 0.12, 0.04)
+			ground = Color(0.18, 0.06, 0.04)
+			lane = Color(0.26, 0.1, 0.06)
+			lane_alt = Color(0.34, 0.14, 0.08)
+			accent = Color(1.0, 0.48, 0.16)
+			hazard = Color(1.0, 0.38, 0.06)
+		"frozen_lake":
+			label = "冰封湖面"
+			sky_top = Color(0.66, 0.84, 1.0)
+			sky_bottom = Color(0.92, 0.98, 1.0)
+			ground = Color(0.56, 0.72, 0.58)
+			lane = Color(0.72, 0.88, 0.92)
+			lane_alt = Color(0.58, 0.76, 0.86)
+			accent = Color(0.72, 0.96, 1.0)
+			water = Color(0.54, 0.86, 1.0)
+		"blood_moon":
+			label = "血月庭院"
+			sky_top = Color(0.12, 0.0, 0.02)
+			sky_bottom = Color(0.32, 0.02, 0.06)
+			ground = Color(0.28, 0.04, 0.05)
+			lane = Color(0.32, 0.06, 0.06)
+			lane_alt = Color(0.42, 0.08, 0.08)
+			accent = Color(0.98, 0.16, 0.18)
+		"blood_library":
+			label = "血色图书馆"
+			sky_top = Color(0.1, 0.02, 0.08)
+			sky_bottom = Color(0.34, 0.06, 0.12)
+			ground = Color(0.18, 0.04, 0.08)
+			lane = Color(0.28, 0.06, 0.1)
+			lane_alt = Color(0.36, 0.08, 0.12)
+			accent = Color(0.92, 0.24, 0.3)
+		"scarlet_clocktower":
+			label = "红魔钟楼"
+			sky_top = Color(0.08, 0.02, 0.06)
+			sky_bottom = Color(0.22, 0.04, 0.1)
+			ground = Color(0.14, 0.03, 0.06)
+			lane = Color(0.42, 0.08, 0.12)
+			lane_alt = Color(0.62, 0.14, 0.18)
+			accent = Color(0.98, 0.72, 0.52)
+		"blood_toy_roof":
+			label = "血色玩具屋顶"
+			sky_top = Color(0.08, 0.0, 0.03)
+			sky_bottom = Color(0.34, 0.04, 0.12)
+			ground = Color(0.24, 0.04, 0.08)
+			lane = Color(0.46, 0.1, 0.16)
+			lane_alt = Color(0.66, 0.18, 0.22)
+			accent = Color(1.0, 0.54, 0.66)
+	return {
+		"terrain_key": terrain_key,
+		"label": label,
+		"row_count": row_count,
+		"water_rows": water_rows,
+		"cell_terrain_mask": level.get("cell_terrain_mask", []),
+		"lava_cells": level.get("lava_cells", []),
+		"sky_top": sky_top,
+		"sky_bottom": sky_bottom,
+		"ground": ground,
+		"lane": lane,
+		"lane_alt": lane_alt,
+		"accent": accent,
+		"water": water,
+		"hazard": hazard,
+	}
+
+
+func _selection_preview_cell_kind(style: Dictionary, row: int, col: int) -> String:
+	var terrain_key := String(style.get("terrain_key", "day"))
+	var water_rows: Array = style.get("water_rows", [])
+	if water_rows.has(row):
+		return "water"
+	var lava_cells: Array = style.get("lava_cells", [])
+	for cell_variant in lava_cells:
+		var cell := Vector2i(cell_variant)
+		if cell.x == row and cell.y == col:
+			return "lava"
+	var mask = style.get("cell_terrain_mask", [])
+	if mask is Array and row < Array(mask).size():
+		var mask_row = Array(mask)[row]
+		if mask_row is Array and col < Array(mask_row).size():
+			var masked := String(Array(mask_row)[col])
+			if not masked.is_empty():
+				return masked
+	if terrain_key == "roof" or terrain_key == "blood_toy_roof":
+		return "roof"
+	if terrain_key == "volcano":
+		return "volcano_tile"
+	if terrain_key == "city":
+		return "city_tile"
+	if terrain_key == "frozen_lake" and (row == 2 or row == 3):
+		return "frozen"
+	return "land"
+
+
+func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: float = 1.0, show_label: bool = false) -> void:
+	var sky_top := _selection_preview_color(style.get("sky_top", null), Color(0.45, 0.72, 1.0), alpha_scale)
+	var sky_bottom := _selection_preview_color(style.get("sky_bottom", null), Color(0.78, 0.9, 0.62), alpha_scale)
+	var ground := _selection_preview_color(style.get("ground", null), Color(0.55, 0.75, 0.34), alpha_scale)
+	var accent := _selection_preview_color(style.get("accent", null), Color(0.95, 0.74, 0.28), alpha_scale)
+	var horizon_h := rect.size.y * 0.28
+	ThemeLib.draw_gradient_rect_v(self, Rect2(rect.position, Vector2(rect.size.x, horizon_h + 18.0)), sky_top, sky_bottom)
+	ThemeLib.draw_gradient_rect_v(self, Rect2(rect.position + Vector2(0.0, horizon_h), Vector2(rect.size.x, rect.size.y - horizon_h)), ground, ground.darkened(0.22))
+	var terrain_key := String(style.get("terrain_key", "day"))
+	for hill_index in range(5):
+		var hill_x = rect.position.x + rect.size.x * (0.04 + float(hill_index) * 0.22)
+		var hill_y = rect.position.y + horizon_h + sin(ui_time * 0.4 + float(hill_index)) * 4.0
+		draw_circle(Vector2(hill_x, hill_y), rect.size.x * 0.11, Color(ground.r * 0.75, ground.g * 0.8, ground.b * 0.75, 0.18 * alpha_scale))
+	if terrain_key == "night" or terrain_key == "vasebreaker_night" or terrain_key == "city":
+		for star_index in range(18):
+			var star_pos = rect.position + Vector2(rect.size.x * (0.16 + float(star_index % 9) * 0.085), 22.0 + float(star_index / 9) * 26.0)
+			draw_circle(star_pos, 1.5, Color(0.9, 0.96, 1.0, 0.34 * alpha_scale))
+	else:
+		draw_circle(rect.position + Vector2(rect.size.x - 86.0, 58.0), 26.0, Color(accent.r, accent.g, accent.b, 0.16 * alpha_scale))
+		draw_circle(rect.position + Vector2(rect.size.x - 86.0, 58.0), 16.0, Color(1.0, 0.9, 0.44, 0.62 * alpha_scale))
+	if terrain_key == "city":
+		for tower_index in range(9):
+			var tower_w := rect.size.x * 0.045
+			var tower_h := rect.size.y * (0.12 + float((tower_index * 13) % 7) * 0.018)
+			var tower_rect := Rect2(rect.position + Vector2(rect.size.x * (0.2 + float(tower_index) * 0.07), horizon_h - tower_h + 12.0), Vector2(tower_w, tower_h))
+			draw_rect(tower_rect, Color(0.05, 0.08, 0.12, 0.72 * alpha_scale), true)
+			draw_rect(tower_rect.grow(-4.0), Color(accent.r, accent.g, accent.b, 0.08 * alpha_scale), false, 1.0)
+	var board_margin := Vector2(rect.size.x * 0.08, rect.size.y * 0.36)
+	var board_rect := Rect2(rect.position + board_margin, Vector2(rect.size.x * 0.84, rect.size.y * 0.48))
+	var row_count := int(style.get("row_count", DEFAULT_BOARD_ROWS))
+	var cell_size := Vector2(board_rect.size.x / float(COLS), board_rect.size.y / float(max(row_count, 1)))
+	for row in range(row_count):
+		var row_rect := Rect2(board_rect.position + Vector2(0.0, float(row) * cell_size.y), Vector2(board_rect.size.x, cell_size.y))
+		var row_base := _selection_preview_color(style.get("lane", null), Color(0.46, 0.68, 0.26), alpha_scale)
+		if row % 2 == 1:
+			row_base = _selection_preview_color(style.get("lane_alt", null), Color(0.55, 0.76, 0.34), alpha_scale)
+		draw_rect(row_rect, row_base, true)
+		for col in range(COLS):
+			var tile_rect := Rect2(board_rect.position + Vector2(float(col) * cell_size.x, float(row) * cell_size.y), cell_size).grow(-1.0)
+			var cell_kind := _selection_preview_cell_kind(style, row, col)
+			var tile_color := Color(1.0, 1.0, 1.0, 0.035 * alpha_scale) if (row + col) % 2 == 0 else Color(0.0, 0.0, 0.0, 0.035 * alpha_scale)
+			match cell_kind:
+				"water":
+					var water_color := _selection_preview_color(style.get("water", null), Color(0.2, 0.56, 0.72), alpha_scale)
+					tile_color = water_color
+				"frozen":
+					tile_color = Color(0.72, 0.92, 1.0, 0.5 * alpha_scale)
+				"lava":
+					var lava_color := _selection_preview_color(style.get("hazard", null), Color(1.0, 0.38, 0.06), alpha_scale)
+					tile_color = lava_color
+				"roof":
+					tile_color = Color(0.66, 0.32, 0.18, 0.55 * alpha_scale)
+				"city_tile":
+					tile_color = Color(0.44, 0.5, 0.56, 0.5 * alpha_scale)
+				"rail":
+					tile_color = Color(0.22, 0.22, 0.24, 0.72 * alpha_scale)
+				"snowfield":
+					tile_color = Color(0.82, 0.94, 1.0, 0.58 * alpha_scale)
+				"volcano_tile":
+					tile_color = Color(0.28, 0.1, 0.06, 0.62 * alpha_scale)
+			draw_rect(tile_rect, tile_color, true)
+			draw_rect(tile_rect, Color(0.0, 0.0, 0.0, 0.08 * alpha_scale), false, 1.0)
+	draw_rect(board_rect, Color(accent.r, accent.g, accent.b, 0.52 * alpha_scale), false, 3.0)
+	if terrain_key == "fog" or terrain_key == "storm_fog":
+		draw_rect(board_rect.grow(12.0), Color(0.72, 0.84, 0.82, 0.16 * alpha_scale), true)
+	if show_label:
+		_draw_text(String(style.get("label", "关卡背景")), rect.position + Vector2(24.0, 36.0), 26, Color(0.96, 0.98, 1.0, 0.96 * alpha_scale))
+
+
+func _draw_selection_level_backdrop(level: Dictionary) -> void:
+	var style := _selection_level_preview_style(level)
+	_draw_selection_preview_board(Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), style, 0.86, false)
+	draw_rect(Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.0, 0.0, 0.0, 0.18), true)
+	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 136.0)), Color(0.08, 0.07, 0.05, 0.34), true)
+	draw_rect(Rect2(Vector2(0.0, BASE_VIEWPORT_SIZE.y - 146.0), Vector2(BASE_VIEWPORT_SIZE.x, 146.0)), Color(0.08, 0.06, 0.04, 0.18), true)
+
+
+func _draw_selection_background_preview_overlay() -> void:
+	if not selection_background_preview_open:
+		return
+	var modal_rect := _selection_preview_modal_rect()
+	var close_rect := _selection_preview_close_rect()
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.48), true)
+	_draw_panel_shell(modal_rect, Color(0.08, 0.1, 0.11, 0.98), Color(0.48, 0.64, 0.68, 0.82), 0.24, 0.16)
+	var style := _selection_level_preview_style(current_level)
+	var preview_rect := Rect2(modal_rect.position + Vector2(28.0, 78.0), Vector2(modal_rect.size.x - 56.0, modal_rect.size.y - 128.0))
+	_draw_selection_preview_board(preview_rect, style, 1.0, false)
+	draw_rect(preview_rect, Color(1.0, 1.0, 1.0, 0.08), false, 2.0)
+	_draw_text(String(current_level.get("title", current_level.get("id", "关卡预览"))), modal_rect.position + Vector2(30.0, 44.0), 28, Color(0.96, 0.98, 1.0))
+	_draw_text("背景预览 / %s" % String(style.get("label", "关卡背景")), modal_rect.position + Vector2(30.0, 68.0), 16, Color(0.68, 0.86, 0.9))
+	_draw_fancy_button(close_rect, "×", Color(0.18, 0.24, 0.26), Color(0.56, 0.72, 0.78), 24)
+
+
 func _draw_seed_selection_scene() -> void:
 	_ensure_selection_scene_ready()
-	_draw_world_sky(false)
-	draw_rect(Rect2(Vector2(0.0, 148.0), Vector2(BASE_VIEWPORT_SIZE.x, BASE_VIEWPORT_SIZE.y - 148.0)), Color(0.68, 0.82, 0.5), true)
-	draw_rect(Rect2(Vector2(0.0, 610.0), Vector2(BASE_VIEWPORT_SIZE.x, 110.0)), Color(0.58, 0.42, 0.24), true)
-	draw_rect(Rect2(Vector2(0.0, 148.0), Vector2(BASE_VIEWPORT_SIZE.x, 44.0)), Color(1.0, 1.0, 1.0, 0.06), true)
-	draw_rect(Rect2(Vector2(0.0, 566.0), Vector2(BASE_VIEWPORT_SIZE.x, 30.0)), Color(0.0, 0.0, 0.0, 0.08), true)
+	_draw_selection_level_backdrop(current_level)
 	var is_mobile = _is_mobile_runtime()
 	if not is_mobile:
-		_draw_panel_shell(Rect2(Vector2(44.0, 182.0), Vector2(214.0, 392.0)), Color(0.86, 0.78, 0.58), Color(0.54, 0.38, 0.18))
-		_draw_panel_shell(Rect2(Vector2(66.0, 238.0), Vector2(170.0, 164.0)), Color(0.93, 0.88, 0.74), Color(0.58, 0.42, 0.2), 0.12, 0.08)
-		draw_rect(Rect2(Vector2(96.0, 192.0), Vector2(110.0, 62.0)), Color(0.79, 0.28, 0.21), true)
+		_draw_panel_shell(Rect2(Vector2(44.0, 182.0), Vector2(214.0, 392.0)), Color(0.18, 0.16, 0.12, 0.62), Color(0.82, 0.68, 0.42, 0.64))
+		_draw_panel_shell(Rect2(Vector2(66.0, 238.0), Vector2(170.0, 164.0)), Color(0.82, 0.76, 0.6, 0.72), Color(0.58, 0.42, 0.2, 0.7), 0.12, 0.08)
+		draw_rect(Rect2(Vector2(96.0, 192.0), Vector2(110.0, 62.0)), Color(0.79, 0.28, 0.21, 0.78), true)
 	var selected_panel_rect = _selection_selected_panel_rect()
 	var zombie_panel_rect = _selection_zombie_panel_rect()
 	var pool_panel_rect = _selection_pool_panel_rect()
 	var footer_rect = _selection_footer_rect()
 	var back_rect = _selection_back_rect()
 	var start_rect = _selection_start_rect()
+	var preview_rect = _selection_preview_button_rect()
 
-	_draw_panel_shell(selected_panel_rect, Color(0.95, 0.9, 0.76), Color(0.48, 0.35, 0.16), 0.14, 0.08)
-	_draw_panel_shell(zombie_panel_rect, Color(0.92, 0.88, 0.8), Color(0.48, 0.35, 0.16), 0.1, 0.05)
-	_draw_panel_shell(pool_panel_rect, Color(0.95, 0.92, 0.84), Color(0.48, 0.35, 0.16), 0.14, 0.08)
+	_draw_panel_shell(selected_panel_rect, Color(0.95, 0.9, 0.76, 0.88), Color(0.48, 0.35, 0.16, 0.82), 0.14, 0.08)
+	_draw_panel_shell(zombie_panel_rect, Color(0.92, 0.88, 0.8, 0.86), Color(0.48, 0.35, 0.16, 0.78), 0.1, 0.05)
+	_draw_panel_shell(pool_panel_rect, Color(0.95, 0.92, 0.84, 0.9), Color(0.48, 0.35, 0.16, 0.82), 0.14, 0.08)
 	var required_count = _required_seed_count(current_level)
 
 	var title_x = selected_panel_rect.position.x
@@ -18188,7 +18497,7 @@ func _draw_seed_selection_scene() -> void:
 		pool_panel_rect.position + Vector2(10.0, 38.0),
 		Vector2(pool_panel_rect.size.x - 14.0, footer_rect.position.y - pool_panel_rect.position.y - 30.0)
 	)
-	_draw_scroll_mask(pool_content_rect, pool_view_rect, Color(0.95, 0.92, 0.84), Color(0.58, 0.46, 0.24))
+	_draw_scroll_mask(pool_content_rect, pool_view_rect, Color(0.95, 0.92, 0.84, 0.9), Color(0.58, 0.46, 0.24, 0.82))
 	_draw_panel_shell(footer_rect, Color(0.88, 0.84, 0.76, 0.9), Color(0.42, 0.3, 0.14), 0.06, 0.04)
 	_draw_text("选满后即可开始", footer_rect.position + Vector2(18.0, 26.0), 16, Color(0.28, 0.2, 0.08))
 
@@ -18202,8 +18511,10 @@ func _draw_seed_selection_scene() -> void:
 
 	var back_color = Color(0.88, 0.84, 0.76)
 	var start_color = Color(0.42, 0.76, 0.24) if selection_cards.size() >= required_count else Color(0.62, 0.62, 0.62)
+	_draw_fancy_button(preview_rect, "预览背景", Color(0.72, 0.86, 0.9), Color(0.28, 0.46, 0.52), 17)
 	_draw_fancy_button(back_rect, "返回地图", back_color, Color(0.42, 0.3, 0.14), 18)
 	_draw_fancy_button(start_rect, "开始战斗", start_color, Color(0.22, 0.36, 0.12), 20)
+	_draw_selection_background_preview_overlay()
 
 
 func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: bool, allow_hover: bool = true) -> void:
