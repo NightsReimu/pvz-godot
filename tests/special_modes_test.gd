@@ -18,10 +18,13 @@ func _run() -> void:
 	failed = not _test_endless_bonus_resets_between_runs_and_fits_overlay() or failed
 	failed = not _test_endless_bonus_does_not_affect_non_endless_levels() or failed
 	failed = not _test_daily_mode_lists_weekday_series_and_many_stages() or failed
+	failed = not _test_daily_stage_worlds_are_varied() or failed
 	failed = not _test_daily_home_opens_daily_terminal() or failed
 	failed = not _test_daily_series_open_schedule_blocks_closed_stages() or failed
 	failed = not _test_daily_open_stage_enters_selection() or failed
 	failed = not _test_daily_challenge_enters_selection_and_waits_for_spawns() or failed
+	failed = not _test_daily_stage_world_override_drives_selection_preview() or failed
+	failed = not _test_daily_background_preview_matches_runtime_world() or failed
 	failed = not _test_daily_challenge_supports_manual_card_clicks_before_start() or failed
 	failed = not _test_daily_challenge_selection_preview_uses_valid_zombie_keys() or failed
 	failed = not _test_special_zombies_are_cataloged_but_not_mainline() or failed
@@ -319,6 +322,26 @@ func _test_daily_mode_lists_weekday_series_and_many_stages() -> bool:
 	return passed
 
 
+func _test_daily_stage_worlds_are_varied() -> bool:
+	var game := _make_game()
+	var all_worlds := {}
+	var passed := true
+	for series_variant in game.call("_daily_series_defs"):
+		var series := Dictionary(series_variant)
+		var stages: Array = game.call("_daily_stage_defs_for_series", series)
+		var series_worlds := {}
+		for stage_index in range(stages.size()):
+			var stage := Dictionary(stages[stage_index])
+			var world_key := String(stage.get("world", series.get("world", "day")))
+			series_worlds[world_key] = true
+			all_worlds[world_key] = true
+		passed = _assert_true(series_worlds.size() >= 2, "daily series %s should rotate between multiple stage worlds" % String(series.get("id", ""))) and passed
+	for required_world in ["night", "pool", "fog", "roof", "city"]:
+		passed = _assert_true(all_worlds.has(required_world), "daily stages should include %s backgrounds" % String(required_world)) and passed
+	_free_game(game)
+	return passed
+
+
 func _test_daily_home_opens_daily_terminal() -> bool:
 	var game := _make_game()
 	var daily_rect: Rect2 = Dictionary(game.call("_home_action_rects"))["daily"]
@@ -384,6 +407,59 @@ func _test_daily_challenge_enters_selection_and_waits_for_spawns() -> bool:
 		passed = _assert_true(game.battle_state == game.BATTLE_PLAYING, "daily challenge should remain active instead of instantly auto-clearing before the first spawn batch") and passed
 		passed = _assert_true(game.cell_terrain_mask.size() == game.ROWS, "daily challenge should initialize a visible board terrain mask before battle begins") and passed
 		passed = _assert_true(game.zombies.size() > 0, "daily challenge should start spawning zombies once the battle clock advances") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_daily_stage_world_override_drives_selection_preview() -> bool:
+	var game := _make_game()
+	var picked_series_id := ""
+	var picked_stage_index := -1
+	var picked_world := ""
+	for series_variant in game.call("_daily_series_defs"):
+		var series := Dictionary(series_variant)
+		var series_world := String(series.get("world", "day"))
+		var stages: Array = game.call("_daily_stage_defs_for_series", series)
+		for i in range(stages.size()):
+			var stage := Dictionary(stages[i])
+			var stage_world := String(stage.get("world", series_world))
+			if stage_world != series_world:
+				picked_series_id = String(series.get("id", ""))
+				picked_stage_index = i
+				picked_world = stage_world
+				break
+		if picked_stage_index != -1:
+			break
+	var passed = _assert_true(picked_stage_index != -1, "daily stages should include at least one stage-level world override")
+	if passed:
+		game.call("_enter_daily_challenge", picked_series_id, picked_stage_index)
+		var style: Dictionary = game.call("_selection_level_preview_style", game.current_level)
+		passed = _assert_true(game.mode == game.MODE_SELECTION, "daily world override should enter seed selection") and passed
+		passed = _assert_true(String(game.current_level.get("world", "")) == picked_world, "daily custom level should store the stage world override") and passed
+		passed = _assert_true(String(game.call("_world_key_for_level", game.current_level)) == picked_world, "daily runtime world key should use the stage world override") and passed
+		passed = _assert_true(String(style.get("terrain_key", "")) == String(game.current_level.get("terrain", "")), "daily preview style should match the generated stage terrain") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_daily_background_preview_matches_runtime_world() -> bool:
+	var game := _make_game()
+	game.call("_enter_daily_challenge", "resource", 0)
+	var style: Dictionary = game.call("_selection_level_preview_style", game.current_level)
+	var passed = _assert_true(game.mode == game.MODE_SELECTION, "pool daily challenge should enter seed selection") \
+		and _assert_true(String(style.get("terrain_key", "")) == "pool", "pool daily preview should use the pool terrain style") \
+		and _assert_true(String(game.call("_world_key_for_level", game.current_level)) == "pool", "pool daily runtime world key should match the preview world")
+	if passed:
+		var required_count = int(game.call("_required_seed_count", game.current_level))
+		game.selection_cards = game.selection_pool_cards.slice(0, max(required_count, 1))
+		_click_selection_start(game)
+		passed = _assert_true(game.mode == game.MODE_BATTLE, "pool daily challenge should start battle mode") and passed
+		passed = _assert_true(bool(game.call("_is_pool_level")), "pool daily battle should use pool-level runtime rules") and passed
+		passed = _assert_true(bool(game.call("_uses_backyard_pool_board")), "pool daily battle should use the backyard pool board") and passed
+		passed = _assert_true(game.water_rows.has(2) and game.water_rows.has(3), "pool daily battle should keep water rows from the pool template") and passed
+		if game.mowers.size() > 3:
+			passed = _assert_true(String(Dictionary(game.mowers[2]).get("kind", "")) == "pool_cleaner", "pool daily water lanes should use pool cleaners") and passed
+			passed = _assert_true(String(Dictionary(game.mowers[3]).get("kind", "")) == "pool_cleaner", "pool daily water lanes should use pool cleaners") and passed
 	_free_game(game)
 	return passed
 

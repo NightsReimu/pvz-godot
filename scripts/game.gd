@@ -165,6 +165,7 @@ const DAILY_SERIES_DEFS := [
 		"reward": "金币",
 		"reward_kind": "coins",
 		"world": "day",
+		"stage_worlds": ["day", "night", "pool", "city", "roof"],
 		"color": Color(0.96, 0.68, 0.24),
 		"open_days": [1, 3, 5, 6],
 		"mods": ["rich_start"],
@@ -178,6 +179,7 @@ const DAILY_SERIES_DEFS := [
 		"reward": "强化材料",
 		"reward_kind": "materials",
 		"world": "night",
+		"stage_worlds": ["night", "day", "fog", "city", "roof"],
 		"color": Color(0.36, 0.78, 1.0),
 		"open_days": [0, 2, 4, 6],
 		"mods": ["fast_zombie"],
@@ -191,6 +193,7 @@ const DAILY_SERIES_DEFS := [
 		"reward": "基建物资",
 		"reward_kind": "base_parts",
 		"world": "pool",
+		"stage_worlds": ["pool", "day", "fog", "city", "roof"],
 		"color": Color(0.38, 0.86, 0.58),
 		"open_days": [1, 2, 5, 0],
 		"mods": ["costly"],
@@ -204,6 +207,7 @@ const DAILY_SERIES_DEFS := [
 		"reward": "植物碎片",
 		"reward_kind": "fragments",
 		"world": "fog",
+		"stage_worlds": ["fog", "night", "pool", "city", "roof"],
 		"color": Color(0.72, 0.58, 1.0),
 		"open_days": [2, 3, 6, 0],
 		"mods": ["sun_drought"],
@@ -217,6 +221,7 @@ const DAILY_SERIES_DEFS := [
 		"reward": "强化石",
 		"reward_kind": "stones",
 		"world": "roof",
+		"stage_worlds": ["roof", "day", "night", "city", "fog"],
 		"color": Color(0.98, 0.48, 0.34),
 		"open_days": [1, 4, 5, 0],
 		"mods": ["tough_zombie"],
@@ -5157,16 +5162,44 @@ func _daily_series_open_on_weekday(series: Dictionary, weekday: int) -> bool:
 	return Array(series.get("open_days", [])).has(clampi(weekday, 0, 6))
 
 
+func _daily_stage_world_for_series(series: Dictionary, stage_index: int) -> String:
+	var stage_worlds = series.get("stage_worlds", [])
+	if stage_worlds is Array and not Array(stage_worlds).is_empty():
+		return String(Array(stage_worlds)[posmod(stage_index, Array(stage_worlds).size())])
+	return String(series.get("world", "day"))
+
+
+func _daily_world_label(world_key: String) -> String:
+	match world_key:
+		"city":
+			return "城市"
+		"night":
+			return "夜晚"
+		"pool":
+			return "泳池"
+		"fog":
+			return "浓雾"
+		"roof":
+			return "屋顶"
+		"volcano":
+			return "火山"
+		_:
+			return "白天"
+
+
 func _daily_stage_defs_for_series(series: Dictionary) -> Array:
 	var stages: Array = []
 	var code := String(series.get("code", "DC"))
 	var reward := String(series.get("reward", "奖励"))
 	for i in range(5):
+		var world_key := _daily_stage_world_for_series(series, i)
 		stages.append({
 			"id": "%s-%d" % [code, i + 1],
 			"name": "%s-%d" % [code, i + 1],
 			"title": "%s %d" % [String(series.get("name", "每日关卡")), i + 1],
-			"subtitle": "推荐阶段 %d，奖励：%s" % [i + 1, reward],
+			"subtitle": "地形：%s  推荐阶段 %d，奖励：%s" % [_daily_world_label(world_key), i + 1, reward],
+			"world": world_key,
+			"world_label": _daily_world_label(world_key),
 			"difficulty": i + 1,
 			"zombie_count": 18 + i * 8,
 			"time_step": maxf(1.6, 3.3 - float(i) * 0.32),
@@ -5298,7 +5331,7 @@ func _enter_daily_challenge(series_id: String = "", stage_index: int = 0) -> voi
 	stage_index = clampi(stage_index, 0, stages.size() - 1)
 	var stage := Dictionary(stages[stage_index])
 	var seed_value := _daily_stage_seed(series, stage_index)
-	var world_key := String(series.get("world", "day"))
+	var world_key := String(stage.get("world", series.get("world", "day")))
 	current_world_key = world_key
 	daily_selected_series_id = String(series.get("id", daily_selected_series_id))
 	daily_modifiers = _daily_modifiers_for_stage(series, stage_index, seed_value)
@@ -5308,7 +5341,7 @@ func _enter_daily_challenge(series_id: String = "", stage_index: int = 0) -> voi
 			start_sun = max(start_sun, 500)
 	var modifier_desc := _daily_modifier_names()
 	selected_level_index = -1
-	current_level = _build_custom_level(world_key, "daily:%s:%d" % [String(series.get("id", "series")), stage_index + 1], String(stage.get("title", "每日关卡")), "%s  开放: %s  修饰: %s" % [String(series.get("subtitle", "")), _daily_open_days_label(series), modifier_desc], {
+	current_level = _build_custom_level(world_key, "daily:%s:%d" % [String(series.get("id", "series")), stage_index + 1], String(stage.get("title", "每日关卡")), "%s  地形: %s  开放: %s  修饰: %s" % [String(series.get("subtitle", "")), String(stage.get("world_label", _daily_world_label(world_key))), _daily_open_days_label(series), modifier_desc], {
 		"events": _build_daily_stage_events(series, stage, seed_value),
 		"available_plants": _player_plant_collection(),
 		"start_sun": start_sun,
@@ -16206,6 +16239,9 @@ func _selection_zombie_kinds() -> Array:
 
 
 func _world_key_for_level(level: Dictionary) -> String:
+	var explicit_world := String(level.get("world", ""))
+	if not explicit_world.is_empty():
+		return explicit_world
 	var level_id = String(level.get("id", ""))
 	if level_id.begins_with("7-"):
 		return "volcano"
@@ -17748,7 +17784,9 @@ func _draw_daily_scene() -> void:
 		draw_rect(code_rect, Color(selected_accent.r, selected_accent.g, selected_accent.b, 0.72 if stage_open else 0.24), false, 1.5)
 		_draw_text(String(stage.get("name", "")), code_rect.position + Vector2(14.0, 38.0), 22, Color(0.96, 0.99, 1.0) if stage_open else Color(0.48, 0.54, 0.56))
 		_draw_text(String(stage.get("title", "")), rect.position + Vector2(120.0, 34.0), 22, Color(0.94, 0.99, 1.0) if stage_open else Color(0.55, 0.61, 0.63))
-		_draw_text("难度 %d  奖励 %s x%d" % [difficulty, String(selected_series.get("reward", "奖励")), int(stage.get("reward_amount", 0))], rect.position + Vector2(120.0, 64.0), 15, Color(0.78, 0.9, 0.92) if stage_open else Color(0.44, 0.5, 0.52))
+		var stage_world_label := String(stage.get("world_label", _daily_world_label(String(stage.get("world", "day")))))
+		var stage_meta_text := "地形 %s  难度 %d  奖励 %s x%d" % [stage_world_label, difficulty, String(selected_series.get("reward", "奖励")), int(stage.get("reward_amount", 0))]
+		_draw_text(stage_meta_text, rect.position + Vector2(120.0, 64.0), 15, Color(0.78, 0.9, 0.92) if stage_open else Color(0.44, 0.5, 0.52))
 		for star in range(5):
 			var star_pos := rect.position + Vector2(rect.size.x - 150.0 + float(star) * 22.0, 37.0)
 			draw_circle(star_pos, 5.5, Color(0.98, 0.76, 0.24, 0.9) if star < difficulty else Color(0.26, 0.3, 0.32, 0.8))
