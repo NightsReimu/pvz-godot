@@ -18,6 +18,7 @@ func _run() -> void:
 	failed = not _test_remilia_health_is_high_and_midboss_is_configured() or failed
 	failed = not _test_sakuya_midboss_locks_progress_until_defeated() or failed
 	failed = not _test_remilia_presence_drains_plants_over_time() or failed
+	failed = not _test_remilia_crimson_drain_balance_window() or failed
 	failed = not _test_remilia_uses_prebaked_left_facing_frames() or failed
 	quit(1 if failed else 0)
 
@@ -238,6 +239,27 @@ func _test_remilia_presence_drains_plants_over_time() -> bool:
 	game.call("_update_remilia_crimson_drain", 1.0)
 	var after_health = float(game.grid[2][2]["health"])
 	var passed = _assert_true(after_health < before_health, "Remilia's presence should slowly drain plant health over time")
+	_free_game(game)
+	return passed
+
+
+func _test_remilia_crimson_drain_balance_window() -> bool:
+	var game = _make_game()
+	game.grid[2][2] = game._create_plant("repeater", 2, 2)
+	var before_health = float(game.grid[2][2]["health"])
+	game.zombies.append({
+		"kind": "remilia_boss",
+		"row": 2,
+		"x": game.BOARD_ORIGIN.x + game.board_size.x - 18.0,
+		"health": float(Defs.ZOMBIES["remilia_boss"]["health"]),
+		"max_health": float(Defs.ZOMBIES["remilia_boss"]["health"]),
+		"boss_phase": 3,
+		"flash": 0.0,
+	})
+	game.call("_update_remilia_crimson_drain", 5.0)
+	var damage = before_health - float(game.grid[2][2]["health"])
+	var passed = _assert_true(damage > 35.0, "Remilia drain should remain meaningful pressure") \
+		and _assert_true(damage <= 70.0, "Remilia drain should not function like a delayed board wipe")
 	_free_game(game)
 	return passed
 

@@ -18,6 +18,7 @@ func _run() -> void:
 	failed = not _test_sakuya_health_is_high() or failed
 	failed = not _test_sakuya_time_stop_starts_and_freezes_other_units() or failed
 	failed = not _test_sakuya_time_stop_can_relocate_plants() or failed
+	failed = not _test_sakuya_time_stop_balance_caps_stay_reactive() or failed
 	failed = not _test_mower_killing_sakuya_avoids_generic_boss_banner() or failed
 	failed = not _test_sakuya_uses_prebaked_left_facing_frames() or failed
 	quit(1 if failed else 0)
@@ -271,6 +272,25 @@ func _test_sakuya_time_stop_can_relocate_plants() -> bool:
 	var after_cells = _occupied_grid_cells(game)
 	var passed = _assert_true(before_cells.size() == after_cells.size(), "Sakuya relocation should move plants instead of deleting them") \
 		and _assert_true(not before_cells.hash() == after_cells.hash(), "Sakuya should be able to reposition plants while time stop is active")
+	_free_game(game)
+	return passed
+
+
+func _test_sakuya_time_stop_balance_caps_stay_reactive() -> bool:
+	var game = _make_game()
+	var boss := {
+		"kind": "sakuya_boss",
+		"row": 2,
+		"x": game.BOARD_ORIGIN.x + game.board_size.x - 18.0,
+		"boss_phase": 3,
+		"boss_skill_cycle": 4,
+		"max_health": float(Defs.ZOMBIES["sakuya_boss"]["health"]),
+		"health": float(Defs.ZOMBIES["sakuya_boss"]["health"]),
+	}
+	boss = game.call("_trigger_sakuya_boss_skill", boss)
+	var passed = _assert_true(float(game.get("boss_time_stop_timer")) <= 2.35, "Sakuya time stop should stay capped for a readable counterplay window") \
+		and _assert_true(int(boss.get("sakuya_relocations_remaining", 99)) <= 3, "Sakuya should not relocate too many plants during one time stop") \
+		and _assert_true(game.zombies.size() <= 2, "Sakuya time stop should not be paired with excessive reinforcements")
 	_free_game(game)
 	return passed
 

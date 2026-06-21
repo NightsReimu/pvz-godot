@@ -2730,6 +2730,84 @@ func _is_existing_touhou_boss_kind(kind: String) -> bool:
 	return _boss_assets_are_preprocessed(kind)
 
 
+func _boss_skill_cycle_length(kind: String) -> int:
+	var data = Dictionary(Defs.ZOMBIES.get(kind, {}))
+	if data.has("skill_cycle_length"):
+		return max(1, int(data.get("skill_cycle_length", 3)))
+	match kind:
+		"rumia_boss":
+			return 4
+		"patchouli_boss":
+			return 5
+		"sakuya_boss", "remilia_boss":
+			return 10
+		"flandre_boss":
+			return 11
+		_:
+			return 3
+
+
+func _boss_skill_interval(kind: String, phase: int) -> float:
+	var data = Dictionary(Defs.ZOMBIES.get(kind, {}))
+	if data.has("skill_interval_base"):
+		var base = float(data.get("skill_interval_base", 7.6))
+		var scale = float(data.get("skill_interval_phase_scale", 0.8))
+		var floor_value = float(data.get("skill_interval_min", 3.6))
+		return maxf(floor_value, base - float(max(0, phase)) * scale)
+	var base_interval = 7.6
+	match kind:
+		"rumia_boss":
+			base_interval = 6.0
+		"koakuma_boss":
+			base_interval = 6.9
+		"patchouli_boss":
+			base_interval = 6.8
+		"sakuya_boss":
+			base_interval = 6.3
+		"remilia_boss":
+			base_interval = 5.9
+		"flandre_boss":
+			base_interval = 5.6
+	return maxf(3.6, base_interval - float(max(0, phase)) * 0.8)
+
+
+func _boss_reinforcement_interval(kind: String, phase: int) -> float:
+	var data = Dictionary(Defs.ZOMBIES.get(kind, {}))
+	if data.has("reinforcement_interval_base"):
+		var base = float(data.get("reinforcement_interval_base", 4.8))
+		var scale = float(data.get("reinforcement_interval_phase_scale", 0.4))
+		var floor_value = float(data.get("reinforcement_interval_min", 3.0))
+		return maxf(floor_value, base - float(max(0, phase)) * scale)
+	match kind:
+		"daiyousei_boss":
+			return maxf(3.5, 5.2 - float(max(0, phase)) * 0.4)
+		"cirno_boss":
+			return maxf(3.1, 4.7 - float(max(0, phase)) * 0.42)
+		"rumia_boss":
+			return maxf(3.4, 5.3 - float(max(0, phase)) * 0.6)
+		"pool_boss":
+			return maxf(3.0, 4.9 - float(max(0, phase)) * 0.45)
+		"fog_boss":
+			return maxf(2.9, 4.6 - float(max(0, phase)) * 0.42)
+		"roof_boss":
+			return maxf(2.7, 4.5 - float(max(0, phase)) * 0.44)
+		"city_boss":
+			return maxf(2.5, 4.2 - float(max(0, phase)) * 0.38)
+		"volcano_boss":
+			return maxf(2.4, 4.0 - float(max(0, phase)) * 0.36)
+		"koakuma_boss":
+			return maxf(3.1, 4.7 - float(max(0, phase)) * 0.36)
+		"patchouli_boss":
+			return maxf(2.8, 4.4 - float(max(0, phase)) * 0.38)
+		"sakuya_boss":
+			return maxf(2.6, 4.1 - float(max(0, phase)) * 0.34)
+		"remilia_boss":
+			return maxf(2.4, 3.9 - float(max(0, phase)) * 0.32)
+		"flandre_boss":
+			return maxf(2.2, 3.6 - float(max(0, phase)) * 0.28)
+	return -1.0
+
+
 func _is_image_backed_hover_boss(kind: String) -> bool:
 	return _boss_frame_count_for_kind(kind) > 0
 
@@ -6651,7 +6729,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		boss_unit["hover_direction"] = -1 if row >= int(round(float(active_rows.size() - 1) * 0.5)) else 1
 		boss_unit["rumia_move_from_y"] = _row_center_y(int(boss_unit["row"]))
 		boss_unit["rumia_move_to_y"] = _row_center_y(int(boss_unit["row"]))
-		boss_unit["rumia_reinforcement_timer"] = 4.8 if kind == "rumia_boss" else (4.2 if kind == "cirno_boss" else (4.0 if kind == "patchouli_boss" else (3.9 if kind == "sakuya_boss" else (3.7 if kind == "remilia_boss" else (3.6 if kind == "flandre_boss" else 4.6)))))
+		boss_unit["rumia_reinforcement_timer"] = maxf(0.4, _boss_reinforcement_interval(kind, 0))
 		boss_unit["hover_shift_timer"] = _roll_hover_shift_interval(kind, 0)
 		boss_unit["sakuya_time_stop_charge"] = 0.0
 		boss_unit["sakuya_mark_timer"] = 0.0
@@ -10303,28 +10381,9 @@ func _update_zombies(delta: float) -> void:
 			zombie["boss_pause_timer"] = maxf(0.0, float(zombie["boss_pause_timer"]) - delta)
 			if float(zombie["boss_skill_timer"]) <= 0.0:
 				zombie = _trigger_boss_skill(zombie)
-				var cycle_length = 3
-				var base_interval = 7.6
-				match String(zombie["kind"]):
-					"rumia_boss":
-						cycle_length = 4
-						base_interval = 6.0
-					"koakuma_boss":
-						base_interval = 6.9
-					"patchouli_boss":
-						cycle_length = 5
-						base_interval = 6.8
-					"sakuya_boss":
-						cycle_length = 10
-						base_interval = 6.3
-					"remilia_boss":
-						cycle_length = 10
-						base_interval = 5.9
-					"flandre_boss":
-						cycle_length = 11
-						base_interval = 5.6
+				var cycle_length = _boss_skill_cycle_length(String(zombie["kind"]))
 				zombie["boss_skill_cycle"] = (int(zombie["boss_skill_cycle"]) + 1) % cycle_length
-				zombie["boss_skill_timer"] = maxf(3.6, base_interval - float(zombie["boss_phase"]) * 0.8)
+				zombie["boss_skill_timer"] = _boss_skill_interval(String(zombie["kind"]), int(zombie["boss_phase"]))
 				zombie["boss_pause_timer"] = 1.3
 
 		if String(zombie["kind"]) == "dancing":
@@ -12983,36 +13042,9 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 func _update_boss_reinforcements(zombie: Dictionary, delta: float) -> Dictionary:
 	var kind = String(zombie.get("kind", ""))
 	var phase = int(zombie.get("boss_phase", 0))
-	var default_interval = 4.8
-	match kind:
-		"daiyousei_boss":
-			default_interval = maxf(3.5, 5.2 - float(phase) * 0.4)
-		"cirno_boss":
-			default_interval = maxf(3.1, 4.7 - float(phase) * 0.42)
-		"rumia_boss":
-			default_interval = maxf(3.4, 5.3 - float(phase) * 0.6)
-		"pool_boss":
-			default_interval = maxf(3.0, 4.9 - float(phase) * 0.45)
-		"fog_boss":
-			default_interval = maxf(2.9, 4.6 - float(phase) * 0.42)
-		"roof_boss":
-			default_interval = maxf(2.7, 4.5 - float(phase) * 0.44)
-		"city_boss":
-			default_interval = maxf(2.5, 4.2 - float(phase) * 0.38)
-		"volcano_boss":
-			default_interval = maxf(2.4, 4.0 - float(phase) * 0.36)
-		"koakuma_boss":
-			default_interval = maxf(3.1, 4.7 - float(phase) * 0.36)
-		"patchouli_boss":
-			default_interval = maxf(2.8, 4.4 - float(phase) * 0.38)
-		"sakuya_boss":
-			default_interval = maxf(2.6, 4.1 - float(phase) * 0.34)
-		"remilia_boss":
-			default_interval = maxf(2.4, 3.9 - float(phase) * 0.32)
-		"flandre_boss":
-			default_interval = maxf(2.2, 3.6 - float(phase) * 0.28)
-		_:
-			return zombie
+	var default_interval = _boss_reinforcement_interval(kind, phase)
+	if default_interval <= 0.0:
+		return zombie
 	zombie["rumia_reinforcement_timer"] = float(zombie.get("rumia_reinforcement_timer", default_interval)) - delta
 	if float(zombie["rumia_reinforcement_timer"]) > 0.0:
 		return zombie
@@ -13438,13 +13470,13 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 			_show_banner("Time Sign \"Teleport\"", 0.95)
 			return _set_rumia_state(zombie, "shift", 0.56)
 		4:
-			var time_stop_duration = float(data.get("time_stop_duration", 2.3)) + phase * 0.25
+			var time_stop_duration = minf(2.35, float(data.get("time_stop_duration", 2.2)) + phase * 0.05)
 			boss_time_stop_timer = maxf(boss_time_stop_timer, time_stop_duration)
 			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.5)
 			zombie["sakuya_relocate_timer"] = 0.26
 			zombie["sakuya_relocate_interval"] = maxf(0.24, minf(0.42, time_stop_duration * 0.26))
-			zombie["sakuya_relocations_remaining"] = 1 + phase
-			for _i in range(1 + phase):
+			zombie["sakuya_relocations_remaining"] = mini(3, 1 + phase)
+			for _i in range(mini(2, 1 + phase)):
 				_spawn_hover_boss_reinforcement("sakuya_boss", phase)
 			effects.append({
 				"shape": "sakuya_time_grid",
@@ -13547,16 +13579,16 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 			_show_banner("Illusion Sign \"Eternal Meek\"", 1.08)
 			return _set_rumia_state(zombie, "shift", 0.58)
 		8:
-			var world_time_stop_duration = float(data.get("time_stop_duration", 2.3)) * 0.8 + phase * 0.18
+			var world_time_stop_duration = minf(2.2, float(data.get("time_stop_duration", 2.2)) * 0.78 + phase * 0.12)
 			boss_time_stop_timer = maxf(boss_time_stop_timer, world_time_stop_duration)
 			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.48)
 			zombie["sakuya_relocate_timer"] = 0.18
 			zombie["sakuya_relocate_interval"] = maxf(0.2, minf(0.38, world_time_stop_duration * 0.24))
-			zombie["sakuya_relocations_remaining"] = 2 + phase
+			zombie["sakuya_relocations_remaining"] = mini(3, 2 + phase)
 			var world_cells = _sakuya_target_cells(row, 6 + phase, 2)
 			var world_hits = _damage_plants_in_cells(world_cells, float(data.get("knife_rain_damage", 96.0)) * 0.72 + phase * 16.0, 1.18 + phase * 0.08)
 			var world_points: Array = []
-			for _i in range(1 + phase):
+			for _i in range(mini(2, 1 + phase)):
 				_spawn_hover_boss_reinforcement("sakuya_boss", phase)
 			for cell_variant in world_cells:
 				var cell = Vector2i(cell_variant)
@@ -13586,7 +13618,7 @@ func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
 			_show_banner("Time Sign \"Sakuya's World\"", 1.22)
 			return _set_rumia_state(zombie, "time", 0.72)
 		_:
-			for _i in range(2 + phase):
+			for _i in range(mini(3, 1 + phase)):
 				_spawn_hover_boss_reinforcement("sakuya_boss", phase)
 			var summon_start = BOARD_ORIGIN.x + board_size.x * 0.36
 			var summon_hit := false
@@ -13823,7 +13855,7 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 					column_targets.append(Vector2i(int(lane_variant), target_col))
 			var column_hits = _damage_plants_in_cells(column_targets, float(data.get("cradle_damage", 94.0)) * 0.78 + phase * 12.0, 0.92 + phase * 0.06)
 			var column_points: Array = []
-			for _i in range(1 + phase):
+			for _i in range(mini(2, 1 + phase)):
 				_spawn_hover_boss_reinforcement("remilia_boss", phase)
 			for cell_variant in column_targets:
 				var cell = Vector2i(cell_variant)
@@ -13845,9 +13877,9 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 			for lane_variant in active_rows:
 				var lane_row = int(lane_variant)
 				for col in range(COLS):
-					if _damage_plant_cell(lane_row, col, float(data.get("drain_dps", 11.0)) * (5.2 + float(phase) * 0.42), 0.5):
+					if _damage_plant_cell(lane_row, col, float(data.get("drain_dps", 8.4)) * (4.4 + float(phase) * 0.3), 0.5):
 						drained += 1
-			zombie = _heal_hover_boss(zombie, 180.0 + float(drained) * 24.0 + float(phase) * 60.0)
+			zombie = _heal_hover_boss(zombie, 120.0 + float(drained) * 16.0 + float(phase) * 40.0)
 			effects.append({
 				"shape": "remilia_blood_sigil",
 				"position": Vector2(anchor_x - 92.0, _row_center_y(int(zombie.get("row", row))) - 12.0),
@@ -13860,7 +13892,7 @@ func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
 			_show_banner("Vampirish Night", 1.18)
 			return _set_rumia_state(zombie, "drain", 0.6)
 		8:
-			for _i in range(2 + phase):
+			for _i in range(mini(3, 1 + phase)):
 				_spawn_hover_boss_reinforcement("remilia_boss", phase)
 			var bat_cells = _remilia_target_cells(row, 5 + phase, 2)
 			var bat_hits = _damage_plants_in_cells(bat_cells, float(data.get("bat_damage", 44.0)) + phase * 11.0, 0.82 + phase * 0.06)
@@ -13935,7 +13967,7 @@ func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
 					int(burn_row_variant),
 					beam_start,
 					anchor_x,
-					float(data.get("beam_damage", 92.0)) + phase * 18.0
+					float(data.get("laevatein_damage", 162.0)) + phase * 16.0
 				) or burn_hit
 			effects.append({
 				"shape": "flandre_laevatein",
@@ -13979,7 +14011,7 @@ func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
 					if target_col >= COLS:
 						continue
 					kagome_cells.append(Vector2i(lane_row, target_col))
-			var kagome_hit = _damage_plants_in_cells(kagome_cells, float(data.get("ring_damage", 66.0)) + phase * 12.0, 1.1)
+			var kagome_hit = _damage_plants_in_cells(kagome_cells, float(data.get("kagome_damage", 84.0)) + phase * 10.0, 1.1)
 			var kagome_points: Array = []
 			for kagome_cell_variant in kagome_cells:
 				var kagome_cell = Vector2i(kagome_cell_variant)
@@ -14023,7 +14055,7 @@ func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
 		4:
 			var doll_cells = _pick_random_active_cells(3 + phase, 4, COLS - 1)
 			var doll_hit = _damage_plants_in_cells(doll_cells, float(data.get("doll_damage", 80.0)) + phase * 16.0, 1.0 + phase * 0.08)
-			for _i in range(2 + phase):
+			for _i in range(mini(3, 1 + phase)):
 				_spawn_hover_boss_reinforcement("flandre_boss", phase)
 			var doll_points: Array = []
 			for doll_cell_variant in doll_cells:
@@ -14105,8 +14137,8 @@ func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
 			return _set_rumia_state(zombie, "storm", 0.62)
 		8:
 			var secret_cells = _pick_random_active_cells(4 + phase, 4, COLS - 1)
-			var secret_hit = _damage_plants_in_cells(secret_cells, float(data.get("secret_damage", 90.0)) + phase * 15.0, 1.1 + phase * 0.08)
-			for _i in range(1 + phase):
+			var secret_hit = _damage_plants_in_cells(secret_cells, float(data.get("barrage_damage", 52.0)) + phase * 12.0, 1.1 + phase * 0.08)
+			for _i in range(mini(3, 1 + phase)):
 				_spawn_hover_boss_reinforcement("flandre_boss", phase)
 			var secret_points: Array = []
 			for secret_cell_variant in secret_cells:
@@ -14132,7 +14164,7 @@ func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
 					if target_col >= COLS:
 						continue
 					grid_cells.append(Vector2i(lane_row, target_col))
-			var grid_hit = _damage_plants_in_cells(grid_cells, float(data.get("grid_damage", 46.0)) + phase * 10.0, 0.9 + phase * 0.06)
+			var grid_hit = _damage_plants_in_cells(grid_cells, float(data.get("judgement_damage", 118.0)) + phase * 10.0, 0.9 + phase * 0.06)
 			var grid_points: Array = []
 			for grid_cell_variant in grid_cells:
 				var grid_cell = Vector2i(grid_cell_variant)
@@ -14913,7 +14945,7 @@ func _trigger_sakuya_boss_phase_shift(zombie: Dictionary, phase: int) -> Diction
 	boss_time_stop_timer = maxf(boss_time_stop_timer, 0.8 + phase * 0.18)
 	boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.4)
 	_damage_plants_in_circle(center, 168.0 + phase * 18.0, 46.0 + phase * 12.0)
-	for _i in range(phase + 1):
+	for _i in range(mini(2, phase + 1)):
 		_spawn_hover_boss_reinforcement("sakuya_boss", phase)
 	return _set_rumia_state(zombie, "phase", 0.72)
 
@@ -14954,9 +14986,9 @@ func _trigger_remilia_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 			"duration": 0.34,
 			"color": Color(1.0, 0.3, 0.24, 0.26),
 		})
-	for _i in range(phase + 1):
+	for _i in range(mini(3, phase + 1)):
 		_spawn_hover_boss_reinforcement("remilia_boss", phase)
-	zombie = _heal_hover_boss(zombie, 140.0 + float(phase) * 90.0)
+	zombie = _heal_hover_boss(zombie, 110.0 + float(phase) * 60.0)
 	return _set_rumia_state(zombie, "phase", 0.78)
 
 
@@ -14985,7 +15017,7 @@ func _trigger_flandre_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 	})
 	_damage_plants_in_circle(center, 210.0 + phase * 18.0, 58.0 + phase * 18.0)
 	_stagger_plants_in_circle(center, 218.0 + phase * 18.0, 1.2 + phase * 0.14)
-	for _i in range(2 + phase):
+	for _i in range(mini(3, 1 + phase)):
 		_spawn_hover_boss_reinforcement("flandre_boss", phase)
 	zombie = _heal_hover_boss(zombie, 80.0 + float(phase) * 64.0)
 	return _set_rumia_state(zombie, "phase", 0.78)
@@ -20327,7 +20359,7 @@ func _update_remilia_crimson_drain(delta: float) -> void:
 		remilia_crimson_fx_timer = 0.35
 		return
 	var phase = int(remilia.get("boss_phase", 0))
-	var damage = (float(Defs.ZOMBIES.get("remilia_boss", {}).get("drain_dps", 11.0)) + float(phase) * 1.6) * delta
+	var damage = (float(Defs.ZOMBIES.get("remilia_boss", {}).get("drain_dps", 8.4)) + float(phase) * 1.0) * delta
 	var affected := 0
 	for lane_variant in active_rows:
 		var row = int(lane_variant)

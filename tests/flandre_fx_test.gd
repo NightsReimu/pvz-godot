@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GameScript = preload("res://scripts/game.gd")
+const Defs = preload("res://scripts/game_defs.gd")
 
 
 func _initialize() -> void:
@@ -10,6 +11,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_flandre_skill_cycle_uses_eleven_distinct_signature_effects() or failed
+	failed = not _test_flandre_signature_spell_damage_uses_configured_keys() or failed
 	failed = not _test_flandre_phase_shift_uses_dedicated_destroyer_field_effect() or failed
 	quit(1 if failed else 0)
 
@@ -111,6 +113,34 @@ func _test_flandre_skill_cycle_uses_eleven_distinct_signature_effects() -> bool:
 		for shape in expected_shapes:
 			passed = _assert_true(bool(seen.get(shape, false)), "Flandre skill cycle should emit dedicated effect shape %s" % shape) and passed
 	_free_game(game)
+	return passed
+
+
+func _flandre_damage_for_cycle(cycle: int, row: int, col: int) -> float:
+	var game = _make_game()
+	game.rng.seed = 20260621
+	game.grid[row][col] = game._create_plant("wallnut", row, col)
+	var before = float(game.grid[row][col]["health"])
+	var boss := {
+		"kind": "flandre_boss",
+		"row": 2,
+		"x": game.BOARD_ORIGIN.x + game.board_size.x - 20.0,
+		"boss_phase": 0,
+		"boss_skill_cycle": cycle,
+		"max_health": float(Defs.ZOMBIES["flandre_boss"]["health"]),
+		"health": float(Defs.ZOMBIES["flandre_boss"]["health"]),
+	}
+	game.call("_trigger_flandre_boss_skill", boss)
+	var damage = before - float(game.grid[row][col]["health"])
+	_free_game(game)
+	return damage
+
+
+func _test_flandre_signature_spell_damage_uses_configured_keys() -> bool:
+	var data = Dictionary(Defs.ZOMBIES["flandre_boss"])
+	var passed = _assert_true(absf(_flandre_damage_for_cycle(0, 2, 3) - float(data["laevatein_damage"])) <= 0.01, "Laevatein should use laevatein_damage") \
+		and _assert_true(absf(_flandre_damage_for_cycle(2, 2, 3) - float(data["kagome_damage"])) <= 0.01, "Kagome should use kagome_damage") \
+		and _assert_true(absf(_flandre_damage_for_cycle(9, 2, 2) - float(data["judgement_damage"])) <= 0.01, "Judgement Grid should use judgement_damage")
 	return passed
 
 
