@@ -13,6 +13,10 @@ func _run() -> void:
 	failed = not _test_endless_mode_does_not_autowin_before_spawning_waves() or failed
 	failed = not _test_endless_mode_spawns_runtime_ready_zombies_after_warmup() or failed
 	failed = not _test_endless_mode_uses_full_non_boss_zombie_pool_and_normal_spawn_edge() or failed
+	failed = not _test_endless_bonus_offer_after_wave_clear_and_pauses_next_wave() or failed
+	failed = not _test_endless_bonus_click_applies_choice_and_resumes_countdown() or failed
+	failed = not _test_endless_bonus_resets_between_runs_and_fits_overlay() or failed
+	failed = not _test_endless_bonus_does_not_affect_non_endless_levels() or failed
 	failed = not _test_daily_mode_lists_weekday_series_and_many_stages() or failed
 	failed = not _test_daily_home_opens_daily_terminal() or failed
 	failed = not _test_daily_series_open_schedule_blocks_closed_stages() or failed
@@ -20,6 +24,8 @@ func _run() -> void:
 	failed = not _test_daily_challenge_enters_selection_and_waits_for_spawns() or failed
 	failed = not _test_daily_challenge_supports_manual_card_clicks_before_start() or failed
 	failed = not _test_daily_challenge_selection_preview_uses_valid_zombie_keys() or failed
+	failed = not _test_special_zombies_are_cataloged_but_not_mainline() or failed
+	failed = not _test_special_zombies_join_non_mainline_candidate_pools() or failed
 	failed = not _test_selection_buttons_stay_visible_on_smaller_viewports() or failed
 	failed = not _test_selection_pool_uses_wide_desktop_rows() or failed
 	failed = not _test_selection_layout_keeps_two_rows_visible_on_768p() or failed
@@ -113,6 +119,25 @@ func _first_open_daily_pick(game: Control) -> Dictionary:
 	return {"series_id": String(Dictionary(series_defs[0]).get("id", "")), "stage_index": 0}
 
 
+func _special_non_mainline_zombie_kinds() -> Array[String]:
+	return [
+		"medic_zombie",
+		"shieldbearer_zombie",
+		"saboteur_zombie",
+		"rift_zombie",
+		"bomber_zombie",
+	]
+
+
+func _events_contain_any_kind(events: Array, kinds: Array[String]) -> bool:
+	for event_variant in events:
+		var event := Dictionary(event_variant)
+		var kind = String(event.get("kind", ""))
+		if kinds.has(kind):
+			return true
+	return false
+
+
 func _test_endless_mode_preserves_custom_level_on_selection_start() -> bool:
 	var game := _make_game()
 	game.call("_enter_endless_mode")
@@ -178,6 +203,99 @@ func _test_endless_mode_uses_full_non_boss_zombie_pool_and_normal_spawn_edge() -
 		var spawn_x = float(game.call("_normal_zombie_spawn_x"))
 		var max_expected_x = game.BOARD_ORIGIN.x + game.board_size.x + 120.0
 		passed = _assert_true(spawn_x <= max_expected_x, "endless mode should spawn near the regular right edge instead of far beyond the screen") and passed
+	_free_game(game)
+	return passed
+
+
+func _prepare_endless_bonus_clear_state(game: Control) -> void:
+	game.mode = game.MODE_BATTLE
+	game.current_level = {"id": "无尽", "terrain": "day", "events": [], "title": "无尽", "start_sun": 250, "sky_sun_range": Vector2(999.0, 999.0)}
+	game.battle_state = game.BATTLE_PLAYING
+	game.endless_wave = 1
+	game.endless_wave_active = true
+	game.endless_wave_timer = 0.0
+	game.zombies = []
+
+
+func _test_endless_bonus_offer_after_wave_clear_and_pauses_next_wave() -> bool:
+	var game := _make_game()
+	_prepare_endless_bonus_clear_state(game)
+	var passed = _assert_true(game.has_method("_endless_bonus_defs"), "endless mode should expose bonus definitions for tests and UI") \
+		and _assert_true(game.has_method("_offer_endless_bonus_choices"), "endless mode should expose a helper that offers three bonus choices")
+	game.call("_update_endless", 0.1)
+	passed = _assert_true(game.endless_bonus_pending, "clearing an endless wave should pause on a pending bonus choice") and passed
+	var choices: Array = game.endless_bonus_choices
+	passed = _assert_true(choices.size() == 3, "endless wave clear should offer exactly three bonus choices") and passed
+	var seen := {}
+	var defs := Dictionary(game.call("_endless_bonus_defs")) if game.has_method("_endless_bonus_defs") else {}
+	for choice_variant in choices:
+		var choice = String(choice_variant)
+		passed = _assert_true(defs.has(choice), "endless bonus choice %s should exist in the bonus definition table" % choice) and passed
+		passed = _assert_true(not seen.has(choice), "endless bonus choices should not repeat within one offer") and passed
+		seen[choice] = true
+	var wave_before = int(game.endless_wave)
+	game.call("_update_endless", 10.0)
+	passed = _assert_true(int(game.endless_wave) == wave_before, "pending endless bonus choices should stop the next wave countdown") and passed
+	passed = _assert_true(not game.endless_wave_active, "pending endless bonus choices should keep the next wave inactive") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_endless_bonus_click_applies_choice_and_resumes_countdown() -> bool:
+	var game := _make_game()
+	_prepare_endless_bonus_clear_state(game)
+	game.call("_update_endless", 0.1)
+	var choices: Array = game.endless_bonus_choices
+	var passed = _assert_true(choices.size() == 3, "test setup should have three endless bonus choices to click")
+	if passed:
+		game.endless_bonus_choices = ["plant_damage", "instant_sun", "plant_food"]
+		var first_rect: Rect2 = game.call("_endless_bonus_card_rect", 0)
+		game.call("_handle_endless_bonus_click", first_rect.get_center())
+		passed = _assert_true(not game.endless_bonus_pending, "clicking an endless bonus should clear the pending choice state") and passed
+		passed = _assert_true(int(game.endless_bonus_levels.get("plant_damage", 0)) == 1, "clicking plant damage should add one run-local bonus stack") and passed
+		passed = _assert_true(float(game.call("_endless_bonus_value", "plant_damage")) > 0.0, "stacked plant damage should produce a positive multiplier contribution") and passed
+		game.call("_update_endless", 6.1)
+		passed = _assert_true(int(game.endless_wave) == 2, "after selecting a bonus, the next endless wave countdown should resume") and passed
+	_prepare_endless_bonus_clear_state(game)
+	game.endless_bonus_choices = ["instant_sun", "plant_food", "plant_damage"]
+	game.endless_bonus_pending = true
+	game.sun_points = 25
+	game.call("_handle_endless_bonus_click", game.call("_endless_bonus_card_rect", 0).get_center())
+	passed = _assert_true(game.sun_points > 25, "instant sun endless bonus should grant sun immediately") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_endless_bonus_resets_between_runs_and_fits_overlay() -> bool:
+	var game := _make_game()
+	game.endless_bonus_levels = {"plant_damage": 2, "attack_speed": 1}
+	game.endless_bonus_choices = ["plant_damage", "instant_sun", "plant_food"]
+	game.endless_bonus_pending = true
+	game.call("_enter_endless_mode")
+	var passed = _assert_true(game.endless_bonus_levels.is_empty(), "entering endless mode should reset run-local bonus stacks") \
+		and _assert_true(game.endless_bonus_choices.is_empty(), "entering endless mode should clear stale bonus choices") \
+		and _assert_true(not game.endless_bonus_pending, "entering endless mode should clear pending bonus state")
+	game.size = Vector2(1600.0, 900.0)
+	var viewport_rect := Rect2(Vector2.ZERO, game.size)
+	var previous_rect := Rect2()
+	for index in range(3):
+		var rect: Rect2 = game.call("_endless_bonus_card_rect", index)
+		passed = _assert_true(viewport_rect.encloses(rect), "endless bonus card %d should fit inside the viewport" % index) and passed
+		if index > 0:
+			passed = _assert_true(not previous_rect.intersects(rect), "endless bonus cards should not overlap each other") and passed
+		previous_rect = rect
+	_free_game(game)
+	return passed
+
+
+func _test_endless_bonus_does_not_affect_non_endless_levels() -> bool:
+	var game := _make_game()
+	game.mode = game.MODE_BATTLE
+	game.current_level = {"id": "1-test", "terrain": "day", "events": [], "title": "主线", "start_sun": 250, "sky_sun_range": Vector2(999.0, 999.0)}
+	game.endless_bonus_levels = {"plant_damage": 3, "attack_speed": 2, "cheap_seeds": 2}
+	var base_damage = float(GameScript.Defs.PLANTS["peashooter"].get("damage", 20.0))
+	var stats: Dictionary = game.call("_enhanced_plant_stats", "peashooter")
+	var passed = _assert_true(is_equal_approx(float(stats.get("damage", 0.0)), base_damage), "run-local endless bonuses should not change plant stats outside endless mode")
 	_free_game(game)
 	return passed
 
@@ -291,6 +409,65 @@ func _test_daily_challenge_selection_preview_uses_valid_zombie_keys() -> bool:
 	for kind_variant in game.call("_selection_zombie_kinds"):
 		var kind = String(kind_variant)
 		passed = _assert_true(GameScript.Defs.ZOMBIES.has(kind), "daily challenge selection preview should only list zombies that exist in Defs.ZOMBIES, got %s" % kind) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_special_zombies_are_cataloged_but_not_mainline() -> bool:
+	var game := _make_game()
+	var special_kinds := _special_non_mainline_zombie_kinds()
+	var almanac_order: Array = game.ZOMBIE_ALMANAC_ORDER
+	var expected_keywords := {
+		"medic_zombie": ["治疗", "回复"],
+		"shieldbearer_zombie": ["护盾", "盾"],
+		"saboteur_zombie": ["破坏", "啃咬"],
+		"rift_zombie": ["闪现", "裂隙"],
+		"bomber_zombie": ["爆炸", "范围"],
+	}
+	var passed := true
+	for kind in special_kinds:
+		passed = _assert_true(GameScript.Defs.ZOMBIES.has(kind), "special zombie %s should exist in Defs.ZOMBIES" % kind) and passed
+		passed = _assert_true(almanac_order.has(kind), "special zombie %s should appear in the zombie almanac order" % kind) and passed
+		var stats: Array = game.call("_zombie_almanac_stats", kind)
+		var joined := " ".join(stats)
+		var has_keyword := false
+		for keyword in Array(expected_keywords[kind]):
+			if joined.find(String(keyword)) != -1:
+				has_keyword = true
+				break
+		passed = _assert_true(has_keyword, "special zombie %s almanac stats should describe its mechanic, got: %s" % [kind, joined]) and passed
+	for level_variant in GameScript.Defs.LEVELS:
+		var level := Dictionary(level_variant)
+		var events: Array = Array(level.get("events", []))
+		passed = _assert_true(not _events_contain_any_kind(events, special_kinds), "mainline level %s should not schedule non-mainline special zombies" % String(level.get("id", ""))) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_special_zombies_join_non_mainline_candidate_pools() -> bool:
+	var game := _make_game()
+	var special_kinds := _special_non_mainline_zombie_kinds()
+	var passed := true
+	var endless_kinds: Array = game.call("_endless_spawn_candidate_kinds")
+	for kind in special_kinds:
+		passed = _assert_true(endless_kinds.has(kind), "endless candidate pool should include special zombie %s" % kind) and passed
+	passed = _assert_true(not endless_kinds.has("day_boss") and not endless_kinds.has("city_boss"), "endless candidate pool should still exclude boss zombies") and passed
+
+	var found_daily_special := false
+	for series_variant in game.call("_daily_series_defs"):
+		var series := Dictionary(series_variant)
+		var stages: Array = game.call("_daily_stage_defs_for_series", series)
+		for stage_variant in stages:
+			var stage := Dictionary(stage_variant)
+			if int(stage.get("difficulty", 1)) < 4:
+				continue
+			var events: Array = game.call("_build_daily_stage_events", series, stage, 20260620)
+			if _events_contain_any_kind(events, special_kinds):
+				found_daily_special = true
+				break
+		if found_daily_special:
+			break
+	passed = _assert_true(found_daily_special, "daily high difficulty stages should be able to schedule non-mainline special zombies") and passed
 	_free_game(game)
 	return passed
 

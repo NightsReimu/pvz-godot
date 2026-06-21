@@ -68,6 +68,8 @@ static func _city_finale_zombie_roster() -> Array:
 		var kind = String(kind_variant)
 		if kind == "" or bool(ZombieDefs.ZOMBIES.get(kind, {}).get("boss", false)):
 			continue
+		if bool(ZombieDefs.ZOMBIES.get(kind, {}).get("non_mainline_special", false)):
+			continue
 		roster.append(kind)
 	return roster
 
@@ -615,7 +617,7 @@ static var LEVELS: Array = [
 	{
 		"id": "6-19",
 		"title": "城市世界 6-19",
-		"description": "城市终章。你将以正常选卡迎战霓虹尸王，十波尸潮会把全部非 Boss 僵尸混进同一场暴风雪决战里。",
+		"description": "城市终章。你将以正常选卡迎战霓虹尸王，十波尸潮会把主线出现过的非 Boss 僵尸混进同一场暴风雪决战里。",
 		"terrain": "city",
 		"boss_level": true,
 		"boss_kind": "city_boss",

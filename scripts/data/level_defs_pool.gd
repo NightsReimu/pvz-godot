@@ -277,7 +277,7 @@ const LEVELS = [
 {
 			"id": "3-10",
 			"title": "泳池时代 3-10",
-			"description": "泳池传送带总压轴，截止当前出现过的全部非 Boss 僵尸都会混进四波攻势。",
+			"description": "泳池传送带总压轴，截止当前主线出现过的非 Boss 僵尸都会混进四波攻势。",
 			"terrain": "pool",
 			"water_rows": [2, 3],
 			"mode": "conveyor",

@@ -417,7 +417,7 @@ const LEVELS = [
 {
 			"id": "4-17",
 			"title": "浓雾后院 4-17",
-			"description": "盐沼暴走。后院暂时不再被浓雾遮蔽，但传送带只会送来盐沼壶，而所有非 Boss 僵尸都会混编出现。",
+			"description": "盐沼暴走。后院暂时不再被浓雾遮蔽，但传送带只会送来盐沼壶，而主线可编排的非 Boss 僵尸都会混编出现。",
 			"terrain": "clear_backyard",
 			"mode": "conveyor",
 			"water_rows": [2, 3],

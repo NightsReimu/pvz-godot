@@ -30,6 +30,10 @@ func _run() -> void:
 	failed = not _test_tornado_zombie_finishes_entry_and_slows_down() or failed
 	failed = not _test_ice_shroom_permanently_slows_current_zombies() or failed
 	failed = not _test_wake_support_plants_ignore_sleep_effects() or failed
+	failed = not _test_medic_zombie_heals_nearby_zombies() or failed
+	failed = not _test_rift_zombie_blinks_forward() or failed
+	failed = not _test_bomber_zombie_damages_nearby_plants_on_death() or failed
+	failed = not _test_saboteur_zombie_bites_harder_at_close_range() or failed
 	quit(1 if failed else 0)
 
 
@@ -188,6 +192,79 @@ func _test_jack_in_the_box_explodes_nearby_plants() -> bool:
 	game._update_zombies(0.12)
 	var passed = _assert_true(float(game.grid[row][col].get("health", 1.0)) <= 0.0, "jack_in_the_box explosion should destroy nearby plants")
 	_free_game(game)
+	return passed
+
+
+func _test_medic_zombie_heals_nearby_zombies() -> bool:
+	var game = _make_game()
+	var row := 2
+	var x = game._cell_center(row, 4).x
+	game._spawn_zombie_at("normal", row, x - 42.0)
+	game._spawn_zombie_at("medic_zombie", row, x + 18.0)
+	var ally = game.zombies[0]
+	ally["health"] = float(ally["max_health"]) - 90.0
+	game.zombies[0] = ally
+	var before_health = float(ally["health"])
+	var medic = game.zombies[1]
+	medic["heal_cooldown"] = 0.0
+	game.zombies[1] = medic
+	game._update_zombies(0.12)
+	var passed = _assert_true(float(game.zombies[0].get("health", 0.0)) > before_health, "medic zombie should heal a damaged nearby zombie")
+	_free_game(game)
+	return passed
+
+
+func _test_rift_zombie_blinks_forward() -> bool:
+	var game = _make_game()
+	var row := 2
+	var x = game._cell_center(row, 6).x
+	game._spawn_zombie_at("rift_zombie", row, x)
+	var rift = game.zombies[0]
+	rift["blink_cooldown"] = 0.0
+	rift["special_pause_timer"] = 0.0
+	game.zombies[0] = rift
+	game._update_zombies(0.12)
+	var updated = game.zombies[0]
+	var passed = _assert_true(bool(updated.get("blink_active", false)) or float(updated.get("x", x)) < x, "rift zombie should start a forward blink when its cooldown is ready")
+	_free_game(game)
+	return passed
+
+
+func _test_bomber_zombie_damages_nearby_plants_on_death() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 3
+	game.grid[row][col] = game._create_plant("wallnut", row, col)
+	var before = float(game.grid[row][col].get("health", 0.0))
+	game._spawn_zombie_at("bomber_zombie", row, game._cell_center(row, col).x + 18.0)
+	var bomber = game.zombies[0]
+	bomber["health"] = 0.0
+	game.zombies[0] = bomber
+	game._cleanup_dead_zombies()
+	var after = float(game.grid[row][col].get("health", 0.0))
+	var passed = _assert_true(after < before, "bomber zombie should damage nearby plants when it dies")
+	_free_game(game)
+	return passed
+
+
+func _test_saboteur_zombie_bites_harder_at_close_range() -> bool:
+	var saboteur_game = _make_game()
+	var normal_game = _make_game()
+	var row := 2
+	var col := 3
+	for game in [saboteur_game, normal_game]:
+		game.grid[row][col] = game._create_plant("wallnut", row, col)
+		var kind = "saboteur_zombie" if game == saboteur_game else "normal"
+		game._spawn_zombie_at(kind, row, game._cell_center(row, col).x + 20.0)
+		var zombie = game.zombies[0]
+		zombie["special_pause_timer"] = 0.0
+		game.zombies[0] = zombie
+		game._update_zombies(0.5)
+	var saboteur_damage = float(saboteur_game.grid[row][col].get("max_health", 0.0)) - float(saboteur_game.grid[row][col].get("health", 0.0))
+	var normal_damage = float(normal_game.grid[row][col].get("max_health", 0.0)) - float(normal_game.grid[row][col].get("health", 0.0))
+	var passed = _assert_true(saboteur_damage > normal_damage + 8.0, "saboteur zombie should bite noticeably harder than a normal zombie")
+	_free_game(saboteur_game)
+	_free_game(normal_game)
 	return passed
 
 

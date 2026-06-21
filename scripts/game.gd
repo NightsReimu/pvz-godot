@@ -224,6 +224,137 @@ const DAILY_SERIES_DEFS := [
 	},
 ]
 
+const SPECIAL_NON_MAINLINE_ZOMBIE_KINDS := [
+	"medic_zombie",
+	"shieldbearer_zombie",
+	"saboteur_zombie",
+	"rift_zombie",
+	"bomber_zombie",
+]
+
+const ENDLESS_BONUS_DEFS := {
+	"plant_damage": {
+		"name": "火力校准",
+		"subtitle": "全植物伤害 +12%",
+		"desc": "所有攻击型植物造成更多伤害，可叠加。",
+		"value": 0.12,
+		"color": Color(0.95, 0.38, 0.22),
+		"type": "stack",
+	},
+	"attack_speed": {
+		"name": "快速装填",
+		"subtitle": "全植物攻速 +8%",
+		"desc": "射击、投掷和周期动作更快，可叠加。",
+		"value": 0.08,
+		"color": Color(0.96, 0.66, 0.22),
+		"type": "stack",
+	},
+	"plant_health": {
+		"name": "防线加固",
+		"subtitle": "植物生命 +15%",
+		"desc": "新种植植物更耐打，已在场植物获得治疗。",
+		"value": 0.15,
+		"color": Color(0.36, 0.82, 0.48),
+		"type": "stack",
+	},
+	"seed_cooldown": {
+		"name": "冷却压缩",
+		"subtitle": "卡片冷却 -10%",
+		"desc": "非传送带卡片恢复速度提高，可叠加。",
+		"value": 0.10,
+		"color": Color(0.36, 0.72, 1.0),
+		"type": "stack",
+	},
+	"cheap_seeds": {
+		"name": "低耗部署",
+		"subtitle": "阳光消耗 -8%",
+		"desc": "种植费用降低，最低保留 40% 原费用。",
+		"value": 0.08,
+		"color": Color(0.98, 0.8, 0.28),
+		"type": "stack",
+	},
+	"instant_sun": {
+		"name": "紧急补给",
+		"subtitle": "立即获得 175 阳光",
+		"desc": "立刻补充阳光，救急很好用。",
+		"value": 175.0,
+		"color": Color(1.0, 0.84, 0.22),
+		"type": "instant",
+	},
+	"sky_sun": {
+		"name": "日照增幅",
+		"subtitle": "掉落阳光 +15%",
+		"desc": "自然阳光与植物阳光价值提高，可叠加。",
+		"value": 0.15,
+		"color": Color(1.0, 0.9, 0.38),
+		"type": "stack",
+	},
+	"plant_food": {
+		"name": "能量豆补给",
+		"subtitle": "立即获得 1 个能量豆",
+		"desc": "不超过当前能量豆上限。",
+		"value": 1.0,
+		"color": Color(0.52, 0.92, 0.34),
+		"type": "instant",
+	},
+	"shield_break": {
+		"name": "破甲弹头",
+		"subtitle": "对护盾伤害 +18%",
+		"desc": "更快击穿门板、装甲和精英护盾。",
+		"value": 0.18,
+		"color": Color(0.82, 0.9, 1.0),
+		"type": "stack",
+	},
+	"spawn_slow": {
+		"name": "阻滞地雷",
+		"subtitle": "新刷僵尸短暂减速",
+		"desc": "每波新出现的僵尸会被拖慢，可叠加延长。",
+		"value": 1.2,
+		"color": Color(0.48, 0.84, 1.0),
+		"type": "stack",
+	},
+	"heal_plants": {
+		"name": "战地维修",
+		"subtitle": "立即治疗全场植物",
+		"desc": "恢复所有植物 35% 最大生命。",
+		"value": 0.35,
+		"color": Color(0.44, 0.92, 0.58),
+		"type": "instant",
+	},
+	"mower_rearm": {
+		"name": "割草机回收",
+		"subtitle": "重装 1 条防线割草机",
+		"desc": "优先恢复已经消耗或冲出的割草机。",
+		"value": 1.0,
+		"color": Color(0.86, 0.82, 0.72),
+		"type": "instant",
+	},
+	"pult_damage": {
+		"name": "抛投校准",
+		"subtitle": "投手类伤害额外 +18%",
+		"desc": "卷心菜、玉米、西瓜、龙泡泡等投射抛物植物加强。",
+		"value": 0.18,
+		"color": Color(0.9, 0.54, 0.22),
+		"type": "stack",
+	},
+	"effect_radius": {
+		"name": "扩散模块",
+		"subtitle": "范围和特效强度 +10%",
+		"desc": "爆炸、溅射、控制等效果更强，可叠加。",
+		"value": 0.10,
+		"color": Color(0.7, 0.58, 1.0),
+		"type": "stack",
+	},
+	"elite_bounty": {
+		"name": "精英赏金",
+		"subtitle": "击杀收益 +20%",
+		"desc": "僵尸掉落金币价值提高，可叠加。",
+		"value": 0.20,
+		"color": Color(1.0, 0.72, 0.32),
+		"type": "stack",
+	},
+}
+
 const RUMIA_FRAME_COUNT := 8
 const CIRNO_FRAME_COUNT := 8
 const DAIYOUSEI_FRAME_COUNT := 8
@@ -314,6 +445,11 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"wither_zombie",
 	"mech_zombie",
 	"wizard_zombie",
+	"medic_zombie",
+	"shieldbearer_zombie",
+	"saboteur_zombie",
+	"rift_zombie",
+	"bomber_zombie",
 	"zomboni",
 	"bobsled_team",
 	"dolphin_rider",
@@ -377,6 +513,9 @@ var endless_difficulty_mult := 1.0
 var endless_wave_timer := 0.0
 var endless_wave_active := false
 var endless_zombies_remaining := 0
+var endless_bonus_levels: Dictionary = {}
+var endless_bonus_choices: Array = []
+var endless_bonus_pending := false
 
 # Gacha state
 var gacha_draw_results: Array = []
@@ -1574,6 +1713,11 @@ func _handle_primary_click(mouse_pos: Vector2) -> void:
 		return
 
 	if battle_state != BATTLE_PLAYING:
+		return
+
+	if mode == MODE_BATTLE and endless_bonus_pending:
+		if _handle_endless_bonus_click(mouse_pos):
+			return
 		return
 
 	if PAUSE_BUTTON_RECT.has_point(mouse_pos):
@@ -4512,6 +4656,9 @@ func _enter_endless_mode() -> void:
 	endless_wave_timer = 0.0
 	endless_wave_active = false
 	endless_zombies_remaining = 0
+	endless_bonus_levels.clear()
+	endless_bonus_choices.clear()
+	endless_bonus_pending = false
 	current_world_key = "day"
 	selected_level_index = -1
 	current_level = _build_custom_level("day", "无尽", "无尽模式", "白天草坪的尸潮不会停止，每一波都会更强。", {
@@ -4543,7 +4690,7 @@ func _random_normal_zombie_spawn_x() -> float:
 	return _ensure_zombie_runtime().random_normal_zombie_spawn_x()
 
 
-func _endless_spawn_candidate_kinds() -> Array:
+func _endless_spawn_candidate_kinds(wave_gate: int = -1) -> Array:
 	var candidates: Array = []
 	for kind_variant in ZOMBIE_ALMANAC_ORDER:
 		var kind = String(kind_variant)
@@ -4554,7 +4701,22 @@ func _endless_spawn_candidate_kinds() -> Array:
 		if kind == "bobsled_team" and not _endless_board_supports_bobsled():
 			continue
 		candidates.append(kind)
+	for kind_variant in SPECIAL_NON_MAINLINE_ZOMBIE_KINDS:
+		var kind = String(kind_variant)
+		if Defs.ZOMBIES.has(kind) and not candidates.has(kind):
+			candidates.append(kind)
+	if wave_gate >= 0:
+		if wave_gate < 4:
+			for special_kind in SPECIAL_NON_MAINLINE_ZOMBIE_KINDS:
+				candidates.erase(String(special_kind))
+		elif wave_gate < 8:
+			for special_kind in SPECIAL_NON_MAINLINE_ZOMBIE_KINDS.slice(2):
+				candidates.erase(String(special_kind))
 	return candidates
+
+
+func _endless_wave_candidate_kinds(wave: int) -> Array:
+	return _endless_spawn_candidate_kinds(wave)
 
 
 func _endless_board_supports_bobsled() -> bool:
@@ -4564,13 +4726,157 @@ func _endless_board_supports_bobsled() -> bool:
 	return false
 
 
+func _endless_bonus_defs() -> Dictionary:
+	return ENDLESS_BONUS_DEFS
+
+
+func _endless_bonus_stack(id: String) -> int:
+	return max(0, int(endless_bonus_levels.get(id, 0)))
+
+
+func _endless_bonus_value(id: String) -> float:
+	if not ENDLESS_BONUS_DEFS.has(id):
+		return 0.0
+	var def = Dictionary(ENDLESS_BONUS_DEFS[id])
+	return float(def.get("value", 0.0)) * float(_endless_bonus_stack(id))
+
+
+func _endless_is_pult_kind(kind: String) -> bool:
+	var lower_kind = kind.to_lower()
+	return lower_kind.find("pult") != -1 \
+		or lower_kind.find("melon") != -1 \
+		or lower_kind.find("mortar") != -1 \
+		or lower_kind.find("gourd") != -1 \
+		or lower_kind.find("bubble") != -1 \
+		or lower_kind.find("cannon") != -1
+
+
+func _endless_cost_for_kind(kind: String) -> int:
+	if not Defs.PLANTS.has(kind):
+		return 0
+	var stats = _enhanced_plant_stats(kind)
+	return int(stats.get("cost", Defs.PLANTS[kind].get("cost", 0)))
+
+
+func _endless_cooldown_for_kind(kind: String) -> float:
+	if not Defs.PLANTS.has(kind):
+		return 0.0
+	var base_cooldown = float(Defs.PLANTS[kind].get("cooldown", 0.0))
+	if not _is_endless_level():
+		return base_cooldown
+	return maxf(0.1, base_cooldown * maxf(0.35, 1.0 - _endless_bonus_value("seed_cooldown")))
+
+
+func _endless_shield_damage_mult() -> float:
+	return 1.0 + (_endless_bonus_value("shield_break") if _is_endless_level() else 0.0)
+
+
+func _offer_endless_bonus_choices() -> void:
+	var keys := []
+	for id_variant in ENDLESS_BONUS_DEFS.keys():
+		keys.append(String(id_variant))
+	keys.sort()
+	var choice_rng := RandomNumberGenerator.new()
+	choice_rng.seed = hash("endless-bonus:%d:%d" % [endless_wave, total_kills])
+	endless_bonus_choices.clear()
+	while endless_bonus_choices.size() < 3 and not keys.is_empty():
+		var index = choice_rng.randi_range(0, keys.size() - 1)
+		endless_bonus_choices.append(String(keys[index]))
+		keys.remove_at(index)
+	endless_bonus_pending = endless_bonus_choices.size() > 0
+	if endless_bonus_pending:
+		selected_tool = ""
+		_show_toast("第 %d 波清理完成，选择一项加成" % endless_wave)
+	queue_redraw()
+
+
+func _endless_bonus_card_rect(index: int) -> Rect2:
+	var card_size := Vector2(292.0, 188.0)
+	var gap := 24.0
+	var total_width = card_size.x * 3.0 + gap * 2.0
+	var start_x = maxf(24.0, (size.x - total_width) * 0.5)
+	var y = clampf(size.y * 0.5 - card_size.y * 0.5 + 36.0, 160.0, maxf(160.0, size.y - card_size.y - 42.0))
+	return Rect2(Vector2(start_x + float(index) * (card_size.x + gap), y), card_size)
+
+
+func _endless_bonus_choice_at(pos: Vector2) -> int:
+	if not endless_bonus_pending:
+		return -1
+	for index in range(mini(3, endless_bonus_choices.size())):
+		if _endless_bonus_card_rect(index).has_point(pos):
+			return index
+	return -1
+
+
+func _handle_endless_bonus_click(pos: Vector2) -> bool:
+	var index := _endless_bonus_choice_at(pos)
+	if index < 0 or index >= endless_bonus_choices.size():
+		return false
+	var bonus_id = String(endless_bonus_choices[index])
+	_apply_endless_bonus(bonus_id)
+	endless_bonus_choices.clear()
+	endless_bonus_pending = false
+	endless_wave_timer = 0.0
+	queue_redraw()
+	return true
+
+
+func _apply_endless_bonus(id: String) -> void:
+	if not ENDLESS_BONUS_DEFS.has(id):
+		return
+	var def = Dictionary(ENDLESS_BONUS_DEFS[id])
+	var bonus_type = String(def.get("type", "stack"))
+	if bonus_type == "stack":
+		endless_bonus_levels[id] = _endless_bonus_stack(id) + 1
+	else:
+		match id:
+			"instant_sun":
+				sun_points += int(def.get("value", 0.0))
+			"plant_food":
+				plant_food_count = mini(MAX_PLANT_FOOD, plant_food_count + int(def.get("value", 1.0)))
+			"heal_plants":
+				_heal_all_plants(float(def.get("value", 0.0)))
+			"mower_rearm":
+				_rearm_one_mower()
+	_show_toast("获得加成：%s" % String(def.get("name", id)))
+
+
+func _heal_all_plants(ratio: float) -> void:
+	for row in range(ROWS):
+		for col in range(COLS):
+			var plant = _top_plant_at(row, col)
+			if plant != null:
+				var heal = float(plant.get("max_health", plant.get("health", 0.0))) * ratio
+				plant["health"] = minf(float(plant.get("max_health", plant.get("health", 0.0))), float(plant.get("health", 0.0)) + heal)
+				plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.18)
+				grid[row][col] = plant
+			var support = _support_plant_at(row, col)
+			if support != null:
+				var support_heal = float(support.get("max_health", support.get("health", 0.0))) * ratio
+				support["health"] = minf(float(support.get("max_health", support.get("health", 0.0))), float(support.get("health", 0.0)) + support_heal)
+				support["flash"] = maxf(float(support.get("flash", 0.0)), 0.18)
+				support_grid[row][col] = support
+
+
+func _rearm_one_mower() -> void:
+	for i in range(mowers.size()):
+		var mower = mowers[i]
+		if bool(mower.get("armed", false)) and not bool(mower.get("active", false)):
+			continue
+		mower["armed"] = _is_row_active(int(mower.get("row", i)))
+		mower["active"] = false
+		mower["x"] = BOARD_ORIGIN.x - 64.0
+		mowers[i] = mower
+		return
+
+
 func _start_endless_wave() -> void:
 	endless_wave += 1
 	endless_difficulty_mult = 1.0 + float(endless_wave - 1) * 0.18
 	endless_wave_active = true
 	endless_zombies_remaining = 0
 	var zombie_count = 3 + endless_wave * 2
-	var available_kinds = _endless_spawn_candidate_kinds()
+	var available_kinds = _endless_wave_candidate_kinds(endless_wave)
 	if available_kinds.is_empty():
 		available_kinds = ["normal"]
 	var wave_rng = RandomNumberGenerator.new()
@@ -4593,6 +4899,10 @@ func _start_endless_wave() -> void:
 		if float(zombie.get("shield_health", 0.0)) > 0.0:
 			zombie["shield_health"] = float(zombie.get("shield_health", 0.0)) * health_mult
 			zombie["max_shield_health"] = float(zombie.get("max_shield_health", 0.0)) * health_mult
+		var spawn_slow_duration = _endless_bonus_value("spawn_slow")
+		if spawn_slow_duration > 0.0:
+			zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), spawn_slow_duration)
+			zombie["slow_mult"] = minf(float(zombie.get("slow_mult", 1.0)), 0.58)
 		zombies[zombies.size() - 1] = zombie
 		endless_zombies_remaining += 1
 	queue_redraw()
@@ -4600,6 +4910,8 @@ func _start_endless_wave() -> void:
 
 func _update_endless(delta: float) -> void:
 	if mode != MODE_BATTLE or not current_level.get("id", "") == "无尽":
+		return
+	if endless_bonus_pending:
 		return
 	if not endless_wave_active:
 		endless_wave_timer += delta
@@ -4617,6 +4929,7 @@ func _update_endless(delta: float) -> void:
 			endless_wave_timer = 0.0
 			if endless_wave > endless_best_wave:
 				endless_best_wave = endless_wave
+			_offer_endless_bonus_choices()
 
 
 func _enter_gacha_mode() -> void:
@@ -4864,14 +5177,25 @@ func _build_daily_stage_events(series: Dictionary, stage: Dictionary, seed_value
 	var rows: Array = [0, 1, 2, 3, 4]
 	var events: Array = []
 	var available_kinds := Array(series.get("zombies", ["normal", "conehead", "buckethead"]))
+	var difficulty := int(stage.get("difficulty", 1))
+	if difficulty >= 4:
+		for kind_variant in SPECIAL_NON_MAINLINE_ZOMBIE_KINDS:
+			var special_kind = String(kind_variant)
+			if Defs.ZOMBIES.has(special_kind) and not available_kinds.has(special_kind):
+				available_kinds.append(special_kind)
 	var zombie_count := int(stage.get("zombie_count", 22))
 	var time_step := float(stage.get("time_step", 2.8))
 	for i in range(zombie_count):
 		var kind := String(available_kinds[local_rng.randi_range(0, available_kinds.size() - 1)])
 		var row := int(rows[local_rng.randi_range(0, rows.size() - 1)])
 		events.append({"type": "zombie", "kind": kind, "row": row, "time": 6.0 + float(i) * time_step + local_rng.randf_range(0.0, 1.4)})
-	if int(stage.get("difficulty", 1)) >= 4:
+	if difficulty >= 4:
 		events.append({"type": "zombie", "kind": "flag", "row": rows[local_rng.randi_range(0, rows.size() - 1)], "time": 5.0})
+	if difficulty >= 5:
+		var special_index = abs(seed_value) % SPECIAL_NON_MAINLINE_ZOMBIE_KINDS.size()
+		var special_kind = String(SPECIAL_NON_MAINLINE_ZOMBIE_KINDS[special_index])
+		if Defs.ZOMBIES.has(special_kind):
+			events.append({"type": "zombie", "kind": special_kind, "row": rows[local_rng.randi_range(0, rows.size() - 1)], "time": maxf(8.5, 6.0 + time_step * 2.4)})
 	events.sort_custom(func(a, b): return float(a["time"]) < float(b["time"]))
 	return events
 
@@ -5106,12 +5430,19 @@ func _get_enhance_attack_speed_multiplier(kind: String) -> float:
 func _enhanced_plant_stats(kind: String) -> Dictionary:
 	var stats: Dictionary = Dictionary(Defs.PLANTS[kind]).duplicate(true)
 	var bonus = _plant_enhance_bonus(kind)
-	if int(bonus.get("level", 0)) <= 0:
-		return stats
 	var damage_mult = float(bonus.get("damage_mult", 1.0))
 	var health_mult = float(bonus.get("health_mult", 1.0))
 	var interval_mult = float(bonus.get("interval_mult", 1.0))
 	var effect_mult = float(bonus.get("effect_mult", 1.0))
+	var cost_mult = float(bonus.get("cost_mult", 1.0))
+	if _is_endless_level():
+		damage_mult *= 1.0 + _endless_bonus_value("plant_damage")
+		if _endless_is_pult_kind(kind):
+			damage_mult *= 1.0 + _endless_bonus_value("pult_damage")
+		health_mult *= 1.0 + _endless_bonus_value("plant_health")
+		interval_mult *= 1.0 / maxf(0.2, 1.0 + _endless_bonus_value("attack_speed"))
+		effect_mult *= 1.0 + _endless_bonus_value("effect_radius")
+		cost_mult *= maxf(0.4, 1.0 - _endless_bonus_value("cheap_seeds"))
 	if stats.has("health"):
 		stats["health"] = float(stats["health"]) * health_mult
 	for key_variant in ENHANCE_DAMAGE_KEYS:
@@ -5127,7 +5458,7 @@ func _enhanced_plant_stats(kind: String) -> Dictionary:
 		if stats.has(key):
 			stats[key] = float(stats[key]) * effect_mult
 	if stats.has("cost"):
-		stats["cost"] = maxi(0, int(round(float(stats["cost"]) * float(bonus.get("cost_mult", 1.0)))))
+		stats["cost"] = maxi(0, int(round(float(stats["cost"]) * cost_mult)))
 	return stats
 
 
@@ -5140,6 +5471,10 @@ func _plant_enhance_multiplier_at_cell(row: int, col: int) -> float:
 	if plant == null:
 		return 1.0
 	var base = float(plant.get("enhance_damage_mult", _get_enhance_multiplier(String(plant.get("kind", "")))))
+	if _is_endless_level():
+		base *= 1.0 + _endless_bonus_value("plant_damage")
+		if _endless_is_pult_kind(String(plant.get("kind", ""))):
+			base *= 1.0 + _endless_bonus_value("pult_damage")
 	if float(plant.get("aurora_buff_timer", 0.0)) > 0.0:
 		base *= (1.0 + float(plant.get("aurora_buff_ratio", 0.0)))
 	if float(plant.get("destiny_dmg_timer", 0.0)) > 0.0:
@@ -5156,6 +5491,8 @@ func _plant_enhance_attack_speed_at_cell(row: int, col: int) -> float:
 	if plant == null:
 		return 1.0
 	var base = float(plant.get("enhance_attack_speed_mult", _get_enhance_attack_speed_multiplier(String(plant.get("kind", "")))))
+	if _is_endless_level():
+		base *= 1.0 + _endless_bonus_value("attack_speed")
 	if float(plant.get("destiny_speed_timer", 0.0)) > 0.0:
 		base *= 1.5
 	return base
@@ -6116,8 +6453,9 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			"on_ice": false,
 			"hypnotized": false,
 		"sleep_cooldown": 1.8 if kind == "nether" else 0.0,
-		"plant_food_carrier": rng.randf() < 0.05,
-		"whack_hits_left": _whack_hits_for_kind(kind) if _is_whack_level() else 0,
+			"plant_food_carrier": rng.randf() < 0.05,
+			"whack_hits_left": _whack_hits_for_kind(kind) if _is_whack_level() else 0,
+		"heal_cooldown": float(base.get("heal_interval", 0.0)),
 		"push_cooldown": 0.0,
 		"tornado_entry": kind == "tornado_zombie",
 		"tornado_target_x": spawn_x,
@@ -7159,15 +7497,16 @@ func _handle_board_click(cell: Vector2i) -> void:
 			_show_toast("咖啡豆要种在睡着的蘑菇上")
 			return
 		var wake_data = Defs.PLANTS[selected_tool]
-		if not _is_conveyor_level() and sun_points < int(wake_data["cost"]):
+		var wake_cost = _endless_cost_for_kind(selected_tool)
+		if not _is_conveyor_level() and sun_points < wake_cost:
 			_show_toast("阳光不够")
 			return
 		if not _is_conveyor_level() and float(card_cooldowns[selected_tool]) > 0.01:
 			_show_toast("卡片还在冷却")
 			return
 		if not _is_conveyor_level():
-			sun_points -= int(wake_data["cost"])
-			card_cooldowns[selected_tool] = float(wake_data["cooldown"])
+			sun_points -= wake_cost
+			card_cooldowns[selected_tool] = _endless_cooldown_for_kind(selected_tool)
 		wake_target["sleep_timer"] = 0.0
 		wake_target["flash"] = maxf(float(wake_target.get("flash", 0.0)), 0.16)
 		_trigger_plant_action(wake_target, 0.2)
@@ -7191,7 +7530,8 @@ func _handle_board_click(cell: Vector2i) -> void:
 		return
 
 	var data = Defs.PLANTS[selected_tool]
-	if not _is_conveyor_level() and sun_points < int(data["cost"]):
+	var plant_cost = _endless_cost_for_kind(selected_tool)
+	if not _is_conveyor_level() and sun_points < plant_cost:
 		_show_toast("阳光不够")
 		return
 
@@ -7200,8 +7540,8 @@ func _handle_board_click(cell: Vector2i) -> void:
 		return
 
 	if not _is_conveyor_level():
-		sun_points -= int(data["cost"])
-		card_cooldowns[selected_tool] = float(data["cooldown"])
+		sun_points -= plant_cost
+		card_cooldowns[selected_tool] = _endless_cooldown_for_kind(selected_tool)
 
 	if selected_tool == "wallnut_bowling":
 		_spawn_bowling_roller(cell.x, cell.y)
@@ -7251,7 +7591,7 @@ func _try_select_tool(kind: String) -> void:
 		queue_redraw()
 		return
 	var data = Defs.PLANTS[kind]
-	if sun_points < int(data["cost"]):
+	if sun_points < _endless_cost_for_kind(kind):
 		_show_toast("阳光不够")
 		return
 	if float(card_cooldowns[kind]) > 0.01:
@@ -9458,6 +9798,10 @@ func _update_zombies(delta: float) -> void:
 				zombie["reflect_timer"] = 3.0
 				zombie["reflect_cooldown"] = 5.0
 
+		if String(zombie["kind"]) == "medic_zombie":
+			zombie = _update_medic_zombie(zombie, delta, i)
+			zombies[i] = zombie
+
 		if String(zombie["kind"]) == "basketball" and float(zombie.get("shield_health", 0.0)) <= 0.0 and int(zombie.get("shield_regens_left", 0)) > 0:
 			zombie["shield_regen_timer"] = maxf(0.0, float(zombie.get("shield_regen_timer", 0.0)) - delta)
 			if float(zombie["shield_regen_timer"]) <= 0.0:
@@ -9923,7 +10267,7 @@ func _update_zombies(delta: float) -> void:
 					zombies[i] = zombie
 					continue
 
-		if String(zombie["kind"]) == "shade_zombie":
+		if String(zombie["kind"]) == "shade_zombie" or String(zombie["kind"]) == "rift_zombie":
 			zombie = _update_shade_zombie(zombie, delta)
 			zombies[i] = zombie
 			if bool(zombie.get("blink_active", false)) or float(zombie.get("special_pause_timer", 0.0)) > 0.0 and not bool(zombie["jumping"]):
@@ -10229,6 +10573,8 @@ func _update_zombies(delta: float) -> void:
 				zombies[i] = zombie
 				continue
 			var bite_damage = float(zombie["attack_dps"]) * delta
+			if String(zombie["kind"]) == "saboteur_zombie":
+				bite_damage *= float(Defs.ZOMBIES["saboteur_zombie"].get("sabotage_bite_mult", 1.0))
 			zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
 			zombie = _play_bite_hit_sfx(zombie)
 			if float(plant.get("holy_invincible_timer", 0.0)) > 0.0:
@@ -10331,12 +10677,15 @@ func _spawn_sun(spawn_position: Vector2, target_y: float, source: String, value:
 	var auto_delay = 0.65 if source == "sky" else 0.75
 	if source == "plant_food":
 		auto_delay = 0.2
+	var final_value = value
+	if _is_endless_level():
+		final_value = maxi(1, int(round(float(value) * (1.0 + _endless_bonus_value("sky_sun")))))
 	suns.append({
 			"position": spawn_position,
 			"target_y": target_y,
 			"velocity": Vector2(rng.randf_range(-12.0, 12.0), settle_speed),
 			"life": 12.0,
-			"value": value,
+			"value": final_value,
 			"settled": false,
 			"collecting": false,
 			"auto_delay": auto_delay,
@@ -10379,10 +10728,13 @@ func _update_suns(delta: float) -> void:
 
 
 func _spawn_coin(spawn_position: Vector2, value: int) -> void:
+	var final_value = value
+	if _is_endless_level():
+		final_value = maxi(1, int(round(float(value) * (1.0 + _endless_bonus_value("elite_bounty")))))
 	coins.append({
 		"position": spawn_position,
 		"velocity": Vector2(rng.randf_range(-8.0, 8.0), -80.0),
-		"value": value,
+		"value": final_value,
 		"auto_delay": 0.55,
 		"collecting": false,
 		"life": 10.0,
@@ -10654,6 +11006,8 @@ func _cleanup_dead_zombies() -> void:
 			_spawn_spear_obstacle(int(zombie["row"]), float(zombie["x"]))
 		if String(zombie["kind"]) == "kite_zombie":
 			_spawn_kite_trap_from(zombie)
+		if String(zombie["kind"]) == "bomber_zombie":
+			_explode_bomber_zombie(zombie)
 		if String(zombie["kind"]) == "crab_zombie" and not bool(zombie.get("crab_dead", false)):
 			# 螃蟹僵尸死后变成一只幼蟹快速冲锋。
 			_spawn_crabling_charge(int(zombie["row"]), float(zombie["x"]))
@@ -10702,6 +11056,8 @@ func _cleanup_dead_zombies() -> void:
 # 幽影僵尸: periodically blinks forward (up to max_blinks cells), with a 5%
 # chance of a wild random teleport instead. Leaves a fading afterimage trail.
 func _update_shade_zombie(zombie: Dictionary, delta: float) -> Dictionary:
+	var kind = String(zombie.get("kind", "shade_zombie"))
+	var def = Defs.ZOMBIES.get(kind, Defs.ZOMBIES["shade_zombie"])
 	if bool(zombie.get("blink_active", false)):
 		zombie["blink_t"] = float(zombie.get("blink_t", 0.0)) + delta
 		var ratio = clampf(float(zombie["blink_t"]) / maxf(float(zombie.get("blink_duration", 0.28)), 0.01), 0.0, 1.0)
@@ -10715,17 +11071,17 @@ func _update_shade_zombie(zombie: Dictionary, delta: float) -> Dictionary:
 		if ratio >= 1.0:
 			zombie["blink_active"] = false
 			zombie["special_pause_timer"] = 0.0
-			zombie["blink_cooldown"] = float(Defs.ZOMBIES["shade_zombie"].get("blink_interval", 4.5))
+			zombie["blink_cooldown"] = float(def.get("blink_interval", 4.5))
 		return zombie
 	if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
 		return zombie
 	zombie["blink_cooldown"] = float(zombie.get("blink_cooldown", 0.0)) - delta
 	if float(zombie["blink_cooldown"]) > 0.0:
 		return zombie
-	if int(zombie.get("blinks_used", 0)) >= int(Defs.ZOMBIES["shade_zombie"].get("max_blinks", 2)):
+	if int(zombie.get("blinks_used", 0)) >= int(def.get("max_blinks", 2)):
 		return zombie
-	var cell_dist = int(Defs.ZOMBIES["shade_zombie"].get("blink_distance_cells", 2))
-	var wild = rng.randf() < 0.05
+	var cell_dist = int(def.get("blink_distance_cells", 2))
+	var wild = kind == "shade_zombie" and rng.randf() < 0.05
 	var target_x: float
 	if wild:
 		# Random teleport to any column in this row.
@@ -10746,11 +11102,65 @@ func _update_shade_zombie(zombie: Dictionary, delta: float) -> Dictionary:
 		"radius": 42.0,
 		"time": 0.3,
 		"duration": 0.3,
-		"color": Color(0.5, 0.2, 0.86, 0.3),
+		"color": Color(0.36, 0.86, 1.0, 0.28) if kind == "rift_zombie" else Color(0.5, 0.2, 0.86, 0.3),
 	})
 	if game_audio_ready():
 		_play_sfx(SFX_HIT_ELECTRIC_PATH, -16.0, rng.randf_range(0.8, 1.3))
 	return zombie
+
+
+func _update_medic_zombie(zombie: Dictionary, delta: float, source_index: int) -> Dictionary:
+	zombie["heal_cooldown"] = maxf(0.0, float(zombie.get("heal_cooldown", 0.0)) - delta)
+	if float(zombie["heal_cooldown"]) > 0.0 or float(zombie.get("special_pause_timer", 0.0)) > 0.0:
+		return zombie
+	var def = Defs.ZOMBIES["medic_zombie"]
+	var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+	var radius = float(def.get("heal_radius", 170.0))
+	var amount = float(def.get("heal_amount", 150.0))
+	var healed := 0
+	for ally_index in range(zombies.size()):
+		if ally_index == source_index:
+			continue
+		var ally = zombies[ally_index]
+		if bool(ally.get("hypnotized", false)) != bool(zombie.get("hypnotized", false)):
+			continue
+		if float(ally.get("health", 0.0)) <= 0.0 or float(ally.get("health", 0.0)) >= float(ally.get("max_health", 0.0)):
+			continue
+		var ally_pos = Vector2(float(ally["x"]), _row_center_y(int(ally["row"])))
+		if ally_pos.distance_to(center) > radius:
+			continue
+		ally["health"] = minf(float(ally["max_health"]), float(ally["health"]) + amount)
+		ally["flash"] = maxf(float(ally.get("flash", 0.0)), 0.16)
+		zombies[ally_index] = ally
+		healed += 1
+	if healed > 0:
+		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.22)
+		effects.append({
+			"shape": "anchor_ring",
+			"position": center + Vector2(0.0, -16.0),
+			"radius": radius,
+			"time": 0.26,
+			"duration": 0.26,
+			"color": Color(0.34, 0.92, 0.58, 0.24),
+		})
+	zombie["heal_cooldown"] = float(def.get("heal_interval", 3.2))
+	return zombie
+
+
+func _explode_bomber_zombie(zombie: Dictionary) -> void:
+	var def = Defs.ZOMBIES["bomber_zombie"]
+	var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 4.0)
+	var radius = float(def.get("explode_radius", 118.0))
+	var damage = float(def.get("explode_damage", 260.0))
+	_damage_plants_in_circle(center, radius, damage)
+	effects.append({
+		"shape": "push_wave",
+		"position": center,
+		"radius": radius,
+		"time": 0.28,
+		"duration": 0.28,
+		"color": Color(1.0, 0.58, 0.18, 0.32),
+	})
 
 
 # 傻妞僵尸: flying (immune to ground melee), periodically buffs nearby zombies'
@@ -12041,8 +12451,10 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 	var kind = String(zombie["kind"])
 	var shield_health = float(zombie.get("shield_health", 0.0))
 	if shield_health > 0.0 and not ignore_shield:
-		if remaining_damage >= shield_health:
-			remaining_damage -= shield_health
+		var shield_damage = remaining_damage * _endless_shield_damage_mult()
+		if shield_damage >= shield_health:
+			var spill_ratio = maxf(0.0, shield_damage - shield_health) / maxf(shield_damage, 0.001)
+			remaining_damage *= spill_ratio
 			zombie["shield_health"] = 0.0
 			if kind == "basketball" and int(zombie.get("shield_regens_left", 0)) > 0 and float(zombie.get("shield_regen_timer", -1.0)) < 0.0:
 				zombie["shield_regen_timer"] = float(Defs.ZOMBIES["basketball"]["shield_regen_cooldown"])
@@ -12070,7 +12482,7 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 					"color": Color(1.0, 1.0, 1.0, 1.0),
 				})
 		else:
-			zombie["shield_health"] = shield_health - remaining_damage
+			zombie["shield_health"] = shield_health - shield_damage
 			remaining_damage = 0.0
 
 	if remaining_damage > 0.0:
@@ -12324,6 +12736,8 @@ func _city_boss_roster_for_phase(phase: int) -> Array:
 		var kind = String(kind_variant)
 		if kind == "" or bool(Defs.ZOMBIES.get(kind, {}).get("boss", false)):
 			continue
+		if bool(Defs.ZOMBIES.get(kind, {}).get("non_mainline_special", false)):
+			continue
 		var tier = clampi(int(floor(float(non_boss_index) / 12.0)), 0, 2)
 		tiers[tier].append(kind)
 		non_boss_index += 1
@@ -12334,6 +12748,8 @@ func _city_boss_roster_for_phase(phase: int) -> Array:
 		for kind_variant in Defs.ZOMBIES.keys():
 			var kind = String(kind_variant)
 			if kind == "" or bool(Defs.ZOMBIES.get(kind, {}).get("boss", false)):
+				continue
+			if bool(Defs.ZOMBIES.get(kind, {}).get("non_mainline_special", false)):
 				continue
 			roster.append(kind)
 	return roster
@@ -18180,6 +18596,8 @@ func _draw_battle_scene() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.28), true)
 	elif battle_paused:
 		_draw_battle_pause_overlay()
+	elif endless_bonus_pending:
+		_draw_endless_bonus_overlay()
 
 
 func _draw_battle_pause_overlay() -> void:
@@ -18204,6 +18622,39 @@ func _draw_battle_pause_overlay() -> void:
 		var spec = Dictionary(spec_variant)
 		var button_rect = _battle_pause_button_rect(String(spec.get("action", "")))
 		_draw_fancy_button(button_rect, String(spec.get("label", "")), Color(spec.get("fill", Color(0.92, 0.88, 0.78))), Color(spec.get("border", Color(0.42, 0.3, 0.14))), 22)
+
+
+func _draw_endless_bonus_overlay() -> void:
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.03, 0.04, 0.46), true)
+	var title = "第 %d 波清理完成" % endless_wave
+	var title_size = ui_font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 32)
+	_draw_text(title, Vector2(size.x * 0.5 - title_size.x * 0.5 + 2.0, size.y * 0.5 - 146.0), 32, Color(0.0, 0.0, 0.0, 0.28))
+	_draw_text(title, Vector2(size.x * 0.5 - title_size.x * 0.5, size.y * 0.5 - 148.0), 32, Color(0.95, 0.98, 1.0))
+	var subtitle = "选择一项本局无尽加成"
+	var subtitle_size = ui_font.get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 18)
+	_draw_text(subtitle, Vector2(size.x * 0.5 - subtitle_size.x * 0.5, size.y * 0.5 - 112.0), 18, Color(0.72, 0.9, 1.0))
+	var mouse_pos = get_local_mouse_position()
+	for index in range(mini(3, endless_bonus_choices.size())):
+		var bonus_id = String(endless_bonus_choices[index])
+		var def = Dictionary(ENDLESS_BONUS_DEFS.get(bonus_id, {}))
+		var rect = _endless_bonus_card_rect(index)
+		var hovered = rect.has_point(mouse_pos)
+		var accent = Color(def.get("color", Color(0.72, 0.9, 1.0)))
+		var fill = Color(0.08, 0.12, 0.14, 0.96)
+		if hovered:
+			fill = Color(0.1 + accent.r * 0.08, 0.13 + accent.g * 0.08, 0.15 + accent.b * 0.08, 0.98)
+			draw_rect(rect.grow(8.0), Color(accent.r, accent.g, accent.b, 0.12), true)
+		_draw_panel_shell(rect, fill, accent, 0.24, 0.16)
+		draw_rect(Rect2(rect.position + Vector2(14.0, 14.0), Vector2(52.0, 52.0)), Color(accent.r, accent.g, accent.b, 0.18), true)
+		draw_circle(rect.position + Vector2(40.0, 40.0), 18.0 + 2.0 * sin(ui_time * 4.0 + float(index)), Color(accent.r, accent.g, accent.b, 0.28), false, 3.0)
+		_draw_text(String(def.get("name", bonus_id)), rect.position + Vector2(78.0, 34.0), 24, Color(0.96, 0.98, 1.0))
+		_draw_text(String(def.get("subtitle", "")), rect.position + Vector2(20.0, 88.0), 18, Color(accent.r, accent.g, accent.b, 0.96))
+		_draw_text_block(String(def.get("desc", "")), Rect2(rect.position + Vector2(20.0, 108.0), Vector2(rect.size.x - 40.0, 46.0)), 14, Color(0.78, 0.84, 0.86), 4.0, 2)
+		var stack = _endless_bonus_stack(bonus_id)
+		if stack > 0:
+			_draw_text("已叠加 x%d" % stack, rect.position + Vector2(20.0, rect.size.y - 18.0), 14, Color(0.88, 0.94, 1.0))
+		else:
+			_draw_text("点击选择", rect.position + Vector2(20.0, rect.size.y - 18.0), 14, Color(0.72, 0.9, 1.0))
 
 
 func _draw_battle_background() -> void:
@@ -19287,11 +19738,13 @@ func _draw_seed_bank() -> void:
 			_draw_panel_shell(draw_rect_local, Color(0.88, 0.84, 0.76), Color(0.38, 0.28, 0.16), 0.06, 0.04)
 			continue
 		var data = Defs.PLANTS[kind]
+		var draw_cost = _endless_cost_for_kind(kind)
+		var draw_cooldown = _endless_cooldown_for_kind(kind)
 		var selected = selected_tool == kind
-		var affordable = sun_points >= int(data["cost"])
+		var affordable = sun_points >= draw_cost
 		var cooling_ratio = 0.0
-		if card_cooldowns.has(kind) and float(data["cooldown"]) > 0.0:
-			cooling_ratio = float(card_cooldowns[kind]) / float(data["cooldown"])
+		if card_cooldowns.has(kind) and draw_cooldown > 0.0:
+			cooling_ratio = float(card_cooldowns[kind]) / draw_cooldown
 		var card_color = Color(0.95, 0.94, 0.86) if affordable else Color(0.8, 0.76, 0.72)
 		if _is_conveyor_level():
 			card_color = Color(0.92, 0.96, 0.86)
@@ -19333,8 +19786,8 @@ func _draw_seed_bank() -> void:
 		if not _is_conveyor_level():
 			# Cost backing strip
 			draw_rect(Rect2(draw_rect_local.position + Vector2(0.0, draw_rect_local.size.y - 20.0), Vector2(draw_rect_local.size.x, 20.0)), Color(card_color.r, card_color.g, card_color.b, 0.82), true)
-			_draw_text(str(data["cost"]), draw_rect_local.position + Vector2(cost_x + 1.0, 85.0), 16, Color(0.0, 0.0, 0.0, 0.12))
-			_draw_text(str(data["cost"]), draw_rect_local.position + Vector2(cost_x, 84.0), 16, Color(0.29, 0.17, 0.05))
+			_draw_text(str(draw_cost), draw_rect_local.position + Vector2(cost_x + 1.0, 85.0), 16, Color(0.0, 0.0, 0.0, 0.12))
+			_draw_text(str(draw_cost), draw_rect_local.position + Vector2(cost_x, 84.0), 16, Color(0.29, 0.17, 0.05))
 		# Star indicator if plant has stars
 		if plant_stars.has(kind) and int(plant_stars[kind]) > 0:
 			var star_count = int(plant_stars[kind])
@@ -19873,7 +20326,7 @@ func _draw_hover() -> void:
 		highlight = Color(1.0, 1.0, 1.0, 0.08)
 	elif _placement_error(selected_tool, cell.x, cell.y) != "":
 		highlight = Color(0.95, 0.3, 0.3, 0.2)
-	elif not _is_conveyor_level() and sun_points < int(Defs.PLANTS[selected_tool]["cost"]):
+	elif not _is_conveyor_level() and sun_points < _endless_cost_for_kind(selected_tool):
 		highlight = Color(0.88, 0.55, 0.12, 0.24)
 
 	draw_rect(rect, highlight, true)
@@ -25419,6 +25872,78 @@ func _draw_wizard_zombie(center: Vector2, zombie: Dictionary) -> void:
 		draw_circle(orb, 3.6, Color(0.84, 0.72, 1.0, 0.3 + cast_ratio * 0.3))
 
 
+func _draw_special_elite_body(center: Vector2, zombie: Dictionary, coat: Color, accent: Color) -> Vector2:
+	var flash = float(zombie.get("flash", 0.0))
+	var slow_tint = 0.45 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
+	var step = sin(level_time * (2.7 + float(zombie.get("base_speed", 16.0)) * 0.04) + float(zombie.get("anim_phase", 0.0)))
+	var torso = center + Vector2(0.0, -absf(step) * 2.0)
+	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8).lerp(Color(0.64, 0.84, 1.0), slow_tint)
+	var coat_color = coat.lerp(Color(1.0, 1.0, 1.0), flash * 1.4).lerp(Color(0.46, 0.64, 0.9), slow_tint)
+	draw_circle(torso + Vector2(0.0, 44.0), 13.0, Color(0.02, 0.02, 0.04, 0.16))
+	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.18, 0.18, 0.2), 4.0)
+	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.18, 0.18, 0.2), 4.0)
+	draw_rect(Rect2(torso + Vector2(-17.0, -12.0), Vector2(34.0, 42.0)), coat_color, true)
+	draw_rect(Rect2(torso + Vector2(-17.0, -12.0), Vector2(34.0, 9.0)), accent.lerp(Color.WHITE, flash * 1.2), true)
+	draw_rect(Rect2(torso + Vector2(-16.0, 16.0), Vector2(32.0, 12.0)), Color(0.18, 0.18, 0.2).lerp(accent, 0.18), true)
+	draw_circle(torso + Vector2(0.0, -30.0), 16.0, skin)
+	draw_circle(torso + Vector2(-5.0, -32.0), 2.1, Color.BLACK)
+	draw_circle(torso + Vector2(5.0, -32.0), 2.1, Color.BLACK)
+	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0 - step * 3.0, 8.0), Color(0.54, 0.62, 0.52), 4.0)
+	draw_line(torso + Vector2(10.0, 0.0), torso + Vector2(24.0 + step * 3.0, 8.0), Color(0.54, 0.62, 0.52), 4.0)
+	return torso
+
+
+func _draw_medic_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var torso = _draw_special_elite_body(center, zombie, Color(0.28, 0.44, 0.5), Color(0.34, 0.92, 0.58))
+	var pulse = 0.5 + 0.5 * sin(level_time * 4.0 + float(zombie.get("anim_phase", 0.0)))
+	draw_circle(torso + Vector2(0.0, -54.0), 16.0 + pulse * 3.0, Color(0.34, 0.92, 0.58, 0.10 + pulse * 0.06))
+	draw_rect(Rect2(torso + Vector2(-3.0, -64.0), Vector2(6.0, 20.0)), Color(0.84, 1.0, 0.9), true)
+	draw_rect(Rect2(torso + Vector2(-10.0, -57.0), Vector2(20.0, 6.0)), Color(0.84, 1.0, 0.9), true)
+	draw_line(torso + Vector2(12.0, -2.0), torso + Vector2(30.0, 14.0), Color(0.78, 1.0, 0.86), 3.0)
+	draw_circle(torso + Vector2(32.0, 16.0), 6.0, Color(0.34, 0.92, 0.58, 0.9))
+
+
+func _draw_shieldbearer_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var torso = _draw_special_elite_body(center, zombie, Color(0.26, 0.32, 0.42), Color(0.84, 0.72, 0.34))
+	var shield_alpha = 0.9 if float(zombie.get("shield_health", 0.0)) > 0.0 else 0.35
+	var shield_rect = Rect2(torso + Vector2(10.0, -24.0), Vector2(34.0, 58.0))
+	draw_rect(shield_rect, Color(0.18, 0.22, 0.28, shield_alpha), true)
+	draw_rect(shield_rect, Color(0.82, 0.72, 0.42, shield_alpha), false, 3.0)
+	draw_line(shield_rect.position + Vector2(5.0, 8.0), shield_rect.end - Vector2(5.0, 8.0), Color(0.92, 0.86, 0.62, shield_alpha * 0.7), 2.0)
+	draw_line(Vector2(shield_rect.end.x - 5.0, shield_rect.position.y + 8.0), Vector2(shield_rect.position.x + 5.0, shield_rect.end.y - 8.0), Color(0.92, 0.86, 0.62, shield_alpha * 0.7), 2.0)
+
+
+func _draw_saboteur_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var torso = _draw_special_elite_body(center, zombie, Color(0.38, 0.18, 0.16), Color(1.0, 0.48, 0.24))
+	var bite_ratio = 0.0
+	if float(zombie.get("bite_timer", 0.0)) > 0.0:
+		bite_ratio = sin((1.0 - clampf(float(zombie.get("bite_timer", 0.0)) / 0.18, 0.0, 1.0)) * PI)
+	var blade_from = torso + Vector2(16.0, -2.0)
+	var blade_to = torso + Vector2(42.0 + bite_ratio * 16.0, -18.0 - bite_ratio * 6.0)
+	draw_line(blade_from, blade_to, Color(0.92, 0.94, 0.96), 4.0)
+	draw_line(blade_to, blade_to + Vector2(12.0, -4.0), Color(1.0, 0.56, 0.28), 2.0)
+	draw_circle(torso + Vector2(0.0, -30.0), 20.0, Color(1.0, 0.34, 0.18, 0.08 + bite_ratio * 0.08))
+
+
+func _draw_rift_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var torso = _draw_special_elite_body(center, zombie, Color(0.16, 0.26, 0.42), Color(0.36, 0.86, 1.0))
+	var pulse = 0.5 + 0.5 * sin(level_time * 5.2 + float(zombie.get("anim_phase", 0.0)))
+	draw_arc(torso + Vector2(0.0, -12.0), 30.0 + pulse * 5.0, -1.2, 1.2, 22, Color(0.36, 0.86, 1.0, 0.34), 2.4)
+	draw_arc(torso + Vector2(0.0, -12.0), 18.0 + pulse * 4.0, 1.9, 4.6, 22, Color(0.72, 0.96, 1.0, 0.26), 2.0)
+	if bool(zombie.get("blink_active", false)):
+		draw_circle(torso + Vector2(0.0, -12.0), 46.0, Color(0.36, 0.86, 1.0, 0.12))
+
+
+func _draw_bomber_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var torso = _draw_special_elite_body(center, zombie, Color(0.34, 0.22, 0.16), Color(1.0, 0.58, 0.18))
+	var fuse = 0.5 + 0.5 * sin(level_time * 7.0 + float(zombie.get("anim_phase", 0.0)))
+	draw_circle(torso + Vector2(22.0, 4.0), 14.0, Color(0.12, 0.12, 0.14))
+	draw_circle(torso + Vector2(22.0, 4.0), 10.0, Color(0.24, 0.2, 0.18))
+	draw_line(torso + Vector2(18.0, -8.0), torso + Vector2(10.0, -22.0), Color(0.12, 0.1, 0.08), 2.6)
+	draw_circle(torso + Vector2(8.0, -24.0), 4.0 + fuse * 2.0, Color(1.0, 0.74, 0.18, 0.84))
+	draw_circle(torso + Vector2(8.0, -24.0), 9.0 + fuse * 3.0, Color(1.0, 0.32, 0.12, 0.12))
+
+
 func _prepare_boss_frame_image(image: Image, face_left: bool = false) -> Image:
 	var prepared = image.duplicate()
 	prepared.convert(Image.FORMAT_RGBA8)
@@ -26892,6 +27417,21 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "wizard_zombie":
 		_draw_wizard_zombie(center, zombie)
+		return
+	if kind == "medic_zombie":
+		_draw_medic_zombie(center, zombie)
+		return
+	if kind == "shieldbearer_zombie":
+		_draw_shieldbearer_zombie(center, zombie)
+		return
+	if kind == "saboteur_zombie":
+		_draw_saboteur_zombie(center, zombie)
+		return
+	if kind == "rift_zombie":
+		_draw_rift_zombie(center, zombie)
+		return
+	if kind == "bomber_zombie":
+		_draw_bomber_zombie(center, zombie)
 		return
 	if kind == "umbrella_zombie":
 		_draw_umbrella_zombie(center, zombie)
@@ -28470,6 +29010,16 @@ func _zombie_almanac_stats(kind: String) -> Array:
 			stats.append("特性：激光压线，灰烬类攻击对它的机体特别有效")
 		"wizard_zombie":
 			stats.append("特性：会随机施法扰乱战场节奏")
+		"medic_zombie":
+			stats.append("特性：周期性治疗附近僵尸并回复前线耐久")
+		"shieldbearer_zombie":
+			stats.append("特性：携带高额护盾，替前排承压")
+		"saboteur_zombie":
+			stats.append("特性：接近植物后破坏啃咬伤害大幅提高")
+		"rift_zombie":
+			stats.append("特性：低速推进，但会通过裂隙短距离闪现")
+		"bomber_zombie":
+			stats.append("特性：死亡时爆炸，对附近植物造成范围伤害")
 		"pool_boss":
 			stats.append("特性：泳池终章 Boss，持续召援并压迫水陆两线")
 		"fog_boss":
@@ -28477,7 +29027,7 @@ func _zombie_almanac_stats(kind: String) -> Array:
 		"roof_boss":
 			stats.append("特性：屋顶终章 Boss，持续空投混编僵尸并发动瓦顶轰炸")
 		"city_boss":
-			stats.append("特性：城市终章 Boss，会把全时期非 Boss 僵尸混进同一场暴风雪尸潮")
+			stats.append("特性：城市终章 Boss，会把主线非 Boss 僵尸混进同一场暴风雪尸潮")
 		"rumia_boss":
 			stats.append("特性：右侧悬停、换行施法、不可魅惑")
 		"daiyousei_boss":

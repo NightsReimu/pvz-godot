@@ -38,6 +38,8 @@ func _all_non_boss_zombies() -> Dictionary:
 		var kind = String(kind_variant)
 		if bool(Defs.ZOMBIES.get(kind, {}).get("boss", false)):
 			continue
+		if bool(Defs.ZOMBIES.get(kind, {}).get("non_mainline_special", false)):
+			continue
 		result[kind] = true
 	return result
 
@@ -153,7 +155,7 @@ func _test_city_boss_reinforcement_timer_spawns_right_side_pressure() -> bool:
 	if not reinforcements.is_empty():
 		var reinforcement = Dictionary(reinforcements[0])
 		passed = _assert_true(float(reinforcement.get("x", 0.0)) >= game.BOARD_ORIGIN.x + game.board_size.x, "city_boss reinforcements should enter from the right edge") and passed
-		passed = _assert_true(_all_non_boss_zombies().has(String(reinforcement.get("kind", ""))), "city_boss reinforcements should come from the mixed non-boss roster") and passed
+		passed = _assert_true(_all_non_boss_zombies().has(String(reinforcement.get("kind", ""))), "city_boss reinforcements should come from the mixed campaign non-boss roster") and passed
 	_free_game(game)
 	return passed
 

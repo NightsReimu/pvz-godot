@@ -193,6 +193,8 @@ func _all_non_boss_zombies() -> Dictionary:
 		var kind = String(kind_variant)
 		if bool(Defs.ZOMBIES.get(kind, {}).get("boss", false)):
 			continue
+		if bool(Defs.ZOMBIES.get(kind, {}).get("non_mainline_special", false)):
+			continue
 		result[kind] = true
 	return result
 
@@ -223,7 +225,7 @@ func _test_city_finale_level_6_19_exists() -> bool:
 		if not event_kinds.has(String(kind)):
 			missing.append(String(kind))
 	missing.sort()
-	passed = _assert_true(missing.is_empty(), "6-19 should include every non-boss zombie in its event roster, missing: %s" % ", ".join(missing)) and passed
+	passed = _assert_true(missing.is_empty(), "6-19 should include every campaign non-boss zombie in its event roster, missing: %s" % ", ".join(missing)) and passed
 	_free_game(game)
 	return passed
 

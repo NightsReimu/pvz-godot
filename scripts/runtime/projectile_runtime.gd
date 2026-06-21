@@ -127,6 +127,10 @@ func _projectile_hit_damage(projectile: Dictionary, zombie: Dictionary) -> float
 	return damage
 
 
+func _shield_hit_damage(projectile: Dictionary, zombie: Dictionary) -> float:
+	return _projectile_hit_damage(projectile, zombie) * float(game.call("_endless_shield_damage_mult"))
+
+
 func _emit_amber_impact(impact_position: Vector2, armored: bool) -> void:
 	game.effects.append({
 		"shape": "amber_splash",
@@ -553,7 +557,7 @@ func update_projectiles(delta: float) -> void:
 			# 雨伞僵尸: blocks all lobbed/arc projectiles with its umbrella shield.
 			var is_lobbed = projectile.has("arc_target")
 			if String(zombie.get("kind", "")) == "umbrella_zombie" and is_lobbed and float(zombie.get("shield_health", 0.0)) > 0.0:
-				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - _projectile_hit_damage(projectile, zombie))
+				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - _shield_hit_damage(projectile, zombie))
 				zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.16)
 				zombie["impact_timer"] = maxf(float(zombie.get("impact_timer", 0.0)), 0.12)
 				game.zombies[hit_index] = zombie
@@ -592,7 +596,7 @@ func update_projectiles(delta: float) -> void:
 				game.projectiles[i] = projectile
 				continue
 			if String(zombie["kind"]) == "janitor_zombie" and float(zombie.get("shield_health", 0.0)) > 0.0 and float(projectile.get("speed", 0.0)) >= 0.0:
-				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - hit_damage)
+				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - hit_damage * float(game.call("_endless_shield_damage_mult")))
 				zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.1)
 				zombie["impact_timer"] = maxf(float(zombie.get("impact_timer", 0.0)), 0.12)
 				game.zombies[hit_index] = zombie

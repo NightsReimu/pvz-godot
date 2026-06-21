@@ -73,6 +73,8 @@ func _all_non_boss_zombies() -> Dictionary:
 		var kind = String(kind_variant)
 		if bool(Defs.ZOMBIES[kind].get("boss", false)):
 			continue
+		if bool(Defs.ZOMBIES[kind].get("non_mainline_special", false)):
+			continue
 		result[kind] = true
 	return result
 
@@ -138,6 +140,8 @@ func _test_3_10_uses_all_seen_non_boss_zombies() -> bool:
 				continue
 			if Defs.ZOMBIES.has(kind) and bool(Defs.ZOMBIES[kind].get("boss", false)):
 				continue
+			if Defs.ZOMBIES.has(kind) and bool(Defs.ZOMBIES[kind].get("non_mainline_special", false)):
+				continue
 			expected[kind] = true
 	if not _assert_true(seen_3_10, "expected to encounter 3-10 while scanning level order"):
 		return false
@@ -152,7 +156,7 @@ func _test_3_10_uses_all_seen_non_boss_zombies() -> bool:
 	missing.sort()
 	return _assert_true(
 		missing.is_empty(),
-		"3-10 should include every non-boss zombie seen so far, missing: %s" % ", ".join(missing)
+		"3-10 should include every campaign non-boss zombie seen so far, missing: %s" % ", ".join(missing)
 	)
 
 
@@ -206,7 +210,7 @@ func _test_4_17_is_brine_only_and_uses_all_non_boss_zombies() -> bool:
 		if not actual.has(String(kind)):
 			missing.append(String(kind))
 	missing.sort()
-	passed = _assert_true(missing.is_empty(), "4-17 should include every non-boss zombie, missing: %s" % ", ".join(missing)) and passed
+	passed = _assert_true(missing.is_empty(), "4-17 should include every campaign non-boss zombie, missing: %s" % ", ".join(missing)) and passed
 	return passed
 
 
