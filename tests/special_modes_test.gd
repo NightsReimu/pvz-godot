@@ -716,12 +716,15 @@ func _test_selection_background_preview_styles_cover_level_terrains() -> bool:
 			{"id": "7-preview", "terrain": "volcano", "row_count": 5, "lava_cells": [Vector2i(2, 4)], "events": []},
 			{"id": "1-18", "terrain": "frozen_lake", "row_count": 5, "water_rows": [2, 3], "events": []},
 			{"id": "2-25-preview", "terrain": "winter_forest", "row_count": 5, "events": []},
+			{"id": "2-26-preview", "terrain": "mayohiga_house", "row_count": 5, "events": []},
 			{"id": "1-19", "terrain": "blood_moon", "row_count": 5, "events": []},
 		]
 		for level_variant in levels:
 			var level := Dictionary(level_variant)
 			var style: Dictionary = game.call("_selection_level_preview_style", level)
 			passed = _assert_true(not String(style.get("terrain_key", "")).is_empty(), "preview style should expose a terrain key for %s" % String(level.get("terrain", ""))) and passed
+			if String(level.get("terrain", "")) == "mayohiga_house":
+				passed = _assert_true(String(style.get("terrain_key", "")) == "mayohiga_house", "mayohiga_house preview should use its own house terrain style instead of the generic fallback") and passed
 			passed = _assert_true(int(style.get("row_count", 0)) >= 5, "preview style should preserve a playable row count for %s" % String(level.get("terrain", ""))) and passed
 			passed = _assert_true(style.get("sky_top", null) is Color, "preview style should include a sky color for %s" % String(level.get("terrain", ""))) and passed
 			passed = _assert_true(style.get("ground", null) is Color, "preview style should include a ground color for %s" % String(level.get("terrain", ""))) and passed

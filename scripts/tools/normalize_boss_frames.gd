@@ -71,6 +71,13 @@ const TARGETS := {
 		"grid": Vector2i(4, 2),
 		"flip_x": false,
 	},
+	"chen_boss": {
+		"output_folder": "res://art/chen",
+		"frame_count": 8,
+		"sheet_path": "/Users/hecrereed/Downloads/ChatGPT Image 2026年6月22日 23_13_03.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+	},
 }
 
 const WHITE_THRESHOLD := 0.93
@@ -81,7 +88,17 @@ const SAFE_MARGIN := 12
 const COMPONENT_BRIDGE_DISTANCE := 28
 const HALO_BRIGHTNESS_THRESHOLD := 0.82
 const HALO_CHROMA_THRESHOLD := 0.18
+const FRINGE_ALPHA_THRESHOLD := 8.0 / 255.0
+const FRINGE_SOLID_ALPHA_THRESHOLD := 180.0 / 255.0
+const FRINGE_BRIGHTNESS_THRESHOLD := 232.0 / 255.0
+const FRINGE_CHROMA_THRESHOLD := 22.0 / 255.0
+const FRINGE_DARK_NEIGHBOR_THRESHOLD := 220.0 / 255.0
 const NEIGHBOR_OFFSETS := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
+const HALO_NEIGHBOR_OFFSETS := [
+	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1),
+	Vector2i(-1, 0), Vector2i(1, 0),
+	Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
+]
 
 
 func _initialize() -> void:
@@ -229,6 +246,7 @@ func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_
 			if _is_foreground(pixel):
 				out.set_pixel(x + SAFE_MARGIN, y + SAFE_MARGIN, pixel)
 	_clear_border_connected_halo(out)
+	_clear_contour_white_fringe(out)
 	if flip_x:
 		out.flip_x()
 	return out
@@ -376,6 +394,46 @@ func _is_clearable_halo_pixel(pixel: Color) -> bool:
 	var min_channel = min(pixel.r, min(pixel.g, pixel.b))
 	var chroma = max_channel - min_channel
 	return max_channel >= HALO_BRIGHTNESS_THRESHOLD and chroma <= HALO_CHROMA_THRESHOLD
+
+
+func _clear_contour_white_fringe(image: Image) -> void:
+	var width = image.get_width()
+	var height = image.get_height()
+	var pixels_to_clear: Array = []
+	for y in range(height):
+		for x in range(width):
+			if _is_contour_white_fringe_pixel(image, x, y):
+				pixels_to_clear.append(Vector2i(x, y))
+	for point_variant in pixels_to_clear:
+		var point = Vector2i(point_variant)
+		image.set_pixel(point.x, point.y, Color(1.0, 1.0, 1.0, 0.0))
+
+
+func _is_contour_white_fringe_pixel(image: Image, x: int, y: int) -> bool:
+	var pixel = image.get_pixel(x, y)
+	if pixel.a <= FRINGE_ALPHA_THRESHOLD:
+		return false
+	var max_channel = max(pixel.r, max(pixel.g, pixel.b))
+	var min_channel = min(pixel.r, min(pixel.g, pixel.b))
+	if max_channel < FRINGE_BRIGHTNESS_THRESHOLD:
+		return false
+	if max_channel - min_channel > FRINGE_CHROMA_THRESHOLD:
+		return false
+	var touches_transparency := false
+	var has_darker_solid_neighbor := false
+	for offset in HALO_NEIGHBOR_OFFSETS:
+		var next_x = x + offset.x
+		var next_y = y + offset.y
+		if next_x < 0 or next_x >= image.get_width() or next_y < 0 or next_y >= image.get_height():
+			continue
+		var neighbor = image.get_pixel(next_x, next_y)
+		if neighbor.a <= FRINGE_ALPHA_THRESHOLD:
+			touches_transparency = true
+		if neighbor.a >= FRINGE_SOLID_ALPHA_THRESHOLD and max(neighbor.r, max(neighbor.g, neighbor.b)) <= FRINGE_DARK_NEIGHBOR_THRESHOLD:
+			has_darker_solid_neighbor = true
+		if touches_transparency and has_darker_solid_neighbor:
+			return true
+	return false
 
 
 func _expand_rect(rect: Rect2i, amount: int) -> Rect2i:

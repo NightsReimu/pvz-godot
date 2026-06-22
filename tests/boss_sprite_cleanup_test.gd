@@ -49,6 +49,12 @@ const TARGETS := [
 		"max_total_halo_pixels": 380,
 		"max_frame_halo_pixels": 96,
 	},
+	{
+		"name": "Chen",
+		"folder": "res://art/chen",
+		"max_total_halo_pixels": 360,
+		"max_frame_halo_pixels": 96,
+	},
 ]
 
 const ALPHA_EMPTY_THRESHOLD := 8.0 / 255.0
