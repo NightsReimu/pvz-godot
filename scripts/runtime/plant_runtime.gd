@@ -4370,15 +4370,7 @@ func update_frost_boomerang(plant: Dictionary, delta: float, row: int, col: int)
 	var damage = float(Defs.PLANTS["frost_boomerang"]["damage"])
 	var slow = float(Defs.PLANTS["frost_boomerang"]["slow_duration"])
 	var spawn_position = center + Vector2(32.0, -12.0)
-	game._spawn_projectile(row, spawn_position, Color(0.6, 0.9, 1.0), damage, slow, 440.0, 9.0, "frost_boomerang")
-	if not game.projectiles.is_empty():
-		var last = game.projectiles[game.projectiles.size() - 1]
-		if String(last.get("kind", "")) == "frost_boomerang":
-			last["anchor_x"] = spawn_position.x
-			last["outbound"] = true
-			last["pierce_left"] = 99
-			last["hit_uids"] = []
-			game.projectiles[game.projectiles.size() - 1] = last
+	game._spawn_frost_boomerang_projectile(row, spawn_position, spawn_position.x, damage, slow, 440.0, 9.0)
 	plant["shot_cooldown"] = float(Defs.PLANTS["frost_boomerang"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.2)
 

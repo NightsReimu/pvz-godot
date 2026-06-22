@@ -29,6 +29,7 @@ func _run() -> void:
 	failed = not _test_roof_vane_continuous_wind_hits_front_arc() or failed
 	failed = not _test_tornado_zombie_finishes_entry_and_slows_down() or failed
 	failed = not _test_ice_shroom_permanently_slows_current_zombies() or failed
+	failed = not _test_frost_boomerang_projectile_returns_to_anchor() or failed
 	failed = not _test_wake_support_plants_ignore_sleep_effects() or failed
 	failed = not _test_medic_zombie_heals_nearby_zombies() or failed
 	failed = not _test_rift_zombie_blinks_forward() or failed
@@ -530,6 +531,50 @@ func _test_ice_shroom_permanently_slows_current_zombies() -> bool:
 	var passed := true
 	for zombie in game.zombies:
 		passed = _assert_true(float(zombie.get("slow_timer", 0.0)) >= 9999.0, "ice_shroom should permanently slow every zombie currently on the field") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_frost_boomerang_projectile_returns_to_anchor() -> bool:
+	var game = _make_game()
+	var row := 2
+	var col := 2
+	var center = game._cell_center(row, col)
+	game.grid[row][col] = game._create_plant("frost_boomerang", row, col)
+	game.grid[row][col]["shot_cooldown"] = 0.0
+	game._spawn_zombie_at("normal", row, center.x + 280.0)
+	game._update_plants(0.1)
+	var passed = _assert_true(game.projectiles.size() == 1, "frost_boomerang should fire one projectile when a zombie is ahead")
+	if passed:
+		var projectile = game.projectiles[0]
+		passed = _assert_true(String(projectile.get("kind", "")) == "frost_boomerang", "frost_boomerang should spawn its own projectile kind instead of a generic pea") and passed
+		passed = _assert_true(bool(projectile.get("outbound", false)), "frost_boomerang should start outbound") and passed
+		passed = _assert_true(float(projectile.get("anchor_x", -1.0)) > 0.0, "frost_boomerang should remember its return anchor") and passed
+		if passed:
+			var target_uid = int(game.zombies[0].get("uid", -1))
+			projectile["position"] = Vector2(game.BOARD_ORIGIN.x + game.board_size.x + 4.0, center.y - 12.0)
+			projectile["speed"] = 440.0
+			projectile["outbound"] = true
+			projectile["hit_uids"] = [target_uid]
+			game.projectiles[0] = projectile
+			game._update_projectiles(0.02)
+			projectile = game.projectiles[0]
+			passed = _assert_true(not bool(projectile.get("outbound", true)), "frost_boomerang should reverse after reaching the far board edge") and passed
+			passed = _assert_true(float(projectile.get("speed", 0.0)) < 0.0, "frost_boomerang should travel left on return") and passed
+			passed = _assert_true(Array(projectile.get("hit_uids", [])).is_empty(), "frost_boomerang should allow return-pass hits after reversing") and passed
+			var health_before_return = float(game.zombies[0].get("health", 0.0))
+			projectile["position"] = Vector2(float(game.zombies[0]["x"]) + 10.0, center.y - 12.0)
+			projectile["speed"] = -440.0
+			projectile["outbound"] = false
+			game.projectiles[0] = projectile
+			game._update_projectiles(0.01)
+			passed = _assert_true(float(game.zombies[0].get("health", 0.0)) < health_before_return, "frost_boomerang should damage zombies on the return pass") and passed
+			passed = _assert_true(float(game.zombies[0].get("slow_timer", 0.0)) > 0.0, "frost_boomerang should still apply slow on the return pass") and passed
+			projectile = game.projectiles[0]
+			projectile["position"] = Vector2(float(projectile.get("anchor_x", center.x)) - 2.0, center.y - 12.0)
+			game.projectiles[0] = projectile
+			game._update_projectiles(0.02)
+			passed = _assert_true(game.projectiles.is_empty(), "frost_boomerang should disappear once it returns to its anchor") and passed
 	_free_game(game)
 	return passed
 

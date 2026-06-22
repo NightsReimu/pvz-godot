@@ -98,6 +98,29 @@ func spawn_fire_projectile(row: int, spawn_position: Vector2, damage: float, spe
 		game.projectiles[game.projectiles.size() - 1]["fire"] = true
 
 
+func spawn_frost_boomerang_projectile(row: int, spawn_position: Vector2, anchor_x: float, damage: float, slow_duration: float, speed: float = 440.0, radius: float = 9.0) -> void:
+	_play_firing_sfx_for("frost_boomerang")
+	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position, "frost_boomerang"))
+	game.projectiles.append({
+		"kind": "frost_boomerang",
+		"row": row,
+		"position": spawn_position,
+		"speed": speed,
+		"velocity_y": 0.0,
+		"damage": damage * damage_mult,
+		"slow_duration": slow_duration,
+		"color": Color(0.6, 0.9, 1.0),
+		"radius": radius,
+		"reflected": false,
+		"fire": false,
+		"outbound": true,
+		"anchor_x": anchor_x,
+		"pierce_left": 99,
+		"hit_uids": [],
+		"source_enhance_mult": damage_mult,
+	})
+
+
 # Routes the firing SFX through game.gd's throttled dispatcher. Guarded so
 # missing audio or non-tree contexts stay silent instead of erroring.
 func _play_firing_sfx_for(source_kind: String) -> void:
@@ -685,10 +708,12 @@ func update_projectiles(delta: float) -> void:
 
 		if projectile_kind == "frost_boomerang":
 			# Outbound until the board edge, then reverse and return to anchor.
+			projectile["spin_angle"] = float(projectile.get("spin_angle", 0.0)) + delta * 15.0
 			if bool(projectile.get("outbound", true)):
 				if projectile_pos.x >= game.BOARD_ORIGIN.x + game.board_size.x:
 					projectile["outbound"] = false
 					projectile["speed"] = -absf(float(projectile.get("speed", 440.0)))
+					projectile["hit_uids"] = []
 			else:
 				if float(projectile_pos.x) <= float(projectile.get("anchor_x", game.BOARD_ORIGIN.x)):
 					game.projectiles.remove_at(i)

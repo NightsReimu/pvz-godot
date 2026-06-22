@@ -8772,14 +8772,7 @@ func _execute_volcano_frost_boomerang_ultimate(row: int, col: int) -> void:
 		var lane = int(lane_variant)
 		for offset in [-18.0, 10.0, 38.0]:
 			var spawn = Vector2(center.x + 30.0, _row_center_y(lane) - 10.0 + float(offset) * 0.18)
-			_spawn_projectile(lane, spawn, Color(0.62, 0.92, 1.0), damage, slow, 600.0 + float(offset) * 0.25, 10.0, "frost_boomerang")
-			if not projectiles.is_empty():
-				var projectile = projectiles[projectiles.size() - 1]
-				projectile["anchor_x"] = spawn.x
-				projectile["outbound"] = true
-				projectile["pierce_left"] = 99
-				projectile["hit_uids"] = []
-				projectiles[projectiles.size() - 1] = projectile
+			_spawn_frost_boomerang_projectile(lane, spawn, spawn.x, damage, slow, 600.0 + float(offset) * 0.25, 10.0)
 	_append_volcano_ultimate_effect("volcano_frost_ring", center, 170.0, Color(0.58, 0.94, 1.0, 0.34), 0.42)
 	_play_sfx(SFX_SHOOT_ICE_PATH, -13.0, 1.08)
 	_trigger_screen_shake(5.0)
@@ -9782,6 +9775,10 @@ func _spawn_amber_ultimate_projectile(row: int, spawn_position: Vector2, damage:
 
 func _spawn_fire_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 500.0, radius: float = 9.0, source_kind: String = "") -> void:
 	_ensure_projectile_runtime().spawn_fire_projectile(row, spawn_position, damage, speed, radius, source_kind)
+
+
+func _spawn_frost_boomerang_projectile(row: int, spawn_position: Vector2, anchor_x: float, damage: float, slow_duration: float, speed: float = 440.0, radius: float = 9.0) -> void:
+	_ensure_projectile_runtime().spawn_frost_boomerang_projectile(row, spawn_position, anchor_x, damage, slow_duration, speed, radius)
 
 
 func _update_projectiles(delta: float) -> void:
