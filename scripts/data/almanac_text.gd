@@ -420,7 +420,7 @@ static func zombie_lines(kind: String) -> Array:
 		"programmer_zombie":
 			return ["程序员僵尸登场后会全局篡改你的攻击节奏，让植物射速直接减半。", "多只程序员会叠加减速，是典型必须优先击杀的后期威胁。"]
 		"wenjie_zombie":
-			return ["问界僵尸开车时会随机换行乱窜，行进轨迹并不稳定。", "它的威胁来自突然切线与偏高本体耐久。"]
+			return ["飞车僵尸开车时会随机换行乱窜，行进轨迹并不稳定。", "它的威胁来自突然切线与偏高本体耐久。"]
 		"janitor_zombie":
 			return ["清洁工僵尸正面有厚铲当盾，贴近后会直接把植物铲掉。", "如果让它贴脸，它对阵型的破坏比单纯啃咬更快。"]
 		"subway_zombie":

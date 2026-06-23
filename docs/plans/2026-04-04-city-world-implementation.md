@@ -178,7 +178,7 @@ godot --headless --path /Users/hecrereed/project/pvz/pvz-godot -s res://tests/ci
 - Test: `tests/city_world_test.gd`
 
 **Step 1: 写失败测试**
-- 问界僵尸会随机换行
+- 飞车僵尸会随机换行
 - 清洁工僵尸能正面格挡并铲植物
 - 地铁僵尸沿轨冲刺
 - 末影人僵尸瞬移后阻挡弹道但不进家

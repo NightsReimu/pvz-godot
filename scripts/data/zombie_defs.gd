@@ -710,7 +710,7 @@ const ZOMBIES: Dictionary = {
 		"trap_damage": 38.0,
 	},
 	"wenjie_zombie": {
-		"name": "问界僵尸",
+		"name": "飞车僵尸",
 		"health": 1320.0,
 		"speed": 26.0,
 		"attack_dps": 92.0,
