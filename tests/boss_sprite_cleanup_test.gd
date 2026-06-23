@@ -55,6 +55,12 @@ const TARGETS := [
 		"max_total_halo_pixels": 360,
 		"max_frame_halo_pixels": 96,
 	},
+	{
+		"name": "Alice",
+		"folder": "res://art/alice",
+		"max_total_halo_pixels": 420,
+		"max_frame_halo_pixels": 110,
+	},
 ]
 
 const ALPHA_EMPTY_THRESHOLD := 8.0 / 255.0

@@ -22,6 +22,7 @@ TOUHOU_BOSSES = {
     "remilia_boss",
     "letty_boss",
     "chen_boss",
+    "alice_boss",
     "flandre_boss",
 }
 

@@ -381,6 +381,7 @@ const SAKUYA_FRAME_COUNT := 8
 const REMILIA_FRAME_COUNT := 8
 const LETTY_FRAME_COUNT := 8
 const CHEN_FRAME_COUNT := 8
+const ALICE_FRAME_COUNT := 8
 const FLANDRE_FRAME_COUNT := 8
 
 static var shared_audio_stream_cache := {}
@@ -417,6 +418,9 @@ static var shared_letty_frames_face_left = null
 static var shared_chen_frames: Array = []
 static var shared_chen_frames_loaded := false
 static var shared_chen_frames_face_left = null
+static var shared_alice_frames: Array = []
+static var shared_alice_frames_loaded := false
+static var shared_alice_frames_face_left = null
 static var shared_flandre_frames: Array = []
 static var shared_flandre_frames_loaded := false
 static var shared_flandre_frames_face_left = null
@@ -501,6 +505,8 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"remilia_boss",
 	"letty_boss",
 	"chen_boss",
+	"alice_doll_zombie",
+	"alice_boss",
 	"flandre_boss",
 	"umbrella_zombie",
 	"shania_zombie",
@@ -899,6 +905,9 @@ var letty_frames_face_left = null
 var chen_frames: Array = []
 var chen_frames_loaded := false
 var chen_frames_face_left = null
+var alice_frames: Array = []
+var alice_frames_loaded := false
+var alice_frames_face_left = null
 var flandre_frames: Array = []
 var flandre_frames_loaded := false
 var flandre_frames_face_left = null
@@ -2705,6 +2714,8 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 			return LETTY_FRAME_COUNT
 		"chen_boss":
 			return CHEN_FRAME_COUNT
+		"alice_boss":
+			return ALICE_FRAME_COUNT
 		"flandre_boss":
 			return FLANDRE_FRAME_COUNT
 		_:
@@ -2733,6 +2744,8 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 			return "res://art/letty"
 		"chen_boss":
 			return "res://art/chen"
+		"alice_boss":
+			return "res://art/alice"
 		"flandre_boss":
 			return "res://art/flandre"
 		_:
@@ -2747,7 +2760,7 @@ func _boss_frame_resource_path(kind: String, frame_index: int) -> String:
 
 
 func _boss_assets_are_preprocessed(kind: String) -> bool:
-	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "flandre_boss"
+	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "flandre_boss"
 
 
 func _is_existing_touhou_boss_kind(kind: String) -> bool:
@@ -2858,6 +2871,8 @@ func _shared_boss_frames_for_kind(kind: String) -> Array:
 			return shared_letty_frames
 		"chen_boss":
 			return shared_chen_frames
+		"alice_boss":
+			return shared_alice_frames
 		"flandre_boss":
 			return shared_flandre_frames
 		_:
@@ -2886,6 +2901,8 @@ func _shared_boss_frames_face_left_for_kind(kind: String):
 			return shared_letty_frames_face_left
 		"chen_boss":
 			return shared_chen_frames_face_left
+		"alice_boss":
+			return shared_alice_frames_face_left
 		"flandre_boss":
 			return shared_flandre_frames_face_left
 		_:
@@ -2934,6 +2951,10 @@ func _set_shared_boss_frames_for_kind(kind: String, frames: Array, loaded: bool,
 			shared_chen_frames = frames
 			shared_chen_frames_loaded = loaded
 			shared_chen_frames_face_left = face_left
+		"alice_boss":
+			shared_alice_frames = frames
+			shared_alice_frames_loaded = loaded
+			shared_alice_frames_face_left = face_left
 		"flandre_boss":
 			shared_flandre_frames = frames
 			shared_flandre_frames_loaded = loaded
@@ -2962,6 +2983,8 @@ func _instance_boss_frames_for_kind(kind: String) -> Array:
 			return letty_frames
 		"chen_boss":
 			return chen_frames
+		"alice_boss":
+			return alice_frames
 		"flandre_boss":
 			return flandre_frames
 		_:
@@ -2990,6 +3013,8 @@ func _instance_boss_frames_face_left_for_kind(kind: String):
 			return letty_frames_face_left
 		"chen_boss":
 			return chen_frames_face_left
+		"alice_boss":
+			return alice_frames_face_left
 		"flandre_boss":
 			return flandre_frames_face_left
 		_:
@@ -3038,6 +3063,10 @@ func _set_instance_boss_frames_for_kind(kind: String, frames: Array, loaded: boo
 			chen_frames = frames
 			chen_frames_loaded = loaded
 			chen_frames_face_left = face_left
+		"alice_boss":
+			alice_frames = frames
+			alice_frames_loaded = loaded
+			alice_frames_face_left = face_left
 		"flandre_boss":
 			flandre_frames = frames
 			flandre_frames_loaded = loaded
@@ -3133,7 +3162,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	var target_tab = tab if tab != "" else almanac_tab
 	if target_tab != "zombies":
 		return
-	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "flandre_boss"]:
+	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "flandre_boss"]:
 		_queue_boss_frame_set_prewarm(kind)
 
 
@@ -6778,7 +6807,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		var ski = zombies[ski_index]
 		ski["special_pause_timer"] = 0.0
 		zombies[ski_index] = ski
-	if kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "flandre_boss":
+	if kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "flandre_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
 		boss_unit["x"] = _boss_anchor_x(kind)
@@ -6829,6 +6858,10 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("橙出现了！", 2.6)
+		elif kind == "alice_boss":
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.get("boss_bgm", "")))
+			_show_banner("爱丽丝出现了！", 2.7)
 		elif kind == "flandre_boss":
 			if String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
@@ -12805,7 +12838,7 @@ func _boss_anchor_x(_kind: String) -> float:
 
 
 func _is_hovering_boss_kind(kind: String) -> bool:
-	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "flandre_boss"
+	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "flandre_boss"
 
 
 func _next_active_row(current_row: int, direction: int) -> Dictionary:
@@ -12872,6 +12905,10 @@ func _roll_hover_shift_interval(kind: String, phase: int) -> float:
 			var min_interval = maxf(2.4, 3.5 - float(phase) * 0.18)
 			var max_interval = maxf(min_interval + 0.5, 4.6 - float(phase) * 0.12)
 			return rng.randf_range(min_interval, max_interval)
+		"alice_boss":
+			var min_interval = maxf(2.8, 3.9 - float(phase) * 0.14)
+			var max_interval = maxf(min_interval + 0.56, 5.0 - float(phase) * 0.1)
+			return rng.randf_range(min_interval, max_interval)
 		"flandre_boss":
 			var min_interval = maxf(2.4, 3.4 - float(phase) * 0.16)
 			var max_interval = maxf(min_interval + 0.54, 4.5 - float(phase) * 0.12)
@@ -12913,6 +12950,8 @@ func _hover_boss_effect_tint(kind: String) -> Color:
 			return Color(0.76, 0.94, 1.0, 0.28)
 		"chen_boss":
 			return Color(1.0, 0.34, 0.26, 0.28)
+		"alice_boss":
+			return Color(0.68, 0.52, 1.0, 0.28)
 		"flandre_boss":
 			return Color(0.98, 0.42, 0.2, 0.28)
 		_:
@@ -12937,6 +12976,8 @@ func _hover_boss_move_duration(kind: String) -> float:
 			return 0.82
 		"chen_boss":
 			return 0.56
+		"alice_boss":
+			return 0.74
 		"flandre_boss":
 			return 0.76
 		_:
@@ -13108,6 +13149,13 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["ninja", "dark_football", "basketball", "flywheel_zombie", "wizard_zombie"],
 			]
 			tint = Color(1.0, 0.32, 0.22, 0.28)
+		"alice_boss":
+			pools = [
+				["alice_doll_zombie", "newspaper", "nether", "screen_door"],
+				["alice_doll_zombie", "alice_doll_zombie", "football", "wizard_zombie", "flywheel_zombie"],
+				["alice_doll_zombie", "dark_football", "wizard_zombie", "basketball", "wither_zombie"],
+			]
+			tint = Color(0.7, 0.52, 1.0, 0.28)
 		"flandre_boss":
 			# 1-23 is the Touhou (红魔馆) finale, so the reinforcement pool
 			# deliberately excludes programmer_zombie: its global attack-speed
@@ -14357,6 +14405,8 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		return _trigger_letty_boss_skill(zombie)
 	if String(zombie["kind"]) == "chen_boss":
 		return _trigger_chen_boss_skill(zombie)
+	if String(zombie["kind"]) == "alice_boss":
+		return _trigger_alice_boss_skill(zombie)
 	if String(zombie["kind"]) == "flandre_boss":
 		return _trigger_flandre_boss_skill(zombie)
 	if String(zombie["kind"]) == "night_boss":
@@ -15009,6 +15059,207 @@ func _trigger_chen_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionar
 	return _set_rumia_state(zombie, "phase", 0.66)
 
 
+func _spawn_alice_doll(row: int, x: float, tint: Color = Color(0.74, 0.54, 1.0, 0.24)) -> void:
+	var spawn_row = row
+	if spawn_row < 0 or spawn_row >= ROWS or not _is_row_active(spawn_row):
+		spawn_row = _choose_spawn_row_for_kind("alice_doll_zombie")
+	if spawn_row < 0:
+		return
+	var spawn_x = clampf(x, BOARD_ORIGIN.x + board_size.x * 0.45, BOARD_ORIGIN.x + board_size.x + 70.0)
+	_spawn_zombie_at("alice_doll_zombie", spawn_row, spawn_x, true)
+	effects.append({
+		"shape": "alice_doll_summon",
+		"position": Vector2(spawn_x, _row_center_y(spawn_row) - 18.0),
+		"radius": 56.0,
+		"time": 0.42,
+		"duration": 0.42,
+		"anim_speed": 7.2,
+		"color": tint,
+	})
+
+
+func _trigger_alice_boss_skill(zombie: Dictionary) -> Dictionary:
+	var data = Defs.ZOMBIES["alice_boss"]
+	var row = int(zombie["row"])
+	var phase = int(zombie.get("boss_phase", 0))
+	var anchor_x = _boss_anchor_x("alice_boss")
+	match int(zombie.get("boss_skill_cycle", 0)):
+		0:
+			var procession_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
+			var procession_damage = float(data.get("doll_procession_damage", 38.0)) + phase * 5.0
+			var procession_start = BOARD_ORIGIN.x + board_size.x * 0.44
+			var doll_points: Array = []
+			for lane_variant in procession_rows:
+				var lane_row = int(lane_variant)
+				_damage_plants_in_row_segment(lane_row, procession_start, anchor_x, procession_damage)
+				var doll_x = BOARD_ORIGIN.x + board_size.x + 28.0 - float(doll_points.size()) * 34.0
+				_spawn_alice_doll(lane_row, doll_x, Color(0.82, 0.66, 1.0, 0.26))
+				doll_points.append(Vector2(doll_x, _row_center_y(lane_row) - 16.0))
+			effects.append({
+				"shape": "alice_doll_procession",
+				"position": Vector2(procession_start, _row_center_y(row) - 12.0),
+				"points": doll_points,
+				"length": anchor_x - procession_start,
+				"width": CELL_SIZE.y * 2.4,
+				"radius": anchor_x - procession_start,
+				"time": 0.56,
+				"duration": 0.56,
+				"anim_speed": 7.4,
+				"color": Color(0.78, 0.58, 1.0, 0.3),
+			})
+			_show_banner("操符「少女文乐」", 1.12)
+			return _set_rumia_state(zombie, "doll_procession", 0.56)
+		1:
+			var marionette_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
+			var marionette_start = BOARD_ORIGIN.x + board_size.x * 0.34
+			var marionette_damage = float(data.get("marionette_damage", 56.0)) + phase * 7.0
+			var thread_points: Array = []
+			for lane_variant in marionette_rows:
+				var lane_row = int(lane_variant)
+				_damage_plants_in_row_segment(lane_row, marionette_start, anchor_x, marionette_damage)
+				_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.58, _row_center_y(lane_row) - 8.0), 84.0 + phase * 8.0, 0.5 + phase * 0.06)
+				thread_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * 0.58, _row_center_y(lane_row) - 10.0))
+			effects.append({
+				"shape": "alice_marionette_web",
+				"position": Vector2(anchor_x - 96.0, _row_center_y(row) - 44.0),
+				"points": thread_points,
+				"length": anchor_x - marionette_start,
+				"width": CELL_SIZE.y * 2.8,
+				"radius": 220.0,
+				"time": 0.54,
+				"duration": 0.54,
+				"anim_speed": 8.0,
+				"color": Color(0.92, 0.82, 1.0, 0.32),
+			})
+			_show_banner("苍符「博爱的法兰西人偶」", 1.14)
+			return _set_rumia_state(zombie, "marionette", 0.54)
+		2:
+			var magic_cells = _pick_random_active_cells(5 + mini(phase, 2), 2, COLS - 1)
+			var magic_damage = float(data.get("red_blue_magic_damage", 48.0)) + phase * 6.0
+			var magic_hits = _damage_plants_in_cells(magic_cells, magic_damage, 0.42 + phase * 0.05)
+			var magic_points: Array = []
+			for cell_variant in magic_cells:
+				var cell = Vector2i(cell_variant)
+				magic_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -12.0))
+			effects.append({
+				"shape": "alice_seven_color_magic",
+				"position": Vector2(anchor_x - 104.0, _row_center_y(row) - 18.0),
+				"points": magic_points,
+				"radius": 190.0,
+				"time": 0.5,
+				"duration": 0.5,
+				"anim_speed": 8.8,
+				"color": Color(0.62, 0.72, 1.0, 0.32 if magic_hits > 0 else 0.18),
+			})
+			_show_banner("红符「荷兰人偶」", 1.08)
+			return _set_rumia_state(zombie, "seven_color", 0.5)
+		3:
+			var doll_cells = _pick_random_active_cells(3 + mini(phase, 1), 3, COLS - 1)
+			var shanghai_damage = float(data.get("shanghai_doll_damage", 64.0)) + phase * 7.0
+			var shanghai_points: Array = []
+			for cell_variant in doll_cells:
+				var cell = Vector2i(cell_variant)
+				_damage_plants_in_cells([cell], shanghai_damage, 0.6 + phase * 0.06)
+				var point = _cell_center(cell.x, cell.y) + Vector2(0.0, -12.0)
+				shanghai_points.append(point)
+				if rng.randf() < 0.7:
+					_spawn_alice_doll(cell.x, point.x + 64.0, Color(0.58, 0.88, 1.0, 0.25))
+			effects.append({
+				"shape": "alice_shanghai_dolls",
+				"position": Vector2(anchor_x - 92.0, _row_center_y(row) - 20.0),
+				"points": shanghai_points,
+				"radius": 178.0,
+				"time": 0.52,
+				"duration": 0.52,
+				"anim_speed": 7.8,
+				"color": Color(0.54, 0.86, 1.0, 0.3),
+			})
+			_show_banner("咒诅「魔彩光的上海人偶」", 1.16)
+			return _set_rumia_state(zombie, "shanghai", 0.54)
+		4:
+			var circle_center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.56, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0)
+			var circle_radius = 214.0 + phase * 12.0
+			_damage_plants_in_circle(circle_center, circle_radius, float(data.get("forest_circle_damage", 42.0)) + phase * 6.0)
+			_stagger_plants_in_circle(circle_center, circle_radius * 0.94, 0.78 + phase * 0.08)
+			effects.append({
+				"shape": "alice_forest_circle",
+				"position": circle_center,
+				"radius": circle_radius,
+				"width": board_size.y * 0.76,
+				"time": 0.62,
+				"duration": 0.62,
+				"anim_speed": 6.8,
+				"color": Color(0.46, 0.92, 0.76, 0.28),
+			})
+			_show_banner("森林魔法阵「七色的傀儡线」", 1.15)
+			return _set_rumia_state(zombie, "forest_circle", 0.62)
+		5:
+			var raised = _raise_random_graves(
+				int(data.get("grave_raise_count", 2)) + mini(phase, 2),
+				"alice_grave_rise",
+				Color(0.72, 0.52, 1.0, 0.34)
+			)
+			effects.append({
+				"shape": "alice_magic_grave_call",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.48, BOARD_ORIGIN.y + board_size.y * 0.5),
+				"radius": 230.0,
+				"width": board_size.y * 0.82,
+				"time": 0.64,
+				"duration": 0.64,
+				"anim_speed": 7.0,
+				"color": Color(0.68, 0.46, 1.0, 0.28),
+			})
+			if raised > 0:
+				_show_banner("魔法森林的坟墓钻出了地面！", 1.18)
+			else:
+				_show_banner("爱丽丝牵动了地下的傀儡线！", 1.08)
+			return _set_rumia_state(zombie, "grave_call", 0.64)
+		_:
+			var finale_damage = float(data.get("return_inanimateness_damage", 34.0)) + phase * 5.0
+			var finale_points: Array = []
+			for lane_variant in active_rows:
+				var lane_row = int(lane_variant)
+				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.24, anchor_x, finale_damage)
+				finale_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.34 + 0.1 * float(lane_row % 4)), _row_center_y(lane_row) - 16.0))
+			for _i in range(mini(3, 1 + phase)):
+				var summon_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else row
+				_spawn_alice_doll(summon_row, BOARD_ORIGIN.x + board_size.x + 42.0 + float(_i) * 18.0, Color(0.96, 0.62, 0.86, 0.26))
+			effects.append({
+				"shape": "alice_return_inanimateness",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.56, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
+				"points": finale_points,
+				"length": board_size.x * 0.86,
+				"width": board_size.y * 0.9,
+				"radius": board_size.x * 0.46,
+				"time": 0.66,
+				"duration": 0.66,
+				"anim_speed": 7.6,
+				"color": Color(0.9, 0.66, 1.0, 0.32),
+			})
+			_show_banner("操符「回归虚无的人偶阵」", 1.2)
+			return _set_rumia_state(zombie, "return_inanimateness", 0.66)
+
+
+func _trigger_alice_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
+	var center = Vector2(_boss_anchor_x("alice_boss") - 104.0, _row_center_y(int(zombie["row"])) - 14.0)
+	_show_banner("爱丽丝展开第 %d 层七色人偶阵！" % (phase + 1), 2.05)
+	effects.append({
+		"shape": "alice_phase_doll_circle",
+		"position": center,
+		"radius": 202.0 + phase * 22.0,
+		"width": board_size.y * 0.54,
+		"time": 0.58,
+		"duration": 0.58,
+		"anim_speed": 7.2,
+		"color": Color(0.8, 0.62, 1.0, 0.34),
+	})
+	_damage_plants_in_circle(center, 160.0 + phase * 14.0, 44.0 + phase * 10.0)
+	_stagger_plants_in_circle(center, 174.0 + phase * 14.0, 0.65 + phase * 0.08)
+	for _i in range(mini(2, phase + 1)):
+		_spawn_alice_doll(int(zombie["row"]), BOARD_ORIGIN.x + board_size.x + 38.0 + float(_i) * 22.0, Color(0.84, 0.64, 1.0, 0.25))
+	return _set_rumia_state(zombie, "phase", 0.68)
+
+
 func _trigger_meiling_boss_skill(zombie: Dictionary) -> Dictionary:
 	var data = Defs.ZOMBIES["meiling_boss"]
 	var row = int(zombie["row"])
@@ -15465,6 +15716,8 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		return _trigger_letty_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "chen_boss":
 		return _trigger_chen_boss_phase_shift(zombie, phase)
+	if String(zombie["kind"]) == "alice_boss":
+		return _trigger_alice_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "flandre_boss":
 		return _trigger_flandre_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "night_boss":
@@ -15600,7 +15853,7 @@ func _can_raise_grave_at(row: int, col: int) -> bool:
 	return true
 
 
-func _raise_random_graves(count: int) -> int:
+func _raise_random_graves(count: int, fx_shape: String = "grave_rise", fx_color: Color = Color(0.62, 0.68, 1.0, 0.24)) -> int:
 	if count <= 0:
 		return 0
 	var candidates: Array = []
@@ -15627,13 +15880,18 @@ func _raise_random_graves(count: int) -> int:
 		graves.append({
 			"row": cell.x,
 			"col": cell.y,
+			"rise_started": level_time,
+			"rise_duration": 0.58,
+			"rise_shape": fx_shape,
 		})
 		effects.append({
+			"shape": fx_shape,
 			"position": _cell_center(cell.x, cell.y) + Vector2(0.0, 18.0),
 			"radius": 54.0,
-			"time": 0.32,
-			"duration": 0.32,
-			"color": Color(0.62, 0.68, 1.0, 0.24),
+			"time": 0.58,
+			"duration": 0.58,
+			"anim_speed": 6.8,
+			"color": fx_color,
 		})
 		raised += 1
 	return raised
@@ -17026,6 +17284,10 @@ func _is_winter_forest_level() -> bool:
 
 func _is_mayohiga_house_level() -> bool:
 	return String(current_level.get("terrain", "")) == "mayohiga_house"
+
+
+func _is_forest_of_magic_level() -> bool:
+	return String(current_level.get("terrain", "")) == "forest_of_magic"
 
 
 func _is_pool_level() -> bool:
@@ -18819,6 +19081,15 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 			lane_alt = Color(0.62, 0.48, 0.34)
 			accent = Color(1.0, 0.58, 0.22)
 			water = Color(0.48, 0.78, 0.92)
+		"forest_of_magic":
+			label = "魔法森林"
+			sky_top = Color(0.04, 0.03, 0.14)
+			sky_bottom = Color(0.13, 0.1, 0.26)
+			ground = Color(0.18, 0.28, 0.24)
+			lane = Color(0.22, 0.38, 0.28)
+			lane_alt = Color(0.18, 0.32, 0.26)
+			accent = Color(0.72, 0.52, 1.0)
+			water = Color(0.38, 0.74, 0.88)
 		"blood_moon":
 			label = "血月庭院"
 			sky_top = Color(0.12, 0.0, 0.02)
@@ -18910,7 +19181,7 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 		var hill_x = rect.position.x + rect.size.x * (0.04 + float(hill_index) * 0.22)
 		var hill_y = rect.position.y + horizon_h + sin(ui_time * 0.4 + float(hill_index)) * 4.0
 		draw_circle(Vector2(hill_x, hill_y), rect.size.x * 0.11, Color(ground.r * 0.75, ground.g * 0.8, ground.b * 0.75, 0.18 * alpha_scale))
-	if terrain_key == "night" or terrain_key == "vasebreaker_night" or terrain_key == "city" or terrain_key == "winter_forest" or terrain_key == "mayohiga_house":
+	if terrain_key == "night" or terrain_key == "vasebreaker_night" or terrain_key == "city" or terrain_key == "winter_forest" or terrain_key == "mayohiga_house" or terrain_key == "forest_of_magic":
 		for star_index in range(18):
 			var star_pos = rect.position + Vector2(rect.size.x * (0.16 + float(star_index % 9) * 0.085), 22.0 + float(star_index / 9) * 26.0)
 			draw_circle(star_pos, 1.5, Color(0.9, 0.96, 1.0, 0.34 * alpha_scale))
@@ -18959,6 +19230,23 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 		for snow_index in range(18):
 			var snow_pos = rect.position + Vector2(fmod(float(snow_index * 73) + ui_time * 16.0, rect.size.x), 28.0 + float((snow_index * 29) % int(maxf(32.0, rect.size.y * 0.34))))
 			draw_circle(snow_pos, 1.8 + float(snow_index % 3) * 0.4, Color(0.92, 0.98, 1.0, 0.34 * alpha_scale))
+	if terrain_key == "forest_of_magic":
+		for tree_index in range(12):
+			var tree_x = rect.position.x + rect.size.x * (0.04 + float(tree_index) * 0.085)
+			var tree_base = rect.position.y + horizon_h + 66.0 + float(tree_index % 4) * 10.0
+			var trunk = Color(0.03, 0.05, 0.08, 0.52 * alpha_scale)
+			draw_rect(Rect2(Vector2(tree_x - 4.0, tree_base - 62.0), Vector2(8.0, 76.0)), trunk, true)
+			draw_polygon(PackedVector2Array([Vector2(tree_x, tree_base - 120.0), Vector2(tree_x - 34.0, tree_base - 12.0), Vector2(tree_x + 34.0, tree_base - 12.0)]), PackedColorArray([trunk, trunk, trunk]))
+		for mist_index in range(7):
+			var mist_y = rect.position.y + horizon_h + 28.0 + float(mist_index % 3) * 22.0
+			var mist_x = rect.position.x - 70.0 + fmod(ui_time * (12.0 + mist_index * 2.0) + float(mist_index) * 120.0, rect.size.x + 140.0)
+			draw_rect(Rect2(Vector2(mist_x, mist_y), Vector2(rect.size.x * 0.28, 18.0)), Color(0.64, 0.46, 1.0, 0.06 * alpha_scale), true)
+		for thread_index in range(6):
+			var thread_x = rect.position.x + rect.size.x * (0.18 + float(thread_index) * 0.12)
+			draw_line(Vector2(thread_x, rect.position.y + 18.0), Vector2(thread_x + sin(ui_time + float(thread_index)) * 18.0, rect.position.y + horizon_h + 92.0), Color(0.86, 0.78, 1.0, 0.16 * alpha_scale), 1.0)
+			var doll_pos = Vector2(thread_x + sin(ui_time * 1.2 + float(thread_index)) * 8.0, rect.position.y + horizon_h + 84.0 + float(thread_index % 2) * 12.0)
+			draw_circle(doll_pos + Vector2(0.0, -5.0), 3.5, Color(1.0, 0.92, 0.86, 0.5 * alpha_scale))
+			draw_rect(Rect2(doll_pos + Vector2(-3.0, -1.0), Vector2(6.0, 8.0)), Color(accent.r, accent.g, accent.b, 0.34 * alpha_scale), true)
 	var board_margin := Vector2(rect.size.x * 0.08, rect.size.y * 0.36)
 	var board_rect := Rect2(rect.position + board_margin, Vector2(rect.size.x * 0.84, rect.size.y * 0.48))
 	var row_count := int(style.get("row_count", DEFAULT_BOARD_ROWS))
@@ -19409,6 +19697,11 @@ func _ambient_light_for_level() -> Dictionary:
 		tint_alpha = 0.08
 		shadow_tint = Color(0.1, 0.03, 0.02)
 		shadow_alpha = 0.08
+	elif _is_forest_of_magic_level():
+		tint = Color(0.56, 0.42, 1.0)
+		tint_alpha = 0.11
+		shadow_tint = Color(0.04, 0.02, 0.1)
+		shadow_alpha = 0.085
 	elif _is_frozen_branch_level():
 		tint = Color(0.62, 0.8, 1.0)
 		tint_alpha = 0.10
@@ -19833,6 +20126,55 @@ func _draw_battle_background() -> void:
 		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 20.0, BOARD_ORIGIN.y + 24.0), Vector2(board_size.x + 96.0, 92.0)), Color(1.0, 0.5, 0.18, 0.04), true)
 		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 28.0, BOARD_ORIGIN.y + 226.0), Vector2(board_size.x + 108.0, 90.0)), Color(0.02, 0.0, 0.0, 0.1), true)
 		ThemeLib.draw_ambient_particles(self, size, ui_time, "snowflakes", 12)
+	elif _is_forest_of_magic_level():
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 168.0)), Color(0.04, 0.03, 0.14), Color(0.14, 0.1, 0.26))
+		ThemeLib.draw_glow_circle(self, Vector2(size.x - 142.0, 78.0), 38.0, Color(0.72, 0.54, 1.0), 5)
+		draw_circle(Vector2(size.x - 124.0, 72.0), 34.0, Color(0.04, 0.03, 0.12))
+		for star_index in range(24):
+			var star_pos = Vector2(210.0 + float(star_index % 12) * 86.0, 24.0 + float(star_index / 12) * 40.0 + float((star_index * 5) % 15))
+			draw_circle(star_pos, 1.2 + float(star_index % 2), Color(0.86, 0.84, 1.0, 0.24))
+		for grove_index in range(16):
+			var tree_x = 188.0 + float(grove_index) * 72.0 + sin(float(grove_index) * 1.8) * 18.0
+			var tree_base = 230.0 + float(grove_index % 5) * 15.0
+			var tree_alpha = 0.64 if grove_index % 2 == 0 else 0.5
+			var tree_color = Color(0.02, 0.06, 0.08, tree_alpha)
+			draw_rect(Rect2(Vector2(tree_x - 4.0, tree_base - 54.0), Vector2(8.0, 70.0)), Color(0.04, 0.04, 0.06, tree_alpha), true)
+			draw_polygon(PackedVector2Array([Vector2(tree_x, tree_base - 120.0), Vector2(tree_x - 40.0, tree_base - 14.0), Vector2(tree_x + 40.0, tree_base - 14.0)]), PackedColorArray([tree_color, tree_color, tree_color]))
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(0.0, 118.0), Vector2(size.x, size.y - 118.0)), Color(0.18, 0.28, 0.24), Color(0.1, 0.18, 0.18))
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(24.0, 118.0), Vector2(188.0, size.y - 118.0)), Color(0.18, 0.12, 0.22), Color(0.1, 0.07, 0.14))
+		draw_polygon(PackedVector2Array([
+			Vector2(16.0, 156.0),
+			Vector2(118.0, 90.0),
+			Vector2(224.0, 156.0),
+			Vector2(206.0, 182.0),
+			Vector2(34.0, 182.0),
+		]), PackedColorArray([
+			Color(0.08, 0.04, 0.1, 0.96),
+			Color(0.18, 0.1, 0.24, 0.96),
+			Color(0.08, 0.04, 0.1, 0.96),
+			Color(0.06, 0.03, 0.08, 0.96),
+			Color(0.06, 0.03, 0.08, 0.96),
+		]))
+		for window_index in range(3):
+			var window_rect = Rect2(Vector2(64.0 + float(window_index) * 38.0, 138.0), Vector2(24.0, 28.0))
+			draw_rect(window_rect, Color(0.74, 0.54, 1.0, 0.26), true)
+			draw_rect(window_rect, Color(0.08, 0.04, 0.1, 0.42), false, 1.2)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 38.0, BOARD_ORIGIN.y), Vector2(28.0, board_size.y)), Color(0.14, 0.1, 0.18), true)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x + board_size.x, BOARD_ORIGIN.y), Vector2(82.0, board_size.y)), Color(0.08, 0.08, 0.12), true)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 22.0, BOARD_ORIGIN.y + 24.0), Vector2(board_size.x + 96.0, 92.0)), Color(0.68, 0.46, 1.0, 0.05), true)
+		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 28.0, BOARD_ORIGIN.y + 226.0), Vector2(board_size.x + 108.0, 90.0)), Color(0.0, 0.0, 0.04, 0.11), true)
+		for thread_index in range(9):
+			var thread_x = BOARD_ORIGIN.x + 52.0 + float(thread_index) * 102.0
+			draw_line(Vector2(thread_x, 126.0), Vector2(thread_x + sin(ui_time * 1.1 + float(thread_index)) * 18.0, BOARD_ORIGIN.y + board_size.y + 6.0), Color(0.86, 0.78, 1.0, 0.08), 1.0)
+			var doll_y = BOARD_ORIGIN.y - 12.0 + float(thread_index % 3) * 24.0 + sin(ui_time * 1.7 + float(thread_index)) * 4.0
+			var doll_x = thread_x + sin(ui_time * 1.2 + float(thread_index)) * 8.0
+			draw_circle(Vector2(doll_x, doll_y), 4.0, Color(1.0, 0.92, 0.86, 0.28))
+			draw_rect(Rect2(Vector2(doll_x - 4.0, doll_y + 4.0), Vector2(8.0, 10.0)), Color(0.72, 0.52, 1.0, 0.18), true)
+		for mist_index in range(8):
+			var mist_y = BOARD_ORIGIN.y + 18.0 + float(mist_index % 4) * 72.0
+			var mist_x = BOARD_ORIGIN.x - 90.0 + fmod(ui_time * (16.0 + mist_index * 2.0) + float(mist_index) * 136.0, board_size.x + 180.0)
+			draw_rect(Rect2(Vector2(mist_x, mist_y), Vector2(220.0, 22.0)), Color(0.58, 0.4, 1.0, 0.035), true)
+		ThemeLib.draw_ambient_particles(self, size, ui_time, "fireflies", 16)
 	elif _is_frozen_branch_level():
 		# Icy sky gradient
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 154.0)), Color(0.68, 0.84, 1.0), Color(0.88, 0.95, 1.0))
@@ -20377,6 +20719,8 @@ func _draw_battle_board() -> void:
 			lane_color = Color(0.56, 0.3, 0.2) if row % 2 == 0 else Color(0.5, 0.26, 0.18)
 		elif _is_volcano_level():
 			lane_color = Color(0.2, 0.08, 0.06) if row % 2 == 0 else Color(0.16, 0.06, 0.04)
+		elif _is_forest_of_magic_level():
+			lane_color = Color(0.22, 0.38, 0.28) if row % 2 == 0 else Color(0.18, 0.32, 0.26)
 		elif _is_night_level():
 			lane_color = Color(0.23, 0.38, 0.2) if row % 2 == 0 else Color(0.19, 0.32, 0.17)
 		elif _is_fog_level():
@@ -20440,6 +20784,20 @@ func _draw_battle_board() -> void:
 				var ember_x = lane_rect.position.x + (0.1 + float(ember_index) * 0.18) * lane_rect.size.x + sin(ui_time * 3.0 + float(ember_index)) * 14.0
 				var ember_y = lane_rect.position.y + lane_rect.size.y - ember_t * lane_rect.size.y
 				draw_circle(Vector2(ember_x, ember_y), 1.6, Color(1.0, 0.56, 0.18, (1.0 - ember_t) * 0.5))
+		elif _is_forest_of_magic_level():
+			for thread_index in range(4):
+				var thread_y = lane_rect.position.y + 14.0 + float(thread_index) * 20.0
+				var sway = sin(ui_time * 1.6 + float(row) * 0.7 + float(thread_index)) * 8.0
+				draw_line(
+					Vector2(lane_rect.position.x - 8.0, thread_y + sway),
+					Vector2(lane_rect.position.x + lane_rect.size.x + 12.0, thread_y - sway * 0.6),
+					Color(0.78, 0.66, 1.0, 0.055 if thread_index % 2 == 0 else 0.035),
+					1.4
+				)
+			for mote_index in range(5):
+				var mote_x = lane_rect.position.x + fmod(ui_time * (18.0 + float(mote_index) * 3.0) + float(row * 47 + mote_index * 81), lane_rect.size.x)
+				var mote_y = lane_rect.position.y + 18.0 + fmod(float(mote_index * 19 + row * 11), lane_rect.size.y - 30.0)
+				draw_circle(Vector2(mote_x, mote_y), 2.0 + float(mote_index % 2), Color(0.72, 0.52, 1.0, 0.12))
 		else:
 			for stripe_index in range(5):
 				var stripe_y = lane_rect.position.y + 16.0 + float(stripe_index) * 18.0
@@ -20486,6 +20844,9 @@ func _draw_battle_board() -> void:
 			elif _is_mayohiga_house_level():
 				tint = Color(0.84, 0.58, 0.36, 0.13) if (row + col) % 2 == 0 else Color(0.28, 0.12, 0.06, 0.12)
 				border_color = Color(0.78, 0.38, 0.16, 0.24)
+			elif _is_forest_of_magic_level():
+				tint = Color(0.5, 0.36, 0.78, 0.1) if (row + col) % 2 == 0 else Color(0.02, 0.0, 0.08, 0.12)
+				border_color = Color(0.54, 0.42, 0.92, 0.3)
 			elif _is_frozen_branch_level():
 				var terrain = _cell_terrain_kind(row, col)
 				if terrain == "water":
@@ -20637,6 +20998,16 @@ func _draw_battle_board() -> void:
 				draw_line(tile.position + Vector2(12.0, tile.size.y * 0.68), tile.position + Vector2(tile.size.x - 14.0, tile.size.y * 0.68 + cos(float(row * 3 + col)) * 2.0), Color(0.12, 0.04, 0.02, grain_alpha), 1.1)
 				if (row + col) % 4 == 0:
 					draw_circle(tile.position + tile.size * 0.5 + Vector2(8.0, -6.0), 2.6, Color(1.0, 0.62, 0.22, 0.12))
+			if _is_forest_of_magic_level():
+				var thread_alpha = 0.11 if (row + col) % 2 == 0 else 0.075
+				draw_line(tile.position + Vector2(10.0, 14.0), tile.position + tile.size - Vector2(12.0, 18.0), Color(0.86, 0.78, 1.0, thread_alpha), 1.2)
+				draw_line(tile.position + Vector2(tile.size.x * 0.62, 12.0), tile.position + Vector2(tile.size.x * 0.32, tile.size.y - 12.0), Color(0.42, 1.0, 0.82, thread_alpha * 0.65), 1.0)
+				if (row + col) % 3 == 0:
+					draw_circle(tile.position + tile.size * 0.5 + Vector2(8.0, -7.0), 2.8, Color(0.76, 0.56, 1.0, 0.16))
+				if (row + col) % 5 == 0:
+					var doll_center = tile.position + tile.size * 0.5 + Vector2(-8.0, 6.0)
+					draw_circle(doll_center + Vector2(0.0, -4.0), 2.8, Color(1.0, 0.92, 0.86, 0.16))
+					draw_rect(Rect2(doll_center + Vector2(-2.5, -0.5), Vector2(5.0, 6.0)), Color(0.72, 0.52, 1.0, 0.12), true)
 			if _is_frozen_branch_level():
 				var tile_terrain = _cell_terrain_kind(row, col)
 				if tile_terrain == "water":
@@ -20657,6 +21028,8 @@ func _draw_battle_board() -> void:
 	var outline = Color(0.38, 0.04, 0.06, 0.8) if _is_blood_moon_level() else (Color(0.48, 0.08, 0.18, 0.82) if _is_blood_library_level() else (Color(0.64, 0.12, 0.22, 0.84) if _is_blood_toy_roof_level() else (Color(0.72, 0.16, 0.08, 0.82) if String(current_level.get("terrain", "")) == "scarlet_gate" else (Color(0.62, 0.16, 0.24, 0.84) if _is_scarlet_clocktower_level() else (Color(0.58, 0.86, 1.0, 0.82) if _is_winter_forest_level() else (Color(0.52, 0.84, 1.0, 0.8) if _is_frozen_branch_level() else (Color(0.34, 0.78, 0.96, 0.82) if _is_city_level() else (Color(0.54, 0.24, 0.16, 0.76) if _is_roof_level() else (Color(0.08, 0.26, 0.34, 0.72) if _uses_backyard_pool_board() else (Color(0.16, 0.24, 0.22, 0.72) if _is_fog_level() else Color(0.12, 0.28, 0.08, 0.68)))))))))))
 	if _is_mayohiga_house_level():
 		outline = Color(0.82, 0.36, 0.12, 0.82)
+	if _is_forest_of_magic_level():
+		outline = Color(0.66, 0.48, 1.0, 0.82)
 	draw_rect(Rect2(BOARD_ORIGIN, board_size), outline, false, 4.0)
 
 
@@ -22092,8 +22465,16 @@ func _draw_lane_obstacles() -> void:
 		draw_rect(ice_rect, Color(0.9, 0.98, 1.0, 0.34), false, 2.0)
 		draw_line(ice_rect.position + Vector2(12.0, 12.0), ice_rect.position + ice_rect.size - Vector2(10.0, 16.0), Color(1.0, 1.0, 1.0, 0.16), 2.0)
 	for grave in graves:
-		var grave_center = _cell_center(int(grave["row"]), int(grave["col"])) + Vector2(0.0, 18.0 + sin(ui_time * 1.4 + float(grave["row"]) * 0.8 + float(grave["col"])) * 1.8)
-		_draw_grave(grave_center, 1.0 + 0.02 * sin(ui_time * 2.2 + float(grave["col"])))
+		var rise_offset := 0.0
+		var rise_scale := 1.0
+		if grave.has("rise_started"):
+			var rise_duration = maxf(0.001, float(grave.get("rise_duration", 0.58)))
+			var rise_t = clampf((level_time - float(grave.get("rise_started", level_time))) / rise_duration, 0.0, 1.0)
+			var eased = rise_t * rise_t * (3.0 - 2.0 * rise_t)
+			rise_offset = (1.0 - eased) * 48.0
+			rise_scale = 0.84 + eased * 0.16
+		var grave_center = _cell_center(int(grave["row"]), int(grave["col"])) + Vector2(0.0, 18.0 + rise_offset + sin(ui_time * 1.4 + float(grave["row"]) * 0.8 + float(grave["col"])) * 1.8)
+		_draw_grave(grave_center, (1.0 + 0.02 * sin(ui_time * 2.2 + float(grave["col"]))) * rise_scale)
 	for vase in vases:
 		var vase_center = _cell_center(int(vase["row"]), int(vase["col"])) + Vector2(0.0, 16.0 + sin(ui_time * 1.6 + float(vase["row"]) * 0.9 + float(vase["col"])) * 1.4)
 		_draw_vase(vase_center, 1.0, String(vase.get("content_type", "plant")) == "zombie")
@@ -23988,6 +24369,79 @@ func _draw_effects() -> void:
 			draw_circle(slam_center, slam_radius, effect_color)
 			draw_circle(slam_center, slam_radius * 0.82, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.26), false, 4.0)
 			draw_rect(Rect2(slam_center + Vector2(-slam_radius * 0.86, 12.0), Vector2(slam_radius * 1.72, 8.0)), Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.42), true)
+			continue
+		if shape == "grave_rise" or shape == "alice_grave_rise":
+			var grave_center = Vector2(effect["position"])
+			var grave_radius = _effect_visual_radius(effect, ratio)
+			var born = clampf(1.0 - ratio, 0.0, 1.0)
+			var magic_color = Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a)
+			draw_arc(grave_center + Vector2(0.0, 14.0), grave_radius * (0.58 + born * 0.18), PI * 0.05, PI * 0.95, 28, Color(0.24, 0.12, 0.08, effect_color.a * 0.68), 3.0)
+			for crack_index in range(7):
+				var crack_angle = -PI + float(crack_index) * PI / 6.0
+				var crack_len = grave_radius * (0.34 + float(crack_index % 3) * 0.08) * (0.62 + born * 0.38)
+				var crack_start = grave_center + Vector2(cos(crack_angle), sin(crack_angle) * 0.34) * grave_radius * 0.24 + Vector2(0.0, 18.0)
+				var crack_end = crack_start + Vector2(cos(crack_angle), sin(crack_angle) * 0.28) * crack_len
+				draw_line(crack_start, crack_end, Color(0.1, 0.04, 0.08, effect_color.a * 0.7), 2.0)
+			for mote_index in range(10):
+				var mote_ratio = float(mote_index + 1) / 10.0
+				var mote_phase = level_time * anim_speed + mote_ratio * 9.0
+				var mote = grave_center + Vector2(cos(mote_phase) * grave_radius * (0.18 + mote_ratio * 0.34), 24.0 - born * grave_radius * (0.18 + mote_ratio * 0.42))
+				var mote_color = Color(0.42, 0.22, 0.12, effect_color.a * (0.4 - mote_ratio * 0.12))
+				if shape == "alice_grave_rise":
+					mote_color = Color(0.76, 0.54, 1.0, effect_color.a * (0.48 - mote_ratio * 0.12))
+					draw_line(grave_center + Vector2(0.0, -12.0), mote, Color(0.86, 0.76, 1.0, effect_color.a * 0.16), 1.2)
+				draw_circle(mote, 2.4 + born * 2.2, mote_color)
+			if shape == "alice_grave_rise":
+				draw_arc(grave_center, grave_radius * (0.7 + born * 0.18), level_time * anim_speed * 0.2, level_time * anim_speed * 0.2 + PI * 1.45, 34, magic_color, 2.2)
+				draw_arc(grave_center, grave_radius * 0.44, -level_time * anim_speed * 0.26, -level_time * anim_speed * 0.26 + PI * 1.28, 26, Color(1.0, 0.86, 1.0, effect_color.a * 0.46), 1.6)
+			continue
+		if shape.begins_with("alice_"):
+			var alice_center = Vector2(effect["position"])
+			var alice_radius = _effect_visual_radius(effect, ratio)
+			var alice_length = _effect_visual_length(effect, ratio)
+			var alice_width = _effect_visual_width(effect, ratio)
+			var alice_born = clampf(1.0 - ratio, 0.0, 1.0)
+			draw_circle(alice_center, alice_radius * (0.24 + alice_born * 0.12), Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.12))
+			draw_arc(alice_center, alice_radius * (0.42 + alice_born * 0.12), level_time * anim_speed * 0.18, level_time * anim_speed * 0.18 + PI * 1.52, 34, effect_color, 2.2)
+			draw_arc(alice_center, alice_radius * (0.28 + alice_born * 0.1), -level_time * anim_speed * 0.24, -level_time * anim_speed * 0.24 + PI * 1.34, 28, Color(1.0, 0.9, 1.0, effect_color.a * 0.48), 1.5)
+			if alice_length > alice_radius * 2.2:
+				var band_rect = Rect2(alice_center + Vector2(0.0, -alice_width * 0.5), Vector2(alice_length, alice_width))
+				if shape == "alice_return_inanimateness":
+					band_rect = Rect2(alice_center + Vector2(-alice_length * 0.5, -alice_width * 0.5), Vector2(alice_length, alice_width))
+				draw_rect(band_rect, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.08), true)
+				for band_index in range(4):
+					var band_t = float(band_index) / 3.0
+					var y = band_rect.position.y + alice_width * (0.18 + band_t * 0.64) + sin(level_time * anim_speed + band_t * 5.0) * alice_width * 0.04
+					draw_line(Vector2(band_rect.position.x, y), Vector2(band_rect.position.x + band_rect.size.x, y), Color(0.94, 0.78, 1.0, effect_color.a * (0.22 + band_t * 0.06)), 1.6)
+			for point_variant in effect.get("points", []):
+				var point = Vector2(point_variant)
+				draw_line(alice_center, point, Color(0.86, 0.78, 1.0, effect_color.a * 0.2), 1.4)
+				draw_circle(point, 15.0 + alice_born * 4.0, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.18))
+				if shape.find("doll") != -1 or shape.find("marionette") != -1 or shape == "alice_return_inanimateness" or shape == "alice_phase_doll_circle":
+					draw_circle(point + Vector2(0.0, -8.0), 5.0, Color(1.0, 0.92, 0.86, effect_color.a * 0.8))
+					draw_rect(Rect2(point + Vector2(-5.0, -3.0), Vector2(10.0, 14.0)), Color(0.78, 0.58, 1.0, effect_color.a * 0.54), true)
+					draw_line(point + Vector2(-4.0, 2.0), point + Vector2(-12.0, 10.0), Color(0.9, 0.86, 1.0, effect_color.a * 0.5), 1.2)
+					draw_line(point + Vector2(4.0, 2.0), point + Vector2(12.0, 10.0), Color(0.9, 0.86, 1.0, effect_color.a * 0.5), 1.2)
+					draw_line(point + Vector2(0.0, -18.0), point + Vector2(0.0, -42.0), Color(1.0, 0.94, 1.0, effect_color.a * 0.32), 1.0)
+				else:
+					draw_circle(point, 5.4 + alice_born * 2.0, Color(1.0, 0.92, 1.0, effect_color.a * 0.7))
+			if shape == "alice_forest_circle" or shape == "alice_magic_grave_call":
+				for rune_index in range(10):
+					var rune_angle = level_time * anim_speed * 0.15 + float(rune_index) * TAU / 10.0
+					var rune_pos = alice_center + Vector2(cos(rune_angle), sin(rune_angle)) * alice_radius * 0.72
+					draw_circle(rune_pos, 4.0, Color(0.66, 1.0, 0.86, effect_color.a * 0.62))
+					draw_line(rune_pos, rune_pos + Vector2(cos(rune_angle + PI * 0.5), sin(rune_angle + PI * 0.5)) * 12.0, Color(0.82, 1.0, 0.94, effect_color.a * 0.36), 1.4)
+			if shape == "alice_seven_color_magic":
+				var colors = [
+					Color(1.0, 0.24, 0.36, effect_color.a * 0.48),
+					Color(0.38, 0.72, 1.0, effect_color.a * 0.5),
+					Color(1.0, 0.82, 0.32, effect_color.a * 0.42),
+					Color(0.72, 0.46, 1.0, effect_color.a * 0.46),
+				]
+				for orb_index in range(14):
+					var orb_t = float(orb_index) / 14.0
+					var orb = alice_center + Vector2(cos(level_time * anim_speed * 0.26 + orb_t * TAU), sin(level_time * anim_speed * 0.38 + orb_t * TAU)) * alice_radius * (0.3 + 0.36 * sin(orb_t * PI))
+					draw_circle(orb, 4.0 + float(orb_index % 3), colors[orb_index % colors.size()])
 			continue
 		if shape.begins_with("volcano_"):
 			var volcano_center = Vector2(effect["position"])
@@ -27051,6 +27505,36 @@ func _draw_bomber_zombie(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(torso + Vector2(8.0, -24.0), 9.0 + fuse * 3.0, Color(1.0, 0.32, 0.12, 0.12))
 
 
+func _draw_alice_doll_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var flash = float(zombie.get("flash", 0.0))
+	var slow_tint = 0.5 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
+	var moving = float(zombie.get("special_pause_timer", 0.0)) <= 0.0
+	var cycle = level_time * (3.0 + float(zombie.get("base_speed", 20.0)) * 0.06) + float(zombie.get("anim_phase", 0.0))
+	var step = sin(cycle) if moving else 0.0
+	var body = center + Vector2(0.0, -absf(step) * 2.0)
+	var dress = Color(0.34, 0.42, 0.76).lerp(Color(1.0, 1.0, 1.0), flash * 1.4).lerp(Color(0.64, 0.84, 1.0), slow_tint)
+	var skin = Color(0.92, 0.84, 0.76).lerp(Color(1.0, 1.0, 1.0), flash * 1.7).lerp(Color(0.7, 0.9, 1.0), slow_tint)
+	var thread_color = Color(0.88, 0.78, 1.0, 0.54)
+	draw_line(body + Vector2(-11.0, -58.0), body + Vector2(-7.0, -18.0), thread_color, 1.2)
+	draw_line(body + Vector2(11.0, -58.0), body + Vector2(7.0, -18.0), thread_color, 1.2)
+	draw_line(body + Vector2(0.0, -62.0), body + Vector2(0.0, -28.0), Color(0.98, 0.94, 1.0, 0.42), 1.0)
+	draw_line(body + Vector2(-7.0, 22.0), body + Vector2(-12.0 - step * 3.0, 40.0), Color(0.18, 0.16, 0.22), 3.2)
+	draw_line(body + Vector2(7.0, 22.0), body + Vector2(12.0 + step * 3.0, 40.0), Color(0.18, 0.16, 0.22), 3.2)
+	draw_rect(Rect2(body + Vector2(-14.0, -8.0), Vector2(28.0, 34.0)), dress, true)
+	draw_polygon(PackedVector2Array([
+		body + Vector2(-19.0, 20.0),
+		body + Vector2(19.0, 20.0),
+		body + Vector2(12.0, 38.0),
+		body + Vector2(-12.0, 38.0),
+	]), PackedColorArray([dress.darkened(0.06), dress, dress.darkened(0.14), dress.darkened(0.18)]))
+	draw_circle(body + Vector2(0.0, -25.0), 14.0, skin)
+	draw_rect(Rect2(body + Vector2(-16.0, -38.0), Vector2(32.0, 10.0)), Color(0.86, 0.82, 0.52).lerp(Color(1.0, 1.0, 1.0), flash), true)
+	draw_circle(body + Vector2(-5.0, -27.0), 1.8, Color(0.06, 0.05, 0.08))
+	draw_circle(body + Vector2(5.0, -27.0), 1.8, Color(0.06, 0.05, 0.08))
+	draw_arc(body + Vector2(0.0, -20.0), 4.8, 0.2, PI - 0.2, 10, Color(0.12, 0.08, 0.1), 1.4)
+	draw_circle(body + Vector2(0.0, 2.0), 28.0, Color(0.6, 0.44, 1.0, 0.08 + 0.03 * sin(cycle * 1.3)))
+
+
 func _prepare_boss_frame_image(image: Image, face_left: bool = false) -> Image:
 	var prepared = image.duplicate()
 	prepared.convert(Image.FORMAT_RGBA8)
@@ -27320,6 +27804,23 @@ func _ensure_chen_frames_loaded() -> void:
 	shared_chen_frames_face_left = expected_face_left
 
 
+func _ensure_alice_frames_loaded() -> void:
+	var expected_face_left = _boss_frames_face_left("alice_boss")
+	if alice_frames_loaded and _boss_frame_cache_matches(alice_frames, ALICE_FRAME_COUNT, expected_face_left, alice_frames_face_left):
+		return
+	if shared_alice_frames_loaded and _boss_frame_cache_matches(shared_alice_frames, ALICE_FRAME_COUNT, expected_face_left, shared_alice_frames_face_left):
+		alice_frames_loaded = true
+		alice_frames = shared_alice_frames
+		alice_frames_face_left = shared_alice_frames_face_left
+		return
+	alice_frames_loaded = true
+	alice_frames = _load_boss_frame_set("alice_boss", expected_face_left)
+	alice_frames_face_left = expected_face_left
+	shared_alice_frames_loaded = true
+	shared_alice_frames = alice_frames
+	shared_alice_frames_face_left = expected_face_left
+
+
 func _ensure_flandre_frames_loaded() -> void:
 	var expected_face_left = _boss_frames_face_left("flandre_boss")
 	if flandre_frames_loaded and _boss_frame_cache_matches(flandre_frames, FLANDRE_FRAME_COUNT, expected_face_left, flandre_frames_face_left):
@@ -27375,6 +27876,10 @@ func _letty_draw_scale(phase: int) -> float:
 
 func _chen_draw_scale(phase: int) -> float:
 	return 0.36 + float(phase) * 0.015
+
+
+func _alice_draw_scale(phase: int) -> float:
+	return 0.38 + float(phase) * 0.014
 
 
 func _flandre_draw_scale(phase: int) -> float:
@@ -27604,6 +28109,35 @@ func _chen_frame_index(zombie: Dictionary) -> int:
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
 				return _rumia_cycle_frame([1, 0, 1], 5.8, phase * 0.24)
+			return 0
+	return 0
+
+
+func _alice_frame_index(zombie: Dictionary) -> int:
+	var state = String(zombie.get("rumia_state", "idle"))
+	var phase = float(zombie.get("anim_phase", 0.0))
+	match state:
+		"procession":
+			return _rumia_cycle_frame([2, 5, 2, 6], 6.8, phase * 0.38)
+		"marionette":
+			return _rumia_cycle_frame([5, 6, 5, 1], 6.6, phase * 0.36)
+		"seven":
+			return _rumia_cycle_frame([3, 4, 3, 7], 7.2, phase * 0.42)
+		"shanghai":
+			return _rumia_cycle_frame([6, 7, 6, 2], 6.8, phase * 0.4)
+		"forest":
+			return _rumia_cycle_frame([4, 5, 4, 6], 5.8, phase * 0.32)
+		"grave":
+			return _rumia_cycle_frame([7, 6, 7, 5], 6.2, phase * 0.36)
+		"return":
+			return _rumia_cycle_frame([7, 5, 6, 5], 7.0, phase * 0.42)
+		"phase":
+			return _rumia_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.36)
+		"shift":
+			return _rumia_cycle_frame([1, 0, 1, 0], 5.6, phase * 0.26)
+		_:
+			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
+				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
 			return 0
 	return 0
 
@@ -28177,6 +28711,54 @@ func _draw_chen_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_circle(center + Vector2(0.0, -18.0), 78.0 + sin(level_time * 5.2) * 6.0, Color(1.0, 0.16, 0.12, 0.08))
 
 
+func _draw_alice_boss(center: Vector2, zombie: Dictionary) -> void:
+	var frame_index = _alice_frame_index(zombie)
+	if float(zombie.get("impact_timer", 0.0)) > 0.0:
+		frame_index = 6
+	_ensure_alice_frames_loaded()
+	var texture := _try_get_boss_frame_texture("alice_boss", frame_index)
+	var draw_scale = _alice_draw_scale(int(zombie.get("boss_phase", 0)))
+	var local_phase = float(zombie.get("anim_phase", 0.0))
+	var bob = sin(level_time * 2.1 + local_phase) * 4.8 + sin(level_time * 5.2 + local_phase * 0.7) * 1.1
+	var sway = sin(level_time * 1.28 + local_phase) * 5.8
+	var aura_center = center + Vector2(sway * 0.04, -38.0 + bob * 0.14)
+	var pulse = 0.09 + 0.036 * sin(level_time * 2.8 + local_phase)
+	draw_circle(center + Vector2(sway * 0.05, 52.0), 22.0, Color(0.06, 0.04, 0.12, 0.18))
+	draw_circle(aura_center, 54.0, Color(0.58, 0.42, 1.0, pulse))
+	draw_circle(aura_center, 34.0, Color(0.14, 0.08, 0.28, 0.14))
+	for thread_index in range(5):
+		var thread_angle = -PI * 0.45 + float(thread_index) * PI * 0.225 + sin(level_time * 1.4 + float(thread_index)) * 0.04
+		var thread_to = aura_center + Vector2(cos(thread_angle), sin(thread_angle)) * (62.0 + float(thread_index % 2) * 8.0)
+		draw_line(aura_center + Vector2(0.0, -18.0), thread_to, Color(0.88, 0.82, 1.0, 0.12), 1.2)
+	for ring_index in range(3):
+		var ring_radius = 36.0 + float(ring_index) * 16.0 + sin(level_time * 2.4 + float(ring_index)) * 3.0
+		draw_arc(aura_center, ring_radius, level_time * (0.55 + float(ring_index) * 0.08) + float(ring_index), level_time * (0.55 + float(ring_index) * 0.08) + PI * 1.36 + float(ring_index), 36, Color(0.82, 0.68, 1.0, 0.16), 1.8)
+	if texture != null:
+		var texture_size = texture.get_size() * draw_scale
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+	else:
+		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.92, 0.82, 0.76))
+		draw_rect(Rect2(center + Vector2(-18.0, -12.0), Vector2(36.0, 62.0)), Color(0.24, 0.34, 0.68), true)
+	var orb_colors = [
+		Color(0.46, 0.72, 1.0, 0.78),
+		Color(1.0, 0.34, 0.42, 0.76),
+		Color(0.86, 0.62, 1.0, 0.72),
+		Color(0.52, 1.0, 0.78, 0.68),
+		Color(1.0, 0.78, 0.32, 0.7),
+		Color(0.92, 0.92, 1.0, 0.72),
+		Color(0.72, 0.44, 1.0, 0.72),
+	]
+	for orb_index in range(orb_colors.size()):
+		var angle = level_time * 1.45 + float(orb_index) * TAU / float(orb_colors.size()) + local_phase * 0.16
+		var radius = 30.0 + float(orb_index % 3) * 7.0
+		var orb_center = center + Vector2(cos(angle) * radius, -26.0 + sin(angle) * (12.0 + float(orb_index % 2) * 3.0) + bob * 0.16)
+		draw_circle(orb_center, 4.4, orb_colors[orb_index])
+		draw_circle(orb_center, 9.0, Color(orb_colors[orb_index].r, orb_colors[orb_index].g, orb_colors[orb_index].b, 0.15))
+	if String(zombie.get("rumia_state", "")) == "return":
+		draw_circle(center + Vector2(0.0, -18.0), 84.0 + sin(level_time * 4.8) * 6.0, Color(0.74, 0.52, 1.0, 0.08))
+
+
 func _draw_flandre_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _flandre_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
@@ -28704,6 +29286,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	if kind == "bomber_zombie":
 		_draw_bomber_zombie(center, zombie)
 		return
+	if kind == "alice_doll_zombie":
+		_draw_alice_doll_zombie(center, zombie)
+		return
 	if kind == "umbrella_zombie":
 		_draw_umbrella_zombie(center, zombie)
 		return
@@ -28754,6 +29339,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "chen_boss":
 		_draw_chen_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "alice_boss":
+		_draw_alice_boss(center + Vector2(0.0, -10.0), zombie)
 		return
 	if kind == "flandre_boss":
 		_draw_flandre_boss(center + Vector2(0.0, -10.0), zombie)
@@ -30323,6 +30911,10 @@ func _zombie_almanac_stats(kind: String) -> Array:
 			stats.append("特性：雪夜终幕 Boss，寒流、花枯、白色波纹与临时冻结格压场")
 		"chen_boss":
 			stats.append("特性：迷途家终幕 Boss，高速换行、式神夹击、火环与奇门冲刺压场")
+		"alice_doll_zombie":
+			stats.append("特性：爱丽丝召唤的人偶单位，会配合牵线和魔法阵推进")
+		"alice_boss":
+			stats.append("特性：魔法森林终幕 Boss，七色魔法、人偶队列、牵线夹击与坟墓升起压场")
 	return stats
 
 

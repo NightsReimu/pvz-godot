@@ -78,6 +78,13 @@ const TARGETS := {
 		"grid": Vector2i(4, 2),
 		"flip_x": false,
 	},
+	"alice_boss": {
+		"output_folder": "res://art/alice",
+		"frame_count": 8,
+		"sheet_path": "/Users/hecrereed/Downloads/ChatGPT Image 2026年6月23日 22_57_53.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+	},
 }
 
 const WHITE_THRESHOLD := 0.93
