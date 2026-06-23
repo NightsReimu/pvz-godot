@@ -101,6 +101,6 @@ func _test_fume_effect_is_directional() -> bool:
 	if not _assert_true(not game.effects.is_empty(), "fume_shroom should create an effect when it fires"):
 		game.free()
 		return false
-	var passed = _assert_true(String(game.effects[game.effects.size() - 1].get("shape", "")) == "lane_spray", "fume_shroom effect should be a forward lane spray")
+	var passed = _assert_true(String(game.effects[game.effects.size() - 1].get("shape", "")) == "fume_cloud", "fume_shroom effect should use its dedicated forward fume cloud")
 	game.free()
 	return passed

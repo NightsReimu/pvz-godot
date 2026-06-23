@@ -101,7 +101,7 @@ func _make_game() -> Control:
 func _effect_forward_extent(effect: Dictionary) -> float:
 	var position = Vector2(effect["position"])
 	var shape = String(effect.get("shape", "circle"))
-	if shape == "lane_spray" or shape == "wind_gust_lane" or shape == "rainbow_beam":
+	if shape == "lane_spray" or shape == "wind_gust_lane" or shape == "rainbow_beam" or shape == "vine_whip" or shape == "fume_cloud":
 		return position.x + float(effect.get("length", 0.0))
 	return position.x + float(effect.get("radius", 0.0))
 
@@ -202,7 +202,7 @@ func _test_vine_lasher_emits_range_effect() -> bool:
 		_free_game(game)
 		return false
 	var effect = Dictionary(game.effects[game.effects.size() - 1])
-	var passed = _assert_true(String(effect.get("shape", "")) == "lane_spray", "vine_lasher effect should be directional along the lane") \
+	var passed = _assert_true(String(effect.get("shape", "")) == "vine_whip", "vine_lasher effect should use its dedicated forward whip effect") \
 		and _assert_float_gte(_effect_forward_extent(effect), center.x + range_limit - 4.0, "vine_lasher effect should cover its configured attack range")
 	_free_game(game)
 	return passed

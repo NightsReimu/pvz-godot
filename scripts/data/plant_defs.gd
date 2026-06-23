@@ -287,7 +287,7 @@ const PLANTS: Dictionary = {
 		"health": 80.0,
 		"shoot_interval": 1.3,
 		"damage": 20.0,
-		"range": 350.0,
+		"range": 450.0,
 	},
 	"sun_shroom": {
 		"name": "阳光菇",
@@ -305,7 +305,7 @@ const PLANTS: Dictionary = {
 		"health": 120.0,
 		"shoot_interval": 1.9,
 		"damage": 28.0,
-		"range": 360.0,
+		"range": 460.0,
 		"width": 92.0,
 	},
 	"grave_buster": {
