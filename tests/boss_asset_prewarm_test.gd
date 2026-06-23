@@ -13,7 +13,7 @@ func _run() -> void:
 	failed = not _test_entering_zombie_almanac_queues_boss_assets() or failed
 	failed = not _test_switching_to_zombie_almanac_queues_boss_assets() or failed
 	failed = not _test_entering_day_map_queues_special_boss_assets() or failed
-	failed = not _test_entering_night_map_queues_letty_chen_and_alice_boss_assets() or failed
+	failed = not _test_entering_night_map_queues_pcb_boss_assets() or failed
 	quit(1 if failed else 0)
 
 
@@ -84,6 +84,12 @@ func _snapshot_shared_state() -> Dictionary:
 		"alice_frames": GameScript.shared_alice_frames.duplicate(),
 		"alice_loaded": GameScript.shared_alice_frames_loaded,
 		"alice_face_left": GameScript.shared_alice_frames_face_left,
+		"lily_white_frames": GameScript.shared_lily_white_frames.duplicate(),
+		"lily_white_loaded": GameScript.shared_lily_white_frames_loaded,
+		"lily_white_face_left": GameScript.shared_lily_white_frames_face_left,
+		"prismriver_frames": GameScript.shared_prismriver_frames.duplicate(),
+		"prismriver_loaded": GameScript.shared_prismriver_frames_loaded,
+		"prismriver_face_left": GameScript.shared_prismriver_frames_face_left,
 		"flandre_frames": GameScript.shared_flandre_frames.duplicate(),
 		"flandre_loaded": GameScript.shared_flandre_frames_loaded,
 		"flandre_face_left": GameScript.shared_flandre_frames_face_left,
@@ -125,6 +131,12 @@ func _restore_shared_state(snapshot: Dictionary) -> void:
 	GameScript.shared_alice_frames = Array(snapshot["alice_frames"]).duplicate()
 	GameScript.shared_alice_frames_loaded = bool(snapshot["alice_loaded"])
 	GameScript.shared_alice_frames_face_left = snapshot["alice_face_left"]
+	GameScript.shared_lily_white_frames = Array(snapshot["lily_white_frames"]).duplicate()
+	GameScript.shared_lily_white_frames_loaded = bool(snapshot["lily_white_loaded"])
+	GameScript.shared_lily_white_frames_face_left = snapshot["lily_white_face_left"]
+	GameScript.shared_prismriver_frames = Array(snapshot["prismriver_frames"]).duplicate()
+	GameScript.shared_prismriver_frames_loaded = bool(snapshot["prismriver_loaded"])
+	GameScript.shared_prismriver_frames_face_left = snapshot["prismriver_face_left"]
 	GameScript.shared_flandre_frames = Array(snapshot["flandre_frames"]).duplicate()
 	GameScript.shared_flandre_frames_loaded = bool(snapshot["flandre_loaded"])
 	GameScript.shared_flandre_frames_face_left = snapshot["flandre_face_left"]
@@ -165,6 +177,12 @@ func _reset_boss_caches() -> void:
 	GameScript.shared_alice_frames = []
 	GameScript.shared_alice_frames_loaded = false
 	GameScript.shared_alice_frames_face_left = null
+	GameScript.shared_lily_white_frames = []
+	GameScript.shared_lily_white_frames_loaded = false
+	GameScript.shared_lily_white_frames_face_left = null
+	GameScript.shared_prismriver_frames = []
+	GameScript.shared_prismriver_frames_loaded = false
+	GameScript.shared_prismriver_frames_face_left = null
 	GameScript.shared_flandre_frames = []
 	GameScript.shared_flandre_frames_loaded = false
 	GameScript.shared_flandre_frames_face_left = null
@@ -206,6 +224,8 @@ func _test_entering_zombie_almanac_queues_boss_assets() -> bool:
 		passed = _assert_true(bool(GameScript.shared_sakuya_frames_loaded), "zombie almanac prewarm should populate Sakuya art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_remilia_frames_loaded), "zombie almanac prewarm should populate Remilia art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_letty_frames_loaded), "zombie almanac prewarm should populate Letty art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_lily_white_frames_loaded), "zombie almanac prewarm should populate Lily White art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_prismriver_frames_loaded), "zombie almanac prewarm should populate Prismriver art into the shared cache") and passed
 		var flandre_texture = game.call("_try_get_boss_frame_texture", "flandre_boss", 0)
 		passed = _assert_true(flandre_texture is Texture2D, "zombie almanac prewarm should warm Flandre art before the user scrolls to her entry") and passed
 	_free_game(game)
@@ -231,6 +251,8 @@ func _test_switching_to_zombie_almanac_queues_boss_assets() -> bool:
 		passed = _assert_true(bool(GameScript.shared_sakuya_frames_loaded), "switching to the zombie almanac should warm Sakuya art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_remilia_frames_loaded), "switching to the zombie almanac should warm Remilia art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_letty_frames_loaded), "switching to the zombie almanac should warm Letty art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_lily_white_frames_loaded), "switching to the zombie almanac should warm Lily White art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_prismriver_frames_loaded), "switching to the zombie almanac should warm Prismriver art into the shared cache") and passed
 		var flandre_texture = game.call("_try_get_boss_frame_texture", "flandre_boss", 0)
 		passed = _assert_true(flandre_texture is Texture2D, "switching to the zombie almanac should warm Flandre art before the user scrolls to her entry") and passed
 	_free_game(game)
@@ -277,7 +299,7 @@ func _test_entering_day_map_queues_special_boss_assets() -> bool:
 	return passed
 
 
-func _test_entering_night_map_queues_letty_chen_and_alice_boss_assets() -> bool:
+func _test_entering_night_map_queues_pcb_boss_assets() -> bool:
 	var snapshot = _snapshot_shared_state()
 	_reset_boss_caches()
 	var game = _make_game()
@@ -288,11 +310,11 @@ func _test_entering_night_map_queues_letty_chen_and_alice_boss_assets() -> bool:
 			game.completed_levels[i] = false
 		for i in range(GameScript.Defs.LEVELS.size()):
 			var level_id := String(GameScript.Defs.LEVELS[i].get("id", ""))
-			if level_id == "1-16" or level_id == "1-22" or level_id == "2-25" or level_id == "2-26":
+			if level_id == "1-16" or level_id == "1-22" or level_id == "2-25" or level_id == "2-26" or level_id == "2-27":
 				game.completed_levels[i] = true
 		game.current_world_key = "night"
 		game.call("_enter_map_mode")
-		passed = _assert_true(int(game.asset_prewarm_queue.size()) > 0, "entering the night map should queue 2-25/2-26/2-27 boss assets before the player clicks those stages") and passed
+		passed = _assert_true(int(game.asset_prewarm_queue.size()) > 0, "entering the night map should queue 2-25 through 2-28 boss assets before the player clicks those stages") and passed
 		game.call("_drain_asset_prewarm_queue")
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/letty_intro.mp3"), "night map prewarm should decode the Letty intro BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/letty_boss.mp3"), "night map prewarm should decode the Letty boss BGM ahead of the click path") and passed
@@ -300,15 +322,23 @@ func _test_entering_night_map_queues_letty_chen_and_alice_boss_assets() -> bool:
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/chen_boss.mp3"), "night map prewarm should decode the Chen boss BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/alice_intro.mp3"), "night map prewarm should decode the Alice intro BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/alice_boss.mp3"), "night map prewarm should decode the Alice boss BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/prismriver_intro.mp3"), "night map prewarm should decode the Prismriver intro BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/prismriver_boss.mp3"), "night map prewarm should decode the Prismriver boss BGM ahead of the click path") and passed
 		passed = _assert_true(bool(GameScript.shared_letty_frames_loaded), "night map prewarm should populate Letty art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_chen_frames_loaded), "night map prewarm should populate Chen art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_alice_frames_loaded), "night map prewarm should populate Alice art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_lily_white_frames_loaded), "night map prewarm should populate Lily White art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_prismriver_frames_loaded), "night map prewarm should populate Prismriver art into the shared cache") and passed
 		var letty_texture = game.call("_try_get_boss_frame_texture", "letty_boss", 0)
 		passed = _assert_true(letty_texture is Texture2D, "night map prewarm should populate Letty art before the player clicks 2-25") and passed
 		var chen_texture = game.call("_try_get_boss_frame_texture", "chen_boss", 0)
 		passed = _assert_true(chen_texture is Texture2D, "night map prewarm should populate Chen art before the player clicks 2-26") and passed
 		var alice_texture = game.call("_try_get_boss_frame_texture", "alice_boss", 0)
 		passed = _assert_true(alice_texture is Texture2D, "night map prewarm should populate Alice art before the player clicks 2-27") and passed
+		var lily_texture = game.call("_try_get_boss_frame_texture", "lily_white_boss", 0)
+		passed = _assert_true(lily_texture is Texture2D, "night map prewarm should populate Lily White art before the player clicks 2-28") and passed
+		var prismriver_texture = game.call("_try_get_boss_frame_texture", "prismriver_boss", 0)
+		passed = _assert_true(prismriver_texture is Texture2D, "night map prewarm should populate Prismriver art before the player clicks 2-28") and passed
 	_free_game(game)
 	_restore_shared_state(snapshot)
 	return passed

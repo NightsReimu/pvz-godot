@@ -85,6 +85,22 @@ const TARGETS := {
 		"grid": Vector2i(4, 2),
 		"flip_x": false,
 	},
+	"lily_white_boss": {
+		"output_folder": "res://art/lily_white",
+		"frame_count": 8,
+		"sheet_path": "/Users/hecrereed/Downloads/莉莉霍瓦特.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+	},
+	"prismriver_boss": {
+		"output_folder": "res://art/prismriver",
+		"frame_count": 8,
+		"sheet_path": "/Users/hecrereed/Downloads/骚灵三姐妹.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+		"cell_inset": 8,
+		"fringe_passes": 4,
+	},
 }
 
 const WHITE_THRESHOLD := 0.93
@@ -146,9 +162,9 @@ func _normalize_target(kind: String, config: Dictionary) -> bool:
 		if sheet == null:
 			push_error("failed to load source sheet for %s: %s" % [kind, sheet_path])
 			return false
-		frames = _extract_sheet_frames(sheet, Vector2i(config.get("grid", Vector2i.ONE)), config.get("cells", []), flip_x)
+		frames = _extract_sheet_frames(sheet, Vector2i(config.get("grid", Vector2i.ONE)), config.get("cells", []), flip_x, int(config.get("cell_inset", 0)), int(config.get("fringe_passes", 1)))
 	else:
-		frames = _normalize_existing_frames(folder, int(config.get("frame_count", 0)), flip_x)
+		frames = _normalize_existing_frames(folder, int(config.get("frame_count", 0)), flip_x, int(config.get("fringe_passes", 1)))
 	var expected_count = int(config.get("frame_count", 0))
 	if frames.size() != expected_count:
 		push_error("%s expected %d frames, got %d" % [kind, expected_count, frames.size()])
@@ -166,7 +182,7 @@ func _normalize_target(kind: String, config: Dictionary) -> bool:
 	return true
 
 
-func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool = true) -> Array:
+func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool = true, fringe_passes: int = 1) -> Array:
 	var frames: Array = []
 	for frame_index in range(frame_count):
 		var resource_path = "%s/frame_%02d.png" % [folder, frame_index]
@@ -175,7 +191,7 @@ func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool =
 		if image == null:
 			push_error("failed to load frame for offline normalization: %s" % resource_path)
 			continue
-		var normalized = _extract_trimmed_image(image, Rect2i(), flip_x)
+		var normalized = _extract_trimmed_image(image, Rect2i(), flip_x, fringe_passes)
 		if normalized == null:
 			push_error("frame has no detectable sprite pixels after cleanup: %s" % resource_path)
 			continue
@@ -183,13 +199,14 @@ func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool =
 	return frames
 
 
-func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array, flip_x: bool = true) -> Array:
+func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array, flip_x: bool = true, cell_inset: int = 0, fringe_passes: int = 1) -> Array:
 	var frames: Array = []
 	if not cells.is_empty():
 		for cell_variant in cells:
 			var cell = Vector2i(cell_variant)
 			var cell_rect = _sheet_cell_rect(sheet, grid, cell.x, cell.y)
-			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x)
+			cell_rect = _inset_rect(cell_rect, cell_inset)
+			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x, fringe_passes)
 			if frame == null:
 				continue
 			frames.append(frame)
@@ -197,7 +214,8 @@ func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array, flip_x: b
 	for row in range(grid.y):
 		for col in range(grid.x):
 			var cell_rect = _sheet_cell_rect(sheet, grid, col, row)
-			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x)
+			cell_rect = _inset_rect(cell_rect, cell_inset)
+			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x, fringe_passes)
 			if frame == null:
 				continue
 			frames.append(frame)
@@ -212,7 +230,19 @@ func _sheet_cell_rect(image: Image, grid: Vector2i, col: int, row: int) -> Rect2
 	return Rect2i(x0, y0, x1 - x0, y1 - y0)
 
 
-func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_x: bool = true) -> Image:
+func _inset_rect(rect: Rect2i, inset: int) -> Rect2i:
+	if inset <= 0:
+		return rect
+	var clamped_inset = mini(inset, mini(rect.size.x / 2 - 1, rect.size.y / 2 - 1))
+	if clamped_inset <= 0:
+		return rect
+	return Rect2i(
+		rect.position + Vector2i(clamped_inset, clamped_inset),
+		rect.size - Vector2i(clamped_inset * 2, clamped_inset * 2)
+	)
+
+
+func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_x: bool = true, fringe_passes: int = 1) -> Image:
 	var rect = source_rect
 	if rect.size == Vector2i.ZERO:
 		rect = Rect2i(0, 0, source.get_width(), source.get_height())
@@ -253,7 +283,8 @@ func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_
 			if _is_foreground(pixel):
 				out.set_pixel(x + SAFE_MARGIN, y + SAFE_MARGIN, pixel)
 	_clear_border_connected_halo(out)
-	_clear_contour_white_fringe(out)
+	for _pass_index in range(maxi(1, fringe_passes)):
+		_clear_contour_white_fringe(out)
 	if flip_x:
 		out.flip_x()
 	return out

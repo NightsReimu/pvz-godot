@@ -718,6 +718,7 @@ func _test_selection_background_preview_styles_cover_level_terrains() -> bool:
 			{"id": "2-25-preview", "terrain": "winter_forest", "row_count": 5, "events": []},
 			{"id": "2-26-preview", "terrain": "mayohiga_house", "row_count": 5, "events": []},
 			{"id": "2-27-preview", "terrain": "forest_of_magic", "row_count": 5, "events": []},
+			{"id": "2-28-preview", "terrain": "cloud_sea", "row_count": 5, "events": []},
 			{"id": "1-19", "terrain": "blood_moon", "row_count": 5, "events": []},
 		]
 		for level_variant in levels:
@@ -728,6 +729,10 @@ func _test_selection_background_preview_styles_cover_level_terrains() -> bool:
 				passed = _assert_true(String(style.get("terrain_key", "")) == "mayohiga_house", "mayohiga_house preview should use its own house terrain style instead of the generic fallback") and passed
 			if String(level.get("terrain", "")) == "forest_of_magic":
 				passed = _assert_true(String(style.get("terrain_key", "")) == "forest_of_magic", "forest_of_magic preview should use its own forest terrain style instead of the generic fallback") and passed
+			if String(level.get("terrain", "")) == "cloud_sea":
+				passed = _assert_true(String(style.get("terrain_key", "")) == "cloud_sea", "cloud_sea preview should use its own sky terrain style instead of the generic fallback") and passed
+				passed = _assert_true(String(game.call("_selection_preview_cell_kind", style, 1, 2)) == "cloud", "cloud_sea preview should show plantable cloud cells") and passed
+				passed = _assert_true(String(game.call("_selection_preview_cell_kind", style, 1, 7)) == "sky_gap", "cloud_sea preview should show drifting sky-gap cells") and passed
 			passed = _assert_true(int(style.get("row_count", 0)) >= 5, "preview style should preserve a playable row count for %s" % String(level.get("terrain", ""))) and passed
 			passed = _assert_true(style.get("sky_top", null) is Color, "preview style should include a sky color for %s" % String(level.get("terrain", ""))) and passed
 			passed = _assert_true(style.get("ground", null) is Color, "preview style should include a ground color for %s" % String(level.get("terrain", ""))) and passed

@@ -382,6 +382,8 @@ const REMILIA_FRAME_COUNT := 8
 const LETTY_FRAME_COUNT := 8
 const CHEN_FRAME_COUNT := 8
 const ALICE_FRAME_COUNT := 8
+const LILY_WHITE_FRAME_COUNT := 8
+const PRISMRIVER_FRAME_COUNT := 8
 const FLANDRE_FRAME_COUNT := 8
 
 static var shared_audio_stream_cache := {}
@@ -421,6 +423,12 @@ static var shared_chen_frames_face_left = null
 static var shared_alice_frames: Array = []
 static var shared_alice_frames_loaded := false
 static var shared_alice_frames_face_left = null
+static var shared_lily_white_frames: Array = []
+static var shared_lily_white_frames_loaded := false
+static var shared_lily_white_frames_face_left = null
+static var shared_prismriver_frames: Array = []
+static var shared_prismriver_frames_loaded := false
+static var shared_prismriver_frames_face_left = null
 static var shared_flandre_frames: Array = []
 static var shared_flandre_frames_loaded := false
 static var shared_flandre_frames_face_left = null
@@ -507,6 +515,8 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"chen_boss",
 	"alice_doll_zombie",
 	"alice_boss",
+	"lily_white_boss",
+	"prismriver_boss",
 	"flandre_boss",
 	"umbrella_zombie",
 	"shania_zombie",
@@ -908,9 +918,17 @@ var chen_frames_face_left = null
 var alice_frames: Array = []
 var alice_frames_loaded := false
 var alice_frames_face_left = null
+var lily_white_frames: Array = []
+var lily_white_frames_loaded := false
+var lily_white_frames_face_left = null
+var prismriver_frames: Array = []
+var prismriver_frames_loaded := false
+var prismriver_frames_face_left = null
 var flandre_frames: Array = []
 var flandre_frames_loaded := false
 var flandre_frames_face_left = null
+var cloud_drift_timer := 0.0
+var cloud_drift_seed := 0
 var frozen_branch_midboss_spawned := false
 var frozen_branch_midboss_cleared := false
 var frozen_branch_progress_locked := false
@@ -1688,6 +1706,7 @@ func _process(delta: float) -> void:
 	_update_rollers(delta)
 	_update_zombies(delta)
 	_update_lava_cells(delta)
+	_update_cloud_sea(delta)
 	_update_mowers(delta)
 	_update_suns(delta)
 	_update_coins(delta)
@@ -2716,6 +2735,10 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 			return CHEN_FRAME_COUNT
 		"alice_boss":
 			return ALICE_FRAME_COUNT
+		"lily_white_boss":
+			return LILY_WHITE_FRAME_COUNT
+		"prismriver_boss":
+			return PRISMRIVER_FRAME_COUNT
 		"flandre_boss":
 			return FLANDRE_FRAME_COUNT
 		_:
@@ -2746,6 +2769,10 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 			return "res://art/chen"
 		"alice_boss":
 			return "res://art/alice"
+		"lily_white_boss":
+			return "res://art/lily_white"
+		"prismriver_boss":
+			return "res://art/prismriver"
 		"flandre_boss":
 			return "res://art/flandre"
 		_:
@@ -2760,7 +2787,7 @@ func _boss_frame_resource_path(kind: String, frame_index: int) -> String:
 
 
 func _boss_assets_are_preprocessed(kind: String) -> bool:
-	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "flandre_boss"
+	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "lily_white_boss" or kind == "prismriver_boss" or kind == "flandre_boss"
 
 
 func _is_existing_touhou_boss_kind(kind: String) -> bool:
@@ -2873,6 +2900,10 @@ func _shared_boss_frames_for_kind(kind: String) -> Array:
 			return shared_chen_frames
 		"alice_boss":
 			return shared_alice_frames
+		"lily_white_boss":
+			return shared_lily_white_frames
+		"prismriver_boss":
+			return shared_prismriver_frames
 		"flandre_boss":
 			return shared_flandre_frames
 		_:
@@ -2903,6 +2934,10 @@ func _shared_boss_frames_face_left_for_kind(kind: String):
 			return shared_chen_frames_face_left
 		"alice_boss":
 			return shared_alice_frames_face_left
+		"lily_white_boss":
+			return shared_lily_white_frames_face_left
+		"prismriver_boss":
+			return shared_prismriver_frames_face_left
 		"flandre_boss":
 			return shared_flandre_frames_face_left
 		_:
@@ -2955,6 +2990,14 @@ func _set_shared_boss_frames_for_kind(kind: String, frames: Array, loaded: bool,
 			shared_alice_frames = frames
 			shared_alice_frames_loaded = loaded
 			shared_alice_frames_face_left = face_left
+		"lily_white_boss":
+			shared_lily_white_frames = frames
+			shared_lily_white_frames_loaded = loaded
+			shared_lily_white_frames_face_left = face_left
+		"prismriver_boss":
+			shared_prismriver_frames = frames
+			shared_prismriver_frames_loaded = loaded
+			shared_prismriver_frames_face_left = face_left
 		"flandre_boss":
 			shared_flandre_frames = frames
 			shared_flandre_frames_loaded = loaded
@@ -2985,6 +3028,10 @@ func _instance_boss_frames_for_kind(kind: String) -> Array:
 			return chen_frames
 		"alice_boss":
 			return alice_frames
+		"lily_white_boss":
+			return lily_white_frames
+		"prismriver_boss":
+			return prismriver_frames
 		"flandre_boss":
 			return flandre_frames
 		_:
@@ -3015,6 +3062,10 @@ func _instance_boss_frames_face_left_for_kind(kind: String):
 			return chen_frames_face_left
 		"alice_boss":
 			return alice_frames_face_left
+		"lily_white_boss":
+			return lily_white_frames_face_left
+		"prismriver_boss":
+			return prismriver_frames_face_left
 		"flandre_boss":
 			return flandre_frames_face_left
 		_:
@@ -3067,6 +3118,14 @@ func _set_instance_boss_frames_for_kind(kind: String, frames: Array, loaded: boo
 			alice_frames = frames
 			alice_frames_loaded = loaded
 			alice_frames_face_left = face_left
+		"lily_white_boss":
+			lily_white_frames = frames
+			lily_white_frames_loaded = loaded
+			lily_white_frames_face_left = face_left
+		"prismriver_boss":
+			prismriver_frames = frames
+			prismriver_frames_loaded = loaded
+			prismriver_frames_face_left = face_left
 		"flandre_boss":
 			flandre_frames = frames
 			flandre_frames_loaded = loaded
@@ -3162,7 +3221,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	var target_tab = tab if tab != "" else almanac_tab
 	if target_tab != "zombies":
 		return
-	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "flandre_boss"]:
+	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "lily_white_boss", "prismriver_boss", "flandre_boss"]:
 		_queue_boss_frame_set_prewarm(kind)
 
 
@@ -6242,6 +6301,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	scarlet_clock_hazard_timer = _roll_scarlet_clock_hazard_interval() if _has_scarlet_clock_hazard() else 0.0
 	scarlet_clock_drift = rng.randf_range(0.0, TAU)
 	remilia_crimson_fx_timer = 0.35
+	cloud_drift_seed = rng.randi()
+	cloud_drift_timer = 7.8 if _is_cloud_sea_level() else 0.0
 	if not _is_conveyor_level():
 		for kind in active_cards:
 			card_cooldowns[kind] = 0.0
@@ -6807,10 +6868,13 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		var ski = zombies[ski_index]
 		ski["special_pause_timer"] = 0.0
 		zombies[ski_index] = ski
-	if kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "flandre_boss":
+	if kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "lily_white_boss" or kind == "prismriver_boss" or kind == "flandre_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
 		boss_unit["x"] = _boss_anchor_x(kind)
+		if kind == "prismriver_boss":
+			var prism_bounds = _prismriver_boss_bounds()
+			boss_unit["x"] = clampf(float(boss_unit["x"]), float(prism_bounds.get("min_x", boss_unit["x"])), float(prism_bounds.get("max_x", boss_unit["x"])))
 		boss_unit["hover_direction"] = -1 if row >= int(round(float(active_rows.size() - 1) * 0.5)) else 1
 		boss_unit["rumia_move_from_y"] = _row_center_y(int(boss_unit["row"]))
 		boss_unit["rumia_move_to_y"] = _row_center_y(int(boss_unit["row"]))
@@ -6862,6 +6926,12 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("爱丽丝出现了！", 2.7)
+		elif kind == "lily_white_boss":
+			_show_banner("莉莉霍瓦特带着春风出现了！", 2.4)
+		elif kind == "prismriver_boss":
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.get("boss_bgm", "")))
+			_show_banner("骚灵三姐妹开始合奏！", 2.8)
 		elif kind == "flandre_boss":
 			if String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
@@ -7294,6 +7364,8 @@ func _setup_cell_terrain_mask() -> void:
 		for col in range(COLS):
 			if not _is_row_active(row):
 				row_data.append("void")
+			elif _is_cloud_sea_level():
+				row_data.append("cloud")
 			elif _is_roof_level():
 				row_data.append("roof")
 			elif _is_volcano_level():
@@ -7428,6 +7500,144 @@ func _set_cell_terrain_kind(row: int, col: int, terrain: String) -> void:
 	if cell_terrain_mask.size() != ROWS:
 		_setup_cell_terrain_mask()
 	cell_terrain_mask[row][col] = terrain
+
+
+func _initialize_cloud_sea_mask() -> void:
+	if cell_terrain_mask.size() != ROWS:
+		cell_terrain_mask.clear()
+		for row in range(ROWS):
+			var row_data: Array = []
+			row_data.resize(COLS)
+			cell_terrain_mask.append(row_data)
+	for row in range(ROWS):
+		if not (cell_terrain_mask[row] is Array) or cell_terrain_mask[row].size() != COLS:
+			var row_data: Array = []
+			row_data.resize(COLS)
+			cell_terrain_mask[row] = row_data
+		for col in range(COLS):
+			cell_terrain_mask[row][col] = "cloud" if _is_row_active(row) else "void"
+
+
+func _cloud_gap_rows_for_seed(seed_value: int) -> Array:
+	var rows: Array = []
+	for row_variant in active_rows:
+		rows.append(int(row_variant))
+	if rows.is_empty():
+		return []
+	var gap_count = clampi(1 + abs(seed_value) % 3, 1, mini(3, rows.size()))
+	var gaps: Array = []
+	var cursor = abs(seed_value / 7)
+	while gaps.size() < gap_count and gaps.size() < rows.size():
+		var row = int(rows[cursor % rows.size()])
+		if not gaps.has(row):
+			gaps.append(row)
+		cursor += 2
+	return gaps
+
+
+func _cloud_cell_ratio_runtime() -> float:
+	var total := 0
+	var clouds := 0
+	for row_variant in active_rows:
+		var row = int(row_variant)
+		for col in range(COLS):
+			total += 1
+			if _cell_terrain_kind(row, col) == "cloud":
+				clouds += 1
+	if total <= 0:
+		return 1.0
+	return float(clouds) / float(total)
+
+
+func _shift_cloud_sea_left() -> void:
+	if cell_terrain_mask.size() != ROWS:
+		_initialize_cloud_sea_mask()
+	for row_variant in active_rows:
+		var row = int(row_variant)
+		for col in range(COLS - 1):
+			cell_terrain_mask[row][col] = String(_cell_terrain_kind(row, col + 1))
+		cell_terrain_mask[row][COLS - 1] = "cloud"
+	cloud_drift_seed += 1
+	for gap_row_variant in _cloud_gap_rows_for_seed(cloud_drift_seed):
+		var gap_row = int(gap_row_variant)
+		if _is_row_active(gap_row):
+			cell_terrain_mask[gap_row][COLS - 1] = "sky_gap"
+	while _cloud_cell_ratio_runtime() < 0.65:
+		var converted := false
+		for row_variant in active_rows:
+			var row = int(row_variant)
+			for col in range(COLS - 1, -1, -1):
+				if String(_cell_terrain_kind(row, col)) == "sky_gap":
+					cell_terrain_mask[row][col] = "cloud"
+					converted = true
+					break
+			if converted:
+				break
+		if not converted:
+			break
+	_drop_plants_without_cloud()
+	effects.append({
+		"shape": "cloud_sea_drift",
+		"position": BOARD_ORIGIN + Vector2(board_size.x * 0.5, board_size.y * 0.5),
+		"length": board_size.x,
+		"width": board_size.y,
+		"radius": board_size.x * 0.5,
+		"time": 0.62,
+		"duration": 0.62,
+		"anim_speed": 4.6,
+		"color": Color(0.82, 0.95, 1.0, 0.2),
+	})
+
+
+func _drop_plants_without_cloud() -> void:
+	if not _is_cloud_sea_level():
+		return
+	for row_variant in active_rows:
+		var row = int(row_variant)
+		for col in range(COLS):
+			if _cell_terrain_kind(row, col) != "sky_gap":
+				continue
+			var dropped := false
+			if grid.size() > row and grid[row] is Array and col < grid[row].size() and grid[row][col] != null:
+				grid[row][col] = null
+				dropped = true
+			if support_grid.size() > row and support_grid[row] is Array and col < support_grid[row].size() and support_grid[row][col] != null:
+				support_grid[row][col] = null
+				dropped = true
+			if dropped:
+				var center = _cell_center(row, col)
+				effects.append({
+					"shape": "cloud_plant_fall",
+					"position": center + Vector2(0.0, -10.0),
+					"target": center + Vector2(-18.0, 72.0),
+					"radius": 48.0,
+					"time": 0.72,
+					"duration": 0.72,
+					"anim_speed": 6.0,
+					"color": Color(0.9, 0.98, 1.0, 0.34),
+				})
+				for particle_index in range(5):
+					var life = rng.randf_range(0.36, 0.62)
+					vfx_particles.append({
+						"pos": center + Vector2(rng.randf_range(-22.0, 22.0), rng.randf_range(-8.0, 12.0)),
+						"vel": Vector2(rng.randf_range(-38.0, 10.0), rng.randf_range(-34.0, 18.0)),
+						"life": life,
+						"max_life": life,
+						"color": Color(0.9, 0.98, 1.0, 0.7),
+						"size": rng.randf_range(3.0, 7.0),
+					})
+
+
+func _update_cloud_sea(delta: float) -> void:
+	if not _is_cloud_sea_level():
+		return
+	if cell_terrain_mask.size() != ROWS:
+		_initialize_cloud_sea_mask()
+	cloud_drift_timer -= delta
+	if cloud_drift_timer > 0.0:
+		return
+	cloud_drift_timer = rng.randf_range(7.2, 8.8)
+	_shift_cloud_sea_left()
 
 
 func _create_snowfield_tile(row: int, col: int, duration: float) -> void:
@@ -7625,6 +7835,12 @@ func _placement_error(kind: String, row: int, col: int) -> String:
 		return ""
 	if kind == "spikeweed" and terrain == "water":
 		return "地刺不能种在水里"
+	if terrain == "sky_gap":
+		return "这里没有云朵，植物会掉下去"
+	if terrain == "cloud":
+		if top_plant != null or support_plant != null:
+			return "这个格子已经被占用了"
+		return ""
 	if terrain == "water":
 		if top_plant != null:
 			return "这个格子已经被占用了"
@@ -12838,7 +13054,15 @@ func _boss_anchor_x(_kind: String) -> float:
 
 
 func _is_hovering_boss_kind(kind: String) -> bool:
-	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "flandre_boss"
+	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "lily_white_boss" or kind == "prismriver_boss" or kind == "flandre_boss"
+
+
+func _prismriver_boss_bounds() -> Dictionary:
+	var ref_row = int(active_rows[0]) if not active_rows.is_empty() else 0
+	return {
+		"min_x": _cell_center(ref_row, max(0, COLS - 5)).x,
+		"max_x": _cell_center(ref_row, COLS - 1).x,
+	}
 
 
 func _next_active_row(current_row: int, direction: int) -> Dictionary:
@@ -12909,6 +13133,14 @@ func _roll_hover_shift_interval(kind: String, phase: int) -> float:
 			var min_interval = maxf(2.8, 3.9 - float(phase) * 0.14)
 			var max_interval = maxf(min_interval + 0.56, 5.0 - float(phase) * 0.1)
 			return rng.randf_range(min_interval, max_interval)
+		"lily_white_boss":
+			var min_interval = maxf(2.7, 3.6 - float(phase) * 0.14)
+			var max_interval = maxf(min_interval + 0.5, 4.8 - float(phase) * 0.1)
+			return rng.randf_range(min_interval, max_interval)
+		"prismriver_boss":
+			var min_interval = maxf(2.2, 3.0 - float(phase) * 0.12)
+			var max_interval = maxf(min_interval + 0.44, 4.0 - float(phase) * 0.08)
+			return rng.randf_range(min_interval, max_interval)
 		"flandre_boss":
 			var min_interval = maxf(2.4, 3.4 - float(phase) * 0.16)
 			var max_interval = maxf(min_interval + 0.54, 4.5 - float(phase) * 0.12)
@@ -12952,6 +13184,10 @@ func _hover_boss_effect_tint(kind: String) -> Color:
 			return Color(1.0, 0.34, 0.26, 0.28)
 		"alice_boss":
 			return Color(0.68, 0.52, 1.0, 0.28)
+		"lily_white_boss":
+			return Color(0.96, 1.0, 0.78, 0.26)
+		"prismriver_boss":
+			return Color(0.72, 0.86, 1.0, 0.28)
 		"flandre_boss":
 			return Color(0.98, 0.42, 0.2, 0.28)
 		_:
@@ -12978,6 +13214,10 @@ func _hover_boss_move_duration(kind: String) -> float:
 			return 0.56
 		"alice_boss":
 			return 0.74
+		"lily_white_boss":
+			return 0.62
+		"prismriver_boss":
+			return 0.58
 		"flandre_boss":
 			return 0.76
 		_:
@@ -12986,6 +13226,8 @@ func _hover_boss_move_duration(kind: String) -> float:
 
 func _update_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary:
 	var kind = String(zombie.get("kind", ""))
+	if kind == "prismriver_boss":
+		return _update_prismriver_hovering_boss(zombie, delta)
 	var hover_interval = _roll_hover_shift_interval(kind, int(zombie.get("boss_phase", 0)))
 	zombie["x"] = _boss_anchor_x(kind)
 	zombie["rumia_state_timer"] = maxf(0.0, float(zombie.get("rumia_state_timer", 0.0)) - delta)
@@ -13015,6 +13257,47 @@ func _update_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary:
 			"color": _hover_boss_effect_tint(kind),
 		})
 	zombie["hover_shift_timer"] = hover_interval
+	return zombie
+
+
+func _update_prismriver_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary:
+	var kind = "prismriver_boss"
+	var phase = int(zombie.get("boss_phase", 0))
+	var bounds = _prismriver_boss_bounds()
+	var min_x = float(bounds.get("min_x", _boss_anchor_x(kind) - CELL_SIZE.x * 4.0))
+	var max_x = float(bounds.get("max_x", _boss_anchor_x(kind)))
+	zombie["x"] = clampf(float(zombie.get("x", max_x)), min_x, max_x)
+	zombie["rumia_state_timer"] = maxf(0.0, float(zombie.get("rumia_state_timer", 0.0)) - delta)
+	var move_timer = maxf(0.0, float(zombie.get("rumia_move_timer", 0.0)) - delta)
+	zombie["rumia_move_timer"] = move_timer
+	if move_timer <= 0.0 and String(zombie.get("rumia_state", "idle")) == "shift" and float(zombie.get("rumia_state_timer", 0.0)) <= 0.0:
+		zombie["rumia_state"] = "idle"
+	zombie["hover_shift_timer"] = float(zombie.get("hover_shift_timer", _roll_hover_shift_interval(kind, phase))) - delta
+	if float(zombie["hover_shift_timer"]) > 0.0:
+		return zombie
+	var current_row = int(zombie["row"])
+	var target_row = _choose_rumia_hover_row(current_row)
+	if target_row != current_row:
+		var move_duration = _hover_boss_move_duration(kind)
+		zombie["rumia_move_from_y"] = _row_center_y(current_row)
+		zombie["rumia_move_to_y"] = _row_center_y(target_row)
+		zombie["rumia_move_duration"] = move_duration
+		zombie["rumia_move_timer"] = move_duration
+		zombie["row"] = target_row
+	var target_col = rng.randi_range(max(0, COLS - 5), COLS - 1)
+	zombie["x"] = clampf(_cell_center(int(zombie["row"]), target_col).x + rng.randf_range(-12.0, 12.0), min_x, max_x)
+	zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.28)
+	zombie = _set_rumia_state(zombie, "shift", 0.46)
+	effects.append({
+		"shape": "prismriver_position_chord",
+		"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0),
+		"radius": 76.0,
+		"time": 0.38,
+		"duration": 0.38,
+		"anim_speed": 8.0,
+		"color": Color(0.72, 0.86, 1.0, 0.26),
+	})
+	zombie["hover_shift_timer"] = _roll_hover_shift_interval(kind, phase)
 	return zombie
 
 
@@ -13156,6 +13439,20 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["alice_doll_zombie", "dark_football", "wizard_zombie", "basketball", "wither_zombie"],
 			]
 			tint = Color(0.7, 0.52, 1.0, 0.28)
+		"lily_white_boss":
+			pools = [
+				["kite_zombie", "balloon_zombie", "newspaper", "conehead"],
+				["kite_zombie", "balloon_zombie", "screen_door", "flywheel_zombie"],
+				["kite_zombie", "tornado_zombie", "football", "wizard_zombie"],
+			]
+			tint = Color(0.96, 1.0, 0.76, 0.26)
+		"prismriver_boss":
+			pools = [
+				["kite_zombie", "balloon_zombie", "screen_door", "flywheel_zombie"],
+				["tornado_zombie", "football", "wizard_zombie", "basketball", "kite_zombie"],
+				["dark_football", "wizard_zombie", "tornado_zombie", "flywheel_zombie", "wither_zombie"],
+			]
+			tint = Color(0.72, 0.86, 1.0, 0.28)
 		"flandre_boss":
 			# 1-23 is the Touhou (红魔馆) finale, so the reinforcement pool
 			# deliberately excludes programmer_zombie: its global attack-speed
@@ -14407,6 +14704,10 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		return _trigger_chen_boss_skill(zombie)
 	if String(zombie["kind"]) == "alice_boss":
 		return _trigger_alice_boss_skill(zombie)
+	if String(zombie["kind"]) == "lily_white_boss":
+		return _trigger_lily_white_boss_skill(zombie)
+	if String(zombie["kind"]) == "prismriver_boss":
+		return _trigger_prismriver_boss_skill(zombie)
 	if String(zombie["kind"]) == "flandre_boss":
 		return _trigger_flandre_boss_skill(zombie)
 	if String(zombie["kind"]) == "night_boss":
@@ -15260,6 +15561,299 @@ func _trigger_alice_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 	return _set_rumia_state(zombie, "phase", 0.68)
 
 
+func _trigger_lily_white_boss_skill(zombie: Dictionary) -> Dictionary:
+	var data = Defs.ZOMBIES["lily_white_boss"]
+	var row = int(zombie["row"])
+	var phase = int(zombie.get("boss_phase", 0))
+	var anchor_x = _boss_anchor_x("lily_white_boss")
+	match int(zombie.get("boss_skill_cycle", 0)):
+		0:
+			var spring_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
+			var spring_start = BOARD_ORIGIN.x + board_size.x * 0.36
+			var spring_hit := false
+			for lane_variant in spring_rows:
+				var lane_row = int(lane_variant)
+				spring_hit = _damage_plants_in_row_segment(lane_row, spring_start, anchor_x, float(data.get("spring_herald_damage", 38.0)) + phase * 5.0) or spring_hit
+				_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.56, _row_center_y(lane_row) - 10.0), 88.0 + phase * 8.0, 0.36 + phase * 0.04)
+			effects.append({
+				"shape": "lily_spring_herald",
+				"position": Vector2(spring_start, _row_center_y(row) - 12.0),
+				"length": anchor_x - spring_start,
+				"width": CELL_SIZE.y * 2.25,
+				"radius": anchor_x - spring_start,
+				"time": 0.52,
+				"duration": 0.52,
+				"anim_speed": 6.8,
+				"color": Color(0.94, 1.0, 0.72, 0.32 if spring_hit else 0.18),
+			})
+			_show_banner("春符「春之使者」", 1.08)
+			return _set_rumia_state(zombie, "spring_herald", 0.52)
+		1:
+			var petal_cells = _pick_random_active_cells(5 + mini(phase, 2), 2, COLS - 1)
+			var petal_hits = _damage_plants_in_cells(petal_cells, float(data.get("petal_burst_damage", 48.0)) + phase * 5.0, 0.36 + phase * 0.04)
+			var petal_points: Array = []
+			for cell_variant in petal_cells:
+				var cell = Vector2i(cell_variant)
+				petal_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
+			effects.append({
+				"shape": "lily_petal_burst",
+				"position": Vector2(anchor_x - 100.0, _row_center_y(row) - 20.0),
+				"points": petal_points,
+				"radius": 170.0,
+				"time": 0.5,
+				"duration": 0.5,
+				"anim_speed": 8.2,
+				"color": Color(1.0, 0.86, 0.92, 0.32 if petal_hits > 0 else 0.18),
+			})
+			_show_banner("白符「花瓣弹幕」", 1.06)
+			return _set_rumia_state(zombie, "petals", 0.5)
+		2:
+			var cloud_cells = _pick_random_active_cells(2 + mini(phase, 1), max(5, COLS - 3), COLS - 1)
+			var cloud_hits = _damage_plants_in_cells(cloud_cells, float(data.get("cloud_bloom_damage", 42.0)) + phase * 5.0, 0.52 + phase * 0.04)
+			for cell_variant in cloud_cells:
+				var cell = Vector2i(cell_variant)
+				if _is_cloud_sea_level() and _cell_terrain_kind(cell.x, cell.y) == "cloud":
+					_set_cell_terrain_kind(cell.x, cell.y, "sky_gap")
+				effects.append({
+					"shape": "lily_cloud_bloom",
+					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -12.0),
+					"radius": 58.0,
+					"time": 0.56,
+					"duration": 0.56,
+					"anim_speed": 6.2,
+					"color": Color(0.82, 0.96, 1.0, 0.28 if cloud_hits > 0 else 0.16),
+				})
+			_drop_plants_without_cloud()
+			_show_banner("云符「春风云团」", 1.08)
+			return _set_rumia_state(zombie, "cloud_bloom", 0.56)
+		_:
+			var fairy_damage = float(data.get("white_fairy_damage", 34.0)) + phase * 4.0
+			var fairy_points: Array = []
+			for lane_variant in active_rows:
+				var lane_row = int(lane_variant)
+				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.28, anchor_x, fairy_damage)
+				fairy_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.42 + 0.08 * float(lane_row % 3)), _row_center_y(lane_row) - 12.0))
+			if phase >= 1:
+				_spawn_hover_boss_reinforcement("lily_white_boss", phase)
+			effects.append({
+				"shape": "lily_white_fairy_barrage",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0),
+				"points": fairy_points,
+				"length": board_size.x * 0.76,
+				"width": board_size.y * 0.84,
+				"radius": board_size.x * 0.42,
+				"time": 0.6,
+				"duration": 0.6,
+				"anim_speed": 7.4,
+				"color": Color(0.96, 1.0, 0.78, 0.3),
+			})
+			_show_banner("妖精「白色春告弹幕」", 1.14)
+			return _set_rumia_state(zombie, "fairy_barrage", 0.6)
+
+
+func _trigger_lily_white_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
+	var center = Vector2(_boss_anchor_x("lily_white_boss") - 96.0, _row_center_y(int(zombie["row"])) - 12.0)
+	_show_banner("莉莉霍瓦特的春风变得更密集！", 1.9)
+	effects.append({
+		"shape": "lily_spring_herald",
+		"position": center + Vector2(-150.0, 0.0),
+		"length": 300.0,
+		"width": CELL_SIZE.y * 2.3,
+		"radius": 180.0,
+		"time": 0.52,
+		"duration": 0.52,
+		"anim_speed": 6.8,
+		"color": Color(0.94, 1.0, 0.72, 0.34),
+	})
+	_damage_plants_in_circle(center, 150.0 + phase * 12.0, 36.0 + phase * 8.0)
+	if phase >= 1:
+		_spawn_hover_boss_reinforcement("lily_white_boss", phase)
+	return _set_rumia_state(zombie, "phase", 0.62)
+
+
+func _trigger_prismriver_boss_skill(zombie: Dictionary) -> Dictionary:
+	var data = Defs.ZOMBIES["prismriver_boss"]
+	var row = int(zombie["row"])
+	var phase = int(zombie.get("boss_phase", 0))
+	var bounds = _prismriver_boss_bounds()
+	var min_x = float(bounds.get("min_x", _boss_anchor_x("prismriver_boss") - CELL_SIZE.x * 4.0))
+	var max_x = float(bounds.get("max_x", _boss_anchor_x("prismriver_boss")))
+	zombie["x"] = clampf(float(zombie.get("x", max_x)), min_x, max_x)
+	var anchor_x = float(zombie["x"])
+	match int(zombie.get("boss_skill_cycle", 0)):
+		0:
+			var dinning_center = Vector2(anchor_x - 80.0, _row_center_y(row) - 12.0)
+			_damage_plants_in_circle(dinning_center, 138.0 + phase * 10.0, float(data.get("phantom_dinning_damage", 42.0)) + phase * 5.0)
+			if phase >= 1:
+				_spawn_hover_boss_reinforcement("prismriver_boss", phase)
+			effects.append({
+				"shape": "prismriver_phantom_dinning",
+				"position": dinning_center,
+				"radius": 150.0 + phase * 12.0,
+				"time": 0.52,
+				"duration": 0.52,
+				"anim_speed": 7.8,
+				"color": Color(0.74, 0.86, 1.0, 0.32),
+			})
+			_show_banner("骚符「Phantom Dinning」", 1.12)
+			return _set_rumia_state(zombie, "phantom_dinning", 0.52)
+		1:
+			var string_start = BOARD_ORIGIN.x + board_size.x * 0.24
+			var string_hit = _damage_plants_in_row_segment(row, string_start, anchor_x, float(data.get("lunasa_string_damage", 66.0)) + phase * 7.0)
+			effects.append({
+				"shape": "prismriver_lunasa_string",
+				"position": Vector2(string_start, _row_center_y(row) - 12.0),
+				"length": anchor_x - string_start,
+				"width": CELL_SIZE.y * 0.72,
+				"radius": anchor_x - string_start,
+				"time": 0.44,
+				"duration": 0.44,
+				"anim_speed": 10.2,
+				"color": Color(0.66, 0.72, 1.0, 0.34 if string_hit else 0.18),
+			})
+			_show_banner("弦奏「露娜萨的独奏」", 1.08)
+			return _set_rumia_state(zombie, "lunasa", 0.46)
+		2:
+			var trumpet_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
+			var trumpet_hit := false
+			for lane_variant in trumpet_rows:
+				var lane_row = int(lane_variant)
+				trumpet_hit = _damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.34, anchor_x, float(data.get("merlin_trumpet_damage", 58.0)) + phase * 6.0) or trumpet_hit
+			effects.append({
+				"shape": "prismriver_merlin_trumpet",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.34, _row_center_y(row) - 12.0),
+				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.34),
+				"width": CELL_SIZE.y * 2.5,
+				"radius": 240.0,
+				"time": 0.5,
+				"duration": 0.5,
+				"anim_speed": 8.6,
+				"color": Color(1.0, 0.8, 0.42, 0.32 if trumpet_hit else 0.18),
+			})
+			_show_banner("管灵「梅露兰的号声」", 1.1)
+			return _set_rumia_state(zombie, "merlin", 0.5)
+		3:
+			var key_cells = _pick_random_active_cells(6 + mini(phase, 2), 1, COLS - 2)
+			var key_hits = _damage_plants_in_cells(key_cells, float(data.get("lyrica_keyboard_damage", 44.0)) + phase * 5.0, 0.42 + phase * 0.04)
+			var key_points: Array = []
+			for cell_variant in key_cells:
+				var cell = Vector2i(cell_variant)
+				key_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -12.0))
+			effects.append({
+				"shape": "prismriver_lyrica_keyboard",
+				"position": Vector2(anchor_x - 94.0, _row_center_y(row) - 18.0),
+				"points": key_points,
+				"radius": 190.0,
+				"time": 0.52,
+				"duration": 0.52,
+				"anim_speed": 9.4,
+				"color": Color(0.96, 0.74, 1.0, 0.32 if key_hits > 0 else 0.18),
+			})
+			_show_banner("键灵「莉莉卡的键盘阵」", 1.1)
+			return _set_rumia_state(zombie, "lyrica", 0.52)
+		4:
+			var concerto_damage = float(data.get("prism_concerto_damage", 38.0)) + phase * 5.0
+			var concerto_points: Array = []
+			for lane_variant in active_rows:
+				var lane_row = int(lane_variant)
+				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.3, anchor_x, concerto_damage)
+				concerto_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.38 + float(lane_row % 4) * 0.08), _row_center_y(lane_row) - 14.0))
+			effects.append({
+				"shape": "prismriver_prism_concerto",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 14.0),
+				"points": concerto_points,
+				"length": board_size.x * 0.78,
+				"width": board_size.y * 0.86,
+				"radius": board_size.x * 0.42,
+				"time": 0.62,
+				"duration": 0.62,
+				"anim_speed": 8.0,
+				"color": Color(0.72, 0.92, 1.0, 0.32),
+			})
+			_show_banner("合奏「Prism Concerto」", 1.14)
+			return _set_rumia_state(zombie, "concerto", 0.62)
+		5:
+			var river_center = Vector2(clampf(anchor_x - CELL_SIZE.x * 1.2, BOARD_ORIGIN.x + board_size.x * 0.45, max_x), _row_center_y(row) - 10.0)
+			_damage_plants_in_circle(river_center, 172.0 + phase * 12.0, float(data.get("stygian_riverside_damage", 50.0)) + phase * 6.0)
+			_stagger_plants_in_circle(river_center, 166.0 + phase * 10.0, 0.52 + phase * 0.06)
+			effects.append({
+				"shape": "prismriver_stygian_riverside",
+				"position": river_center,
+				"radius": 184.0 + phase * 12.0,
+				"width": CELL_SIZE.y * 2.3,
+				"time": 0.56,
+				"duration": 0.56,
+				"anim_speed": 7.2,
+				"color": Color(0.58, 0.78, 1.0, 0.3),
+			})
+			_show_banner("冥管「Stygian Riverside」", 1.1)
+			return _set_rumia_state(zombie, "riverside", 0.56)
+		6:
+			var wheel_rows = [row, int(_next_active_row(row, 1).get("row", row))]
+			var wheel_hit := false
+			for lane_variant in wheel_rows:
+				var lane_row = int(lane_variant)
+				wheel_hit = _damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.22, anchor_x, float(data.get("ghostly_wheel_damage", 54.0)) + phase * 6.0) or wheel_hit
+			effects.append({
+				"shape": "prismriver_ghostly_wheel",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.48, _row_center_y(row) - 10.0),
+				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.22),
+				"width": CELL_SIZE.y * 1.7,
+				"radius": 210.0,
+				"time": 0.54,
+				"duration": 0.54,
+				"anim_speed": 9.0,
+				"color": Color(0.82, 0.82, 1.0, 0.32 if wheel_hit else 0.18),
+			})
+			_show_banner("骚符「Ghostly Wheel」", 1.1)
+			return _set_rumia_state(zombie, "wheel", 0.54)
+		_:
+			var finale_damage = float(data.get("live_poltergeist_damage", 32.0)) + phase * 4.0
+			var finale_points: Array = []
+			for lane_variant in active_rows:
+				var lane_row = int(lane_variant)
+				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.2, anchor_x, finale_damage)
+				finale_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.28 + float(lane_row % 5) * 0.11), _row_center_y(lane_row) - 14.0))
+			for _i in range(mini(2, phase + 1)):
+				_spawn_hover_boss_reinforcement("prismriver_boss", phase)
+			effects.append({
+				"shape": "prismriver_live_poltergeist",
+				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0),
+				"points": finale_points,
+				"length": board_size.x * 0.86,
+				"width": board_size.y * 0.92,
+				"radius": board_size.x * 0.48,
+				"time": 0.68,
+				"duration": 0.68,
+				"anim_speed": 8.8,
+				"color": Color(0.9, 0.82, 1.0, 0.34),
+			})
+			_show_banner("大合葬「Live Poltergeist」", 1.2)
+			return _set_rumia_state(zombie, "live_poltergeist", 0.68)
+
+
+func _trigger_prismriver_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
+	var bounds = _prismriver_boss_bounds()
+	zombie["x"] = clampf(float(zombie.get("x", bounds.get("max_x", _boss_anchor_x("prismriver_boss")))), float(bounds.get("min_x", BOARD_ORIGIN.x)), float(bounds.get("max_x", _boss_anchor_x("prismriver_boss"))))
+	var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0)
+	_show_banner("骚灵三姐妹的第 %d 乐章升调！" % (phase + 1), 2.05)
+	effects.append({
+		"shape": "prismriver_prism_concerto",
+		"position": center,
+		"radius": 214.0 + phase * 22.0,
+		"width": board_size.y * 0.58,
+		"time": 0.58,
+		"duration": 0.58,
+		"anim_speed": 8.2,
+		"color": Color(0.76, 0.88, 1.0, 0.34),
+	})
+	_damage_plants_in_circle(center, 164.0 + phase * 12.0, 42.0 + phase * 10.0)
+	_stagger_plants_in_circle(center, 174.0 + phase * 12.0, 0.55 + phase * 0.08)
+	for _i in range(mini(2, phase + 1)):
+		_spawn_hover_boss_reinforcement("prismriver_boss", phase)
+	return _set_rumia_state(zombie, "phase", 0.68)
+
+
 func _trigger_meiling_boss_skill(zombie: Dictionary) -> Dictionary:
 	var data = Defs.ZOMBIES["meiling_boss"]
 	var row = int(zombie["row"])
@@ -15718,6 +16312,10 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		return _trigger_chen_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "alice_boss":
 		return _trigger_alice_boss_phase_shift(zombie, phase)
+	if String(zombie["kind"]) == "lily_white_boss":
+		return _trigger_lily_white_boss_phase_shift(zombie, phase)
+	if String(zombie["kind"]) == "prismriver_boss":
+		return _trigger_prismriver_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "flandre_boss":
 		return _trigger_flandre_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "night_boss":
@@ -17288,6 +17886,10 @@ func _is_mayohiga_house_level() -> bool:
 
 func _is_forest_of_magic_level() -> bool:
 	return String(current_level.get("terrain", "")) == "forest_of_magic"
+
+
+func _is_cloud_sea_level() -> bool:
+	return String(current_level.get("terrain", "")) == "cloud_sea"
 
 
 func _is_pool_level() -> bool:
@@ -19090,6 +19692,15 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 			lane_alt = Color(0.18, 0.32, 0.26)
 			accent = Color(0.72, 0.52, 1.0)
 			water = Color(0.38, 0.74, 0.88)
+		"cloud_sea":
+			label = "云海舞台"
+			sky_top = Color(0.36, 0.68, 1.0)
+			sky_bottom = Color(0.82, 0.94, 1.0)
+			ground = Color(0.7, 0.86, 1.0)
+			lane = Color(0.86, 0.96, 1.0)
+			lane_alt = Color(0.74, 0.9, 1.0)
+			accent = Color(0.98, 0.82, 0.42)
+			water = Color(0.58, 0.82, 1.0)
 		"blood_moon":
 			label = "血月庭院"
 			sky_top = Color(0.12, 0.0, 0.02)
@@ -19165,6 +19776,10 @@ func _selection_preview_cell_kind(style: Dictionary, row: int, col: int) -> Stri
 		return "city_tile"
 	if terrain_key == "frozen_lake" and (row == 2 or row == 3):
 		return "frozen"
+	if terrain_key == "cloud_sea":
+		if col >= COLS - 2 and (row + col) % 3 == 2:
+			return "sky_gap"
+		return "cloud"
 	return "land"
 
 
@@ -19247,6 +19862,18 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 			var doll_pos = Vector2(thread_x + sin(ui_time * 1.2 + float(thread_index)) * 8.0, rect.position.y + horizon_h + 84.0 + float(thread_index % 2) * 12.0)
 			draw_circle(doll_pos + Vector2(0.0, -5.0), 3.5, Color(1.0, 0.92, 0.86, 0.5 * alpha_scale))
 			draw_rect(Rect2(doll_pos + Vector2(-3.0, -1.0), Vector2(6.0, 8.0)), Color(accent.r, accent.g, accent.b, 0.34 * alpha_scale), true)
+	if terrain_key == "cloud_sea":
+		for cloud_band in range(8):
+			var band_y = rect.position.y + horizon_h - 28.0 + float(cloud_band % 4) * 34.0
+			var band_x = rect.position.x - 120.0 + fmod(ui_time * (18.0 + float(cloud_band) * 2.2) + float(cloud_band) * 154.0, rect.size.x + 240.0)
+			var band_color = Color(1.0, 1.0, 1.0, (0.16 + float(cloud_band % 3) * 0.035) * alpha_scale)
+			draw_circle(Vector2(band_x, band_y), 34.0, band_color)
+			draw_circle(Vector2(band_x + 34.0, band_y + 8.0), 28.0, band_color)
+			draw_circle(Vector2(band_x - 30.0, band_y + 10.0), 24.0, band_color)
+		for mote_index in range(16):
+			var mote_x = rect.position.x + fmod(float(mote_index * 83) + ui_time * 26.0, rect.size.x)
+			var mote_y = rect.position.y + 30.0 + float((mote_index * 31) % int(maxf(48.0, rect.size.y * 0.42)))
+			draw_circle(Vector2(mote_x, mote_y), 1.8 + float(mote_index % 3) * 0.5, Color(1.0, 0.96, 0.72, 0.24 * alpha_scale))
 	var board_margin := Vector2(rect.size.x * 0.08, rect.size.y * 0.36)
 	var board_rect := Rect2(rect.position + board_margin, Vector2(rect.size.x * 0.84, rect.size.y * 0.48))
 	var row_count := int(style.get("row_count", DEFAULT_BOARD_ROWS))
@@ -19280,7 +19907,19 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 					tile_color = Color(0.82, 0.94, 1.0, 0.58 * alpha_scale)
 				"volcano_tile":
 					tile_color = Color(0.28, 0.1, 0.06, 0.62 * alpha_scale)
+				"cloud":
+					tile_color = Color(0.9, 0.98, 1.0, 0.68 * alpha_scale)
+				"sky_gap":
+					tile_color = Color(0.2, 0.58, 1.0, 0.28 * alpha_scale)
 			draw_rect(tile_rect, tile_color, true)
+			if cell_kind == "cloud":
+				var cloud_center = tile_rect.position + tile_rect.size * 0.5
+				draw_circle(cloud_center + Vector2(-tile_rect.size.x * 0.16, 0.0), minf(tile_rect.size.x, tile_rect.size.y) * 0.22, Color(1.0, 1.0, 1.0, 0.34 * alpha_scale))
+				draw_circle(cloud_center + Vector2(tile_rect.size.x * 0.12, -tile_rect.size.y * 0.06), minf(tile_rect.size.x, tile_rect.size.y) * 0.26, Color(1.0, 1.0, 1.0, 0.28 * alpha_scale))
+			elif cell_kind == "sky_gap":
+				var gap_center = tile_rect.position + tile_rect.size * 0.5
+				draw_circle(gap_center, minf(tile_rect.size.x, tile_rect.size.y) * 0.28, Color(0.02, 0.22, 0.5, 0.2 * alpha_scale))
+				draw_line(tile_rect.position + Vector2(8.0, tile_rect.size.y * 0.5), tile_rect.position + Vector2(tile_rect.size.x - 8.0, tile_rect.size.y * 0.5 + sin(ui_time * 2.0 + float(row)) * 3.0), Color(0.92, 0.98, 1.0, 0.18 * alpha_scale), 1.2)
 			draw_rect(tile_rect, Color(0.0, 0.0, 0.0, 0.08 * alpha_scale), false, 1.0)
 	draw_rect(board_rect, Color(accent.r, accent.g, accent.b, 0.52 * alpha_scale), false, 3.0)
 	if terrain_key == "fog" or terrain_key == "storm_fog":
@@ -19702,6 +20341,11 @@ func _ambient_light_for_level() -> Dictionary:
 		tint_alpha = 0.11
 		shadow_tint = Color(0.04, 0.02, 0.1)
 		shadow_alpha = 0.085
+	elif _is_cloud_sea_level():
+		tint = Color(0.62, 0.86, 1.0)
+		tint_alpha = 0.08
+		shadow_tint = Color(0.02, 0.18, 0.34)
+		shadow_alpha = 0.055
 	elif _is_frozen_branch_level():
 		tint = Color(0.62, 0.8, 1.0)
 		tint_alpha = 0.10
@@ -20175,6 +20819,38 @@ func _draw_battle_background() -> void:
 			var mist_x = BOARD_ORIGIN.x - 90.0 + fmod(ui_time * (16.0 + mist_index * 2.0) + float(mist_index) * 136.0, board_size.x + 180.0)
 			draw_rect(Rect2(Vector2(mist_x, mist_y), Vector2(220.0, 22.0)), Color(0.58, 0.4, 1.0, 0.035), true)
 		ThemeLib.draw_ambient_particles(self, size, ui_time, "fireflies", 16)
+	elif _is_cloud_sea_level():
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, size.y)), Color(0.34, 0.68, 1.0), Color(0.84, 0.94, 1.0))
+		ThemeLib.draw_glow_circle(self, Vector2(118.0, 72.0), 42.0, Color(1.0, 0.92, 0.5), 5)
+		draw_circle(Vector2(118.0, 72.0), 24.0, Color(1.0, 0.9, 0.34, 0.74))
+		for cloud_index in range(9):
+			var drift = fmod(ui_time * (14.0 + float(cloud_index) * 2.0) + float(cloud_index) * 168.0, size.x + 260.0)
+			var cloud_pos = Vector2(size.x + 120.0 - drift, 64.0 + float(cloud_index % 4) * 32.0)
+			var alpha = 0.18 + float(cloud_index % 3) * 0.04
+			draw_circle(cloud_pos + Vector2(2.0, 6.0), 32.0, Color(0.12, 0.34, 0.72, 0.025))
+			draw_circle(cloud_pos, 32.0, Color(1.0, 1.0, 1.0, alpha))
+			draw_circle(cloud_pos + Vector2(36.0, 8.0), 26.0, Color(1.0, 1.0, 1.0, alpha * 1.08))
+			draw_circle(cloud_pos + Vector2(-34.0, 10.0), 24.0, Color(0.92, 0.98, 1.0, alpha * 0.9))
+			draw_circle(cloud_pos + Vector2(10.0, -12.0), 20.0, Color(1.0, 1.0, 1.0, alpha * 0.72))
+		for horizon_index in range(4):
+			var horizon_y = 166.0 + float(horizon_index) * 34.0
+			var horizon_alpha = 0.18 - float(horizon_index) * 0.026
+			draw_rect(Rect2(Vector2(0.0, horizon_y), Vector2(size.x, 36.0)), Color(1.0, 1.0, 1.0, horizon_alpha), true)
+			for lump in range(9):
+				var lump_x = -80.0 + fmod(ui_time * (10.0 + horizon_index) + float(lump) * 190.0 + float(horizon_index) * 70.0, size.x + 160.0)
+				draw_circle(Vector2(lump_x, horizon_y + 18.0), 42.0 + float(lump % 3) * 8.0, Color(1.0, 1.0, 1.0, horizon_alpha * 0.62))
+		var stage_rect = Rect2(Vector2(BOARD_ORIGIN.x - 42.0, BOARD_ORIGIN.y - 18.0), Vector2(board_size.x + 124.0, board_size.y + 46.0))
+		draw_rect(stage_rect, Color(0.3, 0.66, 1.0, 0.08), true)
+		draw_rect(stage_rect, Color(0.9, 0.98, 1.0, 0.16), false, 2.0)
+		for wind_index in range(10):
+			var wind_y = BOARD_ORIGIN.y + 18.0 + float(wind_index % 5) * 78.0
+			var wind_x = BOARD_ORIGIN.x + board_size.x + 64.0 - fmod(ui_time * (58.0 + float(wind_index) * 4.0) + float(wind_index) * 96.0, board_size.x + 160.0)
+			draw_line(Vector2(wind_x, wind_y), Vector2(wind_x - 82.0, wind_y + sin(ui_time * 1.8 + float(wind_index)) * 8.0), Color(0.96, 1.0, 1.0, 0.12), 2.0)
+		for note_index in range(12):
+			var note_phase = ui_time * (0.8 + float(note_index % 4) * 0.12) + float(note_index) * 0.7
+			var note_x = BOARD_ORIGIN.x + 80.0 + fmod(float(note_index) * 92.0 + note_phase * 26.0, board_size.x + 120.0)
+			var note_y = BOARD_ORIGIN.y - 28.0 + float(note_index % 3) * 26.0 + sin(note_phase) * 6.0
+			_draw_text("♪", Vector2(note_x, note_y), 18, Color(0.28, 0.44, 0.82, 0.16))
 	elif _is_frozen_branch_level():
 		# Icy sky gradient
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 154.0)), Color(0.68, 0.84, 1.0), Color(0.88, 0.95, 1.0))
@@ -20721,6 +21397,8 @@ func _draw_battle_board() -> void:
 			lane_color = Color(0.2, 0.08, 0.06) if row % 2 == 0 else Color(0.16, 0.06, 0.04)
 		elif _is_forest_of_magic_level():
 			lane_color = Color(0.22, 0.38, 0.28) if row % 2 == 0 else Color(0.18, 0.32, 0.26)
+		elif _is_cloud_sea_level():
+			lane_color = Color(0.7, 0.9, 1.0) if row % 2 == 0 else Color(0.58, 0.82, 1.0)
 		elif _is_night_level():
 			lane_color = Color(0.23, 0.38, 0.2) if row % 2 == 0 else Color(0.19, 0.32, 0.17)
 		elif _is_fog_level():
@@ -20798,6 +21476,20 @@ func _draw_battle_board() -> void:
 				var mote_x = lane_rect.position.x + fmod(ui_time * (18.0 + float(mote_index) * 3.0) + float(row * 47 + mote_index * 81), lane_rect.size.x)
 				var mote_y = lane_rect.position.y + 18.0 + fmod(float(mote_index * 19 + row * 11), lane_rect.size.y - 30.0)
 				draw_circle(Vector2(mote_x, mote_y), 2.0 + float(mote_index % 2), Color(0.72, 0.52, 1.0, 0.12))
+		elif _is_cloud_sea_level():
+			for stream_index in range(5):
+				var stream_y = lane_rect.position.y + 12.0 + float(stream_index) * 18.0
+				var stream_x = lane_rect.position.x + lane_rect.size.x + 16.0 - fmod(ui_time * (44.0 + float(stream_index) * 5.0) + float(row * 37 + stream_index * 79), lane_rect.size.x + 64.0)
+				draw_line(
+					Vector2(stream_x, stream_y),
+					Vector2(stream_x - 70.0, stream_y + sin(ui_time * 1.8 + float(row + stream_index)) * 5.0),
+					Color(1.0, 1.0, 1.0, 0.08 if stream_index % 2 == 0 else 0.05),
+					1.8
+				)
+			for sparkle_index in range(4):
+				var sparkle_x = lane_rect.position.x + fmod(ui_time * (28.0 + float(sparkle_index) * 4.0) + float(row * 61 + sparkle_index * 97), lane_rect.size.x)
+				var sparkle_y = lane_rect.position.y + 18.0 + fmod(float(sparkle_index * 23 + row * 13), lane_rect.size.y - 30.0)
+				draw_circle(Vector2(sparkle_x, sparkle_y), 1.8 + float(sparkle_index % 2), Color(1.0, 0.94, 0.58, 0.16))
 		else:
 			for stripe_index in range(5):
 				var stripe_y = lane_rect.position.y + 16.0 + float(stripe_index) * 18.0
@@ -20847,6 +21539,14 @@ func _draw_battle_board() -> void:
 			elif _is_forest_of_magic_level():
 				tint = Color(0.5, 0.36, 0.78, 0.1) if (row + col) % 2 == 0 else Color(0.02, 0.0, 0.08, 0.12)
 				border_color = Color(0.54, 0.42, 0.92, 0.3)
+			elif _is_cloud_sea_level():
+				var cloud_terrain = _cell_terrain_kind(row, col)
+				if cloud_terrain == "sky_gap":
+					tint = Color(0.08, 0.36, 0.78, 0.32)
+					border_color = Color(0.78, 0.94, 1.0, 0.22)
+				else:
+					tint = Color(0.94, 0.99, 1.0, 0.32) if (row + col) % 2 == 0 else Color(0.76, 0.92, 1.0, 0.28)
+					border_color = Color(0.86, 0.98, 1.0, 0.36)
 			elif _is_frozen_branch_level():
 				var terrain = _cell_terrain_kind(row, col)
 				if terrain == "water":
@@ -21008,6 +21708,21 @@ func _draw_battle_board() -> void:
 					var doll_center = tile.position + tile.size * 0.5 + Vector2(-8.0, 6.0)
 					draw_circle(doll_center + Vector2(0.0, -4.0), 2.8, Color(1.0, 0.92, 0.86, 0.16))
 					draw_rect(Rect2(doll_center + Vector2(-2.5, -0.5), Vector2(5.0, 6.0)), Color(0.72, 0.52, 1.0, 0.12), true)
+			if _is_cloud_sea_level():
+				var cloud_terrain = _cell_terrain_kind(row, col)
+				var cloud_center = tile.position + tile.size * 0.5
+				if cloud_terrain == "sky_gap":
+					draw_circle(cloud_center, minf(tile.size.x, tile.size.y) * 0.38, Color(0.02, 0.18, 0.46, 0.18))
+					draw_circle(cloud_center + Vector2(0.0, 2.0), minf(tile.size.x, tile.size.y) * 0.24, Color(0.1, 0.44, 0.86, 0.14))
+					draw_line(tile.position + Vector2(12.0, tile.size.y * 0.34), tile.position + Vector2(tile.size.x - 12.0, tile.size.y * 0.34 + sin(ui_time * 2.4 + float(row + col)) * 5.0), Color(0.94, 1.0, 1.0, 0.13), 1.4)
+					draw_line(tile.position + Vector2(16.0, tile.size.y * 0.66), tile.position + Vector2(tile.size.x - 16.0, tile.size.y * 0.66 + cos(ui_time * 2.0 + float(col)) * 4.0), Color(0.7, 0.88, 1.0, 0.1), 1.2)
+				else:
+					var puff = minf(tile.size.x, tile.size.y)
+					draw_circle(cloud_center + Vector2(-puff * 0.18, puff * 0.04), puff * 0.24, Color(1.0, 1.0, 1.0, 0.22))
+					draw_circle(cloud_center + Vector2(puff * 0.12, -puff * 0.04), puff * 0.28, Color(1.0, 1.0, 1.0, 0.18))
+					draw_circle(cloud_center + Vector2(puff * 0.3, puff * 0.1), puff * 0.18, Color(0.92, 0.98, 1.0, 0.16))
+					if (row + col) % 4 == 0:
+						draw_circle(cloud_center + Vector2(10.0, -8.0), 2.8, Color(1.0, 0.94, 0.5, 0.2))
 			if _is_frozen_branch_level():
 				var tile_terrain = _cell_terrain_kind(row, col)
 				if tile_terrain == "water":
@@ -21030,6 +21745,8 @@ func _draw_battle_board() -> void:
 		outline = Color(0.82, 0.36, 0.12, 0.82)
 	if _is_forest_of_magic_level():
 		outline = Color(0.66, 0.48, 1.0, 0.82)
+	if _is_cloud_sea_level():
+		outline = Color(0.74, 0.94, 1.0, 0.82)
 	draw_rect(Rect2(BOARD_ORIGIN, board_size), outline, false, 4.0)
 
 
@@ -27821,6 +28538,40 @@ func _ensure_alice_frames_loaded() -> void:
 	shared_alice_frames_face_left = expected_face_left
 
 
+func _ensure_lily_white_frames_loaded() -> void:
+	var expected_face_left = _boss_frames_face_left("lily_white_boss")
+	if lily_white_frames_loaded and _boss_frame_cache_matches(lily_white_frames, LILY_WHITE_FRAME_COUNT, expected_face_left, lily_white_frames_face_left):
+		return
+	if shared_lily_white_frames_loaded and _boss_frame_cache_matches(shared_lily_white_frames, LILY_WHITE_FRAME_COUNT, expected_face_left, shared_lily_white_frames_face_left):
+		lily_white_frames_loaded = true
+		lily_white_frames = shared_lily_white_frames
+		lily_white_frames_face_left = shared_lily_white_frames_face_left
+		return
+	lily_white_frames_loaded = true
+	lily_white_frames = _load_boss_frame_set("lily_white_boss", expected_face_left)
+	lily_white_frames_face_left = expected_face_left
+	shared_lily_white_frames_loaded = true
+	shared_lily_white_frames = lily_white_frames
+	shared_lily_white_frames_face_left = expected_face_left
+
+
+func _ensure_prismriver_frames_loaded() -> void:
+	var expected_face_left = _boss_frames_face_left("prismriver_boss")
+	if prismriver_frames_loaded and _boss_frame_cache_matches(prismriver_frames, PRISMRIVER_FRAME_COUNT, expected_face_left, prismriver_frames_face_left):
+		return
+	if shared_prismriver_frames_loaded and _boss_frame_cache_matches(shared_prismriver_frames, PRISMRIVER_FRAME_COUNT, expected_face_left, shared_prismriver_frames_face_left):
+		prismriver_frames_loaded = true
+		prismriver_frames = shared_prismriver_frames
+		prismriver_frames_face_left = shared_prismriver_frames_face_left
+		return
+	prismriver_frames_loaded = true
+	prismriver_frames = _load_boss_frame_set("prismriver_boss", expected_face_left)
+	prismriver_frames_face_left = expected_face_left
+	shared_prismriver_frames_loaded = true
+	shared_prismriver_frames = prismriver_frames
+	shared_prismriver_frames_face_left = expected_face_left
+
+
 func _ensure_flandre_frames_loaded() -> void:
 	var expected_face_left = _boss_frames_face_left("flandre_boss")
 	if flandre_frames_loaded and _boss_frame_cache_matches(flandre_frames, FLANDRE_FRAME_COUNT, expected_face_left, flandre_frames_face_left):
@@ -27880,6 +28631,14 @@ func _chen_draw_scale(phase: int) -> float:
 
 func _alice_draw_scale(phase: int) -> float:
 	return 0.38 + float(phase) * 0.014
+
+
+func _lily_white_draw_scale(phase: int) -> float:
+	return 0.36 + float(phase) * 0.014
+
+
+func _prismriver_draw_scale(phase: int) -> float:
+	return 0.34 + float(phase) * 0.012
 
 
 func _flandre_draw_scale(phase: int) -> float:
@@ -28138,6 +28897,60 @@ func _alice_frame_index(zombie: Dictionary) -> int:
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
 				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
+			return 0
+	return 0
+
+
+func _lily_white_frame_index(zombie: Dictionary) -> int:
+	var state = String(zombie.get("rumia_state", "idle"))
+	var phase = float(zombie.get("anim_phase", 0.0))
+	match state:
+		"spring_herald":
+			return _rumia_cycle_frame([2, 3, 2, 4], 6.8, phase * 0.38)
+		"petals":
+			return _rumia_cycle_frame([5, 6, 5, 1], 6.6, phase * 0.36)
+		"cloud_bloom":
+			return _rumia_cycle_frame([3, 7, 3, 6], 7.2, phase * 0.42)
+		"fairy_barrage":
+			return _rumia_cycle_frame([6, 7, 6, 4], 7.0, phase * 0.4)
+		"phase":
+			return _rumia_cycle_frame([7, 6, 5, 6], 6.2, phase * 0.34)
+		"shift":
+			return _rumia_cycle_frame([1, 0, 1, 0], 5.8, phase * 0.26)
+		_:
+			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
+				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.22)
+			return 0
+	return 0
+
+
+func _prismriver_frame_index(zombie: Dictionary) -> int:
+	var state = String(zombie.get("rumia_state", "idle"))
+	var phase = float(zombie.get("anim_phase", 0.0))
+	match state:
+		"phantom_dinning":
+			return _rumia_cycle_frame([2, 3, 4, 3], 6.8, phase * 0.36)
+		"lunasa":
+			return _rumia_cycle_frame([5, 2, 5, 1], 7.2, phase * 0.42)
+		"merlin":
+			return _rumia_cycle_frame([3, 6, 3, 6], 7.8, phase * 0.46)
+		"lyrica":
+			return _rumia_cycle_frame([4, 7, 4, 1], 7.4, phase * 0.44)
+		"concerto":
+			return _rumia_cycle_frame([6, 7, 6, 5], 6.6, phase * 0.38)
+		"riverside":
+			return _rumia_cycle_frame([5, 6, 5, 2], 6.8, phase * 0.4)
+		"wheel":
+			return _rumia_cycle_frame([7, 4, 7, 4], 8.2, phase * 0.48)
+		"live_poltergeist":
+			return _rumia_cycle_frame([7, 6, 5, 6], 8.0, phase * 0.46)
+		"phase":
+			return _rumia_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.36)
+		"shift":
+			return _rumia_cycle_frame([1, 0, 1, 0], 6.4, phase * 0.3)
+		_:
+			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
+				return _rumia_cycle_frame([1, 0, 1], 5.4, phase * 0.24)
 			return 0
 	return 0
 
@@ -28759,6 +29572,68 @@ func _draw_alice_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_circle(center + Vector2(0.0, -18.0), 84.0 + sin(level_time * 4.8) * 6.0, Color(0.74, 0.52, 1.0, 0.08))
 
 
+func _draw_lily_white_boss(center: Vector2, zombie: Dictionary) -> void:
+	var frame_index = _lily_white_frame_index(zombie)
+	if float(zombie.get("impact_timer", 0.0)) > 0.0:
+		frame_index = 6
+	_ensure_lily_white_frames_loaded()
+	var texture := _try_get_boss_frame_texture("lily_white_boss", frame_index)
+	var draw_scale = _lily_white_draw_scale(int(zombie.get("boss_phase", 0)))
+	var local_phase = float(zombie.get("anim_phase", 0.0))
+	var bob = sin(level_time * 2.2 + local_phase) * 5.0 + sin(level_time * 5.0 + local_phase * 0.72) * 1.2
+	var sway = sin(level_time * 1.46 + local_phase) * 5.8
+	var aura_center = center + Vector2(sway * 0.04, -38.0 + bob * 0.14)
+	draw_circle(center + Vector2(sway * 0.05, 52.0), 22.0, Color(0.08, 0.12, 0.18, 0.16))
+	draw_circle(aura_center, 54.0, Color(0.94, 1.0, 0.72, 0.09 + 0.04 * sin(level_time * 2.6 + local_phase)))
+	for petal_index in range(8):
+		var angle = level_time * 1.7 + float(petal_index) * TAU / 8.0 + local_phase * 0.12
+		var petal_center = center + Vector2(cos(angle) * (34.0 + float(petal_index % 2) * 8.0), -28.0 + sin(angle) * 17.0 + bob * 0.12)
+		draw_circle(petal_center, 3.8, Color(1.0, 0.9, 0.94, 0.68))
+		draw_line(petal_center + Vector2(-4.0, 0.0), petal_center + Vector2(5.0, -2.0), Color(0.94, 1.0, 0.72, 0.44), 1.2)
+	if texture != null:
+		var texture_size = texture.get_size() * draw_scale
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+	else:
+		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(1.0, 0.94, 0.78))
+		draw_rect(Rect2(center + Vector2(-18.0, -12.0), Vector2(36.0, 62.0)), Color(0.94, 0.72, 0.34), true)
+	if String(zombie.get("rumia_state", "")) == "fairy_barrage":
+		draw_circle(center + Vector2(0.0, -18.0), 78.0 + sin(level_time * 4.2) * 5.0, Color(0.94, 1.0, 0.72, 0.08))
+
+
+func _draw_prismriver_boss(center: Vector2, zombie: Dictionary) -> void:
+	var frame_index = _prismriver_frame_index(zombie)
+	if float(zombie.get("impact_timer", 0.0)) > 0.0:
+		frame_index = 7
+	_ensure_prismriver_frames_loaded()
+	var texture := _try_get_boss_frame_texture("prismriver_boss", frame_index)
+	var draw_scale = _prismriver_draw_scale(int(zombie.get("boss_phase", 0)))
+	var local_phase = float(zombie.get("anim_phase", 0.0))
+	var bob = sin(level_time * 2.0 + local_phase) * 4.8 + sin(level_time * 5.8 + local_phase * 0.68) * 1.2
+	var sway = sin(level_time * 1.35 + local_phase) * 6.0
+	var aura_center = center + Vector2(sway * 0.04, -40.0 + bob * 0.14)
+	draw_circle(center + Vector2(sway * 0.05, 54.0), 24.0, Color(0.05, 0.06, 0.14, 0.18))
+	draw_circle(aura_center, 58.0, Color(0.66, 0.84, 1.0, 0.1 + 0.04 * sin(level_time * 2.8 + local_phase)))
+	for ring_index in range(3):
+		var ring_radius = 42.0 + float(ring_index) * 17.0 + sin(level_time * 2.4 + float(ring_index)) * 3.0
+		draw_arc(aura_center, ring_radius, level_time * (0.7 + ring_index * 0.08), level_time * (0.7 + ring_index * 0.08) + PI * 1.42, 36, Color(0.86, 0.88, 1.0, 0.16), 1.8)
+	for note_index in range(7):
+		var angle = -level_time * 1.55 + float(note_index) * TAU / 7.0 + local_phase * 0.14
+		var note_center = center + Vector2(cos(angle) * (38.0 + float(note_index % 3) * 7.0), -28.0 + sin(angle) * (15.0 + float(note_index % 2) * 4.0) + bob * 0.12)
+		draw_circle(note_center, 4.0, Color(0.92, 0.86, 1.0, 0.7))
+		draw_line(note_center + Vector2(3.0, 0.0), note_center + Vector2(3.0, -13.0), Color(0.72, 0.86, 1.0, 0.46), 1.3)
+		draw_line(note_center + Vector2(3.0, -13.0), note_center + Vector2(10.0, -10.0), Color(0.72, 0.86, 1.0, 0.38), 1.1)
+	if texture != null:
+		var texture_size = texture.get_size() * draw_scale
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+	else:
+		draw_circle(center + Vector2(0.0, -40.0), 25.0, Color(0.86, 0.82, 1.0))
+		draw_rect(Rect2(center + Vector2(-24.0, -12.0), Vector2(48.0, 62.0)), Color(0.32, 0.36, 0.72), true)
+	if String(zombie.get("rumia_state", "")) == "live_poltergeist":
+		draw_circle(center + Vector2(0.0, -18.0), 88.0 + sin(level_time * 5.0) * 6.0, Color(0.78, 0.82, 1.0, 0.09))
+
+
 func _draw_flandre_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _flandre_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
@@ -29342,6 +30217,12 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "alice_boss":
 		_draw_alice_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "lily_white_boss":
+		_draw_lily_white_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "prismriver_boss":
+		_draw_prismriver_boss(center + Vector2(0.0, -10.0), zombie)
 		return
 	if kind == "flandre_boss":
 		_draw_flandre_boss(center + Vector2(0.0, -10.0), zombie)

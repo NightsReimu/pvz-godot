@@ -61,6 +61,18 @@ const TARGETS := [
 		"max_total_halo_pixels": 420,
 		"max_frame_halo_pixels": 110,
 	},
+	{
+		"name": "Lily White",
+		"folder": "res://art/lily_white",
+		"max_total_halo_pixels": 420,
+		"max_frame_halo_pixels": 120,
+	},
+	{
+		"name": "Prismriver",
+		"folder": "res://art/prismriver",
+		"max_total_halo_pixels": 520,
+		"max_frame_halo_pixels": 140,
+	},
 ]
 
 const ALPHA_EMPTY_THRESHOLD := 8.0 / 255.0
