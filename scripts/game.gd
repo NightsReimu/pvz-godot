@@ -7570,6 +7570,19 @@ func _cloud_gap_rows_for_seed(seed_value: int) -> Array:
 	return gaps
 
 
+func _cloud_gap_rows_for_next_column(seed_value: int) -> Array:
+	var desired_rows = _cloud_gap_rows_for_seed(seed_value)
+	var filtered: Array = []
+	for row_variant in desired_rows:
+		var row = int(row_variant)
+		if not _is_row_active(row):
+			continue
+		if COLS > 1 and _cell_terrain_kind(row, COLS - 2) == "sky_gap":
+			continue
+		filtered.append(row)
+	return filtered
+
+
 func _cloud_cell_ratio_runtime() -> float:
 	var total := 0
 	var clouds := 0
@@ -7593,7 +7606,7 @@ func _shift_cloud_sea_left() -> void:
 			cell_terrain_mask[row][col] = String(_cell_terrain_kind(row, col + 1))
 		cell_terrain_mask[row][COLS - 1] = "cloud"
 	cloud_drift_seed += 1
-	for gap_row_variant in _cloud_gap_rows_for_seed(cloud_drift_seed):
+	for gap_row_variant in _cloud_gap_rows_for_next_column(cloud_drift_seed):
 		var gap_row = int(gap_row_variant)
 		if _is_row_active(gap_row):
 			cell_terrain_mask[gap_row][COLS - 1] = "sky_gap"

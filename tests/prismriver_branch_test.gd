@@ -274,8 +274,22 @@ func _test_cloud_sea_cells_drift_and_drop_unsupported_plants() -> bool:
 		for _shift_index in range(14):
 			game.call("_shift_cloud_sea_left")
 		passed = _assert_true(_cloud_cell_ratio(game) >= 0.78, "cloud sea should keep at least 78 percent of cells plantable after repeated drifts") and passed
+		passed = _assert_true(_max_horizontal_sky_gap_run(game) <= 1, "cloud sea should not create adjacent sky gaps in the same row") and passed
 	_free_game(game)
 	return passed
+
+
+func _max_horizontal_sky_gap_run(game: Control) -> int:
+	var longest := 0
+	for row in game.active_rows:
+		var current := 0
+		for col in range(game.COLS):
+			if String(game.call("_cell_terrain_kind", int(row), col)) == "sky_gap":
+				current += 1
+				longest = maxi(longest, current)
+			else:
+				current = 0
+	return longest
 
 
 func _cloud_cell_ratio(game: Control) -> float:
