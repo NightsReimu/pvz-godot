@@ -101,6 +101,14 @@ const TARGETS := {
 		"cell_inset": 8,
 		"fringe_passes": 4,
 	},
+	"youmu_boss": {
+		"output_folder": "res://art/youmu",
+		"frame_count": 8,
+		"sheet_path": "/Users/hecrereed/Downloads/ChatGPT Image 2026年6月25日 00_21_46.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+		"fringe_passes": 3,
+	},
 }
 
 const WHITE_THRESHOLD := 0.93
@@ -131,6 +139,12 @@ func _initialize() -> void:
 func _run() -> void:
 	var failures := 0
 	var requested_targets = OS.get_cmdline_user_args()
+	if requested_targets.is_empty():
+		var raw_args := OS.get_cmdline_args()
+		for index in range(raw_args.size()):
+			var arg = String(raw_args[index])
+			if TARGETS.has(arg):
+				requested_targets.append(arg)
 	var target_keys: Array = []
 	if requested_targets.is_empty():
 		target_keys = TARGETS.keys()

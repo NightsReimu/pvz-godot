@@ -73,6 +73,12 @@ const TARGETS := [
 		"max_total_halo_pixels": 520,
 		"max_frame_halo_pixels": 140,
 	},
+	{
+		"name": "Youmu",
+		"folder": "res://art/youmu",
+		"max_total_halo_pixels": 520,
+		"max_frame_halo_pixels": 140,
+	},
 ]
 
 const ALPHA_EMPTY_THRESHOLD := 8.0 / 255.0
