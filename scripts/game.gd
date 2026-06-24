@@ -3226,6 +3226,7 @@ func _queue_boss_frame_set_prewarm(kind: String) -> void:
 func _queue_level_boss_asset_prewarm(level: Dictionary) -> void:
 	if level.is_empty():
 		return
+	_queue_audio_stream_prewarm(_regular_level_bgm_path(level))
 	_queue_audio_stream_prewarm(String(level.get("boss_intro_bgm", "")))
 	_queue_audio_stream_prewarm(String(level.get("boss_bgm", "")))
 	var boss_kinds := {}
@@ -6375,10 +6376,14 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	_show_banner(String(current_level["title"]), 2.2)
 	if _is_whack_level():
 		_show_toast("点击僵尸挥锤，敲出阳光再使用卡片")
-	elif String(current_level.get("boss_intro_bgm", "")) != "":
+	if String(current_level.get("boss_intro_bgm", "")) != "":
 		_play_bgm(String(current_level.get("boss_intro_bgm", "")))
 	else:
-		_stop_bgm()
+		var regular_bgm_path := _regular_level_bgm_path(current_level)
+		if regular_bgm_path != "":
+			_play_bgm(regular_bgm_path)
+		else:
+			_stop_bgm()
 	queue_redraw()
 
 
@@ -17628,6 +17633,44 @@ func _world_key_for_level(level: Dictionary) -> String:
 	if level_id.begins_with("2-"):
 		return "night"
 	return "day"
+
+
+func _regular_level_bgm_path(level: Dictionary) -> String:
+	if level.is_empty():
+		return ""
+	if String(level.get("boss_intro_bgm", "")) != "" or String(level.get("boss_bgm", "")) != "":
+		return ""
+	var terrain := String(level.get("terrain", ""))
+	match terrain:
+		"pool", "clear_backyard", "frozen_lake":
+			return "res://audio/bgm/pool.mp3"
+		"fog", "storm_fog":
+			return "res://audio/bgm/fog.mp3"
+		"roof":
+			return "res://audio/bgm/roof.mp3"
+		"city":
+			return "res://audio/bgm/city.mp3"
+		"volcano":
+			return "res://audio/bgm/volcano.mp3"
+		"day":
+			return "res://audio/bgm/day.mp3"
+		"night", "vasebreaker_night":
+			return "res://audio/bgm/night.mp3"
+	var world_key := _world_key_for_level(level)
+	match world_key:
+		"night":
+			return "res://audio/bgm/night.mp3"
+		"pool":
+			return "res://audio/bgm/pool.mp3"
+		"fog":
+			return "res://audio/bgm/fog.mp3"
+		"roof":
+			return "res://audio/bgm/roof.mp3"
+		"city":
+			return "res://audio/bgm/city.mp3"
+		"volcano":
+			return "res://audio/bgm/volcano.mp3"
+	return "res://audio/bgm/day.mp3"
 
 
 func _world_start_index(world_key: String) -> int:
