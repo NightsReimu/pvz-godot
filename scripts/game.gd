@@ -6336,7 +6336,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	scarlet_clock_drift = rng.randf_range(0.0, TAU)
 	remilia_crimson_fx_timer = 0.35
 	cloud_drift_seed = rng.randi()
-	cloud_drift_timer = 7.8 if _is_cloud_sea_level() else 0.0
+	cloud_drift_timer = 11.4 if _is_cloud_sea_level() else 0.0
 	if not _is_conveyor_level():
 		for kind in active_cards:
 			card_cooldowns[kind] = 0.0
@@ -7558,7 +7558,8 @@ func _cloud_gap_rows_for_seed(seed_value: int) -> Array:
 		rows.append(int(row_variant))
 	if rows.is_empty():
 		return []
-	var gap_count = clampi(1 + abs(seed_value) % 3, 1, mini(3, rows.size()))
+	var gap_count = 2 if abs(seed_value) % 6 == 0 else 1
+	gap_count = clampi(gap_count, 1, mini(2, rows.size()))
 	var gaps: Array = []
 	var cursor = abs(seed_value / 7)
 	while gaps.size() < gap_count and gaps.size() < rows.size():
@@ -7596,7 +7597,7 @@ func _shift_cloud_sea_left() -> void:
 		var gap_row = int(gap_row_variant)
 		if _is_row_active(gap_row):
 			cell_terrain_mask[gap_row][COLS - 1] = "sky_gap"
-	while _cloud_cell_ratio_runtime() < 0.65:
+	while _cloud_cell_ratio_runtime() < 0.78:
 		var converted := false
 		for row_variant in active_rows:
 			var row = int(row_variant)
@@ -7670,7 +7671,7 @@ func _update_cloud_sea(delta: float) -> void:
 	cloud_drift_timer -= delta
 	if cloud_drift_timer > 0.0:
 		return
-	cloud_drift_timer = rng.randf_range(7.2, 8.8)
+	cloud_drift_timer = rng.randf_range(10.8, 12.8)
 	_shift_cloud_sea_left()
 
 

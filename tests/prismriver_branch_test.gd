@@ -126,18 +126,24 @@ func _test_2_28_configures_lily_midboss_and_prismriver_finale() -> bool:
 		return false
 	var level = Defs.LEVELS[level_index]
 	var has_final_boss := false
+	var final_boss_time := 0.0
 	var wave_count := 0
+	var last_wave_time := 0.0
 	for event in level.get("events", []):
 		if bool(event.get("wave", false)):
 			wave_count += 1
+			last_wave_time = maxf(last_wave_time, float(event.get("time", 0.0)))
 		if String(event.get("kind", "")) == "prismriver_boss":
 			has_final_boss = true
+			final_boss_time = float(event.get("time", 0.0))
 	var conveyor_plants = Array(level.get("conveyor_plants", []))
 	var passed = _assert_true(bool(level.get("boss_level", false)), "2-28 should be marked as a boss level") \
 		and _assert_true(String(level.get("mode", "")) == "conveyor", "2-28 should be a conveyor level") \
 		and _assert_true(String(level.get("mid_boss_kind", "")) == "lily_white_boss", "2-28 should use Lily White as the half-way boss") \
 		and _assert_true(has_final_boss, "2-28 should include a prismriver_boss final event") \
-		and _assert_true(wave_count >= 6, "2-28 should have enough wave markers for a boss branch stage") \
+		and _assert_true(wave_count >= 9, "2-28 should have a long Stage 4-style route before the finale") \
+		and _assert_true(last_wave_time >= 175.0, "2-28 should keep spawning route waves deep into the long mid-stage") \
+		and _assert_true(final_boss_time >= 190.0, "2-28 Prismriver finale should not start until after a long cloud-sea route") \
 		and _assert_true(not conveyor_plants.has("flower_pot"), "cloud_sea conveyor should not require flower pots") \
 		and _assert_true(not conveyor_plants.has("lily_pad"), "cloud_sea conveyor should not include lily pads") \
 		and _assert_true(not conveyor_plants.has("moon_lotus"), "cloud_sea conveyor should not include moon_lotus")
@@ -255,10 +261,19 @@ func _test_cloud_sea_cells_drift_and_drop_unsupported_plants() -> bool:
 		passed = _assert_true(has_fall_fx, "falling cloud plants should create a cloud_plant_fall effect") and passed
 		game.effects.clear()
 		game.call("_initialize_cloud_sea_mask")
+		var two_gap_columns := 0
+		for seed in range(1, 21):
+			var gap_rows = Array(game.call("_cloud_gap_rows_for_seed", seed))
+			passed = _assert_true(gap_rows.size() <= 2, "cloud sea should never generate three gaps in one incoming column") and passed
+			if gap_rows.size() == 2:
+				two_gap_columns += 1
+		passed = _assert_true(two_gap_columns <= 4, "cloud sea should generate two-gap columns only occasionally") and passed
 		var before_col_1 = String(game.call("_cell_terrain_kind", 1, 1))
 		game.call("_shift_cloud_sea_left")
 		passed = _assert_true(String(game.call("_cell_terrain_kind", 1, 0)) == before_col_1, "cloud columns should drift left by one cell") and passed
-		passed = _assert_true(_cloud_cell_ratio(game) >= 0.65, "cloud sea should keep at least 65 percent of cells plantable after a drift") and passed
+		for _shift_index in range(14):
+			game.call("_shift_cloud_sea_left")
+		passed = _assert_true(_cloud_cell_ratio(game) >= 0.78, "cloud sea should keep at least 78 percent of cells plantable after repeated drifts") and passed
 	_free_game(game)
 	return passed
 
