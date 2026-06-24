@@ -18994,15 +18994,15 @@ func _world_card_rect(index: int) -> Rect2:
 
 func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Color, fill: Color, entry_id: String, large: bool = false, disabled: bool = false) -> void:
 	var pointer := _pointer_local_position()
-	var hovered := rect.has_point(pointer)
+	var hovered := rect.has_point(pointer) and not disabled
 	var pulse := 0.5 + 0.5 * sin(ui_time * 2.6 + rect.position.x * 0.01)
-	var actual_fill := fill.darkened(0.18) if disabled else fill
-	var actual_accent := accent.darkened(0.24) if disabled else accent
+	var actual_fill := fill
+	var actual_accent := accent
 	# hover 时整张卡片轻微上浮 + 加重阴影。
-	var lift := 4.0 if (hovered and not disabled) else 0.0
+	var lift := 4.0 if hovered else 0.0
 	var card_rect := Rect2(rect.position - Vector2(0.0, lift), rect.size)
 	ThemeLib.draw_soft_shadow(self, card_rect, Color(0.0, 0.0, 0.0, 0.30 if hovered else 0.24), 4, 16.0, 10.0 + lift)
-	if hovered and not disabled:
+	if hovered:
 		draw_rect(card_rect.grow(6.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.10 + pulse * 0.10), true)
 		draw_rect(card_rect.grow(4.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.50), false, 2.4)
 	# 卡片本体：用光泽圆角面板（渐变填充 + 顶部高光 + 内描边）。
@@ -19016,7 +19016,7 @@ func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Colo
 	var icon_center := card_rect.position + Vector2(card_rect.size.x - (78.0 if large else 60.0), (76.0 if large else card_rect.size.y * 0.42)) - Vector2(0.0, bob)
 	# 图标背光圆。
 	draw_circle(icon_center, icon_size * (0.62 if large else 0.58), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.16 + pulse * 0.07))
-	var icon_alpha := 0.42 if disabled else 1.0
+	var icon_alpha := 1.0
 	if icon_kind != "":
 		var texture := _image2_texture("plants", icon_kind)
 		if texture != null:
@@ -19028,9 +19028,12 @@ func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Colo
 	var title_size := 34 if large else 24
 	var subtitle_size := 18 if large else 15
 	# 标题/副标题配色调成暖白，比原来的冷灰更明亮亲切。
-	_draw_text(title, card_rect.position + Vector2(26.0, 50.0 if large else 40.0), title_size, Color(0.98, 0.97, 0.92) if not disabled else Color(0.62, 0.68, 0.7))
+	_draw_text(title, card_rect.position + Vector2(26.0, 50.0 if large else 40.0), title_size, Color(0.98, 0.97, 0.92))
 	var subtitle_rect := Rect2(card_rect.position + Vector2(26.0, 76.0 if large else 62.0), Vector2(card_rect.size.x - (132.0 if large else 112.0), card_rect.size.y - (96.0 if large else 72.0)))
-	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.86, 0.84, 0.74) if not disabled else Color(0.48, 0.54, 0.56), 4.0, 3 if large else 2)
+	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.86, 0.84, 0.74), 4.0, 3 if large else 2)
+	# Disabled overlay with lock icon on top
+	if disabled:
+		ThemeLib.draw_disabled_overlay(self, card_rect, true)
 
 
 func _draw_home_scene() -> void:

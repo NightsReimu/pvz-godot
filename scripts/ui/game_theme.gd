@@ -112,55 +112,76 @@ static func draw_panel_shell(canvas: CanvasItem, rect: Rect2, fill_color: Color,
 # --- Fancy Button (glossy, with hover/press states) ---
 
 static func draw_fancy_button(canvas: CanvasItem, rect: Rect2, label: String, font: Font, fill_color: Color, border_color: Color, hovered: bool = false, pressed: bool = false, font_size: int = 22) -> void:
-	# Subtle hover lift: grow slightly and brighten; pressed darkens.
+	# Pressed: sink down + darken + shrink. Hover: lift up + brighten + grow.
 	var draw_rect = rect
 	var lift = 0.0
+	var scale_adjust = 0.0
 	if pressed:
-		lift = -1.0
+		lift = 2.0  # sink down
+		scale_adjust = -2.0  # shrink
+		draw_rect = rect.grow_individual(scale_adjust, scale_adjust, scale_adjust, scale_adjust)
+		draw_rect.position.y += lift
 	elif hovered:
-		lift = -2.0
-		draw_rect = rect.grow_individual(1.0, 1.0, 1.0, 1.0)
-	# Soft drop shadow (slightly stronger on hover)
-	var shadow_offset_y = 6.0 - lift
-	var shadow_alpha = 0.26 if hovered else 0.2
+		lift = -2.0  # lift up
+		scale_adjust = 1.0  # grow
+		draw_rect = rect.grow_individual(scale_adjust, scale_adjust, scale_adjust, scale_adjust)
+		draw_rect.position.y += lift
+
+	# Soft drop shadow (weaker when pressed, stronger when hovered)
+	var shadow_offset_y = 6.0 if not pressed else 2.0
+	var shadow_alpha = 0.26 if hovered else (0.12 if pressed else 0.2)
 	draw_soft_shadow(canvas, draw_rect, Color(0.0, 0.0, 0.0, shadow_alpha), 4, 11.0, shadow_offset_y)
+
 	# Hover halo glow ring
-	if hovered:
+	if hovered and not pressed:
 		var glow_pulse = 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.005)
 		for gi in range(3):
 			var gt = float(gi + 1) / 3.0
 			canvas.draw_rect(draw_rect.grow(2.0 + gt * 4.0), Color(1.0, 0.96, 0.72, 0.05 * glow_pulse * (1.0 - gt)), false, 2.0)
+
 	# Fill: vertical gradient (top brighter, bottom darker) — press darkens whole thing
-	var bright = 0.14 if hovered else 0.08
-	var dark_amt = 0.16 if not pressed else 0.28
+	var bright = 0.14 if hovered and not pressed else (0.02 if pressed else 0.08)
+	var dark_amt = 0.16 if not pressed else 0.32
 	var top = fill_color.lerp(Color.WHITE, bright)
 	var bottom = fill_color.darkened(dark_amt)
 	draw_gradient_rect_v(canvas, draw_rect, top, bottom)
-	# Top glossy highlight band (rounded feel)
+
+	# Top glossy highlight band (rounded feel) — dimmer when pressed
 	var gloss_h = maxf(8.0, draw_rect.size.y * 0.4)
 	var gloss_rect = Rect2(draw_rect.position + Vector2(3.0, 2.0), Vector2(maxf(0.0, draw_rect.size.x - 6.0), gloss_h))
-	canvas.draw_rect(gloss_rect, Color(1.0, 1.0, 1.0, 0.22 if hovered else 0.16), true)
+	var gloss_alpha = 0.22 if hovered and not pressed else (0.10 if pressed else 0.16)
+	canvas.draw_rect(gloss_rect, Color(1.0, 1.0, 1.0, gloss_alpha), true)
+
 	# Gloss fade line under highlight
 	canvas.draw_line(
 		draw_rect.position + Vector2(4.0, gloss_h + 2.0),
 		draw_rect.position + Vector2(draw_rect.size.x - 4.0, gloss_h + 2.0),
-		Color(1.0, 1.0, 1.0, 0.08), 1.0)
-	# Inner highlight border (light, inset)
-	canvas.draw_rect(draw_rect.grow(-1.0), Color(1.0, 1.0, 1.0, 0.14 if hovered else 0.1), false, 1.0)
-	# Outer border
+		Color(1.0, 1.0, 1.0, 0.08 if not pressed else 0.04), 1.0)
+
+	# Inner highlight border (light, inset) — darker when pressed
+	var inner_alpha = 0.14 if hovered and not pressed else (0.06 if pressed else 0.1)
+	canvas.draw_rect(draw_rect.grow(-1.0), Color(1.0, 1.0, 1.0, inner_alpha), false, 1.0)
+
+	# Outer border — thicker when hovered, same when pressed
 	var border_w = 2.4 if hovered else 2.0
 	canvas.draw_rect(draw_rect, border_color, false, border_w)
+
 	# Corner softening (simulate rounded corners with translucent discs)
 	var cr = minf(8.0, minf(draw_rect.size.x, draw_rect.size.y) * 0.22)
 	if cr > 3.0:
 		for corner in [draw_rect.position + Vector2(cr, cr), draw_rect.position + Vector2(draw_rect.size.x - cr, cr), draw_rect.position + Vector2(draw_rect.size.x - cr, draw_rect.size.y - cr), draw_rect.position + Vector2(cr, draw_rect.size.y - cr)]:
 			canvas.draw_circle(corner, cr * 0.5, Color(1.0, 1.0, 1.0, 0.05))
-	# Centered label with shadow
+
+	# Centered label with shadow — slightly offset down when pressed
 	var text_color = Color(0.97, 0.97, 0.93) if fill_color.v < 0.6 else fill_color.darkened(0.62)
+	if pressed:
+		text_color = text_color.darkened(0.18)
 	var text_w = font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1.0, font_size).x
 	var text_pos = draw_rect.position + Vector2((draw_rect.size.x - text_w) * 0.5, (draw_rect.size.y + font_size) * 0.5 - 2.0)
+	if pressed:
+		text_pos.y += 1.0
 	# text shadow
-	canvas.draw_string(font, text_pos + Vector2(1.0, 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, Color(0.0, 0.0, 0.0, 0.34))
+	canvas.draw_string(font, text_pos + Vector2(1.0, 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, Color(0.0, 0.0, 0.0, 0.34 if not pressed else 0.22))
 	canvas.draw_string(font, text_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, text_color)
 
 
@@ -396,3 +417,57 @@ static func draw_scroll_mask(canvas: CanvasItem, content_rect: Rect2, view_rect:
 static func draw_text_with_shadow(canvas: CanvasItem, font: Font, pos: Vector2, text: String, font_size: int, color: Color, shadow_offset: Vector2 = Vector2(1.0, 2.0), shadow_alpha: float = 0.3) -> void:
 	canvas.draw_string(font, pos + shadow_offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, Color(0.0, 0.0, 0.0, shadow_alpha))
 	canvas.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)
+
+
+# --- Unified Progress Bar (glossy with inner glow) ---
+
+static func draw_progress_bar(canvas: CanvasItem, rect: Rect2, ratio: float, fill_color: Color, bg_color: Color, border_color: Color, show_glow: bool = true) -> void:
+	var clamped_ratio = clampf(ratio, 0.0, 1.0)
+	# Background track
+	canvas.draw_rect(rect, bg_color, true)
+	# Filled portion with gradient
+	if clamped_ratio > 0.001:
+		var fill_rect = Rect2(rect.position, Vector2(rect.size.x * clamped_ratio, rect.size.y))
+		var top_color = fill_color.lerp(Color.WHITE, 0.18)
+		var bottom_color = fill_color.darkened(0.12)
+		draw_gradient_rect_v(canvas, fill_rect, top_color, bottom_color)
+		# Inner glow at fill edge
+		if show_glow and clamped_ratio < 0.98:
+			var glow_x = fill_rect.end.x
+			for i in range(3):
+				var glow_w = 3.0 + float(i) * 2.0
+				var glow_alpha = 0.16 - float(i) * 0.05
+				canvas.draw_rect(Rect2(Vector2(glow_x - glow_w, rect.position.y + 1.0), Vector2(glow_w, rect.size.y - 2.0)), Color(1.0, 1.0, 1.0, glow_alpha), true)
+	# Border
+	canvas.draw_rect(rect, border_color, false, 1.5)
+
+
+# --- Disabled Overlay (lock indicator) ---
+
+static func draw_disabled_overlay(canvas: CanvasItem, rect: Rect2, show_lock_icon: bool = true) -> void:
+	# Semi-transparent desaturated overlay
+	canvas.draw_rect(rect, Color(0.08, 0.1, 0.12, 0.52), true)
+	# Diagonal stripes pattern (subtle)
+	for i in range(int(rect.size.x / 24.0) + int(rect.size.y / 24.0) + 2):
+		var stripe_offset = float(i) * 24.0
+		var start = Vector2(rect.position.x + stripe_offset, rect.position.y)
+		var end = Vector2(rect.position.x, rect.position.y + stripe_offset)
+		if start.x > rect.end.x:
+			start.y += start.x - rect.end.x
+			start.x = rect.end.x
+		if end.y > rect.end.y:
+			end.x += end.y - rect.end.y
+			end.y = rect.end.y
+		canvas.draw_line(start, end, Color(0.0, 0.0, 0.0, 0.08), 1.5)
+	# Lock icon in center (simple padlock)
+	if show_lock_icon:
+		var center = rect.get_center()
+		var lock_size = minf(28.0, minf(rect.size.x, rect.size.y) * 0.3)
+		# Shackle (arc)
+		canvas.draw_arc(center - Vector2(0.0, lock_size * 0.25), lock_size * 0.35, -PI * 0.8, -PI * 0.2, 16, Color(0.88, 0.9, 0.94, 0.8), 3.0)
+		# Body (rounded rect)
+		var body_rect = Rect2(center - Vector2(lock_size * 0.4, lock_size * 0.1), Vector2(lock_size * 0.8, lock_size * 0.6))
+		canvas.draw_rect(body_rect, Color(0.88, 0.9, 0.94, 0.9), true)
+		canvas.draw_rect(body_rect, Color(0.6, 0.64, 0.7, 0.9), false, 2.0)
+		# Keyhole
+		canvas.draw_circle(center + Vector2(0.0, lock_size * 0.1), lock_size * 0.12, Color(0.3, 0.34, 0.38, 0.9))
