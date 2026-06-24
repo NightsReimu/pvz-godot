@@ -11,6 +11,7 @@ func _run() -> void:
 	var failed := false
 	failed = not _test_home_terminal_routes_mainline_to_world_select() or failed
 	failed = not _test_home_terminal_mode_entries_are_inside_viewport() or failed
+	failed = not _test_home_resource_status_text_fits_panel() or failed
 	failed = not _test_home_terminal_touch_targets_match_action_rects() or failed
 	failed = not _test_daily_terminal_stage_layout_stays_inside_viewport() or failed
 	failed = not _test_world_select_supports_screen_drag_and_snap() or failed
@@ -163,6 +164,35 @@ func _test_home_terminal_mode_entries_are_inside_viewport() -> bool:
 			for j in range(i + 1, keys.size()):
 				var second_rect := Rect2(action_rects[keys[j]])
 				passed = _assert_true(not first_rect.intersects(second_rect), "home terminal entries should not overlap: %s and %s" % [String(keys[i]), String(keys[j])]) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_resource_status_text_fits_panel() -> bool:
+	var game := _make_game()
+	game.call("_build_font")
+	var resource_rect := Rect2(GameScript.BASE_VIEWPORT_SIZE.x - 484.0, 24.0, 460.0, 56.0)
+	var status_rect := Rect2(resource_rect.position + Vector2(350.0, 18.0), Vector2(resource_rect.size.x - 364.0, 26.0))
+	if game.has_method("_home_resource_rect"):
+		resource_rect = Rect2(game.call("_home_resource_rect"))
+	if game.has_method("_home_resource_status_rect"):
+		status_rect = Rect2(game.call("_home_resource_status_rect"))
+	var ui_font: Font = game.ui_font
+	var status_cases := [
+		{"state": "idle", "release_info": {}},
+		{"state": "checking", "release_info": {}},
+		{"state": "latest", "release_info": {}},
+		{"state": "available", "release_info": {"latest_version": "1.0.66"}},
+	]
+	var passed := _assert_true(resource_rect.encloses(status_rect), "home update status rect should stay inside the resource panel")
+	for case_variant in status_cases:
+		var status_case := Dictionary(case_variant)
+		game.update_state = String(status_case.get("state", "idle"))
+		game.update_release_info = Dictionary(status_case.get("release_info", {}))
+		game.update_status_text = ""
+		var status_text := String(game.call("_home_update_status_line")) if game.has_method("_home_update_status_line") else String(game.call("_update_status_line"))
+		var status_width := ui_font.get_string_size(status_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13).x
+		passed = _assert_true(status_rect.size.x >= status_width, "home update status text should fit inside its own panel area; width %.1f needs %.1f for '%s'" % [status_rect.size.x, status_width, status_text]) and passed
 	_free_game(game)
 	return passed
 

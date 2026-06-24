@@ -1306,6 +1306,15 @@ func _home_action_rects() -> Dictionary:
 	}
 
 
+func _home_resource_rect() -> Rect2:
+	return Rect2(BASE_VIEWPORT_SIZE.x - 484.0, 24.0, 460.0, 56.0)
+
+
+func _home_resource_status_rect() -> Rect2:
+	var resource_rect := _home_resource_rect()
+	return Rect2(resource_rect.position + Vector2(336.0, 18.0), Vector2(resource_rect.size.x - 350.0, 26.0))
+
+
 func _home_touch_target(position: Vector2) -> Dictionary:
 	var action_rects := _home_action_rects()
 	for action_variant in ["mainline", "daily", "entertainment", "events", "base", "enhance", "gacha", "almanac"]:
@@ -2261,6 +2270,31 @@ func _update_status_line() -> String:
 			return update_error_text if update_error_text != "" else "更新失败"
 		_:
 			return "当前版本 v%s" % _current_app_version()
+
+
+func _home_update_status_line() -> String:
+	match update_state:
+		"checking":
+			return "检查中..."
+		"latest":
+			return "v%s 已最新" % _current_app_version()
+		"available":
+			return "发现 v%s" % String(update_release_info.get("latest_version", "?"))
+		"downloading":
+			return "下载 %d%%" % clampi(int(round(update_download_progress * 100.0)), 0, 100)
+		"ready":
+			var install_mode = String(update_release_info.get("install_mode", "desktop_replace"))
+			if install_mode == "notify_only":
+				return "可刷新更新"
+			if install_mode == "android_handoff":
+				return "APK 就绪"
+			return "可安装更新"
+		"applying":
+			return "应用中..."
+		"error":
+			return "更新失败"
+		_:
+			return "v%s" % _current_app_version()
 
 
 func _update_badge_fill() -> Color:
@@ -19057,12 +19091,13 @@ func _draw_home_scene() -> void:
 	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(title_center_x - 178.0, title_y + 58.0), "主线 / 每日 / 娱乐 / 活动", 20, Color(0.22, 0.38, 0.18), Vector2(1.0, 2.0), 0.28)
 
 	# 资源条：右上角半透明悬浮卡。
-	var resource_rect := Rect2(BASE_VIEWPORT_SIZE.x - 484.0, 24.0, 460.0, 56.0)
+	var resource_rect := _home_resource_rect()
+	var status_rect := _home_resource_status_rect()
 	ThemeLib.draw_rounded_panel(self, resource_rect, Color(0.1, 0.16, 0.12, 0.78), Color(0.5, 0.74, 0.42, 0.8), 14.0, 0.18, 0.1)
 	_draw_coin_icon(resource_rect.position + Vector2(30.0, 30.0), 0.85)
 	_draw_text("金币 %d" % coins_total, resource_rect.position + Vector2(56.0, 36.0), 19, Color(1.0, 0.9, 0.46))
 	_draw_text("基建无人机 %.0f" % base_drones, resource_rect.position + Vector2(196.0, 36.0), 19, Color(0.7, 0.95, 1.0))
-	_draw_text(_update_status_line(), resource_rect.position + Vector2(350.0, 34.0), 13, Color(0.82, 0.9, 0.78))
+	_draw_text(_home_update_status_line(), status_rect.position + Vector2(0.0, 16.0), 13, Color(0.82, 0.9, 0.78))
 
 	var action_rects := _home_action_rects()
 	var mainline_rect := Rect2(action_rects["mainline"])
