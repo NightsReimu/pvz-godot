@@ -85,6 +85,9 @@ const ALPHA_EMPTY_THRESHOLD := 8.0 / 255.0
 const SOLID_NEIGHBOR_ALPHA_THRESHOLD := 180.0 / 255.0
 const HALO_BRIGHTNESS_THRESHOLD := 232.0 / 255.0
 const HALO_CHROMA_THRESHOLD := 22.0 / 255.0
+const INTERNAL_WHITE_BRIGHTNESS_THRESHOLD := 238.0 / 255.0
+const INTERNAL_WHITE_CHROMA_THRESHOLD := 16.0 / 255.0
+const INTERNAL_WHITE_EDGE_RADIUS := 2
 const NEIGHBOR_OFFSETS := [
 	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1),
 	Vector2i(-1, 0), Vector2i(1, 0),
@@ -100,6 +103,7 @@ func _run() -> void:
 	var failed := false
 	for target in TARGETS:
 		failed = not _assert_boss_folder_cleanup(Dictionary(target)) or failed
+	failed = not _assert_youmu_preserves_internal_white_details() or failed
 	quit(1 if failed else 0)
 
 
@@ -137,6 +141,26 @@ func _assert_boss_folder_cleanup(target: Dictionary) -> bool:
 	return passed
 
 
+func _assert_youmu_preserves_internal_white_details() -> bool:
+	var folder := "res://art/youmu"
+	var total_internal_white := 0
+	var frames_with_internal_white := 0
+	var passed := true
+	for frame_index in range(8):
+		var path := "%s/frame_%02d.png" % [folder, frame_index]
+		var image := Image.new()
+		if image.load(ProjectSettings.globalize_path(path)) != OK:
+			return _assert_true(false, "failed to load Youmu art frame %s" % path)
+		image.convert(Image.FORMAT_RGBA8)
+		var frame_internal_white = _count_internal_white_pixels(image)
+		total_internal_white += frame_internal_white
+		if frame_internal_white >= 80:
+			frames_with_internal_white += 1
+	passed = _assert_true(total_internal_white >= 1600, "Youmu frames should preserve white costume, hair, and half-phantom details (%d internal white pixels kept)" % total_internal_white) and passed
+	passed = _assert_true(frames_with_internal_white >= 6, "Youmu should keep substantial internal white details on most animation frames (%d frames)" % frames_with_internal_white) and passed
+	return passed
+
+
 func _count_halo_pixels(image: Image) -> int:
 	var width = image.get_width()
 	var height = image.get_height()
@@ -146,6 +170,38 @@ func _count_halo_pixels(image: Image) -> int:
 			if _is_halo_pixel(image, x, y):
 				halo_pixels += 1
 	return halo_pixels
+
+
+func _count_internal_white_pixels(image: Image) -> int:
+	var width = image.get_width()
+	var height = image.get_height()
+	var internal_white := 0
+	for y in range(height):
+		for x in range(width):
+			var pixel = image.get_pixel(x, y)
+			if pixel.a < SOLID_NEIGHBOR_ALPHA_THRESHOLD:
+				continue
+			var max_channel = max(pixel.r, max(pixel.g, pixel.b))
+			var min_channel = min(pixel.r, min(pixel.g, pixel.b))
+			if max_channel < INTERNAL_WHITE_BRIGHTNESS_THRESHOLD or max_channel - min_channel > INTERNAL_WHITE_CHROMA_THRESHOLD:
+				continue
+			if _touches_transparency(image, x, y, INTERNAL_WHITE_EDGE_RADIUS):
+				continue
+			internal_white += 1
+	return internal_white
+
+
+func _touches_transparency(image: Image, x: int, y: int, radius: int = 1) -> bool:
+	for offset_y in range(-radius, radius + 1):
+		for offset_x in range(-radius, radius + 1):
+			var next_x = x + offset_x
+			var next_y = y + offset_y
+			if next_x < 0 or next_x >= image.get_width() or next_y < 0 or next_y >= image.get_height():
+				return true
+			var neighbor = image.get_pixel(next_x, next_y)
+			if neighbor.a <= ALPHA_EMPTY_THRESHOLD:
+				return true
+	return false
 
 
 func _is_halo_pixel(image: Image, x: int, y: int) -> bool:

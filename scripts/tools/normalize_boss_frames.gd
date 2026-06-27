@@ -260,7 +260,8 @@ func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_
 	var rect = source_rect
 	if rect.size == Vector2i.ZERO:
 		rect = Rect2i(0, 0, source.get_width(), source.get_height())
-	var component_data = _collect_foreground_components(source, rect)
+	var background_mask = _collect_background_mask(source, rect)
+	var component_data = _collect_foreground_components(source, rect, background_mask)
 	var components: Array = component_data.get("components", [])
 	if components.is_empty():
 		return null
@@ -294,7 +295,7 @@ func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_
 			if component_index < 0 or not keep_lookup.has(component_index):
 				continue
 			var pixel = source.get_pixel(src_x, src_y)
-			if _is_foreground(pixel):
+			if _is_foreground(pixel, background_mask[label_index]):
 				out.set_pixel(x + SAFE_MARGIN, y + SAFE_MARGIN, pixel)
 	_clear_border_connected_halo(out)
 	for _pass_index in range(maxi(1, fringe_passes)):
@@ -304,7 +305,49 @@ func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_
 	return out
 
 
-func _collect_foreground_components(source: Image, rect: Rect2i) -> Dictionary:
+func _collect_background_mask(source: Image, rect: Rect2i) -> PackedByteArray:
+	var width = rect.size.x
+	var height = rect.size.y
+	var background_mask := PackedByteArray()
+	background_mask.resize(width * height)
+	var queue: Array = []
+	for local_x in range(width):
+		_enqueue_background_seed(source, rect, background_mask, queue, local_x, 0)
+		_enqueue_background_seed(source, rect, background_mask, queue, local_x, height - 1)
+	for local_y in range(height):
+		_enqueue_background_seed(source, rect, background_mask, queue, 0, local_y)
+		_enqueue_background_seed(source, rect, background_mask, queue, width - 1, local_y)
+	var head := 0
+	while head < queue.size():
+		var point: Vector2i = queue[head]
+		head += 1
+		for offset in NEIGHBOR_OFFSETS:
+			var next = point + offset
+			if next.x < 0 or next.x >= width or next.y < 0 or next.y >= height:
+				continue
+			var next_index: int = next.y * width + next.x
+			if background_mask[next_index] != 0:
+				continue
+			var pixel = source.get_pixel(rect.position.x + next.x, rect.position.y + next.y)
+			if not _is_background_seed_pixel(pixel):
+				continue
+			background_mask[next_index] = 1
+			queue.append(next)
+	return background_mask
+
+
+func _enqueue_background_seed(source: Image, rect: Rect2i, background_mask: PackedByteArray, queue: Array, local_x: int, local_y: int) -> void:
+	var index: int = local_y * rect.size.x + local_x
+	if background_mask[index] != 0:
+		return
+	var pixel = source.get_pixel(rect.position.x + local_x, rect.position.y + local_y)
+	if not _is_background_seed_pixel(pixel):
+		return
+	background_mask[index] = 1
+	queue.append(Vector2i(local_x, local_y))
+
+
+func _collect_foreground_components(source: Image, rect: Rect2i, background_mask: PackedByteArray) -> Dictionary:
 	var width = rect.size.x
 	var height = rect.size.y
 	var visited := PackedByteArray()
@@ -321,7 +364,7 @@ func _collect_foreground_components(source: Image, rect: Rect2i) -> Dictionary:
 			visited[linear_index] = 1
 			var source_x: int = rect.position.x + local_x
 			var source_y: int = rect.position.y + local_y
-			if not _is_foreground(source.get_pixel(source_x, source_y)):
+			if not _is_foreground(source.get_pixel(source_x, source_y), background_mask[linear_index]):
 				continue
 			var component_index: int = components.size()
 			var queue: Array = [Vector2i(local_x, local_y)]
@@ -351,7 +394,7 @@ func _collect_foreground_components(source: Image, rect: Rect2i) -> Dictionary:
 						continue
 					visited[next_index] = 1
 					var next_pixel = source.get_pixel(rect.position.x + next.x, rect.position.y + next.y)
-					if not _is_foreground(next_pixel):
+					if not _is_foreground(next_pixel, background_mask[next_index]):
 						continue
 					labels[next_index] = component_index
 					queue.append(next)
@@ -504,10 +547,16 @@ func _rects_intersect(a: Rect2i, b: Rect2i) -> bool:
 	)
 
 
-func _is_foreground(pixel: Color) -> bool:
+func _is_foreground(pixel: Color, is_background_connected: bool = false) -> bool:
 	if pixel.a <= ALPHA_THRESHOLD:
 		return false
-	return not (pixel.r >= WHITE_THRESHOLD and pixel.g >= WHITE_THRESHOLD and pixel.b >= WHITE_THRESHOLD)
+	return not is_background_connected
+
+
+func _is_background_seed_pixel(pixel: Color) -> bool:
+	if pixel.a <= ALPHA_THRESHOLD:
+		return true
+	return pixel.r >= WHITE_THRESHOLD and pixel.g >= WHITE_THRESHOLD and pixel.b >= WHITE_THRESHOLD
 
 
 func _load_image(path: String) -> Image:
