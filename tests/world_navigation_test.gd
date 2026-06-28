@@ -11,6 +11,8 @@ func _run() -> void:
 	var failed := false
 	failed = not _test_home_terminal_routes_mainline_to_world_select() or failed
 	failed = not _test_home_terminal_mode_entries_are_inside_viewport() or failed
+	failed = not _test_home_image2_layout_exposes_text_safe_areas() or failed
+	failed = not _test_home_image2_decorative_layout_is_reserved() or failed
 	failed = not _test_home_image2_asset_manifest_is_declared() or failed
 	failed = not _test_home_image2_asset_helpers_exist() or failed
 	failed = not _test_home_resource_status_text_fits_panel() or failed
@@ -166,6 +168,64 @@ func _test_home_terminal_mode_entries_are_inside_viewport() -> bool:
 			for j in range(i + 1, keys.size()):
 				var second_rect := Rect2(action_rects[keys[j]])
 				passed = _assert_true(not first_rect.intersects(second_rect), "home terminal entries should not overlap: %s and %s" % [String(keys[i]), String(keys[j])]) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_image2_layout_exposes_text_safe_areas() -> bool:
+	var game := _make_game()
+	game.call("_build_font")
+	var passed := _assert_true(game.has_method("_home_action_rects"), "home terminal should expose action rects for image2 layout tests") \
+		and _assert_true(game.has_method("_home_entry_text_rect"), "home image2 entries should expose text-safe rects")
+	if passed:
+		var action_rects: Dictionary = game.call("_home_action_rects")
+		var mainline_rect := Rect2(action_rects["mainline"])
+		passed = _assert_true(mainline_rect.size.x >= 500.0 and mainline_rect.size.y >= 320.0, "mainline Image2 board should be large enough for title, copy, chips, and progress") and passed
+		var ui_font: Font = game.ui_font
+		var titles := {
+			"mainline": "主线关卡",
+			"daily": "每日关卡",
+			"entertainment": "娱乐关卡",
+			"events": "活动关卡",
+			"base": "基建",
+			"enhance": "植物强化",
+			"gacha": "抽卡",
+			"almanac": "图鉴",
+		}
+		for action_variant in titles.keys():
+			var action := String(action_variant)
+			var text_rect: Rect2 = game.call("_home_entry_text_rect", action)
+			var title_width := ui_font.get_string_size(String(titles[action]), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 34 if action == "mainline" else 26).x
+			passed = _assert_true(Rect2(action_rects[action]).encloses(text_rect), "%s text-safe rect should stay inside its card" % action) and passed
+			passed = _assert_true(text_rect.size.x >= title_width, "%s text-safe rect should fit its title" % action) and passed
+			passed = _assert_true(text_rect.size.y >= (120.0 if action == "mainline" else 54.0), "%s text-safe rect should leave room for copy" % action) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_image2_decorative_layout_is_reserved() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_home_logo_rect"), "home Image2 layout should expose a logo plate rect") \
+		and _assert_true(game.has_method("_home_mainline_chip_rects"), "home Image2 layout should expose mainline chip rects") \
+		and _assert_true(game.has_method("_home_mainline_progress_rect"), "home Image2 layout should expose a mainline progress rect")
+	if passed:
+		var viewport_rect := Rect2(Vector2.ZERO, GameScript.BASE_VIEWPORT_SIZE)
+		var action_rects: Dictionary = game.call("_home_action_rects")
+		var mainline_rect := Rect2(action_rects["mainline"])
+		var logo_rect: Rect2 = game.call("_home_logo_rect")
+		var resource_rect: Rect2 = game.call("_home_resource_rect")
+		var chip_rects: Array = game.call("_home_mainline_chip_rects")
+		var progress_rect: Rect2 = game.call("_home_mainline_progress_rect")
+		passed = _assert_true(viewport_rect.encloses(logo_rect), "home logo plate should stay inside viewport") and passed
+		passed = _assert_true(not logo_rect.intersects(resource_rect), "home logo plate should not overlap the resource bar") and passed
+		passed = _assert_true(chip_rects.size() == 5, "home mainline preview should reserve five world chips") and passed
+		for chip_variant in chip_rects:
+			var chip_rect := Rect2(chip_variant)
+			passed = _assert_true(mainline_rect.encloses(chip_rect), "home mainline world chip should stay inside the main board") and passed
+			passed = _assert_true(chip_rect.size.x >= 58.0 and chip_rect.size.y >= 58.0, "home mainline world chip should keep a comfortable tap size") and passed
+			passed = _assert_true(not chip_rect.intersects(progress_rect), "home mainline world chips should not overlap the progress bar") and passed
+		passed = _assert_true(mainline_rect.encloses(progress_rect), "home mainline progress bar should stay inside the main board") and passed
+		passed = _assert_true(progress_rect.size.x >= 320.0 and progress_rect.size.y >= 14.0, "home mainline progress bar should be readable") and passed
 	_free_game(game)
 	return passed
 

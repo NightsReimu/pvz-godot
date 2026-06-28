@@ -1310,31 +1310,50 @@ func _world_select_touch_target(position: Vector2) -> Dictionary:
 
 
 func _home_action_rects() -> Dictionary:
-	var left_x := 80.0
-	var right_x := 1078.0
-	var top_y := 164.0
-	var card_w := 438.0
-	var card_h := 132.0
-	var gap_y := 18.0
+	var left_x := 78.0
+	var middle_x := 626.0
+	var right_x := 1018.0
+	var top_y := 206.0
+	var right_card_w := 432.0
+	var right_card_h := 122.0
+	var right_gap_y := 22.0
 	return {
-		"mainline": Rect2(left_x, top_y, 470.0, 300.0),
-		"daily": Rect2(left_x + 494.0, top_y, 250.0, 140.0),
-		"entertainment": Rect2(left_x + 494.0, top_y + 160.0, 250.0, 140.0),
-		"events": Rect2(left_x, top_y + 324.0, 744.0, 124.0),
-		"base": Rect2(right_x, top_y, card_w, card_h),
-		"enhance": Rect2(right_x, top_y + (card_h + gap_y), card_w, card_h),
-		"gacha": Rect2(right_x, top_y + (card_h + gap_y) * 2.0, card_w, card_h),
-		"almanac": Rect2(right_x, top_y + (card_h + gap_y) * 3.0, card_w, card_h),
+		"mainline": Rect2(left_x, top_y, 520.0, 342.0),
+		"daily": Rect2(middle_x, top_y + 72.0, 326.0, 136.0),
+		"entertainment": Rect2(middle_x, top_y + 232.0, 326.0, 136.0),
+		"events": Rect2(left_x, top_y + 402.0, 760.0, 142.0),
+		"base": Rect2(right_x, top_y, right_card_w, right_card_h),
+		"enhance": Rect2(right_x, top_y + (right_card_h + right_gap_y), right_card_w, right_card_h),
+		"gacha": Rect2(right_x, top_y + (right_card_h + right_gap_y) * 2.0, right_card_w, right_card_h),
+		"almanac": Rect2(right_x, top_y + (right_card_h + right_gap_y) * 3.0, right_card_w, right_card_h),
 	}
 
 
 func _home_resource_rect() -> Rect2:
-	return Rect2(BASE_VIEWPORT_SIZE.x - 484.0, 24.0, 460.0, 56.0)
+	return Rect2(BASE_VIEWPORT_SIZE.x - 640.0, 14.0, 570.0, 74.0)
 
 
 func _home_resource_status_rect() -> Rect2:
 	var resource_rect := _home_resource_rect()
-	return Rect2(resource_rect.position + Vector2(336.0, 18.0), Vector2(resource_rect.size.x - 350.0, 26.0))
+	return Rect2(resource_rect.position + Vector2(424.0, 27.0), Vector2(resource_rect.size.x - 444.0, 28.0))
+
+
+func _home_logo_rect() -> Rect2:
+	return Rect2(455.0, 4.0, 500.0, 195.0)
+
+
+func _home_mainline_chip_rects() -> Array:
+	var mainline_rect := Rect2(_home_action_rects()["mainline"])
+	var result := []
+	var chip_size := Vector2(64.0, 64.0)
+	for i in range(5):
+		result.append(Rect2(mainline_rect.position + Vector2(68.0 + float(i) * 78.0, 214.0), chip_size))
+	return result
+
+
+func _home_mainline_progress_rect() -> Rect2:
+	var mainline_rect := Rect2(_home_action_rects()["mainline"])
+	return Rect2(mainline_rect.position + Vector2(68.0, 310.0), Vector2(350.0, 18.0))
 
 
 func _home_ui_asset_paths() -> Dictionary:
@@ -1352,6 +1371,40 @@ func _draw_home_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color
 		draw_texture_rect(texture, rect, false, Color(1.0, 1.0, 1.0, 0.68 if disabled else 1.0))
 	else:
 		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.20, 0.14)
+
+
+func _home_entry_asset_key(entry_id: String) -> String:
+	match entry_id:
+		"mainline":
+			return "main_board"
+		"daily":
+			return "card_daily"
+		"entertainment":
+			return "card_entertainment"
+		"events":
+			return "card_locked"
+		"base":
+			return "card_base"
+		"enhance":
+			return "card_enhance"
+		"gacha":
+			return "card_gacha"
+		"almanac":
+			return "card_almanac"
+		_:
+			return ""
+
+
+func _home_entry_text_rect(entry_id: String) -> Rect2:
+	var action_rects := _home_action_rects()
+	var rect := Rect2(action_rects.get(entry_id, Rect2()))
+	if entry_id == "mainline":
+		return Rect2(rect.position + Vector2(58.0, 78.0), Vector2(rect.size.x - 230.0, 146.0))
+	if entry_id == "events":
+		return Rect2(rect.position + Vector2(178.0, 42.0), Vector2(rect.size.x - 430.0, 74.0))
+	if entry_id == "daily" or entry_id == "entertainment":
+		return Rect2(rect.position + Vector2(48.0, 38.0), Vector2(rect.size.x - 138.0, 74.0))
+	return Rect2(rect.position + Vector2(48.0, 34.0), Vector2(rect.size.x - 150.0, 66.0))
 
 
 func _home_touch_target(position: Vector2) -> Dictionary:
@@ -19538,17 +19591,19 @@ func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Colo
 	if hovered:
 		draw_rect(card_rect.grow(6.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.10 + pulse * 0.10), true)
 		draw_rect(card_rect.grow(4.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.50), false, 2.4)
-	# 卡片本体：用光泽圆角面板（渐变填充 + 顶部高光 + 内描边）。
-	_draw_panel_shell(card_rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), 0.20, 0.14)
-	draw_rect(Rect2(card_rect.position, Vector2(7.0, card_rect.size.y)), actual_accent, true)
-	draw_rect(Rect2(card_rect.position + Vector2(7.0, 0.0), Vector2(card_rect.size.x - 7.0, 36.0)), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.14), true)
+	# 卡片本体：优先使用 Image2 单元素框，缺图时回退到旧的代码绘制面板。
+	var asset_key := _home_entry_asset_key(entry_id)
+	_draw_home_asset_panel(asset_key, card_rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), disabled)
+	if _home_ui_texture(asset_key) == null:
+		draw_rect(Rect2(card_rect.position, Vector2(7.0, card_rect.size.y)), actual_accent, true)
+		draw_rect(Rect2(card_rect.position + Vector2(7.0, 0.0), Vector2(card_rect.size.x - 7.0, 36.0)), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.14), true)
 	# 装饰：植物图标（带轻微浮动）替换原来的 ASCII 字符双圆。
 	var icon_kind := String(HOME_ENTRY_ICON_KINDS.get(entry_id, ""))
 	var icon_size := 92.0 if large else 72.0
 	var bob := sin(ui_time * 1.8 + rect.position.x * 0.02) * (3.0 if large else 2.0) if not disabled else 0.0
-	var icon_center := card_rect.position + Vector2(card_rect.size.x - (78.0 if large else 60.0), (76.0 if large else card_rect.size.y * 0.42)) - Vector2(0.0, bob)
+	var icon_center := card_rect.position + Vector2(card_rect.size.x - (120.0 if large else 76.0), (124.0 if large else card_rect.size.y * 0.50)) - Vector2(0.0, bob)
 	# 图标背光圆。
-	draw_circle(icon_center, icon_size * (0.62 if large else 0.58), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.16 + pulse * 0.07))
+	draw_circle(icon_center, icon_size * (0.62 if large else 0.58), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.13 + pulse * 0.06))
 	var icon_alpha := 1.0
 	if icon_kind != "":
 		var texture := _image2_texture("plants", icon_kind)
@@ -19558,15 +19613,24 @@ func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Colo
 		else:
 			# 图标缺失时回退到小圆点占位。
 			draw_circle(icon_center, icon_size * 0.3, Color(actual_accent.r, actual_accent.g, actual_accent.b, icon_alpha * 0.5))
-	var title_size := 34 if large else 24
-	var subtitle_size := 18 if large else 15
+	var title_size := 34 if large else 26
+	var subtitle_size := 18 if large else 16
+	var text_rect := _home_entry_text_rect(entry_id)
+	var text_delta := card_rect.position - rect.position
+	text_rect.position += text_delta
 	# 标题/副标题配色调成暖白，比原来的冷灰更明亮亲切。
-	_draw_text(title, card_rect.position + Vector2(26.0, 50.0 if large else 40.0), title_size, Color(0.98, 0.97, 0.92))
-	var subtitle_rect := Rect2(card_rect.position + Vector2(26.0, 76.0 if large else 62.0), Vector2(card_rect.size.x - (132.0 if large else 112.0), card_rect.size.y - (96.0 if large else 72.0)))
-	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.86, 0.84, 0.74), 4.0, 3 if large else 2)
+	ThemeLib.draw_text_with_shadow(self, ui_font, text_rect.position + Vector2(0.0, title_size + 2.0), title, title_size, Color(0.99, 0.98, 0.9), Vector2(1.5, 2.5), 0.32)
+	var subtitle_rect := Rect2(text_rect.position + Vector2(0.0, title_size + 14.0), Vector2(text_rect.size.x, text_rect.size.y - title_size - 8.0))
+	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.92, 0.9, 0.78), 5.0, 3 if large else 2)
 	# Disabled overlay with lock icon on top
 	if disabled:
-		ThemeLib.draw_disabled_overlay(self, card_rect, true)
+		ThemeLib.draw_disabled_overlay(self, card_rect, false)
+		var lock_texture := _home_ui_texture("lock_badge")
+		if lock_texture != null:
+			var lock_size := Vector2(82.0, 82.0)
+			draw_texture_rect(lock_texture, Rect2(card_rect.get_center() - lock_size * 0.5 + Vector2(116.0, 0.0), lock_size), false)
+		else:
+			ThemeLib.draw_disabled_overlay(self, card_rect, true)
 
 
 func _draw_home_scene() -> void:
@@ -19579,39 +19643,66 @@ func _draw_home_scene() -> void:
 	ThemeLib.draw_cloud(self, Vector2(260.0, 120.0 + sin(ui_time * 0.4) * 8.0), 1.1, 0.9, Color(1.0, 1.0, 1.0))
 	ThemeLib.draw_cloud(self, Vector2(1180.0, 86.0 + sin(ui_time * 0.5 + 1.5) * 7.0), 0.9, 0.8, Color(1.0, 0.99, 0.96))
 
-	# 居中大标题：标题下方叠柔光，文字带投影。
+	# 顶部标题牌匾：Image2 画空白装饰，文字仍由 Godot 绘制，避免 AI 字体失真。
 	var title_text := "植物大战僵尸"
-	var title_center_x := BASE_VIEWPORT_SIZE.x * 0.5
-	var title_y := 70.0
-	ThemeLib.draw_glow_circle(self, Vector2(title_center_x, title_y + 6.0), 220.0, Color(1.0, 0.95, 0.62), 4)
-	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(title_center_x - 256.0, title_y), title_text, 60, Color(0.98, 0.86, 0.24), Vector2(2.0, 4.0), 0.34)
-	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(title_center_x - 256.0, title_y), title_text, 60, Color(0.18, 0.32, 0.12), Vector2(0.0, 0.0), 0.0)
-	# 副标题。
-	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(title_center_x - 178.0, title_y + 58.0), "主线 / 每日 / 娱乐 / 活动", 20, Color(0.22, 0.38, 0.18), Vector2(1.0, 2.0), 0.28)
+	var logo_rect := _home_logo_rect()
+	ThemeLib.draw_glow_circle(self, logo_rect.get_center() + Vector2(0.0, -12.0), 165.0, Color(1.0, 0.94, 0.52, 0.22), 4)
+	var logo_texture := _home_ui_texture("logo")
+	if logo_texture != null:
+		ThemeLib.draw_soft_shadow(self, logo_rect, Color(0.0, 0.0, 0.0, 0.2), 4, 16.0, 10.0)
+		draw_texture_rect(logo_texture, logo_rect, false)
+	else:
+		_draw_panel_shell(logo_rect.grow(-20.0), Color(0.94, 0.78, 0.42, 0.92), Color(0.42, 0.26, 0.1), 0.18, 0.14)
+	var title_width := ui_font.get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 54).x
+	var title_pos := Vector2(logo_rect.get_center().x - title_width * 0.5, logo_rect.position.y + 92.0)
+	ThemeLib.draw_text_with_shadow(self, ui_font, title_pos + Vector2(0.0, 3.0), title_text, 54, Color(0.2, 0.34, 0.11), Vector2(2.0, 4.0), 0.36)
+	ThemeLib.draw_text_with_shadow(self, ui_font, title_pos, title_text, 54, Color(0.96, 0.86, 0.22), Vector2(0.0, 0.0), 0.0)
+	var subtitle_text := "主线 / 每日 / 娱乐 / 活动"
+	var subtitle_width := ui_font.get_string_size(subtitle_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 19).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(logo_rect.get_center().x - subtitle_width * 0.5, logo_rect.position.y + 154.0), subtitle_text, 19, Color(0.25, 0.38, 0.18), Vector2(1.0, 2.0), 0.25)
 
-	# 资源条：右上角半透明悬浮卡。
+	# 资源条：使用 Image2 单元素底图，数值和状态仍动态绘制。
 	var resource_rect := _home_resource_rect()
 	var status_rect := _home_resource_status_rect()
-	ThemeLib.draw_rounded_panel(self, resource_rect, Color(0.1, 0.16, 0.12, 0.78), Color(0.5, 0.74, 0.42, 0.8), 14.0, 0.18, 0.1)
-	_draw_coin_icon(resource_rect.position + Vector2(30.0, 30.0), 0.85)
-	_draw_text("金币 %d" % coins_total, resource_rect.position + Vector2(56.0, 36.0), 19, Color(1.0, 0.9, 0.46))
-	_draw_text("基建无人机 %.0f" % base_drones, resource_rect.position + Vector2(196.0, 36.0), 19, Color(0.7, 0.95, 1.0))
-	_draw_text(_home_update_status_line(), status_rect.position + Vector2(0.0, 16.0), 13, Color(0.82, 0.9, 0.78))
+	_draw_home_asset_panel("resource_bar", resource_rect, Color(0.1, 0.16, 0.12, 0.78), Color(0.5, 0.74, 0.42, 0.8))
+	_draw_coin_icon(resource_rect.position + Vector2(44.0, 37.0), 0.9)
+	ThemeLib.draw_text_with_shadow(self, ui_font, resource_rect.position + Vector2(82.0, 45.0), "金币 %d" % coins_total, 20, Color(1.0, 0.9, 0.46), Vector2(1.0, 2.0), 0.28)
+	ThemeLib.draw_text_with_shadow(self, ui_font, resource_rect.position + Vector2(262.0, 45.0), "基建无人机 %.0f" % base_drones, 19, Color(0.7, 0.95, 1.0), Vector2(1.0, 2.0), 0.28)
+	ThemeLib.draw_text_with_shadow(self, ui_font, status_rect.position + Vector2(0.0, 18.0), _home_update_status_line(), 13, Color(0.82, 0.9, 0.78), Vector2(1.0, 1.5), 0.22)
+	var settings_center := resource_rect.position + Vector2(resource_rect.size.x - 28.0, resource_rect.size.y * 0.5)
+	draw_circle(settings_center, 13.0, Color(0.73, 0.9, 0.92, 0.18))
+	for spoke in range(8):
+		var angle := float(spoke) * TAU / 8.0 + ui_time * 0.18
+		draw_line(settings_center + Vector2(cos(angle), sin(angle)) * 9.0, settings_center + Vector2(cos(angle), sin(angle)) * 15.0, Color(0.82, 0.94, 0.9, 0.5), 2.0)
+	draw_circle(settings_center, 5.5, Color(0.82, 0.94, 0.9, 0.62))
 
 	var action_rects := _home_action_rects()
 	var mainline_rect := Rect2(action_rects["mainline"])
 	_draw_home_entry(mainline_rect, "主线关卡", "进入世界选择，推进各世界地图与 Boss 关卡。当前世界：%s" % _map_mode_title_for_world(current_world_key), Color(0.96, 0.74, 0.22), Color(0.16, 0.22, 0.16, 0.9), "mainline", true)
 	var worlds := WorldDataLib.all()
-	var preview_count = mini(5, worlds.size())
+	var preview_count: int = mini(5, worlds.size())
+	var chip_rects := _home_mainline_chip_rects()
 	for i in range(preview_count):
 		var world := Dictionary(worlds[i])
 		var unlocked := _is_world_unlocked(String(world.get("key", "day")))
-		var chip_rect := Rect2(mainline_rect.position + Vector2(28.0 + float(i) * 78.0, 196.0), Vector2(58.0, 58.0))
+		var chip_rect := Rect2(chip_rects[i])
 		var accent := Color(world.get("accent", Color(0.62, 0.78, 0.42)))
-		draw_rect(chip_rect, Color(accent.r, accent.g, accent.b, 0.22 if unlocked else 0.06), true)
-		draw_rect(chip_rect, Color(accent.r, accent.g, accent.b, 0.82 if unlocked else 0.22), false, 1.5)
-		_draw_text(str(i + 1), chip_rect.position + Vector2(20.0, 36.0), 21, Color(0.99, 0.97, 0.9) if unlocked else Color(0.46, 0.52, 0.54))
-	_draw_text("进度 %d/%d 关" % [_completed_level_count(), Defs.LEVELS.size()], mainline_rect.position + Vector2(28.0, 274.0), 17, Color(0.2, 0.36, 0.16))
+		var chip_fill := Color(accent.r, accent.g, accent.b, 0.28 if unlocked else 0.08)
+		var chip_border := Color(accent.r, accent.g, accent.b, 0.88 if unlocked else 0.24)
+		ThemeLib.draw_rounded_panel(self, chip_rect, chip_fill, chip_border, 10.0, 0.06, 0.08)
+		if String(world.get("key", "")) == current_world_key:
+			var glow := 0.36 + 0.18 * sin(ui_time * 3.2)
+			draw_rect(chip_rect.grow(4.0), Color(0.78, 1.0, 0.28, glow), false, 3.0)
+		var number_text := str(i + 1)
+		var number_width: float = ui_font.get_string_size(number_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 24).x
+		ThemeLib.draw_text_with_shadow(self, ui_font, chip_rect.position + Vector2((chip_rect.size.x - number_width) * 0.5, 41.0), number_text, 24, Color(0.99, 0.97, 0.9) if unlocked else Color(0.46, 0.52, 0.54), Vector2(1.0, 2.0), 0.26)
+	var completed_levels_count := _completed_level_count()
+	var total_levels_count: int = max(Defs.LEVELS.size(), 1)
+	var progress_ratio := clampf(float(completed_levels_count) / float(total_levels_count), 0.0, 1.0)
+	var progress_rect := _home_mainline_progress_rect()
+	ThemeLib.draw_progress_bar(self, progress_rect, progress_ratio, Color(0.68, 0.96, 0.18), Color(0.08, 0.16, 0.08, 0.68), Color(0.42, 0.66, 0.18, 0.92))
+	var progress_text := "进度 %d/%d 关" % [completed_levels_count, total_levels_count]
+	ThemeLib.draw_text_with_shadow(self, ui_font, progress_rect.position + Vector2(0.0, -8.0), progress_text, 17, Color(0.82, 1.0, 0.35), Vector2(1.0, 2.0), 0.26)
 
 	var daily_done := daily_challenge_date == _today_string()
 	_draw_home_entry(Rect2(action_rects["daily"]), "每日关卡" if not daily_done else "每日已领", "今日修饰挑战，奖励金币和强化材料。", Color(0.4, 0.82, 1.0), Color(0.12, 0.2, 0.16, 0.9), "daily")
