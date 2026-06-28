@@ -108,6 +108,7 @@ const TARGETS := {
 		"grid": Vector2i(4, 2),
 		"flip_x": false,
 		"fringe_passes": 3,
+		"preserve_internal_white": true,
 	},
 }
 
@@ -176,9 +177,9 @@ func _normalize_target(kind: String, config: Dictionary) -> bool:
 		if sheet == null:
 			push_error("failed to load source sheet for %s: %s" % [kind, sheet_path])
 			return false
-		frames = _extract_sheet_frames(sheet, Vector2i(config.get("grid", Vector2i.ONE)), config.get("cells", []), flip_x, int(config.get("cell_inset", 0)), int(config.get("fringe_passes", 1)))
+		frames = _extract_sheet_frames(sheet, Vector2i(config.get("grid", Vector2i.ONE)), config.get("cells", []), flip_x, int(config.get("cell_inset", 0)), int(config.get("fringe_passes", 1)), bool(config.get("preserve_internal_white", false)))
 	else:
-		frames = _normalize_existing_frames(folder, int(config.get("frame_count", 0)), flip_x, int(config.get("fringe_passes", 1)))
+		frames = _normalize_existing_frames(folder, int(config.get("frame_count", 0)), flip_x, int(config.get("fringe_passes", 1)), bool(config.get("preserve_internal_white", false)))
 	var expected_count = int(config.get("frame_count", 0))
 	if frames.size() != expected_count:
 		push_error("%s expected %d frames, got %d" % [kind, expected_count, frames.size()])
@@ -196,7 +197,7 @@ func _normalize_target(kind: String, config: Dictionary) -> bool:
 	return true
 
 
-func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool = true, fringe_passes: int = 1) -> Array:
+func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool = true, fringe_passes: int = 1, preserve_internal_white: bool = false) -> Array:
 	var frames: Array = []
 	for frame_index in range(frame_count):
 		var resource_path = "%s/frame_%02d.png" % [folder, frame_index]
@@ -205,7 +206,7 @@ func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool =
 		if image == null:
 			push_error("failed to load frame for offline normalization: %s" % resource_path)
 			continue
-		var normalized = _extract_trimmed_image(image, Rect2i(), flip_x, fringe_passes)
+		var normalized = _extract_trimmed_image(image, Rect2i(), flip_x, fringe_passes, preserve_internal_white)
 		if normalized == null:
 			push_error("frame has no detectable sprite pixels after cleanup: %s" % resource_path)
 			continue
@@ -213,14 +214,14 @@ func _normalize_existing_frames(folder: String, frame_count: int, flip_x: bool =
 	return frames
 
 
-func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array, flip_x: bool = true, cell_inset: int = 0, fringe_passes: int = 1) -> Array:
+func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array, flip_x: bool = true, cell_inset: int = 0, fringe_passes: int = 1, preserve_internal_white: bool = false) -> Array:
 	var frames: Array = []
 	if not cells.is_empty():
 		for cell_variant in cells:
 			var cell = Vector2i(cell_variant)
 			var cell_rect = _sheet_cell_rect(sheet, grid, cell.x, cell.y)
 			cell_rect = _inset_rect(cell_rect, cell_inset)
-			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x, fringe_passes)
+			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x, fringe_passes, preserve_internal_white)
 			if frame == null:
 				continue
 			frames.append(frame)
@@ -229,7 +230,7 @@ func _extract_sheet_frames(sheet: Image, grid: Vector2i, cells: Array, flip_x: b
 		for col in range(grid.x):
 			var cell_rect = _sheet_cell_rect(sheet, grid, col, row)
 			cell_rect = _inset_rect(cell_rect, cell_inset)
-			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x, fringe_passes)
+			var frame = _extract_trimmed_image(sheet, cell_rect, flip_x, fringe_passes, preserve_internal_white)
 			if frame == null:
 				continue
 			frames.append(frame)
@@ -256,7 +257,7 @@ func _inset_rect(rect: Rect2i, inset: int) -> Rect2i:
 	)
 
 
-func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_x: bool = true, fringe_passes: int = 1) -> Image:
+func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_x: bool = true, fringe_passes: int = 1, preserve_internal_white: bool = false) -> Image:
 	var rect = source_rect
 	if rect.size == Vector2i.ZERO:
 		rect = Rect2i(0, 0, source.get_width(), source.get_height())
@@ -297,7 +298,7 @@ func _extract_trimmed_image(source: Image, source_rect: Rect2i = Rect2i(), flip_
 			var pixel = source.get_pixel(src_x, src_y)
 			if _is_foreground(pixel, background_mask[label_index]):
 				out.set_pixel(x + SAFE_MARGIN, y + SAFE_MARGIN, pixel)
-	_clear_border_connected_halo(out)
+	_clear_border_connected_halo(out, preserve_internal_white)
 	for _pass_index in range(maxi(1, fringe_passes)):
 		_clear_contour_white_fringe(out)
 	if flip_x:
@@ -438,7 +439,7 @@ func _combined_component_rect(components: Array, keep_component_indices: Array) 
 	return merged_rect
 
 
-func _clear_border_connected_halo(image: Image) -> void:
+func _clear_border_connected_halo(image: Image, preserve_internal_white: bool = false) -> void:
 	var width = image.get_width()
 	var height = image.get_height()
 	var visited := PackedByteArray()
@@ -467,6 +468,8 @@ func _clear_border_connected_halo(image: Image) -> void:
 			var next_pixel = image.get_pixel(next.x, next.y)
 			if not _is_clearable_halo_pixel(next_pixel):
 				continue
+			if preserve_internal_white and _looks_like_internal_sprite_detail(image, next.x, next.y):
+				continue
 			visited[index] = 1
 			queue.append(next)
 
@@ -489,6 +492,30 @@ func _is_clearable_halo_pixel(pixel: Color) -> bool:
 	var min_channel = min(pixel.r, min(pixel.g, pixel.b))
 	var chroma = max_channel - min_channel
 	return max_channel >= HALO_BRIGHTNESS_THRESHOLD and chroma <= HALO_CHROMA_THRESHOLD
+
+
+func _looks_like_internal_sprite_detail(image: Image, x: int, y: int) -> bool:
+	var width = image.get_width()
+	var height = image.get_height()
+	if x <= SAFE_MARGIN + 2 or y <= SAFE_MARGIN + 2 or x >= width - SAFE_MARGIN - 3 or y >= height - SAFE_MARGIN - 3:
+		return false
+	var opaque_neighbors := 0
+	var dark_neighbors := 0
+	for offset_y in range(-2, 3):
+		for offset_x in range(-2, 3):
+			if offset_x == 0 and offset_y == 0:
+				continue
+			var next_x = x + offset_x
+			var next_y = y + offset_y
+			if next_x < 0 or next_x >= width or next_y < 0 or next_y >= height:
+				continue
+			var neighbor = image.get_pixel(next_x, next_y)
+			if neighbor.a <= FRINGE_ALPHA_THRESHOLD:
+				continue
+			opaque_neighbors += 1
+			if max(neighbor.r, max(neighbor.g, neighbor.b)) <= FRINGE_DARK_NEIGHBOR_THRESHOLD:
+				dark_neighbors += 1
+	return opaque_neighbors >= 8 and dark_neighbors >= 1
 
 
 func _clear_contour_white_fringe(image: Image) -> void:

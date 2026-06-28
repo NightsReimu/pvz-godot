@@ -16,9 +16,12 @@ func _run() -> void:
 	failed = not _test_youmu_assets_and_bgm_are_present() or failed
 	failed = not _test_youmu_bgm_streams_loop() or failed
 	failed = not _test_youmu_definition_and_almanac_copy() or failed
+	failed = not _test_youmu_wraith_is_attackable_boss_summon_entity() or failed
 	failed = not _test_youmu_uses_prebaked_left_facing_frames() or failed
 	failed = not _test_youmu_finale_bgm_starts_only_for_youmu() or failed
 	failed = not _test_youmu_skills_create_slash_ghost_and_charm_pressure() or failed
+	failed = not _test_youmu_idle_hover_stays_on_right_side() or failed
+	failed = not _test_youmu_wraith_rushes_and_charms_on_contact() or failed
 	failed = not _test_youmu_first_column_dash_does_not_trigger_mowers_or_loss() or failed
 	failed = not _test_youmu_charm_state_decays_and_makes_plants_attack_plants() or failed
 	quit(1 if failed else 0)
@@ -40,7 +43,7 @@ func _find_level_index(level_id: String) -> int:
 
 func _make_game() -> Control:
 	var game := GameScript.new()
-	game.current_level = {"id": "test", "terrain": "day", "events": []}
+	game.current_level = {"id": "test", "title": "测试关卡", "terrain": "day", "sky_sun_range": Vector2(999.0, 999.0), "events": []}
 	game.active_rows = [0, 1, 2, 3, 4]
 	game.water_rows = []
 	game.completed_levels.resize(Defs.LEVELS.size())
@@ -202,6 +205,21 @@ func _test_youmu_definition_and_almanac_copy() -> bool:
 	return passed
 
 
+func _test_youmu_wraith_is_attackable_boss_summon_entity() -> bool:
+	var passed = _assert_true(Defs.ZOMBIES.has("youmu_wraith"), "Youmu should summon physical wraith entities instead of applying charm directly")
+	if not passed:
+		return false
+	var data = Dictionary(Defs.ZOMBIES.get("youmu_wraith", {}))
+	passed = _assert_true(float(data.get("health", 0.0)) >= 180.0, "youmu_wraith should have health so plants can attack it") and passed
+	passed = _assert_true(float(data.get("speed", 0.0)) >= 95.0, "youmu_wraith should rush toward plants quickly") and passed
+	passed = _assert_true(bool(data.get("boss_summon", false)), "youmu_wraith should be marked as a boss summon") and passed
+	passed = _assert_true(bool(data.get("non_mainline_special", false)), "youmu_wraith should never enter ordinary mainline zombie pools") and passed
+	for level in Defs.LEVELS:
+		for event in Array(Dictionary(level).get("events", [])):
+			passed = _assert_true(String(Dictionary(event).get("kind", "")) != "youmu_wraith", "youmu_wraith should only be spawned by Youmu, not by level event tables") and passed
+	return passed
+
+
 func _test_youmu_uses_prebaked_left_facing_frames() -> bool:
 	var game = _make_game()
 	var passed = _assert_true(game.has_method("_boss_frames_face_left"), "expected boss frame orientation helper to exist") \
@@ -258,20 +276,84 @@ func _test_youmu_skills_create_slash_ghost_and_charm_pressure() -> bool:
 			passed = _assert_true(float(boss.get("x", 0.0)) >= float(bounds.get("min_x", 0.0)) and float(boss.get("x", 0.0)) <= float(bounds.get("max_x", 0.0)), "Youmu boss should stay inside the board bounds while dashing") and passed
 		var damaged_plant = Dictionary(game.grid[2][5])
 		var has_slash_fx := false
+		var has_sword_qi_fx := false
 		var has_ghost_fx := false
-		var has_charm_fx := false
+		var spawned_wraiths := 0
 		for effect in game.effects:
 			var shape = String(Dictionary(effect).get("shape", ""))
 			if shape.find("youmu") != -1 and (shape.find("slash") != -1 or shape.find("sword") != -1):
 				has_slash_fx = true
+			if shape.find("youmu_sword_qi") != -1:
+				has_sword_qi_fx = true
 			if shape.find("youmu") != -1 and (shape.find("ghost") != -1 or shape.find("wraith") != -1):
 				has_ghost_fx = true
-			if shape.find("charm") != -1:
-				has_charm_fx = true
+		for z in game.zombies:
+			if String(Dictionary(z).get("kind", "")) == "youmu_wraith":
+				spawned_wraiths += 1
 		passed = _assert_true(has_slash_fx, "Youmu skills should create visible sword/slash effects") and passed
+		passed = _assert_true(has_sword_qi_fx, "Youmu slashes should emit dedicated sword-qi trails") and passed
 		passed = _assert_true(has_ghost_fx, "Youmu skills should create visible half-phantom or wraith effects") and passed
-		passed = _assert_true(has_charm_fx, "Youmu skills should create visible charm effects") and passed
+		passed = _assert_true(spawned_wraiths >= 2, "Youmu wraith spell should spawn attackable wraith enemies") and passed
 		passed = _assert_true(float(damaged_plant.get("health", 0.0)) > 0.0, "Youmu skill cycle should pressure plants without instantly deleting a 1400 HP plant") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_youmu_idle_hover_stays_on_right_side() -> bool:
+	var game = _make_game()
+	var passed = _assert_true(game.has_method("_update_youmu_hovering_boss"), "expected Youmu idle hover update helper to exist") \
+		and _assert_true(game.has_method("_youmu_boss_bounds"), "expected Youmu board bounds helper to exist")
+	if passed:
+		var bounds = Dictionary(game.call("_youmu_boss_bounds"))
+		var right_side_floor = game.call("_cell_center", 2, max(0, game.COLS - 3)).x
+		var boss = {
+			"kind": "youmu_boss",
+			"row": 2,
+			"x": float(bounds.get("max_x", 0.0)),
+			"boss_phase": 2,
+			"rumia_state": "idle",
+			"rumia_state_timer": 0.0,
+			"rumia_move_timer": 0.0,
+			"hover_shift_timer": 0.0,
+		}
+		for _step in range(12):
+			boss = game.call("_update_youmu_hovering_boss", boss, 4.0)
+			passed = _assert_true(float(boss.get("x", 0.0)) >= right_side_floor, "Youmu idle hovering should stay near the right side instead of randomly visiting the whole board") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_youmu_wraith_rushes_and_charms_on_contact() -> bool:
+	var game = _make_game()
+	var passed = _assert_true(game.has_method("_spawn_youmu_wraith"), "expected Youmu wraith spawn helper to exist")
+	if passed:
+		game.mode = game.MODE_BATTLE
+		game.battle_state = game.BATTLE_PLAYING
+		var plant = game.call("_create_plant", "peashooter", 2, 3)
+		plant["health"] = 300.0
+		game.grid[2][3] = plant
+		var spawn_x = game.call("_cell_center", 2, 6).x
+		game.call("_spawn_youmu_wraith", 2, spawn_x)
+		var wraith_index := -1
+		for i in range(game.zombies.size()):
+			if String(Dictionary(game.zombies[i]).get("kind", "")) == "youmu_wraith":
+				wraith_index = i
+				break
+		passed = _assert_true(wraith_index != -1, "spawn helper should add a youmu_wraith to the zombie list") and passed
+		if wraith_index != -1:
+			var before_x = float(Dictionary(game.zombies[wraith_index]).get("x", 0.0))
+			game.call("_update_zombies", 0.24)
+			var after_x = float(Dictionary(game.zombies[wraith_index]).get("x", 0.0)) if wraith_index < game.zombies.size() else before_x
+			passed = _assert_true(after_x < before_x, "youmu_wraith should rush left toward plants") and passed
+			for _i in range(20):
+				game.call("_process", 0.18)
+			var charmed = Dictionary(game.grid[2][3])
+			var wraiths_left := 0
+			for z in game.zombies:
+				if String(Dictionary(z).get("kind", "")) == "youmu_wraith":
+					wraiths_left += 1
+			passed = _assert_true(float(charmed.get("youmu_charm_timer", 0.0)) > 0.0, "youmu_wraith should charm a plant when it hits") and passed
+			passed = _assert_true(wraiths_left == 0, "youmu_wraith should dissipate after charming a plant") and passed
 	_free_game(game)
 	return passed
 

@@ -751,6 +751,17 @@ const ZOMBIES: Dictionary = {
 		"wraith_charm_duration": 4.6,
 		"finale_damage": 34.0,
 	},
+	"youmu_wraith": {
+		"name": "妖梦怨灵",
+		"health": 260.0,
+		"speed": 142.0,
+		"attack_dps": 0.0,
+		"reward": 18,
+		"non_mainline_special": true,
+		"boss_summon": true,
+		"charm_duration": 4.4,
+		"impact_damage": 34.0,
+	},
 	"flandre_boss": {
 		"name": "芙兰朵露",
 		"health": 27200.0,

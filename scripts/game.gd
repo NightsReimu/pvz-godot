@@ -128,6 +128,19 @@ const BASE_UI_ASSETS := {
 	"button_gold": "res://art/base_ui/base_button_gold.png",
 	"button_blue": "res://art/base_ui/base_button_blue.png",
 }
+const GACHA_UI_ASSETS := {
+	"background": "res://art/gacha_ui/gacha_background.png",
+	"heroine": "res://art/gacha_ui/gacha_heroine.png",
+	"title_frame": "res://art/gacha_ui/gacha_title_frame.png",
+	"back_button": "res://art/gacha_ui/gacha_back_button.png",
+	"coin_chip": "res://art/gacha_ui/gacha_coin_chip.png",
+	"button_common": "res://art/gacha_ui/gacha_button_common.png",
+	"button_premium": "res://art/gacha_ui/gacha_button_premium.png",
+	"button_multi": "res://art/gacha_ui/gacha_button_multi.png",
+	"collection_panel": "res://art/gacha_ui/gacha_collection_panel.png",
+	"card_back": "res://art/gacha_ui/gacha_card_back.png",
+	"result_card": "res://art/gacha_ui/gacha_result_card.png",
+}
 const POLISHED_PROJECTILE_TEXTURE_PATHS := {
 	"pea": "res://art/polish/pea-polished.png",
 }
@@ -548,6 +561,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"lily_white_boss",
 	"prismriver_boss",
 	"youmu_boss",
+	"youmu_wraith",
 	"flandre_boss",
 	"umbrella_zombie",
 	"shania_zombie",
@@ -898,6 +912,7 @@ var image2_texture_cache := {}
 var image2_flipped_zombie_cache := {}
 var home_ui_texture_cache := {}
 var base_ui_texture_cache := {}
+var gacha_ui_texture_cache := {}
 var update_manager := UpdateManagerLib.new()
 var update_check_request: HTTPRequest
 var update_download_request: HTTPRequest
@@ -1394,8 +1409,16 @@ func _home_ui_asset_paths() -> Dictionary:
 	return HOME_UI_ASSETS.duplicate()
 
 
+func _gacha_ui_asset_paths() -> Dictionary:
+	return GACHA_UI_ASSETS.duplicate()
+
+
 func _home_ui_texture(asset_key: String) -> Texture2D:
 	return _load_cached_texture(String(HOME_UI_ASSETS.get(asset_key, "")), home_ui_texture_cache, shared_image2_texture_cache)
+
+
+func _gacha_ui_texture(asset_key: String) -> Texture2D:
+	return _load_cached_texture(String(GACHA_UI_ASSETS.get(asset_key, "")), gacha_ui_texture_cache, shared_image2_texture_cache)
 
 
 func _draw_home_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, disabled: bool = false) -> void:
@@ -1412,6 +1435,76 @@ func _draw_home_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.2
 		var t := float(layer + 1) / 3.0
 		var shadow_rect := Rect2(rect.position + Vector2(0.0, 6.0 + t * 5.0), rect.size)
 		draw_texture_rect(texture, shadow_rect.grow(t * 3.5), false, Color(0.0, 0.0, 0.0, alpha * (1.0 - t * 0.48)))
+
+
+func _draw_gacha_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.24) -> void:
+	for layer in range(3):
+		var t := float(layer + 1) / 3.0
+		var shadow_rect := Rect2(rect.position + Vector2(0.0, 7.0 + t * 4.0), rect.size).grow(t * 4.0)
+		draw_texture_rect(texture, shadow_rect, false, Color(0.0, 0.0, 0.0, alpha * (1.0 - t * 0.5)))
+
+
+func _draw_gacha_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
+	var texture := _gacha_ui_texture(asset_key)
+	if texture != null:
+		_draw_panel_shell(rect, Color(fallback_fill.r, fallback_fill.g, fallback_fill.b, fallback_fill.a * 0.54), Color(fallback_border.r, fallback_border.g, fallback_border.b, fallback_border.a * 0.34), 0.18, 0.08)
+		_draw_gacha_asset_shadow(texture, rect, 0.24)
+		draw_texture_rect(texture, rect, false, tint)
+	else:
+		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.22, 0.13)
+
+
+func _gacha_back_rect() -> Rect2:
+	return Rect2(34.0, 30.0, 172.0, 68.0)
+
+
+func _gacha_coin_rect() -> Rect2:
+	return Rect2(1240.0, 32.0, 318.0, 64.0)
+
+
+func _gacha_title_rect() -> Rect2:
+	return Rect2(548.0, 22.0, 504.0, 104.0)
+
+
+func _gacha_character_rect() -> Rect2:
+	return Rect2(30.0, 128.0, 372.0, 286.0)
+
+
+func _gacha_collection_panel_rect() -> Rect2:
+	return Rect2(38.0, 424.0, 1524.0, 442.0)
+
+
+func _gacha_collection_view_rect() -> Rect2:
+	return Rect2(74.0, 500.0, 1452.0, 326.0)
+
+
+func _gacha_results_panel_rect() -> Rect2:
+	return Rect2(422.0, 278.0, 756.0, 128.0)
+
+
+func _gacha_draw_button_rect(button_id: String) -> Rect2:
+	match button_id:
+		"common_single":
+			return Rect2(430.0, 150.0, 300.0, 98.0)
+		"premium_single":
+			return Rect2(760.0, 150.0, 300.0, 98.0)
+		"premium_ten":
+			return Rect2(1090.0, 150.0, 300.0, 98.0)
+		_:
+			return Rect2()
+
+
+func _gacha_collection_card_rect(index: int) -> Rect2:
+	var view := _gacha_collection_view_rect()
+	var columns := 12
+	var card_size := Vector2(86.0, 102.0)
+	var gap := Vector2(20.0, 10.0)
+	var local_index := maxi(index, 0)
+	var col := local_index % columns
+	var row := local_index / columns
+	var grid_width := float(columns) * card_size.x + float(columns - 1) * gap.x
+	var start_x := view.position.x + (view.size.x - grid_width) * 0.5
+	return Rect2(Vector2(start_x + float(col) * (card_size.x + gap.x), view.position.y + float(row) * (card_size.y + gap.y)), card_size)
 
 
 func _home_entry_asset_key(entry_id: String) -> String:
@@ -1836,7 +1929,7 @@ func _process(delta: float) -> void:
 
 	sky_sun_cooldown -= delta
 	if _level_has_sky_sun() and sky_sun_cooldown <= 0.0:
-		var sky_range = current_level["sky_sun_range"]
+		var sky_range = Vector2(current_level.get("sky_sun_range", Vector2(6.0, 11.0)))
 		_spawn_sun(
 			Vector2(
 				rng.randf_range(BOARD_ORIGIN.x + 30.0, BOARD_ORIGIN.x + board_size.x - 30.0),
@@ -3900,27 +3993,18 @@ func _handle_map_click(mouse_pos: Vector2) -> void:
 
 
 func _handle_gacha_click(mouse_pos: Vector2) -> void:
-	# Back button
-	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
-	if back_rect.has_point(mouse_pos):
+	if _gacha_back_rect().has_point(mouse_pos):
 		_enter_home_mode()
 		return
-	# Standard single draw
-	var single_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 360.0, 140.0, 220.0, 72.0)
-	if single_rect.has_point(mouse_pos):
+	if _gacha_draw_button_rect("common_single").has_point(mouse_pos):
 		_do_gacha_draw(1)
 		return
-	# Premium single draw
-	var premium_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 110.0, 140.0, 220.0, 72.0)
-	if premium_rect.has_point(mouse_pos):
+	if _gacha_draw_button_rect("premium_single").has_point(mouse_pos):
 		_do_gacha_draw(1)
 		return
-	# Multi draw
-	var multi_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 + 140.0, 140.0, 220.0, 72.0)
-	if multi_rect.has_point(mouse_pos):
+	if _gacha_draw_button_rect("premium_ten").has_point(mouse_pos):
 		_do_gacha_draw(10)
 		return
-	# Reveal next card on click
 	if gacha_draw_results.size() > 0 and gacha_reveal_index < gacha_draw_results.size():
 		gacha_reveal_index += 1
 		queue_redraw()
@@ -7118,6 +7202,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		"launch_cooldown": 2.6 if kind == "turret_zombie" else 0.0,
 		"flywheel_cooldown": float(base.get("throw_cooldown", 0.0)),
 		"wizard_cooldown": float(base.get("cast_interval", 0.0)),
+		"youmu_wraith_age": 0.0,
 		"laser_cooldown": float(base.get("laser_cooldown", 0.0)),
 		"ash_hits_taken": 0,
 		"kite_target_row": -1,
@@ -10796,6 +10881,11 @@ func _update_zombies(delta: float) -> void:
 				zombies[i] = zombie
 				continue
 
+		if _is_enemy_zombie(zombie) and String(zombie["kind"]) == "youmu_wraith":
+			zombie = _update_youmu_wraith(zombie, delta)
+			zombies[i] = zombie
+			continue
+
 		if String(zombie["kind"]) == "balloon_zombie" and bool(zombie.get("balloon_flying", false)):
 			if float(zombie.get("special_pause_timer", 0.0)) <= 0.0:
 				zombie["x"] -= _current_zombie_speed(zombie) * delta
@@ -13411,6 +13501,11 @@ func _youmu_boss_bounds() -> Dictionary:
 	}
 
 
+func _youmu_idle_min_x() -> float:
+	var ref_row = int(active_rows[0]) if not active_rows.is_empty() else 0
+	return _cell_center(ref_row, max(0, COLS - 3)).x
+
+
 func _next_active_row(current_row: int, direction: int) -> Dictionary:
 	var rows: Array = []
 	for row in active_rows:
@@ -13488,8 +13583,8 @@ func _roll_hover_shift_interval(kind: String, phase: int) -> float:
 			var max_interval = maxf(min_interval + 0.44, 4.0 - float(phase) * 0.08)
 			return rng.randf_range(min_interval, max_interval)
 		"youmu_boss":
-			var min_interval = maxf(1.55, 2.35 - float(phase) * 0.16)
-			var max_interval = maxf(min_interval + 0.36, 3.25 - float(phase) * 0.1)
+			var min_interval = maxf(3.0, 4.0 - float(phase) * 0.12)
+			var max_interval = maxf(min_interval + 0.72, 5.2 - float(phase) * 0.08)
 			return rng.randf_range(min_interval, max_interval)
 		"flandre_boss":
 			var min_interval = maxf(2.4, 3.4 - float(phase) * 0.16)
@@ -13695,7 +13790,8 @@ func _update_youmu_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary
 	var kind = "youmu_boss"
 	var phase = int(zombie.get("boss_phase", 0))
 	var bounds = _youmu_boss_bounds()
-	zombie["x"] = clampf(float(zombie.get("x", bounds.get("max_x", _boss_anchor_x(kind)))), float(bounds.get("min_x", BOARD_ORIGIN.x)), float(bounds.get("max_x", _boss_anchor_x(kind))))
+	var idle_min_x = _youmu_idle_min_x()
+	zombie["x"] = clampf(float(zombie.get("x", bounds.get("max_x", _boss_anchor_x(kind)))), idle_min_x, float(bounds.get("max_x", _boss_anchor_x(kind))))
 	zombie["rumia_state_timer"] = maxf(0.0, float(zombie.get("rumia_state_timer", 0.0)) - delta)
 	var move_timer = maxf(0.0, float(zombie.get("rumia_move_timer", 0.0)) - delta)
 	zombie["rumia_move_timer"] = move_timer
@@ -13704,9 +13800,32 @@ func _update_youmu_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary
 	zombie["hover_shift_timer"] = float(zombie.get("hover_shift_timer", _roll_hover_shift_interval(kind, phase))) - delta
 	if float(zombie["hover_shift_timer"]) > 0.0:
 		return zombie
-	var target_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else int(zombie.get("row", 0))
-	var target_col = rng.randi_range(0, COLS - 1)
-	zombie = _youmu_dash_to_cell(zombie, target_row, target_col, "shift")
+	var current_row = int(zombie.get("row", 0))
+	var direction = int(zombie.get("hover_direction", -1))
+	var next_row_data = _next_active_row(current_row, direction)
+	var target_row = int(next_row_data.get("row", current_row))
+	zombie["hover_direction"] = int(next_row_data.get("direction", direction))
+	var target_col = rng.randi_range(max(0, COLS - 2), COLS - 1)
+	var from_pos = Vector2(float(zombie.get("x", bounds.get("max_x", _boss_anchor_x(kind)))), _row_center_y(current_row) - 12.0)
+	var to_pos = Vector2(clampf(_cell_center(target_row, target_col).x + rng.randf_range(-10.0, 8.0), idle_min_x, float(bounds.get("max_x", _boss_anchor_x(kind)))), _row_center_y(target_row) - 12.0)
+	zombie["x"] = to_pos.x
+	zombie["row"] = target_row
+	zombie["rumia_move_from_y"] = from_pos.y
+	zombie["rumia_move_to_y"] = to_pos.y
+	zombie["rumia_move_duration"] = 0.32
+	zombie["rumia_move_timer"] = 0.32
+	zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.18)
+	zombie = _set_rumia_state(zombie, "shift", 0.42)
+	effects.append({
+		"shape": "youmu_idle_step",
+		"position": from_pos,
+		"target": to_pos,
+		"radius": 78.0,
+		"time": 0.26,
+		"duration": 0.26,
+		"anim_speed": 9.0,
+		"color": Color(0.72, 0.94, 1.0, 0.22),
+	})
 	zombie["hover_shift_timer"] = _roll_hover_shift_interval(kind, phase)
 	return zombie
 
@@ -16360,6 +16479,115 @@ func _pick_youmu_charm_cells(count: int) -> Array:
 	return occupied.slice(0, min(count, occupied.size()))
 
 
+func _nearest_plant_cell_in_row(row: int, x: float) -> Vector2i:
+	var best_cell := Vector2i(-1, -1)
+	var best_distance := INF
+	if row < 0 or row >= ROWS:
+		return best_cell
+	for col in range(COLS):
+		if _targetable_plant_at(row, col) == null:
+			continue
+		var distance = absf(_cell_center(row, col).x - x)
+		if distance < best_distance:
+			best_distance = distance
+			best_cell = Vector2i(row, col)
+	return best_cell
+
+
+func _spawn_youmu_wraith(row: int, x: float = NAN) -> void:
+	if not Defs.ZOMBIES.has("youmu_wraith"):
+		return
+	var spawn_row = row
+	if not _is_row_active(spawn_row):
+		spawn_row = _choose_spawn_row_for_kind("youmu_wraith")
+	if spawn_row < 0:
+		return
+	var spawn_x = x
+	if is_nan(spawn_x):
+		spawn_x = BOARD_ORIGIN.x + board_size.x + 28.0
+	_spawn_zombie_at("youmu_wraith", spawn_row, spawn_x, true)
+	if zombies.is_empty() or String(zombies[zombies.size() - 1].get("kind", "")) != "youmu_wraith":
+		return
+	var wraith = zombies[zombies.size() - 1]
+	wraith["special_pause_timer"] = 0.0
+	wraith["youmu_wraith_age"] = 0.0
+	wraith["jump_offset"] = -8.0
+	zombies[zombies.size() - 1] = wraith
+	var spawn_pos = Vector2(spawn_x, _row_center_y(spawn_row) - 16.0)
+	effects.append({
+		"shape": "youmu_wraith_spawn",
+		"position": spawn_pos,
+		"radius": 78.0,
+		"time": 0.36,
+		"duration": 0.36,
+		"anim_speed": 9.0,
+		"color": Color(0.68, 0.88, 1.0, 0.32),
+	})
+
+
+func _spawn_youmu_wraiths_from(center: Vector2, count: int, phase: int) -> void:
+	var rows: Array = []
+	var occupied = _pick_youmu_charm_cells(maxi(count, 1))
+	for cell_variant in occupied:
+		var cell = Vector2i(cell_variant)
+		if not rows.has(cell.x):
+			rows.append(cell.x)
+	for row_variant in active_rows:
+		if rows.size() >= count:
+			break
+		var row = int(row_variant)
+		if not rows.has(row):
+			rows.append(row)
+	var spawn_count = mini(count, rows.size())
+	for index in range(spawn_count):
+		var row = int(rows[index])
+		var spawn_x = clampf(center.x + 18.0 + float(index) * 18.0, _youmu_idle_min_x(), float(_youmu_boss_bounds().get("max_x", center.x)))
+		_spawn_youmu_wraith(row, spawn_x)
+	effects.append({
+		"shape": "youmu_wraith_release",
+		"position": center,
+		"radius": 190.0 + float(phase) * 14.0,
+		"time": 0.62,
+		"duration": 0.62,
+		"anim_speed": 8.6,
+		"color": Color(0.68, 0.88, 1.0, 0.34),
+	})
+
+
+func _update_youmu_wraith(zombie: Dictionary, delta: float) -> Dictionary:
+	var row = int(zombie.get("row", 0))
+	zombie["youmu_wraith_age"] = float(zombie.get("youmu_wraith_age", 0.0)) + delta
+	zombie["jump_offset"] = -10.0 + sin(level_time * 8.0 + float(zombie.get("anim_phase", 0.0))) * 6.0
+	var target = _nearest_plant_cell_in_row(row, float(zombie.get("x", BOARD_ORIGIN.x + board_size.x)))
+	if target.y == -1:
+		if float(zombie.get("special_pause_timer", 0.0)) <= 0.0:
+			zombie["x"] -= _current_zombie_speed(zombie) * delta
+		if float(zombie.get("x", 0.0)) <= BOARD_ORIGIN.x - 42.0 or float(zombie.get("youmu_wraith_age", 0.0)) > 8.5:
+			zombie["health"] = 0.0
+		return zombie
+	var target_center = _cell_center(target.x, target.y)
+	var desired_x = target_center.x + 18.0
+	var direction = -1.0 if float(zombie.get("x", desired_x)) > desired_x else 1.0
+	var step = minf(absf(float(zombie.get("x", desired_x)) - desired_x), _current_zombie_speed(zombie) * delta * 1.18)
+	zombie["x"] = float(zombie.get("x", desired_x)) + direction * step
+	if absf(float(zombie["x"]) - desired_x) <= 12.0:
+		_damage_plant_cell(target.x, target.y, float(Defs.ZOMBIES["youmu_wraith"].get("impact_damage", 34.0)), 0.12)
+		_charm_plant_at_cell(target.x, target.y, float(Defs.ZOMBIES["youmu_wraith"].get("charm_duration", 4.4)))
+		var hit_pos = target_center + Vector2(0.0, -12.0)
+		effects.append({
+			"shape": "youmu_wraith_charm",
+			"position": Vector2(float(zombie["x"]), _row_center_y(row) - 14.0),
+			"target": hit_pos,
+			"radius": 96.0,
+			"time": 0.42,
+			"duration": 0.42,
+			"anim_speed": 9.4,
+			"color": Color(0.72, 0.92, 1.0, 0.36),
+		})
+		zombie["health"] = 0.0
+	return zombie
+
+
 func _trigger_youmu_boss_skill(zombie: Dictionary) -> Dictionary:
 	var data = Defs.ZOMBIES["youmu_boss"]
 	var row = int(zombie.get("row", 0))
@@ -16386,6 +16614,18 @@ func _trigger_youmu_boss_skill(zombie: Dictionary) -> Dictionary:
 				"anim_speed": 11.0,
 				"color": Color(0.86, 0.98, 1.0, 0.34 if slash_hit else 0.18),
 			})
+			effects.append({
+				"shape": "youmu_sword_qi",
+				"position": Vector2(max_x, _row_center_y(row) - 30.0),
+				"target": Vector2(min_x, _row_center_y(row) - 4.0),
+				"length": max_x - min_x,
+				"width": CELL_SIZE.y * 0.95,
+				"radius": 230.0,
+				"time": 0.54,
+				"duration": 0.54,
+				"anim_speed": 14.0,
+				"color": Color(0.74, 0.96, 1.0, 0.38 if slash_hit else 0.22),
+			})
 			_show_banner("幽鬼剑「妖童饿鬼之断食」", 1.12)
 			return _set_rumia_state(zombie, "slash", 0.46)
 		1:
@@ -16407,6 +16647,18 @@ func _trigger_youmu_boss_skill(zombie: Dictionary) -> Dictionary:
 				"duration": 0.5,
 				"anim_speed": 13.0,
 				"color": Color(0.88, 1.0, 1.0, 0.38 if dash_hit else 0.2),
+			})
+			effects.append({
+				"shape": "youmu_sword_qi",
+				"position": Vector2(min_x, dash_y - 34.0),
+				"target": Vector2(max_x, dash_y + 16.0),
+				"length": max_x - min_x,
+				"width": CELL_SIZE.y * 1.15,
+				"radius": 260.0,
+				"time": 0.58,
+				"duration": 0.58,
+				"anim_speed": 16.0,
+				"color": Color(0.9, 1.0, 1.0, 0.42 if dash_hit else 0.24),
 			})
 			_show_banner("人界剑「悟入幻想」", 1.12)
 			return zombie
@@ -16464,22 +16716,7 @@ func _trigger_youmu_boss_skill(zombie: Dictionary) -> Dictionary:
 			_show_banner("魂符「幽明的苦轮」", 1.12)
 			return _set_rumia_state(zombie, "half_ghost", 0.64)
 		5:
-			var charm_cells = _pick_youmu_charm_cells(2 + mini(phase, 1))
-			var charm_points: Array = []
-			for cell_variant in charm_cells:
-				var cell = Vector2i(cell_variant)
-				_charm_plant_at_cell(cell.x, cell.y, float(data.get("wraith_charm_duration", 4.6)) + phase * 0.35)
-				charm_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "youmu_wraith_charm",
-				"position": center,
-				"points": charm_points,
-				"radius": 190.0,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 8.6,
-				"color": Color(0.68, 0.88, 1.0, 0.34),
-			})
+			_spawn_youmu_wraiths_from(center, 2 + mini(phase, 1), phase)
 			_show_banner("魂魄「怨灵使役」", 1.16)
 			return _set_rumia_state(zombie, "wraith", 0.62)
 		6:
@@ -19271,133 +19508,174 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 
 
 func _draw_gacha_scene() -> void:
-	# Background gradient
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.12, 0.08, 0.22), Color(0.06, 0.04, 0.14))
-	# Floating card silhouettes
-	for i in range(8):
-		var seed_val = float(i) * 47.3
-		var x = fmod(ui_time * (12.0 + fmod(seed_val, 8.0)) + seed_val * 5.1, BASE_VIEWPORT_SIZE.x + 100.0) - 50.0
-		var y = fmod(seed_val * 3.7 + sin(ui_time * 0.3 + seed_val) * 60.0, BASE_VIEWPORT_SIZE.y)
-		var rot = sin(ui_time * 0.5 + seed_val) * 0.3
-		draw_rect(Rect2(Vector2(x - 20.0, y - 28.0), Vector2(40.0, 56.0)), Color(0.8, 0.7, 0.4, 0.04), true)
+	var bg_texture := _gacha_ui_texture("background")
+	if bg_texture != null:
+		draw_texture_rect(bg_texture, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), false)
+	else:
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.16, 0.08, 0.26), Color(0.035, 0.02, 0.075))
+	draw_rect(Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.04, 0.02, 0.08, 0.26), true)
+	for i in range(18):
+		var seed_val := float(i) * 41.73
+		var pos := Vector2(
+			fmod(seed_val * 17.0 + ui_time * (16.0 + float(i % 5) * 3.0), BASE_VIEWPORT_SIZE.x + 120.0) - 60.0,
+			110.0 + fmod(seed_val * 9.0 + sin(ui_time * 0.8 + seed_val) * 36.0, 300.0)
+		)
+		draw_circle(pos, 2.0 + float(i % 3), Color(0.94, 0.72, 1.0, 0.12))
+		draw_line(pos + Vector2(-18.0, 0.0), pos + Vector2(18.0, 0.0), Color(0.92, 0.8, 1.0, 0.05), 1.0)
 
-	# Title
-	var title_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 200.0, 30.0, 400.0, 80.0)
-	_draw_panel_shell(title_rect, Color(0.82, 0.62, 0.18, 0.96), Color(0.52, 0.36, 0.08), 0.2, 0.12)
-	_draw_text("抽卡系统", title_rect.position + Vector2(128.0, 50.0), 36, Color(1.0, 0.96, 0.86))
+	var heroine_rect := _gacha_character_rect()
+	var heroine_texture := _gacha_ui_texture("heroine")
+	if heroine_texture != null:
+		_draw_gacha_asset_shadow(heroine_texture, heroine_rect, 0.28)
+		draw_texture_rect(heroine_texture, heroine_rect, false)
+	else:
+		var body := heroine_rect.position + Vector2(heroine_rect.size.x * 0.5, heroine_rect.size.y * 0.54)
+		draw_circle(body + Vector2(0.0, -88.0), 52.0, Color(0.98, 0.9, 0.76, 0.95))
+		draw_polygon(PackedVector2Array([body + Vector2(-76.0, -26.0), body + Vector2(78.0, -20.0), body + Vector2(58.0, 96.0), body + Vector2(-64.0, 98.0)]), PackedColorArray([Color(0.44, 0.22, 0.64, 0.92), Color(0.58, 0.3, 0.76, 0.92), Color(0.22, 0.1, 0.34, 0.92), Color(0.28, 0.12, 0.42, 0.92)]))
+		draw_arc(body, 112.0, -0.5, PI * 1.2, 36, Color(0.92, 0.8, 1.0, 0.32), 4.0)
+	draw_rect(Rect2(heroine_rect.position + Vector2(6.0, heroine_rect.size.y - 34.0), Vector2(heroine_rect.size.x - 12.0, 16.0)), Color(0.04, 0.02, 0.08, 0.22), true)
 
-	# Coin display
-	_draw_panel_shell(Rect2(BASE_VIEWPORT_SIZE.x - 280.0, 40.0, 240.0, 52.0), Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.12, 0.06)
-	_draw_text("金币: %d" % coins_total, Vector2(BASE_VIEWPORT_SIZE.x - 256.0, 76.0), 26, Color(0.33, 0.21, 0.04))
+	var title_rect := _gacha_title_rect()
+	_draw_gacha_asset_panel("title_frame", title_rect, Color(0.26, 0.12, 0.34, 0.92), Color(0.94, 0.72, 0.34, 0.92))
+	var title := "幻想召唤"
+	var title_width := ui_font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 42).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, title_rect.position + Vector2((title_rect.size.x - title_width) * 0.5, 66.0), title, 42, Color(1.0, 0.92, 0.76), Vector2(1.5, 3.0), 0.35)
+	var subtitle := "东方风角色 / 植物契约"
+	var subtitle_width := ui_font.get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, title_rect.position + Vector2((title_rect.size.x - subtitle_width) * 0.5, 91.0), subtitle, 15, Color(0.86, 0.76, 0.96), Vector2(1.0, 2.0), 0.28)
 
-	# Pity counter
-	_draw_text("保底计数: %d/50" % gacha_pity_counter, Vector2(60.0, 76.0), 18, Color(0.72, 0.68, 0.82))
+	var coin_rect := _gacha_coin_rect()
+	_draw_gacha_asset_panel("coin_chip", coin_rect, Color(0.24, 0.12, 0.25, 0.94), Color(0.98, 0.78, 0.32, 0.9))
+	_draw_coin_icon(coin_rect.position + Vector2(38.0, coin_rect.size.y * 0.5), 0.75)
+	ThemeLib.draw_text_with_shadow(self, ui_font, coin_rect.position + Vector2(70.0, 40.0), "%d" % coins_total, 23, Color(1.0, 0.9, 0.45), Vector2(1.0, 2.0), 0.3)
+	ThemeLib.draw_text_with_shadow(self, ui_font, coin_rect.position + Vector2(204.0, 39.0), "保底 %d/50" % gacha_pity_counter, 16, Color(0.92, 0.84, 1.0), Vector2(1.0, 2.0), 0.24)
 
-	# Draw buttons
-	var single_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 360.0, 140.0, 220.0, 72.0)
-	var premium_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 - 110.0, 140.0, 220.0, 72.0)
-	var multi_rect = Rect2(BASE_VIEWPORT_SIZE.x * 0.5 + 140.0, 140.0, 220.0, 72.0)
-	_draw_fancy_button(single_rect, "普通单抽", Color(0.42, 0.56, 0.42), Color(0.22, 0.32, 0.22), 20)
-	_draw_fancy_button(premium_rect, "高级单抽", Color(0.62, 0.36, 0.82), Color(0.38, 0.18, 0.52), 20)
-	_draw_fancy_button(multi_rect, "十连高级", Color(0.86, 0.52, 0.18), Color(0.52, 0.28, 0.08), 20)
-	_draw_text("50金", single_rect.position + Vector2(80.0, 56.0), 16, Color(0.82, 0.86, 0.78))
-	_draw_text("200金", premium_rect.position + Vector2(72.0, 56.0), 16, Color(0.86, 0.78, 0.92))
-	_draw_text("1800金", multi_rect.position + Vector2(66.0, 56.0), 16, Color(0.86, 0.82, 0.72))
+	var back_rect := _gacha_back_rect()
+	_draw_gacha_asset_panel("back_button", back_rect, Color(0.24, 0.18, 0.28, 0.94), Color(0.74, 0.62, 0.86, 0.9))
+	ThemeLib.draw_text_with_shadow(self, ui_font, back_rect.position + Vector2(58.0, 43.0), "返回", 23, Color(0.98, 0.94, 1.0), Vector2(1.0, 2.0), 0.28)
 
-	# Draw results
+	_draw_gacha_draw_button("common_single", "普通单抽", "50 金", "button_common", Color(0.34, 0.56, 0.46, 0.95), Color(0.78, 0.96, 0.72, 0.92))
+	_draw_gacha_draw_button("premium_single", "高级单抽", "200 金", "button_premium", Color(0.44, 0.24, 0.7, 0.95), Color(0.96, 0.78, 1.0, 0.92))
+	_draw_gacha_draw_button("premium_ten", "十连高级", "1800 金", "button_multi", Color(0.78, 0.42, 0.18, 0.95), Color(1.0, 0.84, 0.44, 0.92))
+
+	var result_panel := _gacha_results_panel_rect()
+	draw_rect(result_panel.grow(14.0), Color(0.06, 0.02, 0.09, 0.24), true)
 	if gacha_draw_results.size() > 0:
-		var results_y = 240.0
-		var card_w = 120.0
-		var card_h = 168.0
-		var gap = 12.0
-		var total_w = float(gacha_draw_results.size()) * (card_w + gap) - gap
-		var start_x = (BASE_VIEWPORT_SIZE.x - total_w) * 0.5
+		var card_size := Vector2(62.0 if gacha_draw_results.size() > 6 else 84.0, 96.0 if gacha_draw_results.size() > 6 else 112.0)
+		var gap := 10.0
+		var total_w := float(gacha_draw_results.size()) * card_size.x + float(maxi(gacha_draw_results.size() - 1, 0)) * gap
+		var start_x := result_panel.position.x + (result_panel.size.x - total_w) * 0.5
 		for i in range(gacha_draw_results.size()):
-			var result = gacha_draw_results[i]
-			var card_x = start_x + float(i) * (card_w + gap)
-			var card_rect = Rect2(card_x, results_y, card_w, card_h)
-			var revealed = i < gacha_reveal_index
-			if revealed:
-				var rarity_color = _gacha_rarity_color(String(result["rarity"]))
-				var result_type = String(result.get("type", "plant"))
-				# Glow behind card
-				draw_rect(card_rect.grow(6.0), Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.2), true)
-				_draw_panel_shell(card_rect, Color(0.96, 0.94, 0.88), rarity_color, 0.16, 0.1)
-				# Rarity bar
-				draw_rect(Rect2(card_rect.position + Vector2(0.0, card_rect.size.y - 28.0), Vector2(card_rect.size.x, 28.0)), rarity_color.darkened(0.1), true)
-				if result_type == "plant":
-					_draw_card_icon(String(result["kind"]), card_rect.position + Vector2(card_rect.size.x * 0.5, 72.0))
-					var pname = String(Defs.PLANTS[String(result["kind"])]["name"])
-					if pname.length() > 4:
-						pname = pname.left(4) + "…"
-					_draw_text(pname, card_rect.position + Vector2(10.0, 22.0), 14, Color(0.22, 0.16, 0.06))
-				elif result_type == "item":
-					# Enhancement stone icon
-					draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, 72.0), 18.0, Color(0.82, 0.62, 0.18))
-					draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, 72.0), 12.0, Color(1.0, 0.86, 0.36))
-					_draw_text("+1", card_rect.position + Vector2(card_rect.size.x * 0.5 - 10.0, 78.0), 16, Color(0.42, 0.22, 0.04))
-					_draw_text(String(result.get("name", "道具")), card_rect.position + Vector2(10.0, 22.0), 12, Color(0.22, 0.16, 0.06))
-				elif result_type == "fragment":
-					draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, 72.0), 16.0, Color(0.52, 0.72, 0.42))
-					draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, 72.0), 10.0, Color(0.62, 0.82, 0.52))
-					_draw_text("x5", card_rect.position + Vector2(card_rect.size.x * 0.5 - 8.0, 78.0), 14, Color(0.22, 0.42, 0.12))
-					var fname = String(result.get("name", "碎片"))
-					if fname.length() > 6:
-						fname = fname.left(6) + "…"
-					_draw_text(fname, card_rect.position + Vector2(6.0, 22.0), 10, Color(0.22, 0.16, 0.06))
-				else:
-					# Junk
-					draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, 72.0), 14.0, Color(0.56, 0.52, 0.48))
-					_draw_text("💩", card_rect.position + Vector2(card_rect.size.x * 0.5 - 10.0, 78.0), 20, Color(0.42, 0.36, 0.32))
-					_draw_text(String(result.get("name", "垃圾")), card_rect.position + Vector2(6.0, 22.0), 10, Color(0.42, 0.36, 0.32))
-				# Rarity label
-				var rarity_labels = {"common": "普通", "rare": "稀有", "purple": "紫卡", "orange": "橙卡", "gold": "金卡", "junk": "垃圾"}
-				var rarity_label = rarity_labels.get(String(result["rarity"]), "普通")
-				_draw_text(rarity_label, card_rect.position + Vector2(28.0, card_rect.size.y - 8.0), 16, Color(1.0, 1.0, 1.0))
-				# NEW badge
-				if bool(result.get("is_new", false)):
-					draw_rect(Rect2(card_rect.position + Vector2(card_rect.size.x - 40.0, 4.0), Vector2(36.0, 20.0)), Color(0.92, 0.24, 0.18), true)
-					_draw_text("NEW", card_rect.position + Vector2(card_rect.size.x - 38.0, 20.0), 12, Color(1.0, 1.0, 1.0))
-			else:
-				# Unrevealed card back
-				_draw_panel_shell(card_rect, Color(0.28, 0.22, 0.42), Color(0.48, 0.38, 0.62), 0.14, 0.08)
-				draw_circle(card_rect.get_center(), 24.0, Color(0.62, 0.52, 0.82, 0.3))
-				_draw_text("?", card_rect.get_center() + Vector2(-8.0, 10.0), 36, Color(0.72, 0.62, 0.92))
+			var card_rect := Rect2(Vector2(start_x + float(i) * (card_size.x + gap), result_panel.position.y + (result_panel.size.y - card_size.y) * 0.5), card_size)
+			_draw_gacha_result_card(card_rect, Dictionary(gacha_draw_results[i]), i < gacha_reveal_index)
+	else:
+		_draw_gacha_empty_results(result_panel)
 
-	# Collection grid (scrollable)
-	var collection_y = 440.0
-	_draw_panel_shell(Rect2(40.0, collection_y - 10.0, BASE_VIEWPORT_SIZE.x - 80.0, 420.0), Color(0.14, 0.1, 0.24, 0.92), Color(0.38, 0.28, 0.52), 0.14, 0.06)
-	_draw_text("植物收藏", Vector2(60.0, collection_y + 24.0), 22, Color(0.82, 0.78, 0.92))
-	var col_x = 60.0
-	var col_y = collection_y + 40.0
-	var col_w = 86.0
-	var col_h = 96.0
-	var col_gap = 8.0
-	var cols_per_row = int((BASE_VIEWPORT_SIZE.x - 120.0) / (col_w + col_gap))
-	var plant_keys = Defs.PLANTS.keys()
-	for i in range(plant_keys.size()):
-		var pk = String(plant_keys[i])
-		var cx = col_x + float(i % cols_per_row) * (col_w + col_gap)
-		var cy = col_y + floor(float(i) / float(cols_per_row)) * (col_h + col_gap) - gacha_mode_scroll
-		if cy < collection_y + 30.0 or cy > collection_y + 400.0:
-			continue
-		var has_plant = plant_stars.has(pk)
-		var cell_rect = Rect2(cx, cy, col_w, col_h)
-		if has_plant:
-			_draw_panel_shell(cell_rect, Color(0.92, 0.88, 0.78, 0.94), Color(0.48, 0.38, 0.22), 0.08, 0.04)
-			_draw_card_icon(pk, cell_rect.position + Vector2(cell_rect.size.x * 0.5, 44.0))
-			# Stars
-			var stars = int(plant_stars[pk])
-			for s in range(mini(stars, 5)):
-				draw_circle(cell_rect.position + Vector2(12.0 + float(s) * 14.0, col_h - 10.0), 5.0, Color(1.0, 0.86, 0.2))
-		else:
-			draw_rect(cell_rect, Color(0.18, 0.14, 0.28, 0.6), true)
-			draw_rect(cell_rect, Color(0.32, 0.26, 0.42), false, 1.5)
-			_draw_text("?", cell_rect.get_center() + Vector2(-6.0, 8.0), 28, Color(0.42, 0.36, 0.52))
+	var collection_panel := _gacha_collection_panel_rect()
+	_draw_gacha_asset_panel("collection_panel", collection_panel, Color(0.09, 0.055, 0.14, 0.96), Color(0.74, 0.58, 0.86, 0.7))
+	ThemeLib.draw_text_with_shadow(self, ui_font, collection_panel.position + Vector2(38.0, 48.0), "植物收藏", 26, Color(1.0, 0.94, 0.86), Vector2(1.0, 2.0), 0.3)
+	ThemeLib.draw_text_with_shadow(self, ui_font, collection_panel.position + Vector2(174.0, 46.0), "已获得 %d / %d" % [plant_stars.size(), Defs.PLANTS.size()], 16, Color(0.82, 0.74, 0.94), Vector2(1.0, 1.5), 0.24)
+	var view_rect := _gacha_collection_view_rect()
+	draw_rect(view_rect, Color(0.04, 0.02, 0.065, 0.54), true)
+	draw_rect(view_rect, Color(0.92, 0.72, 1.0, 0.16), false, 1.0)
+	var plant_keys := Defs.PLANTS.keys()
+	var columns := 12
+	var card_step_y := 112.0
+	var first_row := maxi(0, int(floor(gacha_mode_scroll / card_step_y)))
+	for visible_row in range(4):
+		var source_row := first_row + visible_row
+		for col in range(columns):
+			var plant_index := source_row * columns + col
+			if plant_index < 0 or plant_index >= plant_keys.size():
+				continue
+			var visible_index := visible_row * columns + col
+			var cell_rect := _gacha_collection_card_rect(visible_index)
+			var scroll_offset := fmod(gacha_mode_scroll, card_step_y)
+			cell_rect.position.y -= scroll_offset
+			if not view_rect.encloses(cell_rect):
+				continue
+			_draw_gacha_collection_card(cell_rect, String(plant_keys[plant_index]))
 
-	# Back button
-	var back_rect = Rect2(40.0, 40.0, 120.0, 52.0)
-	_draw_fancy_button(back_rect, "返回", Color(0.56, 0.52, 0.62), Color(0.36, 0.32, 0.42), 22)
+
+func _draw_gacha_draw_button(button_id: String, label: String, cost: String, asset_key: String, fallback_fill: Color, fallback_border: Color) -> void:
+	var rect := _gacha_draw_button_rect(button_id)
+	var hovered := rect.has_point(_pointer_local_position())
+	var tint := Color(1.0, 1.0, 1.0, 1.0) if not hovered else Color(1.08, 1.06, 1.0, 1.0)
+	_draw_gacha_asset_panel(asset_key, rect, fallback_fill, fallback_border, tint)
+	if hovered:
+		draw_rect(rect.grow(4.0), Color(fallback_border.r, fallback_border.g, fallback_border.b, 0.3), false, 2.0)
+	var label_width := ui_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 24).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, rect.position + Vector2((rect.size.x - label_width) * 0.5, 42.0), label, 24, Color(1.0, 0.96, 0.9), Vector2(1.0, 2.0), 0.32)
+	var cost_width := ui_font.get_string_size(cost, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, rect.position + Vector2((rect.size.x - cost_width) * 0.5, 72.0), cost, 16, Color(0.92, 0.84, 1.0), Vector2(1.0, 1.5), 0.25)
+
+
+func _draw_gacha_empty_results(rect: Rect2) -> void:
+	for i in range(5):
+		var card_rect := Rect2(rect.position + Vector2(112.0 + float(i) * 112.0, 10.0 + sin(ui_time * 1.2 + float(i)) * 4.0), Vector2(76.0, 104.0))
+		_draw_gacha_asset_panel("card_back", card_rect, Color(0.16, 0.09, 0.24, 0.86), Color(0.62, 0.48, 0.78, 0.7), Color(1.0, 1.0, 1.0, 0.62))
+	var hint := "点击上方召唤按钮揭开卡牌"
+	var hint_width := ui_font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 18).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, rect.position + Vector2((rect.size.x - hint_width) * 0.5, rect.size.y + 2.0), hint, 18, Color(0.84, 0.76, 0.94), Vector2(1.0, 2.0), 0.28)
+
+
+func _draw_gacha_result_card(card_rect: Rect2, result: Dictionary, revealed: bool) -> void:
+	if not revealed:
+		_draw_gacha_asset_panel("card_back", card_rect, Color(0.16, 0.09, 0.24, 0.94), Color(0.74, 0.56, 0.96, 0.82))
+		var question_width := ui_font.get_string_size("?", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 32).x
+		ThemeLib.draw_text_with_shadow(self, ui_font, card_rect.position + Vector2((card_rect.size.x - question_width) * 0.5, card_rect.size.y * 0.55), "?", 32, Color(0.9, 0.78, 1.0), Vector2(1.0, 2.0), 0.28)
+		return
+	var rarity := String(result.get("rarity", "common"))
+	var rarity_color := _gacha_rarity_color(rarity)
+	draw_rect(card_rect.grow(7.0), Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.18), true)
+	_draw_gacha_asset_panel("result_card", card_rect, Color(0.94, 0.88, 0.96, 0.96), Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.88))
+	var result_type := String(result.get("type", "plant"))
+	if result_type == "plant" and Defs.PLANTS.has(String(result.get("kind", ""))):
+		var kind := String(result["kind"])
+		_draw_card_icon(kind, card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.52))
+		var pname := String(Defs.PLANTS[kind].get("name", kind))
+		if pname.length() > 4:
+			pname = pname.left(4)
+		_draw_text(pname, card_rect.position + Vector2(8.0, 20.0), 12, Color(0.2, 0.12, 0.25))
+	elif result_type == "item":
+		draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.5), 16.0, Color(1.0, 0.76, 0.28, 0.9))
+		draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.5), 9.0, Color(1.0, 0.94, 0.58, 0.9))
+		_draw_text("材料", card_rect.position + Vector2(9.0, 20.0), 11, Color(0.22, 0.12, 0.22))
+	elif result_type == "fragment":
+		draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.5), 14.0, Color(0.58, 0.86, 0.52, 0.9))
+		_draw_text("碎片", card_rect.position + Vector2(9.0, 20.0), 11, Color(0.16, 0.24, 0.14))
+	else:
+		draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.5), 12.0, Color(0.5, 0.44, 0.5, 0.9))
+		_draw_text("杂物", card_rect.position + Vector2(9.0, 20.0), 11, Color(0.26, 0.2, 0.26))
+	var rarity_labels := {"common": "普通", "rare": "稀有", "purple": "紫", "orange": "橙", "gold": "金", "legendary": "传说", "epic": "史诗", "junk": "杂物"}
+	var rarity_label := String(rarity_labels.get(rarity, "普通"))
+	draw_rect(Rect2(card_rect.position + Vector2(0.0, card_rect.size.y - 22.0), Vector2(card_rect.size.x, 22.0)), Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.78), true)
+	_draw_text(rarity_label, card_rect.position + Vector2(8.0, card_rect.size.y - 5.0), 13, Color(1.0, 1.0, 1.0))
+	if bool(result.get("is_new", false)):
+		draw_rect(Rect2(card_rect.position + Vector2(card_rect.size.x - 34.0, 5.0), Vector2(30.0, 17.0)), Color(0.95, 0.24, 0.32, 0.92), true)
+		_draw_text("NEW", card_rect.position + Vector2(card_rect.size.x - 32.0, 19.0), 9, Color.WHITE)
+
+
+func _draw_gacha_collection_card(cell_rect: Rect2, plant_kind: String) -> void:
+	var has_plant := plant_stars.has(plant_kind)
+	var rarity := _gacha_plant_rarity(plant_kind)
+	var rarity_color := _gacha_rarity_color(rarity)
+	if has_plant:
+		_draw_gacha_asset_panel("result_card", cell_rect, Color(0.9, 0.84, 0.92, 0.94), Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.76))
+		_draw_card_icon(plant_kind, cell_rect.position + Vector2(cell_rect.size.x * 0.5, 50.0))
+		var stars := int(plant_stars.get(plant_kind, 1))
+		for s in range(mini(stars, 5)):
+			draw_circle(cell_rect.position + Vector2(14.0 + float(s) * 13.0, cell_rect.size.y - 10.0), 4.2, Color(1.0, 0.84, 0.24, 0.94))
+	else:
+		_draw_gacha_asset_panel("card_back", cell_rect, Color(0.1, 0.055, 0.15, 0.9), Color(0.46, 0.34, 0.58, 0.62), Color(1.0, 1.0, 1.0, 0.72))
+		draw_circle(cell_rect.get_center() + Vector2(0.0, -8.0), 18.0, Color(0.72, 0.58, 0.86, 0.12))
+		var mark_width := ui_font.get_string_size("?", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 28).x
+		_draw_text("?", cell_rect.position + Vector2((cell_rect.size.x - mark_width) * 0.5, 60.0), 28, Color(0.62, 0.52, 0.72))
+	if Defs.PLANTS.has(plant_kind):
+		var pname := String(Defs.PLANTS[plant_kind].get("name", plant_kind))
+		if pname.length() > 4:
+			pname = pname.left(4)
+		_draw_text(pname, cell_rect.position + Vector2(7.0, 19.0), 10, Color(0.96, 0.92, 1.0) if has_plant else Color(0.5, 0.44, 0.58))
 
 
 func _base_resource_summary() -> Dictionary:
@@ -29277,26 +29555,60 @@ func _draw_alice_doll_zombie(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(body + Vector2(0.0, 2.0), 28.0, Color(0.6, 0.44, 1.0, 0.08 + 0.03 * sin(cycle * 1.3)))
 
 
+func _draw_youmu_wraith(center: Vector2, zombie: Dictionary) -> void:
+	var flash = float(zombie.get("flash", 0.0))
+	var slow_tint = 0.45 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
+	var age = float(zombie.get("youmu_wraith_age", 0.0))
+	var phase = level_time * 6.8 + float(zombie.get("anim_phase", 0.0))
+	var body = center + Vector2(sin(phase * 0.6) * 3.0, -12.0 + sin(phase) * 4.0)
+	var core = Color(0.72, 0.96, 1.0, 0.62).lerp(Color(1.0, 1.0, 1.0, 0.84), flash * 1.6).lerp(Color(0.54, 0.72, 1.0, 0.72), slow_tint)
+	var aura = Color(0.42, 0.72, 1.0, 0.18)
+	draw_circle(body, 36.0 + sin(phase * 1.4) * 4.0, aura)
+	draw_arc(body, 30.0, -level_time * 2.0, -level_time * 2.0 + PI * 1.35, 28, Color(0.82, 1.0, 1.0, 0.44), 2.0)
+	draw_arc(body, 21.0, level_time * 2.8, level_time * 2.8 + PI * 1.45, 24, Color(0.58, 0.84, 1.0, 0.36), 1.6)
+	draw_circle(body + Vector2(-7.0, -7.0), 10.0, core)
+	draw_circle(body + Vector2(4.0, -5.0), 13.0, Color(core.r, core.g, core.b, core.a * 0.82))
+	draw_polygon(PackedVector2Array([
+		body + Vector2(-16.0, 4.0),
+		body + Vector2(15.0, 2.0),
+		body + Vector2(5.0 + sin(phase) * 5.0, 34.0),
+		body + Vector2(-8.0 + cos(phase) * 4.0, 26.0),
+	]), PackedColorArray([
+		Color(0.76, 0.96, 1.0, 0.48),
+		Color(0.58, 0.82, 1.0, 0.36),
+		Color(0.36, 0.62, 1.0, 0.05),
+		Color(0.9, 1.0, 1.0, 0.26),
+	]))
+	for trail_index in range(4):
+		var t = float(trail_index + 1) / 4.0
+		var trail_center = body + Vector2(18.0 + t * 24.0, 2.0 + sin(phase + t * 4.0) * 8.0)
+		draw_circle(trail_center, 8.0 * (1.0 - t * 0.45), Color(0.72, 0.94, 1.0, 0.22 * (1.0 - t * 0.18)))
+	if age < 0.32:
+		draw_circle(body, 52.0 * (1.0 - age / 0.32), Color(0.9, 1.0, 1.0, 0.18), false, 3.0)
+
+
 func _prepare_boss_frame_image(image: Image, face_left: bool = false) -> Image:
 	var prepared = image.duplicate()
 	prepared.convert(Image.FORMAT_RGBA8)
 	var width = prepared.get_width()
 	var height = prepared.get_height()
-	var opaque_points: Array = []
+	var background_mask := _boss_border_connected_background_mask(prepared)
+	var keep_points: Array = []
 	for y in range(height):
 		for x in range(width):
 			var pixel = prepared.get_pixel(x, y)
-			var is_background = pixel.a <= 0.05 or (pixel.r > 0.93 and pixel.g > 0.93 and pixel.b > 0.93)
+			var index = y * width + x
+			var is_background = pixel.a <= 0.05 or (index >= 0 and index < background_mask.size() and background_mask[index] != 0)
 			if is_background:
 				prepared.set_pixel(x, y, Color(1.0, 1.0, 1.0, 0.0))
 				continue
-			opaque_points.append(Vector2i(x, y))
-	if opaque_points.is_empty():
+			keep_points.append(Vector2i(x, y))
+	if keep_points.is_empty():
 		if face_left:
 			prepared.flip_x()
 		return prepared
 	var opaque_lookup := {}
-	for point_variant in opaque_points:
+	for point_variant in keep_points:
 		var point = Vector2i(point_variant)
 		opaque_lookup[Vector2i(point.x, point.y)] = true
 	var visited := {}
@@ -29308,7 +29620,7 @@ func _prepare_boss_frame_image(image: Image, face_left: bool = false) -> Image:
 		Vector2i(-1, 0), Vector2i(1, 0),
 		Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
 	]
-	for point_variant in opaque_points:
+	for point_variant in keep_points:
 		var start = Vector2i(point_variant)
 		if visited.has(start):
 			continue
@@ -29358,6 +29670,54 @@ func _prepare_boss_frame_image(image: Image, face_left: bool = false) -> Image:
 	if face_left:
 		cropped.flip_x()
 	return cropped
+
+
+func _boss_border_connected_background_mask(image: Image) -> PackedByteArray:
+	var width = image.get_width()
+	var height = image.get_height()
+	var mask := PackedByteArray()
+	mask.resize(width * height)
+	var queue: Array = []
+	for x in range(width):
+		_boss_enqueue_background_pixel(image, mask, queue, x, 0)
+		_boss_enqueue_background_pixel(image, mask, queue, x, height - 1)
+	for y in range(height):
+		_boss_enqueue_background_pixel(image, mask, queue, 0, y)
+		_boss_enqueue_background_pixel(image, mask, queue, width - 1, y)
+	var head := 0
+	var offsets = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
+	while head < queue.size():
+		var point = Vector2i(queue[head])
+		head += 1
+		for offset in offsets:
+			var next = point + offset
+			if next.x < 0 or next.x >= width or next.y < 0 or next.y >= height:
+				continue
+			var next_index = next.y * width + next.x
+			if mask[next_index] != 0:
+				continue
+			var pixel = image.get_pixel(next.x, next.y)
+			if not _boss_frame_background_pixel(pixel):
+				continue
+			mask[next_index] = 1
+			queue.append(next)
+	return mask
+
+
+func _boss_enqueue_background_pixel(image: Image, mask: PackedByteArray, queue: Array, x: int, y: int) -> void:
+	var index = y * image.get_width() + x
+	if mask[index] != 0:
+		return
+	if not _boss_frame_background_pixel(image.get_pixel(x, y)):
+		return
+	mask[index] = 1
+	queue.append(Vector2i(x, y))
+
+
+func _boss_frame_background_pixel(pixel: Color) -> bool:
+	if pixel.a <= 0.05:
+		return true
+	return pixel.r > 0.93 and pixel.g > 0.93 and pixel.b > 0.93
 
 
 func _boss_frames_face_left(kind: String) -> bool:
@@ -31279,6 +31639,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	if kind == "alice_doll_zombie":
 		_draw_alice_doll_zombie(center, zombie)
 		return
+	if kind == "youmu_wraith":
+		_draw_youmu_wraith(center, zombie)
+		return
 	if kind == "umbrella_zombie":
 		_draw_umbrella_zombie(center, zombie)
 		return
@@ -32919,7 +33282,9 @@ func _zombie_almanac_stats(kind: String) -> Array:
 		"prismriver_boss":
 			stats.append("特性：云海终幕 Boss，三姐妹合奏音波、右五列换位与大合葬压场")
 		"youmu_boss":
-			stats.append("特性：白玉楼终幕 Boss，可高速瞬步至任意列斩击，半灵与怨灵会短暂魅惑植物")
+			stats.append("特性：白玉楼终幕 Boss，常驻右侧蓄势，偶尔瞬步第一列高速斩击并释放剑气")
+		"youmu_wraith":
+			stats.append("特性：妖梦召唤的实体怨灵，可被攻击；命中植物后造成轻伤并短暂魅惑")
 	return stats
 
 
