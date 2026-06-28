@@ -141,6 +141,23 @@ const GACHA_UI_ASSETS := {
 	"card_back": "res://art/gacha_ui/gacha_card_back.png",
 	"result_card": "res://art/gacha_ui/gacha_result_card.png",
 }
+const WORLD_UI_ASSETS := {
+	"background": "res://art/world_ui/world_background.png",
+	"title_panel": "res://art/world_ui/world_title_panel.png",
+	"dock_panel": "res://art/world_ui/world_dock_panel.png",
+	"button_primary": "res://art/world_ui/world_button_primary.png",
+	"button_blue": "res://art/world_ui/world_button_blue.png",
+	"arrow_left": "res://art/world_ui/world_arrow_left.png",
+	"arrow_right": "res://art/world_ui/world_arrow_right.png",
+	"plant_slot": "res://art/world_ui/world_plant_slot.png",
+	"card_day": "res://art/world_ui/world_card_day.png",
+	"card_night": "res://art/world_ui/world_card_night.png",
+	"card_pool": "res://art/world_ui/world_card_pool.png",
+	"card_fog": "res://art/world_ui/world_card_fog.png",
+	"card_roof": "res://art/world_ui/world_card_roof.png",
+	"card_city": "res://art/world_ui/world_card_city.png",
+	"card_volcano": "res://art/world_ui/world_card_volcano.png",
+}
 const POLISHED_PROJECTILE_TEXTURE_PATHS := {
 	"pea": "res://art/polish/pea-polished.png",
 }
@@ -911,6 +928,7 @@ var polished_texture_cache := {}
 var image2_texture_cache := {}
 var image2_flipped_zombie_cache := {}
 var home_ui_texture_cache := {}
+var world_ui_texture_cache := {}
 var base_ui_texture_cache := {}
 var gacha_ui_texture_cache := {}
 var update_manager := UpdateManagerLib.new()
@@ -1413,8 +1431,16 @@ func _gacha_ui_asset_paths() -> Dictionary:
 	return GACHA_UI_ASSETS.duplicate()
 
 
+func _world_ui_asset_paths() -> Dictionary:
+	return WORLD_UI_ASSETS.duplicate()
+
+
 func _home_ui_texture(asset_key: String) -> Texture2D:
 	return _load_cached_texture(String(HOME_UI_ASSETS.get(asset_key, "")), home_ui_texture_cache, shared_image2_texture_cache)
+
+
+func _world_ui_texture(asset_key: String) -> Texture2D:
+	return _load_cached_texture(String(WORLD_UI_ASSETS.get(asset_key, "")), world_ui_texture_cache, shared_image2_texture_cache)
 
 
 func _gacha_ui_texture(asset_key: String) -> Texture2D:
@@ -20054,6 +20080,37 @@ func _draw_world_command_button(rect: Rect2, label: String, fill_color: Color, b
 	_draw_fancy_button(rect, label, fill_color, border_color, font_size)
 
 
+func _draw_world_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.24) -> void:
+	for layer in range(3):
+		var t := float(layer + 1) / 3.0
+		var shadow_rect := Rect2(rect.position + Vector2(0.0, 7.0 + t * 5.0), rect.size).grow(t * 4.0)
+		draw_texture_rect(texture, shadow_rect, false, Color(0.0, 0.0, 0.0, alpha * (1.0 - t * 0.46)))
+
+
+func _draw_world_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
+	var texture := _world_ui_texture(asset_key)
+	if texture != null:
+		_draw_world_asset_shadow(texture, rect, 0.24)
+		draw_texture_rect(texture, rect, false, tint)
+	else:
+		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.18, 0.1)
+
+
+func _draw_world_image_button(rect: Rect2, asset_key: String, label: String, font_size: int, text_color: Color, fallback_fill: Color, fallback_border: Color) -> void:
+	var hovered := rect.has_point(_pointer_local_position())
+	var draw_rect_local := rect
+	if hovered:
+		draw_rect_local.position.y -= 2.0
+	var tint := Color(1.065, 1.055, 1.0, 1.0) if hovered else Color.WHITE
+	_draw_world_asset_panel(asset_key, draw_rect_local, fallback_fill, fallback_border, tint)
+	var label_width := ui_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, draw_rect_local.position + Vector2((draw_rect_local.size.x - label_width) * 0.5, draw_rect_local.size.y * 0.58), label, font_size, text_color, Vector2(1.0, 2.0), 0.28)
+
+
+func _rect_grow_xy(rect: Rect2, grow_by: Vector2) -> Rect2:
+	return Rect2(rect.position - grow_by, rect.size + grow_by * 2.0)
+
+
 func _draw_scroll_mask(content_rect: Rect2, view_rect: Rect2, fill_color: Color, border_color: Color) -> void:
 	ThemeLib.draw_scroll_mask(self, content_rect, view_rect, fill_color, border_color)
 
@@ -20072,6 +20129,22 @@ func _world_card_rect(index: int) -> Rect2:
 	var card_scale = clampf(1.0 - delta * 0.12, 0.84, 1.0)
 	var card_size = Vector2(460.0, 560.0) * card_scale
 	return Rect2(Vector2(center_x - card_size.x * 0.5, 150.0 + delta * 18.0), card_size)
+
+
+func _world_select_title_panel_rect() -> Rect2:
+	return Rect2(60.0, 34.0, 620.0, 132.0)
+
+
+func _world_select_card_text_rect(index: int) -> Rect2:
+	var card_rect := _world_card_rect(index)
+	var scale := card_rect.size.x / 460.0
+	return Rect2(card_rect.position + Vector2(34.0, 52.0) * scale, Vector2(318.0, 156.0) * scale)
+
+
+func _world_select_card_preview_grid_rect(index: int) -> Rect2:
+	var card_rect := _world_card_rect(index)
+	var scale := card_rect.size.x / 460.0
+	return Rect2(card_rect.position + Vector2(54.0, 248.0) * scale, Vector2(320.0, 230.0) * scale)
 
 
 func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Color, fill: Color, entry_id: String, large: bool = false, disabled: bool = false) -> void:
@@ -20295,70 +20368,69 @@ func _draw_daily_scene() -> void:
 
 
 func _draw_world_select_scene() -> void:
-	var blend = clampf(world_select_scroll / float(max(WorldDataLib.all().size() - 1, 1)), 0.0, 1.0)
-	var sky_night = blend >= 0.5
-	_draw_world_sky(sky_night)
-	draw_rect(Rect2(Vector2.ZERO, Vector2(BASE_VIEWPORT_SIZE.x, 120.0)), Color(0.08, 0.12, 0.2, 0.12) if sky_night else Color(1.0, 1.0, 1.0, 0.12), true)
-	draw_rect(Rect2(Vector2(0.0, BASE_VIEWPORT_SIZE.y - 142.0), Vector2(BASE_VIEWPORT_SIZE.x, 142.0)), Color(0.12, 0.1, 0.08, 0.22), true)
+	var background_texture := _world_ui_texture("background")
+	if background_texture != null:
+		draw_texture_rect(background_texture, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), false)
+	else:
+		_draw_world_sky(false)
+	draw_rect(Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.18, 0.14, 0.08, 0.08), true)
 
-	var title_rect = Rect2(58.0, 34.0, 616.0, 102.0)
-	ThemeLib.draw_soft_shadow(self, title_rect, Color(0.0, 0.0, 0.0, 0.2), 4, 12.0, 8.0)
-	_draw_panel_shell(title_rect, Color(0.98, 0.94, 0.82, 0.95) if not sky_night else Color(0.16, 0.2, 0.32, 0.95), Color(0.54, 0.4, 0.16) if not sky_night else Color(0.58, 0.68, 0.88), 0.2, 0.12)
-	_draw_text("世界选择", title_rect.position + Vector2(24.0, 42.0), 36, Color(0.22, 0.16, 0.06) if not sky_night else Color(0.94, 0.96, 1.0))
-	_draw_text("像 PvZ2 一样先选世界，再进入该世界的关卡地图。", title_rect.position + Vector2(24.0, 76.0), 18, Color(0.3, 0.22, 0.08) if not sky_night else Color(0.82, 0.88, 0.98))
+	var title_rect := _world_select_title_panel_rect()
+	_draw_world_asset_panel("title_panel", title_rect, Color(0.98, 0.94, 0.82, 0.95), Color(0.54, 0.4, 0.16))
+	ThemeLib.draw_text_with_shadow(self, ui_font, title_rect.position + Vector2(154.0, 62.0), "世界选择", 40, Color(0.34, 0.22, 0.08), Vector2(1.5, 3.0), 0.24)
+	ThemeLib.draw_text_with_shadow(self, ui_font, title_rect.position + Vector2(154.0, 96.0), "选择世界，再进入该世界的关卡地图。", 18, Color(0.42, 0.3, 0.14), Vector2(1.0, 2.0), 0.2)
 
 	for i in range(WorldDataLib.all().size()):
-		var world = WorldDataLib.all()[i]
-		var card_rect = _world_card_rect(i)
-		var selected = roundi(world_select_scroll) == i
-		var unlocked = _is_world_unlocked(String(world["key"])) or String(world["key"]) == "day"
-		var fill = Color(world["panel"])
-		var border = Color(world["accent_dark"])
-		var accent = Color(world["accent"])
+		var world := Dictionary(WorldDataLib.all()[i])
+		var card_rect := _world_card_rect(i)
+		var selected := roundi(world_select_scroll) == i
+		var unlocked := _is_world_unlocked(String(world["key"])) or String(world["key"]) == "day"
+		var accent := Color(world["accent"])
+		var card_key := "card_%s" % String(world["key"])
 		if not unlocked:
-			fill = fill.darkened(0.24)
-		# Soft drop shadow under the card for depth
-		ThemeLib.draw_soft_shadow(self, card_rect, Color(0.0, 0.0, 0.0, 0.22), 4, 14.0, 10.0)
-		_draw_panel_shell(card_rect, fill, border, 0.24, 0.14)
-		# accent header band + glowing emblem
-		draw_rect(Rect2(card_rect.position + Vector2(18.0, 18.0), Vector2(card_rect.size.x - 36.0, 160.0)), Color(accent.r, accent.g, accent.b, 0.16), true)
-		var emblem_center = card_rect.position + Vector2(card_rect.size.x - 68.0, 72.0)
-		var emblem_pulse = 0.5 + 0.5 * sin(ui_time * 2.0 + float(i))
-		draw_circle(emblem_center, 40.0, Color(accent.r, accent.g, accent.b, 0.1 + emblem_pulse * 0.08))
-		draw_circle(emblem_center, 34.0, Color(accent.r, accent.g, accent.b, 0.22))
-		if String(world["key"]) == "night":
-			draw_circle(emblem_center + Vector2(-4.0, 4.0), 22.0, Color(0.92, 0.96, 1.0))
-			draw_circle(emblem_center + Vector2(4.0, 0.0), 20.0, fill)
-		else:
-			draw_circle(emblem_center, 22.0, Color(1.0, 0.92, 0.38))
-			draw_circle(emblem_center + Vector2(-5.0, -5.0), 8.0, Color(1.0, 1.0, 0.8, 0.6))
+			card_key = "card_day"
+		var tint := Color.WHITE if unlocked else Color(0.58, 0.6, 0.64, 0.86)
+		_draw_world_asset_panel(card_key, card_rect, Color(world["panel"]), Color(world["accent_dark"]), tint)
 		if selected:
-			# animated selection glow (gentle pulse) instead of a static frame
-			var glow = 0.32 + 0.18 * sin(ui_time * 3.0)
-			draw_rect(card_rect.grow(6.0), Color(1.0, 0.92, 0.46, glow), false, 5.0)
-			draw_rect(card_rect.grow(11.0), Color(1.0, 0.92, 0.46, glow * 0.4), false, 3.0)
+			var glow := 0.32 + 0.18 * sin(ui_time * 3.0)
+			draw_rect(card_rect.grow(5.0), Color(1.0, 0.86, 0.32, glow), false, 4.0)
+			draw_rect(card_rect.grow(10.0), Color(1.0, 0.86, 0.32, glow * 0.36), false, 2.0)
 
-		_draw_text(String(world["title"]), card_rect.position + Vector2(26.0, 56.0), 34, Color(0.22, 0.16, 0.06) if String(world["key"]) == "day" else Color(0.94, 0.96, 1.0))
-		_draw_text(String(world["subtitle"]), card_rect.position + Vector2(26.0, 88.0), 18, Color(world["accent_dark"]).lerp(Color.WHITE, 0.15))
-		_draw_text_block(String(world["description"]), Rect2(card_rect.position + Vector2(26.0, 112.0), Vector2(card_rect.size.x - 120.0, 72.0)), 18, Color(0.26, 0.2, 0.1) if String(world["key"]) == "day" else Color(0.82, 0.88, 0.96), 4.0, 3)
+		var scale := card_rect.size.x / 460.0
+		var text_rect := _world_select_card_text_rect(i)
+		var dark_card := String(world["key"]) in ["night", "fog", "city", "volcano"]
+		var title_color := Color(0.96, 0.98, 1.0) if dark_card else Color(0.28, 0.22, 0.08)
+		var body_color := Color(0.84, 0.92, 1.0) if dark_card else Color(0.34, 0.26, 0.12)
+		var subtitle_fill := Color(accent.r, accent.g, accent.b, 0.76)
+		ThemeLib.draw_text_with_shadow(self, ui_font, text_rect.position + Vector2(0.0, 42.0 * scale), String(world["title"]), int(round(34.0 * scale)), title_color, Vector2(1.0, 2.5) * scale, 0.28)
+		var subtitle_rect := Rect2(text_rect.position + Vector2(0.0, 58.0 * scale), Vector2(250.0, 28.0) * scale)
+		ThemeLib.draw_rounded_panel(self, subtitle_rect, subtitle_fill, Color(1.0, 1.0, 1.0, 0.28), 10.0 * scale, 0.04, 0.04)
+		ThemeLib.draw_text_with_shadow(self, ui_font, subtitle_rect.position + Vector2(18.0, 20.0) * scale, String(world["subtitle"]), int(round(15.0 * scale)), Color(1.0, 0.98, 0.92), Vector2(1.0, 1.5) * scale, 0.24)
+		var desc := String(world["description"])
+		if desc.length() > 72:
+			desc = desc.left(70) + "..."
+		_draw_text_block(desc, Rect2(text_rect.position + Vector2(0.0, 96.0 * scale), Vector2(text_rect.size.x, 70.0 * scale)), int(round(16.0 * scale)), body_color, 4.0 * scale, 3)
 
-		var preview_plants = world["plants"]
+		var preview_plants: Array = world["plants"]
+		var grid_rect := _world_select_card_preview_grid_rect(i)
 		for plant_index in range(preview_plants.size()):
-			var chip_rect = Rect2(card_rect.position + Vector2(26.0 + float(plant_index % 3) * 110.0, 208.0 + floor(float(plant_index) / 3.0) * 118.0), Vector2(96.0, 106.0))
-			_draw_panel_shell(chip_rect, Color(0.98, 0.95, 0.88, 0.94) if String(world["key"]) == "day" else Color(0.24, 0.3, 0.42, 0.96), Color(world["accent_dark"]), 0.1, 0.06)
-			_draw_card_icon(String(preview_plants[plant_index]), chip_rect.position + Vector2(chip_rect.size.x * 0.5, 56.0))
-			_draw_text(String(Defs.PLANTS[String(preview_plants[plant_index])]["name"]), chip_rect.position + Vector2(8.0, 20.0), 12, Color(0.24, 0.16, 0.06) if String(world["key"]) == "day" else Color(0.92, 0.96, 1.0))
+			var slot_size := Vector2(96.0, 106.0) * scale
+			var chip_rect := Rect2(grid_rect.position + Vector2(float(plant_index % 3) * 112.0, floor(float(plant_index) / 3.0) * 118.0) * scale, slot_size)
+			_draw_world_asset_panel("plant_slot", chip_rect, Color(0.98, 0.95, 0.88, 0.94), Color(world["accent_dark"]))
+			_draw_card_icon(String(preview_plants[plant_index]), chip_rect.position + Vector2(chip_rect.size.x * 0.5, 56.0 * scale))
+			var plant_name := String(Defs.PLANTS[String(preview_plants[plant_index])]["name"])
+			if plant_name.length() > 4:
+				plant_name = plant_name.left(4)
+			_draw_text(plant_name, chip_rect.position + Vector2(9.0, 21.0) * scale, int(round(12.0 * scale)), Color(0.24, 0.16, 0.06))
 
 		var progress_label = "已解锁 %d/%d 关" % [_visible_unlocked_count(String(world["key"])), _visible_level_indices(String(world["key"])).size()]
-		_draw_text(progress_label, card_rect.position + Vector2(26.0, card_rect.size.y - 52.0), 20, Color(world["accent_dark"]).lerp(Color.WHITE, 0.1))
+		ThemeLib.draw_text_with_shadow(self, ui_font, card_rect.position + Vector2(72.0, card_rect.size.y - 38.0) * scale, progress_label, int(round(19.0 * scale)), title_color, Vector2(1.0, 2.0) * scale, 0.28)
 		if not unlocked:
 			draw_rect(card_rect, Color(0.0, 0.0, 0.0, 0.26), true)
-			_draw_text("通关 1-16 后解锁", card_rect.position + Vector2(26.0, card_rect.size.y - 20.0), 20, Color(1.0, 0.96, 0.86))
+			ThemeLib.draw_text_with_shadow(self, ui_font, card_rect.position + Vector2(52.0, card_rect.size.y - 22.0), "通关前置世界后解锁", 18, Color(1.0, 0.96, 0.86), Vector2(1.0, 2.0), 0.32)
 
-	_draw_panel_shell(WORLD_SELECT_ARROW_LEFT_RECT, Color(0.96, 0.92, 0.82, 0.94), Color(0.48, 0.35, 0.16), 0.18, 0.12)
-	_draw_panel_shell(WORLD_SELECT_ARROW_RIGHT_RECT, Color(0.96, 0.92, 0.82, 0.94), Color(0.48, 0.35, 0.16), 0.18, 0.12)
-	draw_polyline(PackedVector2Array([WORLD_SELECT_ARROW_LEFT_RECT.get_center() + Vector2(12.0, -24.0), WORLD_SELECT_ARROW_LEFT_RECT.get_center() + Vector2(-10.0, 0.0), WORLD_SELECT_ARROW_LEFT_RECT.get_center() + Vector2(12.0, 24.0)]), Color(0.28, 0.18, 0.08), 7.0)
-	draw_polyline(PackedVector2Array([WORLD_SELECT_ARROW_RIGHT_RECT.get_center() + Vector2(-12.0, -24.0), WORLD_SELECT_ARROW_RIGHT_RECT.get_center() + Vector2(10.0, 0.0), WORLD_SELECT_ARROW_RIGHT_RECT.get_center() + Vector2(-12.0, 24.0)]), Color(0.28, 0.18, 0.08), 7.0)
+	_draw_world_asset_panel("arrow_left", WORLD_SELECT_ARROW_LEFT_RECT, Color(0.96, 0.92, 0.82, 0.94), Color(0.48, 0.35, 0.16))
+	_draw_world_asset_panel("arrow_right", WORLD_SELECT_ARROW_RIGHT_RECT, Color(0.96, 0.92, 0.82, 0.94), Color(0.48, 0.35, 0.16))
 
 	var selected_world = _selected_world_data()
 	var world_key = String(selected_world.get("key", "day"))
@@ -20366,37 +20438,30 @@ func _draw_world_select_scene() -> void:
 	var enter_fill = Color(selected_world.get("accent", Color(0.42, 0.76, 0.24)))
 	var action_rects = _world_select_action_rects()
 	var dock_rect = _world_select_command_dock_rect()
-	ThemeLib.draw_soft_shadow(self, dock_rect, Color(0.0, 0.0, 0.0, 0.22), 4, 18.0, 10.0)
-	_draw_panel_shell(dock_rect, Color(0.09, 0.105, 0.12, 0.9), Color(0.72, 0.78, 0.82, 0.22), 0.12, 0.08)
-	draw_rect(Rect2(dock_rect.position + Vector2(18.0, 16.0), Vector2(dock_rect.size.x - 36.0, 2.0)), Color(0.94, 0.98, 1.0, 0.18), true)
-	_draw_text("作战终端", dock_rect.position + Vector2(24.0, 42.0), 17, Color(0.88, 0.94, 1.0))
-	_draw_text("世界 %d/%d" % [world_select_index + 1, WorldDataLib.all().size()], dock_rect.position + Vector2(24.0, 136.0), 16, Color(0.72, 0.82, 0.88))
+	_draw_world_asset_panel("dock_panel", dock_rect, Color(0.98, 0.92, 0.78, 0.94), Color(0.54, 0.4, 0.16))
+	ThemeLib.draw_text_with_shadow(self, ui_font, dock_rect.position + Vector2(80.0, 58.0), "作战终端", 27, Color(0.42, 0.28, 0.12), Vector2(1.0, 2.0), 0.22)
+	ThemeLib.draw_text_with_shadow(self, ui_font, dock_rect.position + Vector2(84.0, 108.0), "世界 %d/%d" % [world_select_index + 1, WorldDataLib.all().size()], 19, Color(0.5, 0.38, 0.18), Vector2(1.0, 1.5), 0.2)
 	if not unlocked_world:
 		enter_fill = Color(0.44, 0.46, 0.52)
 	var enter_rect = Rect2(action_rects["enter"])
-	ThemeLib.draw_soft_shadow(self, enter_rect, Color(0.0, 0.0, 0.0, 0.28), 4, 14.0, 10.0)
-	# gentle glow pulse on the enter button when its world is unlocked
-	if unlocked_world:
-		var enter_pulse = 0.4 + 0.25 * sin(ui_time * 2.4)
-		draw_rect(enter_rect.grow(6.0), Color(enter_fill.r, enter_fill.g, enter_fill.b, enter_pulse * 0.3), false, 4.0)
-	_draw_panel_shell(enter_rect, enter_fill, Color(0.18, 0.22, 0.16), 0.22, 0.12)
-	_draw_world_command_button(Rect2(action_rects["home"]), "主页", Color(0.28, 0.38, 0.44), Color(0.54, 0.7, 0.78), 18)
-	_draw_text("进入", enter_rect.position + Vector2(44.0, 38.0), 25, Color(0.1, 0.14, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96))
+	_draw_world_image_button(_rect_grow_xy(enter_rect, Vector2(44.0, 13.0)), "button_primary", "进入", 28, Color(0.28, 0.2, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96), enter_fill, Color(0.18, 0.22, 0.16))
+	_draw_world_image_button(_rect_grow_xy(Rect2(action_rects["home"]), Vector2(32.0, 5.0)), "button_blue", "主页", 19, Color(0.95, 0.98, 1.0), Color(0.28, 0.38, 0.44), Color(0.54, 0.7, 0.78))
 
-	_draw_world_command_button(Rect2(action_rects["update"]), _update_action_text(), _update_badge_fill(), Color(0.18, 0.22, 0.28), 16)
+	_draw_world_image_button(_rect_grow_xy(Rect2(action_rects["update"]), Vector2(14.0, 10.0)), "button_blue", _update_action_text(), 16, Color(0.95, 0.98, 1.0), _update_badge_fill(), Color(0.18, 0.22, 0.28))
 	var update_info_rect = Rect2(action_rects["update_info"])
-	_draw_panel_shell(update_info_rect, Color(0.14, 0.16, 0.2, 0.9), Color(0.34, 0.4, 0.48), 0.12, 0.08)
-	_draw_text("自动更新", update_info_rect.position + Vector2(14.0, 17.0), 13, Color(0.92, 0.96, 1.0))
-	_draw_text(_update_status_line(), update_info_rect.position + Vector2(86.0, 17.0), 11, Color(0.84, 0.9, 0.98))
+	ThemeLib.draw_rounded_panel(self, update_info_rect, Color(0.92, 0.84, 0.68, 0.54), Color(0.66, 0.48, 0.22, 0.36), 8.0, 0.02, 0.03)
+	_draw_text("自动更新", update_info_rect.position + Vector2(14.0, 17.0), 13, Color(0.42, 0.3, 0.14))
+	_draw_text(_update_status_line(), update_info_rect.position + Vector2(86.0, 17.0), 11, Color(0.44, 0.36, 0.2))
 	if update_state == "downloading":
 		var bar_rect = Rect2(update_info_rect.position + Vector2(156.0, 13.0), Vector2(104.0, 12.0))
 		draw_rect(bar_rect, Color(0.08, 0.1, 0.12, 0.82), true)
 		draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * clampf(update_download_progress, 0.0, 1.0), bar_rect.size.y)), Color(0.92, 0.66, 0.22, 0.94), true)
 		draw_rect(bar_rect, Color(0.94, 0.96, 1.0, 0.24), false, 1.0)
 	# Coin display
-	var coin_rect = Rect2(1224.0, 818.0, 150.0, 30.0)
-	_draw_panel_shell(coin_rect, Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.1, 0.06)
-	_draw_text("金币 %d" % coins_total, coin_rect.position + Vector2(14.0, 22.0), 16, Color(0.33, 0.21, 0.04))
+	var coin_rect = Rect2(1212.0, 818.0, 190.0, 34.0)
+	ThemeLib.draw_rounded_panel(self, coin_rect, Color(1.0, 0.86, 0.32, 0.88), Color(0.72, 0.48, 0.08, 0.74), 10.0, 0.04, 0.04)
+	_draw_coin_icon(coin_rect.position + Vector2(26.0, 17.0), 0.52)
+	_draw_text("金币 %d" % coins_total, coin_rect.position + Vector2(48.0, 24.0), 16, Color(0.33, 0.21, 0.04))
 
 
 func _draw_map_scene() -> void:

@@ -26,6 +26,8 @@ func _run() -> void:
 	failed = not _test_world_select_supports_screen_drag_and_snap() or failed
 	failed = not _test_world_select_home_button_returns_to_terminal() or failed
 	failed = not _test_world_select_excludes_home_duplicate_mode_buttons() or failed
+	failed = not _test_world_select_image2_asset_manifest_is_declared() or failed
+	failed = not _test_world_select_image2_layout_keeps_text_on_boards() or failed
 	failed = not _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() or failed
 	failed = not _test_world_select_command_dock_targets_are_unified() or failed
 	failed = not _test_map_supports_screen_drag_scroll() or failed
@@ -475,6 +477,53 @@ func _test_world_select_excludes_home_duplicate_mode_buttons() -> bool:
 	for duplicate_variant in ["almanac", "gacha", "enhance", "base", "daily", "endless"]:
 		var duplicate := String(duplicate_variant)
 		passed = _assert_true(not action_rects.has(duplicate), "mainline world select should not duplicate the %s home entry" % duplicate) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_world_select_image2_asset_manifest_is_declared() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_world_ui_asset_paths"), "world select should expose Image2 UI asset paths")
+	if passed:
+		var paths: Dictionary = game.call("_world_ui_asset_paths")
+		for key_variant in ["background", "title_panel", "dock_panel", "button_primary", "button_blue", "arrow_left", "plant_slot"]:
+			var key := String(key_variant)
+			passed = _assert_true(paths.has(key), "world Image2 manifest should include %s" % key) and passed
+		for world_variant in GameScript.WorldDataLib.all():
+			var world := Dictionary(world_variant)
+			var world_key := String(world.get("key", ""))
+			var card_key := "card_%s" % world_key
+			passed = _assert_true(paths.has(card_key), "world Image2 manifest should include %s" % card_key) and passed
+		for key_variant in paths.keys():
+			var path := String(paths[key_variant])
+			passed = _assert_true(path.begins_with("res://art/world_ui/"), "%s should live under art/world_ui" % String(key_variant)) and passed
+			passed = _assert_true(path.ends_with(".png"), "%s should be a PNG asset" % String(key_variant)) and passed
+			passed = _assert_true(FileAccess.file_exists(path), "%s should exist" % path) and passed
+			passed = _assert_true(FileAccess.file_exists("%s.import" % path), "%s should have a Godot import sidecar" % path) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_world_select_image2_layout_keeps_text_on_boards() -> bool:
+	var game := _make_game()
+	var viewport := Rect2(Vector2.ZERO, GameScript.BASE_VIEWPORT_SIZE)
+	var passed := _assert_true(game.has_method("_world_select_title_panel_rect"), "world select should expose a title panel rect") \
+		and _assert_true(game.has_method("_world_select_card_text_rect"), "world select should expose card text safe rects") \
+		and _assert_true(game.has_method("_world_select_card_preview_grid_rect"), "world select should expose card preview grid rects")
+	if passed:
+		var title_rect := Rect2(game.call("_world_select_title_panel_rect"))
+		var dock_rect: Rect2 = game.call("_world_select_command_dock_rect")
+		passed = _assert_true(viewport.encloses(title_rect), "world title panel should stay inside the viewport") and passed
+		passed = _assert_true(viewport.encloses(dock_rect), "world command dock should stay inside the viewport") and passed
+		for i in range(GameScript.WorldDataLib.all().size()):
+			game.world_select_scroll = float(i)
+			var card_rect := Rect2(game.call("_world_card_rect", i))
+			var text_rect := Rect2(game.call("_world_select_card_text_rect", i))
+			var grid_rect := Rect2(game.call("_world_select_card_preview_grid_rect", i))
+			passed = _assert_true(card_rect.encloses(text_rect), "world card %d should contain its text safe area" % i) and passed
+			passed = _assert_true(card_rect.encloses(grid_rect), "world card %d should contain its plant preview grid" % i) and passed
+			passed = _assert_true(not text_rect.intersects(grid_rect), "world card %d text and preview grid should not overlap" % i) and passed
+			passed = _assert_true(text_rect.size.x >= 300.0 and text_rect.size.y >= 150.0, "world card %d text safe area should remain readable" % i) and passed
 	_free_game(game)
 	return passed
 
