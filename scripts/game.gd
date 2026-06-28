@@ -1402,16 +1402,27 @@ func _home_entry_asset_key(entry_id: String) -> String:
 			return ""
 
 
-func _home_entry_text_rect(entry_id: String) -> Rect2:
+func _home_entry_board_safe_rect(entry_id: String) -> Rect2:
 	var action_rects := _home_action_rects()
 	var rect := Rect2(action_rects.get(entry_id, Rect2()))
 	if entry_id == "mainline":
-		return Rect2(rect.position + Vector2(70.0, 82.0), Vector2(rect.size.x - 250.0, 138.0))
+		return Rect2(rect.position + Vector2(46.0, 54.0), Vector2(rect.size.x - 158.0, rect.size.y - 72.0))
 	if entry_id == "events":
-		return Rect2(rect.position + Vector2(178.0, 42.0), Vector2(rect.size.x - 430.0, 74.0))
+		return Rect2(rect.position + Vector2(170.0, 28.0), Vector2(rect.size.x - 340.0, rect.size.y - 44.0))
 	if entry_id == "daily" or entry_id == "entertainment":
-		return Rect2(rect.position + Vector2(70.0, 38.0), Vector2(rect.size.x - 166.0, 74.0))
-	return Rect2(rect.position + Vector2(82.0, 34.0), Vector2(rect.size.x - 190.0, 66.0))
+		return Rect2(rect.position + Vector2(66.0, 14.0), Vector2(rect.size.x - 132.0, rect.size.y - 22.0))
+	return Rect2(rect.position + Vector2(100.0, 10.0), Vector2(rect.size.x - 202.0, rect.size.y - 14.0))
+
+
+func _home_entry_text_rect(entry_id: String) -> Rect2:
+	var board_rect := _home_entry_board_safe_rect(entry_id)
+	if entry_id == "mainline":
+		return Rect2(board_rect.position + Vector2(24.0, 28.0), Vector2(minf(board_rect.size.x - 116.0, 292.0), 142.0))
+	if entry_id == "events":
+		return Rect2(board_rect.position + Vector2(12.0, 14.0), Vector2(board_rect.size.x - 94.0, 82.0))
+	if entry_id == "daily" or entry_id == "entertainment":
+		return Rect2(board_rect.position + Vector2(10.0, 20.0), Vector2(board_rect.size.x - 38.0, 92.0))
+	return Rect2(board_rect.position + Vector2(14.0, 18.0), Vector2(board_rect.size.x - 30.0, 90.0))
 
 
 func _home_touch_target(position: Vector2) -> Dictionary:

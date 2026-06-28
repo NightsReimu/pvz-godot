@@ -12,6 +12,7 @@ func _run() -> void:
 	failed = not _test_home_terminal_routes_mainline_to_world_select() or failed
 	failed = not _test_home_terminal_mode_entries_are_inside_viewport() or failed
 	failed = not _test_home_image2_layout_exposes_text_safe_areas() or failed
+	failed = not _test_home_image2_text_stays_on_visible_boards() or failed
 	failed = not _test_home_image2_decorative_layout_is_reserved() or failed
 	failed = not _test_home_image2_asset_manifest_is_declared() or failed
 	failed = not _test_home_image2_asset_helpers_exist() or failed
@@ -200,6 +201,50 @@ func _test_home_image2_layout_exposes_text_safe_areas() -> bool:
 			passed = _assert_true(Rect2(action_rects[action]).encloses(text_rect), "%s text-safe rect should stay inside its card" % action) and passed
 			passed = _assert_true(text_rect.size.x >= title_width, "%s text-safe rect should fit its title" % action) and passed
 			passed = _assert_true(text_rect.size.y >= (120.0 if action == "mainline" else 54.0), "%s text-safe rect should leave room for copy" % action) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_image2_text_stays_on_visible_boards() -> bool:
+	var game := _make_game()
+	game.call("_build_font")
+	var passed := _assert_true(game.has_method("_home_entry_board_safe_rect"), "home Image2 entries should expose visible board safe rects") \
+		and _assert_true(game.has_method("_home_entry_text_rect"), "home Image2 entries should expose text-safe rects")
+	if passed:
+		var ui_font: Font = game.ui_font
+		var titles := {
+			"mainline": "主线关卡",
+			"daily": "每日关卡",
+			"entertainment": "娱乐关卡",
+			"events": "活动关卡",
+			"base": "基建",
+			"enhance": "植物强化",
+			"gacha": "抽卡",
+			"almanac": "图鉴",
+		}
+		var subtitles := {
+			"mainline": "进入世界选择，推进地图与首领关卡。当前世界：白天冒险",
+			"daily": "今日修饰挑战，奖励金币和强化材料。",
+			"entertainment": "无尽模式入口，尸潮会持续变强。",
+			"events": "限时活动入口已预留，后续版本开放。",
+			"base": "生产金币、材料、碎片，并管理植物心情。",
+			"enhance": "按植物类型提升属性，消耗材料与金币。",
+			"gacha": "获取稀有植物、碎片和强化材料。",
+			"almanac": "查看植物、僵尸和 Boss 资料。",
+		}
+		for action_variant in titles.keys():
+			var action := String(action_variant)
+			var board_rect: Rect2 = game.call("_home_entry_board_safe_rect", action)
+			var text_rect: Rect2 = game.call("_home_entry_text_rect", action)
+			var title_size := 34 if action == "mainline" else 26
+			var subtitle_size := 18 if action == "mainline" else 16
+			var title_width := ui_font.get_string_size(String(titles[action]), HORIZONTAL_ALIGNMENT_LEFT, -1.0, title_size).x
+			var subtitle_lines: Array = game.call("_wrap_text_lines", String(subtitles[action]), text_rect.size.x, subtitle_size)
+			var line_count: int = mini(subtitle_lines.size(), 3 if action == "mainline" else 2)
+			var subtitle_height := float(subtitle_size) + maxf(0.0, float(line_count - 1) * (float(subtitle_size) + 5.0))
+			var content_rect := Rect2(text_rect.position, Vector2(maxf(title_width, text_rect.size.x), float(title_size) + 14.0 + subtitle_height))
+			passed = _assert_true(board_rect.encloses(text_rect), "%s text rect should sit on the visible board, not the transparent PNG margin" % action) and passed
+			passed = _assert_true(board_rect.encloses(content_rect), "%s rendered title/subtitle should fit fully inside the board background" % action) and passed
 	_free_game(game)
 	return passed
 
