@@ -17,6 +17,8 @@ func _run() -> void:
 	failed = not _test_home_image2_asset_manifest_is_declared() or failed
 	failed = not _test_home_image2_asset_helpers_exist() or failed
 	failed = not _test_home_image2_asset_shadow_helper_exists() or failed
+	failed = not _test_home_image2_title_asset_is_declared_and_positioned() or failed
+	failed = not _test_home_resource_text_stays_on_visible_bar() or failed
 	failed = not _test_home_resource_status_text_fits_panel() or failed
 	failed = not _test_home_terminal_touch_targets_match_action_rects() or failed
 	failed = not _test_daily_terminal_stage_layout_stays_inside_viewport() or failed
@@ -281,7 +283,7 @@ func _test_home_image2_asset_manifest_is_declared() -> bool:
 	var passed := _assert_true(game.has_method("_home_ui_asset_paths"), "home screen should expose Image2 UI asset paths")
 	if passed:
 		var paths: Dictionary = game.call("_home_ui_asset_paths")
-		for key_variant in ["logo", "main_board", "card_daily", "card_entertainment", "card_base", "card_enhance", "card_gacha", "card_almanac", "card_locked", "resource_bar", "lock_badge"]:
+		for key_variant in ["logo", "title_text", "main_board", "card_daily", "card_entertainment", "card_base", "card_enhance", "card_gacha", "card_almanac", "card_locked", "resource_bar", "lock_badge"]:
 			var key := String(key_variant)
 			passed = _assert_true(paths.has(key), "home Image2 manifest should include %s" % key) and passed
 			if paths.has(key):
@@ -303,6 +305,53 @@ func _test_home_image2_asset_helpers_exist() -> bool:
 func _test_home_image2_asset_shadow_helper_exists() -> bool:
 	var game := _make_game()
 	var passed := _assert_true(game.has_method("_draw_home_asset_shadow"), "home Image2 panels should use alpha-shaped texture shadows instead of rectangular soft shadows")
+	_free_game(game)
+	return passed
+
+
+func _test_home_image2_title_asset_is_declared_and_positioned() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_home_ui_asset_paths"), "home should expose Image2 UI asset paths") \
+		and _assert_true(game.has_method("_home_title_text_rect"), "home title should have a dedicated Image2 title rect")
+	if passed:
+		var paths: Dictionary = game.call("_home_ui_asset_paths")
+		var title_path := String(paths.get("title_text", ""))
+		var logo_rect: Rect2 = game.call("_home_logo_rect")
+		var title_rect: Rect2 = game.call("_home_title_text_rect")
+		passed = _assert_true(title_path == "res://art/home_ui/home_title_text.png", "home title text should use the generated Image2 title asset") and passed
+		passed = _assert_true(FileAccess.file_exists(title_path), "home Image2 title asset should exist") and passed
+		passed = _assert_true(FileAccess.file_exists("%s.import" % title_path), "home Image2 title asset should have a Godot import sidecar") and passed
+		passed = _assert_true(logo_rect.encloses(title_rect), "home Image2 title should sit inside the logo plate") and passed
+		passed = _assert_true(title_rect.size.x >= 330.0 and title_rect.size.y >= 64.0, "home Image2 title should be large enough to replace the drawn font") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_resource_text_stays_on_visible_bar() -> bool:
+	var game := _make_game()
+	game.call("_build_font")
+	var passed := _assert_true(game.has_method("_home_resource_board_safe_rect"), "home resource bar should expose its visible board rect") \
+		and _assert_true(game.has_method("_home_resource_coin_text_rect"), "home resource bar should expose a coin text rect") \
+		and _assert_true(game.has_method("_home_resource_drone_text_rect"), "home resource bar should expose a drone text rect") \
+		and _assert_true(game.has_method("_home_resource_status_rect"), "home resource bar should expose a status text rect")
+	if passed:
+		var ui_font: Font = game.ui_font
+		var safe_rect: Rect2 = game.call("_home_resource_board_safe_rect")
+		var coin_rect: Rect2 = game.call("_home_resource_coin_text_rect")
+		var drone_rect: Rect2 = game.call("_home_resource_drone_text_rect")
+		var status_rect: Rect2 = game.call("_home_resource_status_rect")
+		var coin_text := "金币 372288"
+		var drone_text := "基建无人机 1120"
+		game.update_state = "latest"
+		var status_text := String(game.call("_home_update_status_line"))
+		passed = _assert_true(safe_rect.encloses(coin_rect), "home coin text should sit on the visible resource board") and passed
+		passed = _assert_true(safe_rect.encloses(drone_rect), "home drone text should sit on the visible resource board") and passed
+		passed = _assert_true(safe_rect.encloses(status_rect), "home update status should sit on the visible resource board") and passed
+		passed = _assert_true(coin_rect.size.x >= ui_font.get_string_size(coin_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 20).x, "home coin text rect should fit the current coin string") and passed
+		passed = _assert_true(drone_rect.size.x >= ui_font.get_string_size(drone_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 19).x, "home drone text rect should fit the current drone string") and passed
+		passed = _assert_true(status_rect.size.x >= ui_font.get_string_size(status_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13).x, "home update status rect should fit its version text") and passed
+		passed = _assert_true(not coin_rect.intersects(drone_rect), "home coin and drone text rects should not overlap") and passed
+		passed = _assert_true(not drone_rect.intersects(status_rect), "home drone and update status text rects should not overlap") and passed
 	_free_game(game)
 	return passed
 

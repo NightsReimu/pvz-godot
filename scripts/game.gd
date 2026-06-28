@@ -104,6 +104,7 @@ const POLISHED_PLANT_TEXTURE_PATHS := {
 }
 const HOME_UI_ASSETS := {
 	"logo": "res://art/home_ui/home_logo.png",
+	"title_text": "res://art/home_ui/home_title_text.png",
 	"main_board": "res://art/home_ui/home_board_main.png",
 	"card_daily": "res://art/home_ui/home_card_blue.png",
 	"card_entertainment": "res://art/home_ui/home_card_red.png",
@@ -1333,13 +1334,33 @@ func _home_resource_rect() -> Rect2:
 	return Rect2(BASE_VIEWPORT_SIZE.x - 640.0, 14.0, 570.0, 74.0)
 
 
+func _home_resource_board_safe_rect() -> Rect2:
+	var resource_rect := _home_resource_rect()
+	return Rect2(resource_rect.position + Vector2(24.0, 8.0), Vector2(resource_rect.size.x - 58.0, resource_rect.size.y - 16.0))
+
+
+func _home_resource_coin_text_rect() -> Rect2:
+	var resource_rect := _home_resource_rect()
+	return Rect2(resource_rect.position + Vector2(82.0, 20.0), Vector2(164.0, 30.0))
+
+
+func _home_resource_drone_text_rect() -> Rect2:
+	var resource_rect := _home_resource_rect()
+	return Rect2(resource_rect.position + Vector2(258.0, 20.0), Vector2(158.0, 30.0))
+
+
 func _home_resource_status_rect() -> Rect2:
 	var resource_rect := _home_resource_rect()
-	return Rect2(resource_rect.position + Vector2(424.0, 27.0), Vector2(resource_rect.size.x - 444.0, 28.0))
+	return Rect2(resource_rect.position + Vector2(424.0, 25.0), Vector2(108.0, 28.0))
 
 
 func _home_logo_rect() -> Rect2:
 	return Rect2(455.0, 4.0, 500.0, 195.0)
+
+
+func _home_title_text_rect() -> Rect2:
+	var logo_rect := _home_logo_rect()
+	return Rect2(logo_rect.position + Vector2(35.0, 32.0), Vector2(430.0, 108.0))
 
 
 func _home_mainline_chip_rects() -> Array:
@@ -19665,8 +19686,7 @@ func _draw_home_scene() -> void:
 	ThemeLib.draw_cloud(self, Vector2(260.0, 120.0 + sin(ui_time * 0.4) * 8.0), 1.1, 0.9, Color(1.0, 1.0, 1.0))
 	ThemeLib.draw_cloud(self, Vector2(1180.0, 86.0 + sin(ui_time * 0.5 + 1.5) * 7.0), 0.9, 0.8, Color(1.0, 0.99, 0.96))
 
-	# 顶部标题牌匾：Image2 画空白装饰，文字仍由 Godot 绘制，避免 AI 字体失真。
-	var title_text := "植物大战僵尸"
+	# 顶部标题牌匾：底板与标题均来自 Image2 元素，副标题仍由 Godot 动态绘制。
 	var logo_rect := _home_logo_rect()
 	ThemeLib.draw_glow_circle(self, logo_rect.get_center() + Vector2(0.0, -12.0), 165.0, Color(1.0, 0.94, 0.52, 0.22), 4)
 	var logo_texture := _home_ui_texture("logo")
@@ -19675,10 +19695,16 @@ func _draw_home_scene() -> void:
 		draw_texture_rect(logo_texture, logo_rect, false)
 	else:
 		_draw_panel_shell(logo_rect.grow(-20.0), Color(0.94, 0.78, 0.42, 0.92), Color(0.42, 0.26, 0.1), 0.18, 0.14)
-	var title_width := ui_font.get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 54).x
-	var title_pos := Vector2(logo_rect.get_center().x - title_width * 0.5, logo_rect.position.y + 92.0)
-	ThemeLib.draw_text_with_shadow(self, ui_font, title_pos + Vector2(0.0, 3.0), title_text, 54, Color(0.2, 0.34, 0.11), Vector2(2.0, 4.0), 0.36)
-	ThemeLib.draw_text_with_shadow(self, ui_font, title_pos, title_text, 54, Color(0.96, 0.86, 0.22), Vector2(0.0, 0.0), 0.0)
+	var title_texture := _home_ui_texture("title_text")
+	var title_rect := _home_title_text_rect()
+	if title_texture != null:
+		draw_texture_rect(title_texture, title_rect, false)
+	else:
+		var title_text := "植物大战僵尸"
+		var title_width := ui_font.get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 54).x
+		var title_pos := Vector2(logo_rect.get_center().x - title_width * 0.5, logo_rect.position.y + 92.0)
+		ThemeLib.draw_text_with_shadow(self, ui_font, title_pos + Vector2(0.0, 3.0), title_text, 54, Color(0.2, 0.34, 0.11), Vector2(2.0, 4.0), 0.36)
+		ThemeLib.draw_text_with_shadow(self, ui_font, title_pos, title_text, 54, Color(0.96, 0.86, 0.22), Vector2(0.0, 0.0), 0.0)
 	var subtitle_text := "主线 / 每日 / 娱乐 / 活动"
 	var subtitle_width := ui_font.get_string_size(subtitle_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 19).x
 	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(logo_rect.get_center().x - subtitle_width * 0.5, logo_rect.position.y + 154.0), subtitle_text, 19, Color(0.25, 0.38, 0.18), Vector2(1.0, 2.0), 0.25)
@@ -19686,10 +19712,12 @@ func _draw_home_scene() -> void:
 	# 资源条：使用 Image2 单元素底图，数值和状态仍动态绘制。
 	var resource_rect := _home_resource_rect()
 	var status_rect := _home_resource_status_rect()
+	var coin_text_rect := _home_resource_coin_text_rect()
+	var drone_text_rect := _home_resource_drone_text_rect()
 	_draw_home_asset_panel("resource_bar", resource_rect, Color(0.1, 0.16, 0.12, 0.78), Color(0.5, 0.74, 0.42, 0.8))
 	_draw_coin_icon(resource_rect.position + Vector2(44.0, 37.0), 0.9)
-	ThemeLib.draw_text_with_shadow(self, ui_font, resource_rect.position + Vector2(82.0, 45.0), "金币 %d" % coins_total, 20, Color(1.0, 0.9, 0.46), Vector2(1.0, 2.0), 0.28)
-	ThemeLib.draw_text_with_shadow(self, ui_font, resource_rect.position + Vector2(262.0, 45.0), "基建无人机 %.0f" % base_drones, 19, Color(0.7, 0.95, 1.0), Vector2(1.0, 2.0), 0.28)
+	ThemeLib.draw_text_with_shadow(self, ui_font, coin_text_rect.position + Vector2(0.0, 24.0), "金币 %d" % coins_total, 20, Color(1.0, 0.9, 0.46), Vector2(1.0, 2.0), 0.28)
+	ThemeLib.draw_text_with_shadow(self, ui_font, drone_text_rect.position + Vector2(0.0, 23.0), "基建无人机 %.0f" % base_drones, 19, Color(0.7, 0.95, 1.0), Vector2(1.0, 2.0), 0.28)
 	ThemeLib.draw_text_with_shadow(self, ui_font, status_rect.position + Vector2(0.0, 18.0), _home_update_status_line(), 13, Color(0.82, 0.9, 0.78), Vector2(1.0, 1.5), 0.22)
 	var settings_center := resource_rect.position + Vector2(resource_rect.size.x - 28.0, resource_rect.size.y * 0.5)
 	draw_circle(settings_center, 13.0, Color(0.73, 0.9, 0.92, 0.18))
