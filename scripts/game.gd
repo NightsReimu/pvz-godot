@@ -116,6 +116,18 @@ const HOME_UI_ASSETS := {
 	"resource_bar": "res://art/home_ui/home_resource_bar.png",
 	"lock_badge": "res://art/home_ui/home_lock_badge.png",
 }
+const BASE_UI_ASSETS := {
+	"top_bar": "res://art/base_ui/base_top_bar.png",
+	"grid_panel": "res://art/base_ui/base_grid_panel.png",
+	"detail_panel": "res://art/base_ui/base_detail_panel.png",
+	"room_card": "res://art/base_ui/base_room_card.png",
+	"room_card_selected": "res://art/base_ui/base_room_card_selected.png",
+	"roster_panel": "res://art/base_ui/base_roster_panel.png",
+	"roster_card": "res://art/base_ui/base_roster_card.png",
+	"resource_chip": "res://art/base_ui/base_resource_chip.png",
+	"button_gold": "res://art/base_ui/base_button_gold.png",
+	"button_blue": "res://art/base_ui/base_button_blue.png",
+}
 const POLISHED_PROJECTILE_TEXTURE_PATHS := {
 	"pea": "res://art/polish/pea-polished.png",
 }
@@ -885,6 +897,7 @@ var polished_texture_cache := {}
 var image2_texture_cache := {}
 var image2_flipped_zombie_cache := {}
 var home_ui_texture_cache := {}
+var base_ui_texture_cache := {}
 var update_manager := UpdateManagerLib.new()
 var update_check_request: HTTPRequest
 var update_download_request: HTTPRequest
@@ -4786,44 +4799,44 @@ func _merge_base_progress(existing_save: Dictionary, candidate_save: Dictionary)
 
 
 func _base_top_bar_rect() -> Rect2:
-	return Rect2(44.0, 28.0, 1412.0, 72.0)
+	return Rect2(34.0, 18.0, 1526.0, 92.0)
 
 
 func _base_back_rect() -> Rect2:
-	return Rect2(60.0, 44.0, 112.0, 42.0)
+	return Rect2(52.0, 34.0, 128.0, 58.0)
 
 
 func _base_room_grid_rect() -> Rect2:
-	return Rect2(48.0, 126.0, 982.0, 548.0)
+	return Rect2(34.0, 128.0, 1038.0, 568.0)
 
 
 func _base_detail_rect() -> Rect2:
-	return Rect2(1054.0, 126.0, 498.0, 548.0)
+	return Rect2(1096.0, 128.0, 464.0, 568.0)
 
 
 func _base_roster_panel_rect() -> Rect2:
-	return Rect2(48.0, 700.0, 1504.0, 146.0)
+	return Rect2(34.0, 716.0, 1526.0, 166.0)
 
 
 func _base_roster_view_rect() -> Rect2:
 	var panel := _base_roster_panel_rect()
-	return Rect2(panel.position + Vector2(20.0, 46.0), Vector2(1446.0, 82.0))
+	return Rect2(panel.position + Vector2(54.0, 42.0), Vector2(1420.0, 116.0))
 
 
 func _base_collect_rect() -> Rect2:
 	var detail := _base_detail_rect()
-	return Rect2(detail.position + Vector2(28.0, detail.size.y - 78.0), Vector2(208.0, 48.0))
+	return Rect2(detail.position + Vector2(28.0, detail.size.y - 76.0), Vector2(192.0, 54.0))
 
 
 func _base_boost_rect() -> Rect2:
 	var detail := _base_detail_rect()
-	return Rect2(detail.position + Vector2(262.0, detail.size.y - 78.0), Vector2(208.0, 48.0))
+	return Rect2(detail.position + Vector2(244.0, detail.size.y - 76.0), Vector2(192.0, 54.0))
 
 
 func _base_roster_layout() -> Dictionary:
 	var view := _base_roster_view_rect()
-	var cell_w := 102.0
-	var cell_h := 82.0
+	var cell_w := 100.0
+	var cell_h := 116.0
 	var cell_gap := 10.0
 	var visible_cols := int(floor((view.size.x + cell_gap) / (cell_w + cell_gap)))
 	view.size.x = float(visible_cols) * cell_w + float(max(0, visible_cols - 1)) * cell_gap
@@ -4884,9 +4897,9 @@ func _base_last_visible_roster_index() -> int:
 func _base_room_card_rect(index: int) -> Rect2:
 	var grid := _base_room_grid_rect()
 	var cols := 3
-	var gap := Vector2(18.0, 18.0)
-	var card_size := Vector2((grid.size.x - 48.0 - gap.x * 2.0) / 3.0, 150.0)
-	var start := grid.position + Vector2(24.0, 62.0)
+	var gap := Vector2(18.0, 16.0)
+	var card_size := Vector2((grid.size.x - 44.0 - gap.x * 2.0) / 3.0, 150.0)
+	var start := grid.position + Vector2(22.0, 72.0)
 	return Rect2(start + Vector2(float(index % cols) * (card_size.x + gap.x), float(index / cols) * (card_size.y + gap.y)), card_size)
 
 
@@ -4912,18 +4925,131 @@ func _base_roster_plant_at(position: Vector2) -> String:
 
 func _base_material_chip_rect(index: int) -> Rect2:
 	var detail := _base_detail_rect()
-	return Rect2(detail.position + Vector2(28.0 + float(index % 3) * 148.0, 260.0 + floor(float(index) / 3.0) * 42.0), Vector2(134.0, 32.0))
+	return Rect2(detail.position + Vector2(28.0 + float(index % 3) * 136.0, 318.0 + floor(float(index) / 3.0) * 40.0), Vector2(122.0, 30.0))
+
+
+func _base_detail_slot_rect(index: int) -> Rect2:
+	var detail := _base_detail_rect()
+	return Rect2(detail.position + Vector2(28.0 + float(index) * 142.0, 188.0), Vector2(126.0, 74.0))
 
 
 func _base_resource_chip_rect(kind: String) -> Rect2:
 	match kind:
 		"coins":
-			return Rect2(650.0, 40.0, 142.0, 46.0)
+			return Rect2(638.0, 32.0, 196.0, 62.0)
 		"drones":
-			return Rect2(806.0, 40.0, 142.0, 46.0)
+			return Rect2(856.0, 32.0, 196.0, 62.0)
 		"pending":
-			return Rect2(962.0, 40.0, 150.0, 46.0)
+			return Rect2(1074.0, 32.0, 224.0, 62.0)
 	return _base_top_bar_rect()
+
+
+func _base_title_text_rect() -> Rect2:
+	var top := _base_top_bar_rect()
+	return Rect2(top.position + Vector2(196.0, 18.0), Vector2(400.0, 58.0))
+
+
+func _base_grid_header_text_rect() -> Rect2:
+	var grid := _base_room_grid_rect()
+	return Rect2(grid.position + Vector2(26.0, 18.0), Vector2(grid.size.x - 52.0, 44.0))
+
+
+func _base_detail_title_text_rect() -> Rect2:
+	var detail := _base_detail_rect()
+	return Rect2(detail.position + Vector2(76.0, 18.0), Vector2(detail.size.x - 106.0, 58.0))
+
+
+func _base_roster_header_text_rect() -> Rect2:
+	var panel := _base_roster_panel_rect()
+	return Rect2(panel.position + Vector2(62.0, 16.0), Vector2(280.0, 28.0))
+
+
+func _base_ui_asset_paths() -> Dictionary:
+	return BASE_UI_ASSETS.duplicate()
+
+
+func _base_ui_texture(asset_key: String) -> Texture2D:
+	return _load_cached_texture(String(BASE_UI_ASSETS.get(asset_key, "")), base_ui_texture_cache, shared_image2_texture_cache)
+
+
+func _draw_base_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.24) -> void:
+	for layer in range(3):
+		var t := float(layer + 1) / 3.0
+		var shadow_rect := Rect2(rect.position + Vector2(0.0, 6.0 + t * 4.0), rect.size).grow(t * 4.0)
+		draw_texture_rect(texture, shadow_rect, false, Color(0.0, 0.0, 0.0, alpha * (1.0 - t * 0.48)))
+
+
+func _draw_base_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
+	var texture := _base_ui_texture(asset_key)
+	if texture != null:
+		_draw_base_asset_shadow(texture, rect, 0.24)
+		draw_texture_rect(texture, rect, false, tint)
+	else:
+		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.2, 0.12)
+
+
+func _base_room_icon_kind(room_id: String) -> String:
+	match room_id:
+		"control":
+			return "control"
+		"trade":
+			return "trade"
+		"factory":
+			return "factory"
+		"power":
+			return "power"
+		"dorm":
+			return "dorm"
+		"workshop":
+			return "workshop"
+		"training":
+			return "training"
+	return "control"
+
+
+func _draw_base_room_icon(center: Vector2, room_id: String, accent: Color, scale: float = 1.0) -> void:
+	var kind := _base_room_icon_kind(room_id)
+	var r := 16.0 * scale
+	draw_circle(center, r * 1.55, Color(accent.r, accent.g, accent.b, 0.16))
+	match kind:
+		"control":
+			for i in range(4):
+				var angle := float(i) * TAU / 4.0 + PI * 0.25
+				var tip := center + Vector2(cos(angle), sin(angle)) * r
+				draw_line(center, tip, Color(accent.r, accent.g, accent.b, 0.95), 4.0 * scale)
+				draw_circle(tip, 4.0 * scale, Color(0.84, 1.0, 1.0, 0.9))
+		"trade":
+			draw_circle(center, r * 0.95, Color(1.0, 0.76, 0.24, 0.88))
+			draw_circle(center, r * 0.58, Color(0.22, 0.14, 0.04, 0.22))
+			draw_line(center + Vector2(-r * 0.7, 0.0), center + Vector2(r * 0.7, 0.0), Color(1.0, 0.94, 0.58, 0.86), 3.0 * scale)
+		"factory":
+			for i in range(3):
+				draw_rect(Rect2(center + Vector2(-r + float(i) * r * 0.72, -r * 0.55), Vector2(r * 0.48, r * 1.1)), Color(accent.r, accent.g, accent.b, 0.82), true)
+			draw_rect(Rect2(center + Vector2(-r * 1.1, r * 0.4), Vector2(r * 2.2, r * 0.36)), Color(0.74, 1.0, 0.78, 0.7), true)
+		"power":
+			var points := PackedVector2Array([
+				center + Vector2(-r * 0.15, -r),
+				center + Vector2(-r * 0.72, r * 0.12),
+				center + Vector2(-r * 0.08, r * 0.02),
+				center + Vector2(-r * 0.28, r),
+				center + Vector2(r * 0.72, -r * 0.24),
+				center + Vector2(r * 0.02, -r * 0.12),
+			])
+			draw_colored_polygon(points, Color(0.54, 0.96, 1.0, 0.9))
+		"dorm":
+			for i in range(3):
+				draw_circle(center + Vector2((float(i) - 1.0) * r * 0.72, 0.0), r * 0.45, Color(0.74, 0.94, 0.82, 0.82))
+			draw_arc(center, r * 1.15, PI, TAU, 24, Color(accent.r, accent.g, accent.b, 0.75), 3.0 * scale)
+		"workshop":
+			draw_circle(center, r * 0.92, Color(1.0, 0.72, 0.26, 0.74))
+			for i in range(6):
+				var a := float(i) * TAU / 6.0
+				draw_line(center + Vector2(cos(a), sin(a)) * r * 0.45, center + Vector2(cos(a), sin(a)) * r * 1.18, Color(accent.r, accent.g, accent.b, 0.8), 2.0 * scale)
+		"training":
+			draw_circle(center, r, Color(1.0, 0.32, 0.28, 0.18), false, 3.0 * scale)
+			draw_circle(center, r * 0.54, Color(accent.r, accent.g, accent.b, 0.18), false, 2.0 * scale)
+			draw_line(center + Vector2(-r * 1.2, 0.0), center + Vector2(r * 1.2, 0.0), Color(1.0, 0.58, 0.44, 0.8), 2.0 * scale)
+			draw_line(center + Vector2(0.0, -r * 1.2), center + Vector2(0.0, r * 1.2), Color(1.0, 0.58, 0.44, 0.8), 2.0 * scale)
 
 
 func _base_fx_anchor(id: String, anchor_kind: String) -> Vector2:
@@ -5072,7 +5198,7 @@ func _handle_base_click(mouse_pos: Vector2) -> void:
 		return
 	var assigned := _base_assigned_plants(base_selected_room)
 	for i in range(assigned.size()):
-		var slot_rect := Rect2(_base_detail_rect().position + Vector2(28.0 + float(i) * 150.0, 154.0), Vector2(136.0, 72.0))
+		var slot_rect := _base_detail_slot_rect(i)
 		if slot_rect.has_point(mouse_pos):
 			_base_unassign_plant(base_selected_room, String(assigned[i]))
 			return
@@ -19292,10 +19418,21 @@ func _base_resource_summary() -> Dictionary:
 
 
 func _draw_base_chip(rect: Rect2, label: String, value: String, accent: Color) -> void:
-	_draw_panel_shell(rect, Color(0.075, 0.094, 0.11, 0.94), Color(accent.r, accent.g, accent.b, 0.7), 0.12, 0.08)
-	draw_rect(Rect2(rect.position, Vector2(5.0, rect.size.y)), accent, true)
-	_draw_text(label, rect.position + Vector2(16.0, 18.0), 12, Color(0.68, 0.76, 0.8))
-	_draw_text(value, rect.position + Vector2(16.0, 42.0), 22, Color(0.94, 0.98, 1.0))
+	_draw_base_asset_panel("resource_chip", rect, Color(0.075, 0.094, 0.11, 0.94), Color(accent.r, accent.g, accent.b, 0.7))
+	var icon_center := rect.position + Vector2(30.0, rect.size.y * 0.5)
+	draw_circle(icon_center, 17.0, Color(accent.r, accent.g, accent.b, 0.20))
+	if label == "金币":
+		_draw_coin_icon(icon_center, 0.82)
+	elif label == "无人机":
+		draw_line(icon_center + Vector2(-14.0, 0.0), icon_center + Vector2(14.0, 0.0), accent.lightened(0.2), 3.0)
+		draw_line(icon_center + Vector2(0.0, -12.0), icon_center + Vector2(0.0, 12.0), accent.lightened(0.2), 3.0)
+		draw_circle(icon_center, 6.0, Color(0.86, 0.98, 1.0, 0.9))
+	else:
+		draw_line(icon_center + Vector2(-10.0, 8.0), icon_center + Vector2(0.0, -12.0), accent.lightened(0.2), 4.0)
+		draw_line(icon_center + Vector2(0.0, -12.0), icon_center + Vector2(12.0, 8.0), accent.lightened(0.2), 4.0)
+		draw_circle(icon_center + Vector2(0.0, 8.0), 6.0, Color(0.84, 1.0, 0.78, 0.82))
+	_draw_text(label, rect.position + Vector2(58.0, 21.0), 13, Color(0.72, 0.82, 0.86))
+	_draw_text(value, rect.position + Vector2(58.0, 48.0), 23, Color(0.96, 0.99, 1.0))
 
 
 func _draw_base_room_idle_fx(room_id: String, rect: Rect2, accent: Color, efficiency: float, index: int) -> void:
@@ -19367,12 +19504,13 @@ func _draw_base_room_card(room_id: String, index: int) -> void:
 		fill = Color(0.1, 0.14, 0.16, 0.98)
 		draw_rect(rect.grow(7.0), Color(accent.r, accent.g, accent.b, 0.08 + 0.05 * pulse), true)
 		draw_rect(rect.grow(4.0), Color(accent.r, accent.g, accent.b, 0.42), false, 2.0)
-	_draw_panel_shell(rect, fill, Color(accent.r, accent.g, accent.b, 0.58), 0.18, 0.1)
+	_draw_base_asset_panel("room_card_selected" if selected else "room_card", rect, fill, Color(accent.r, accent.g, accent.b, 0.58))
 	_draw_base_room_idle_fx(room_id, rect, accent, _base_room_efficiency(room_id), index)
-	draw_rect(Rect2(rect.position + Vector2(0.0, 0.0), Vector2(rect.size.x, 34.0)), Color(accent.r, accent.g, accent.b, 0.2), true)
-	draw_rect(Rect2(rect.position + Vector2(12.0, 46.0), Vector2(5.0, 64.0)), accent, true)
-	_draw_text(String(def.get("name", room_id)), rect.position + Vector2(20.0, 25.0), 19, Color(0.94, 0.98, 1.0))
-	_draw_text("Lv.%d  %s/%s" % [int(room_state.get("level", 1)), assigned.size(), int(def.get("slots", 1))], rect.position + Vector2(rect.size.x - 104.0, 25.0), 15, Color(0.72, 0.84, 0.88))
+	draw_rect(Rect2(rect.position + Vector2(15.0, 16.0), Vector2(4.0, rect.size.y - 38.0)), Color(accent.r, accent.g, accent.b, 0.78), true)
+	_draw_base_room_icon(rect.position + Vector2(42.0, 33.0), room_id, accent, 0.72)
+	_draw_text(String(def.get("name", room_id)), rect.position + Vector2(70.0, 32.0), 20, Color(0.95, 0.99, 1.0))
+	_draw_text("Lv.%d" % int(room_state.get("level", 1)), rect.position + Vector2(rect.size.x - 92.0, 31.0), 15, Color(0.78, 0.88, 0.9))
+	_draw_text("%s/%s" % [assigned.size(), int(def.get("slots", 1))], rect.position + Vector2(rect.size.x - 48.0, 31.0), 15, Color(0.86, 0.94, 0.96))
 	var type := String(def.get("type", ""))
 	var output_label := "效率 %.0f%%" % (_base_room_efficiency(room_id) * 100.0)
 	if type == "trade":
@@ -19386,16 +19524,15 @@ func _draw_base_room_card(room_id: String, index: int) -> void:
 		output_label = "心情恢复 %.0f/h" % float(def.get("rate", 0.0))
 	elif type == "training":
 		output_label = "碎片 %.1f/h" % (float(def.get("rate", 0.0)) * _base_room_efficiency(room_id))
-	_draw_text(output_label, rect.position + Vector2(28.0, 70.0), 16, accent.lightened(0.2))
+	_draw_text(output_label, rect.position + Vector2(32.0, 70.0), 16, accent.lightened(0.2))
 	var morale_ratio := clampf(_base_room_morale_average(room_id) / BASE_MAX_MORALE, 0.0, 1.0)
-	var bar_rect := Rect2(rect.position + Vector2(28.0, 94.0), Vector2(rect.size.x - 56.0, 10.0))
+	var bar_rect := Rect2(rect.position + Vector2(32.0, 94.0), Vector2(rect.size.x - 64.0, 9.0))
 	draw_rect(bar_rect, Color(0.0, 0.0, 0.0, 0.35), true)
 	draw_rect(ThemeLib.progress_fill_rect(bar_rect, morale_ratio), Color(0.44, 0.9, 0.58, 0.9) if morale_ratio > 0.35 else Color(0.95, 0.46, 0.3, 0.9), true)
 	draw_rect(bar_rect, Color(0.86, 0.94, 1.0, 0.18), false, 1.0)
 	for slot in range(int(def.get("slots", 1))):
-		var slot_rect := Rect2(rect.position + Vector2(28.0 + float(slot) * 48.0, 114.0), Vector2(38.0, 28.0))
-		draw_rect(slot_rect, Color(0.0, 0.0, 0.0, 0.2), true)
-		draw_rect(slot_rect, Color(accent.r, accent.g, accent.b, 0.4), false, 1.0)
+		var slot_rect := Rect2(rect.position + Vector2(32.0 + float(slot) * 48.0, 113.0), Vector2(38.0, 30.0))
+		ThemeLib.draw_rounded_panel(self, slot_rect, Color(0.0, 0.0, 0.0, 0.22), Color(accent.r, accent.g, accent.b, 0.45), 6.0, 0.02, 0.04)
 		if slot < assigned.size():
 			_draw_card_icon(String(assigned[slot]), slot_rect.get_center() + Vector2(0.0, 2.0))
 
@@ -19406,26 +19543,31 @@ func _draw_base_detail_panel() -> void:
 	var def: Dictionary = BASE_ROOM_DEFS.get(room_id, {})
 	var room_state: Dictionary = base_rooms.get(room_id, {})
 	var accent := Color(def.get("color", Color(0.5, 0.76, 0.86)))
-	_draw_panel_shell(detail, Color(0.058, 0.075, 0.088, 0.98), Color(accent.r, accent.g, accent.b, 0.5), 0.2, 0.12)
-	draw_rect(Rect2(detail.position, Vector2(detail.size.x, 76.0)), Color(accent.r, accent.g, accent.b, 0.13), true)
-	_draw_text(String(def.get("name", room_id)), detail.position + Vector2(28.0, 42.0), 31, Color(0.96, 0.99, 1.0))
-	_draw_text("效率 %.0f%%  心情 %.0f/24" % [_base_room_efficiency(room_id) * 100.0, _base_room_morale_average(room_id)], detail.position + Vector2(30.0, 70.0), 15, Color(0.7, 0.82, 0.86))
-	_draw_text(String(def.get("desc", "")), detail.position + Vector2(30.0, 108.0), 18, Color(0.78, 0.88, 0.9))
+	_draw_base_asset_panel("detail_panel", detail, Color(0.058, 0.075, 0.088, 0.98), Color(accent.r, accent.g, accent.b, 0.5))
+	var title_rect := _base_detail_title_text_rect()
+	_draw_base_room_icon(detail.position + Vector2(44.0, 47.0), room_id, accent, 1.05)
+	_draw_text(String(def.get("name", room_id)), title_rect.position + Vector2(0.0, 34.0), 31, Color(0.96, 0.99, 1.0))
+	_draw_text("效率 %.0f%%   心情 %.0f/24" % [_base_room_efficiency(room_id) * 100.0, _base_room_morale_average(room_id)], title_rect.position + Vector2(2.0, 58.0), 15, Color(0.7, 0.9, 0.94))
+	draw_rect(Rect2(detail.position + Vector2(28.0, 96.0), Vector2(detail.size.x - 56.0, 1.0)), Color(accent.r, accent.g, accent.b, 0.28), true)
+	_draw_text_block(String(def.get("desc", "")), Rect2(detail.position + Vector2(28.0, 108.0), Vector2(detail.size.x - 56.0, 44.0)), 17, Color(0.78, 0.88, 0.9), 4.0, 2)
 	var assigned := _base_assigned_plants(room_id)
-	_draw_text("进驻", detail.position + Vector2(30.0, 142.0), 16, Color(0.6, 0.72, 0.76))
+	_draw_text("进驻", detail.position + Vector2(30.0, 174.0), 16, Color(0.6, 0.72, 0.76))
 	for i in range(_base_room_capacity(room_id)):
-		var slot_rect := Rect2(detail.position + Vector2(28.0 + float(i) * 150.0, 154.0), Vector2(136.0, 72.0))
-		_draw_panel_shell(slot_rect, Color(0.07, 0.092, 0.105, 0.96), Color(accent.r, accent.g, accent.b, 0.42), 0.08, 0.06)
+		var slot_rect := _base_detail_slot_rect(i)
+		ThemeLib.draw_rounded_panel(self, slot_rect, Color(0.045, 0.065, 0.074, 0.90), Color(accent.r, accent.g, accent.b, 0.42), 4.0, 0.05, 0.06)
 		if i < assigned.size():
 			var kind := String(assigned[i])
 			_draw_card_icon(kind, slot_rect.position + Vector2(34.0, 40.0))
-			_draw_text(String(Defs.PLANTS[kind].get("name", kind)), slot_rect.position + Vector2(64.0, 30.0), 13, Color(0.9, 0.96, 1.0))
-			_draw_text("%.0f/24" % float(base_morale.get(kind, BASE_MAX_MORALE)), slot_rect.position + Vector2(64.0, 52.0), 13, Color(0.56, 0.9, 0.64))
+			var plant_name := String(Defs.PLANTS[kind].get("name", kind))
+			if plant_name.length() > 4:
+				plant_name = plant_name.left(4)
+			_draw_text(plant_name, slot_rect.position + Vector2(62.0, 30.0), 13, Color(0.9, 0.96, 1.0))
+			_draw_text("%.0f/24" % float(base_morale.get(kind, BASE_MAX_MORALE)), slot_rect.position + Vector2(62.0, 52.0), 13, Color(0.56, 0.9, 0.64))
 		else:
-			_draw_text("空槽", slot_rect.position + Vector2(46.0, 44.0), 16, Color(0.45, 0.56, 0.6))
+			_draw_text("空槽", slot_rect.position + Vector2(42.0, 44.0), 16, Color(0.45, 0.56, 0.6))
 	var room_type := String(def.get("type", ""))
 	if room_type == "factory" or room_type == "workshop":
-		_draw_text("材料目标", detail.position + Vector2(30.0, 250.0), 16, Color(0.6, 0.72, 0.76))
+		_draw_text("材料目标", detail.position + Vector2(30.0, 304.0), 16, Color(0.6, 0.72, 0.76))
 		var keys := ENHANCE_MATERIAL_DEFS.keys()
 		for i in range(keys.size()):
 			var material := String(keys[i])
@@ -19433,29 +19575,32 @@ func _draw_base_detail_panel() -> void:
 			var chip_rect := _base_material_chip_rect(i)
 			var selected := String(room_state.get("recipe", base_selected_material)) == material
 			var chip_color := Color(material_def.get("color", accent))
-			_draw_panel_shell(chip_rect, Color(0.09, 0.11, 0.12, 0.96) if not selected else Color(chip_color.r * 0.22, chip_color.g * 0.22, chip_color.b * 0.22, 0.98), Color(chip_color.r, chip_color.g, chip_color.b, 0.72), 0.06, 0.05)
-			_draw_text(String(material_def.get("short", material)), chip_rect.position + Vector2(12.0, 22.0), 15, Color(0.94, 0.98, 1.0))
+			ThemeLib.draw_rounded_panel(self, chip_rect, Color(0.09, 0.11, 0.12, 0.86) if not selected else Color(chip_color.r * 0.22, chip_color.g * 0.22, chip_color.b * 0.22, 0.92), Color(chip_color.r, chip_color.g, chip_color.b, 0.72), 5.0, 0.03, 0.04)
+			_draw_text(String(material_def.get("short", material)), chip_rect.position + Vector2(10.0, 21.0), 14, Color(0.94, 0.98, 1.0))
 	elif room_type == "training":
 		var target := String(room_state.get("target", base_selected_fragment_plant))
-		_draw_text("训练目标", detail.position + Vector2(30.0, 250.0), 16, Color(0.6, 0.72, 0.76))
-		_draw_panel_shell(Rect2(detail.position + Vector2(28.0, 264.0), Vector2(210.0, 86.0)), Color(0.08, 0.1, 0.115, 0.96), Color(accent.r, accent.g, accent.b, 0.46), 0.1, 0.06)
+		_draw_text("训练目标", detail.position + Vector2(30.0, 304.0), 16, Color(0.6, 0.72, 0.76))
+		ThemeLib.draw_rounded_panel(self, Rect2(detail.position + Vector2(28.0, 318.0), Vector2(210.0, 86.0)), Color(0.08, 0.1, 0.115, 0.9), Color(accent.r, accent.g, accent.b, 0.46), 5.0, 0.06, 0.06)
 		if Defs.PLANTS.has(target):
-			_draw_card_icon(target, detail.position + Vector2(72.0, 312.0))
-			_draw_text(String(Defs.PLANTS[target].get("name", target)), detail.position + Vector2(116.0, 300.0), 18, Color(0.92, 0.98, 1.0))
-			_draw_text("点击底部植物切换", detail.position + Vector2(116.0, 324.0), 13, Color(0.6, 0.72, 0.76))
+			_draw_card_icon(target, detail.position + Vector2(72.0, 366.0))
+			_draw_text(String(Defs.PLANTS[target].get("name", target)), detail.position + Vector2(116.0, 354.0), 18, Color(0.92, 0.98, 1.0))
+			_draw_text("点击底部植物切换", detail.position + Vector2(116.0, 378.0), 13, Color(0.6, 0.72, 0.76))
 	var summary := _base_resource_summary()
-	_draw_text("待领取：金币 %d  材料 %d  碎片 %d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], detail.position + Vector2(30.0, 406.0), 17, Color(0.9, 0.94, 0.84))
-	_draw_fancy_button(_base_collect_rect(), "领取收益", Color(0.88, 0.6, 0.2), Color(0.4, 0.24, 0.08), 20)
-	var boost_fill := Color(0.25, 0.58, 0.78) if base_drones >= BASE_DRONE_BOOST_COST else Color(0.24, 0.28, 0.3)
-	_draw_fancy_button(_base_boost_rect(), "无人机加速", boost_fill, Color(0.12, 0.24, 0.3), 19)
+	draw_rect(Rect2(detail.position + Vector2(28.0, 424.0), Vector2(detail.size.x - 56.0, 1.0)), Color(accent.r, accent.g, accent.b, 0.24), true)
+	_draw_text("待领取：金币 %d   材料 %d   碎片 %d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], detail.position + Vector2(30.0, 456.0), 17, Color(0.9, 0.94, 0.84))
+	_draw_base_asset_panel("button_gold", _base_collect_rect(), Color(0.88, 0.6, 0.2), Color(0.4, 0.24, 0.08))
+	_draw_text("领取收益", _base_collect_rect().position + Vector2(56.0, 34.0), 20, Color(1.0, 0.95, 0.82))
+	var boost_tint := Color(1.0, 1.0, 1.0, 1.0) if base_drones >= BASE_DRONE_BOOST_COST else Color(0.56, 0.62, 0.65, 0.72)
+	_draw_base_asset_panel("button_blue", _base_boost_rect(), Color(0.25, 0.58, 0.78), Color(0.12, 0.24, 0.3), boost_tint)
+	_draw_text("无人机加速", _base_boost_rect().position + Vector2(44.0, 34.0), 19, Color(0.88, 0.98, 1.0) if base_drones >= BASE_DRONE_BOOST_COST else Color(0.58, 0.66, 0.7))
 
 
 func _draw_base_roster() -> void:
 	var panel := _base_roster_panel_rect()
 	var layout := _base_roster_layout()
 	var view: Rect2 = layout.get("view_rect", _base_roster_view_rect())
-	_draw_panel_shell(panel, Color(0.055, 0.072, 0.083, 0.98), Color(0.28, 0.42, 0.48, 0.58), 0.18, 0.1)
-	_draw_text("植物干员", panel.position + Vector2(24.0, 30.0), 20, Color(0.9, 0.98, 1.0))
+	_draw_base_asset_panel("roster_panel", panel, Color(0.055, 0.072, 0.083, 0.98), Color(0.28, 0.42, 0.48, 0.58))
+	_draw_text("植物干员", _base_roster_header_text_rect().position + Vector2(0.0, 22.0), 20, Color(0.9, 0.98, 1.0))
 	var plants := _base_owned_plants()
 	for i in range(_base_first_visible_roster_index(), _base_last_visible_roster_index() + 1):
 		if i < 0 or i >= plants.size():
@@ -19468,19 +19613,25 @@ func _draw_base_roster() -> void:
 		var morale_ratio := clampf(float(base_morale.get(kind, BASE_MAX_MORALE)) / BASE_MAX_MORALE, 0.0, 1.0)
 		var role_color := Color(_plant_enhance_profile(kind).get("color", Color(0.6, 0.76, 0.82)))
 		var disabled := morale_ratio <= 0.05
-		_draw_panel_shell(rect, Color(0.08, 0.1, 0.11, 0.96) if not disabled else Color(0.06, 0.065, 0.07, 0.92), Color(role_color.r, role_color.g, role_color.b, 0.52), 0.08, 0.05)
-		_draw_card_icon(kind, rect.position + Vector2(34.0, 42.0))
+		_draw_base_asset_panel("roster_card", rect, Color(0.08, 0.1, 0.11, 0.96) if not disabled else Color(0.06, 0.065, 0.07, 0.92), Color(role_color.r, role_color.g, role_color.b, 0.52), Color(1.0, 1.0, 1.0, 0.72 if disabled else 1.0))
+		draw_rect(Rect2(rect.position + Vector2(10.0, 7.0), Vector2(rect.size.x - 20.0, 5.0)), Color(role_color.r, role_color.g, role_color.b, 0.72), true)
+		_draw_card_icon(kind, rect.position + Vector2(rect.size.x * 0.5, 58.0))
 		var name := String(Defs.PLANTS[kind].get("name", kind))
-		if name.length() > 5:
-			name = name.left(5)
-		_draw_text(name, rect.position + Vector2(58.0, 24.0), 12, Color(0.92, 0.98, 1.0))
-		_draw_text(String(_plant_enhance_profile(kind).get("name", "")), rect.position + Vector2(58.0, 42.0), 11, role_color.lightened(0.1))
-		var bar := Rect2(rect.position + Vector2(58.0, 57.0), Vector2(34.0, 6.0))
+		if name.length() > 4:
+			name = name.left(4)
+		var name_width := ui_font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12).x
+		_draw_text(name, rect.position + Vector2((rect.size.x - name_width) * 0.5, 23.0), 12, Color(0.92, 0.98, 1.0))
+		var role_text := String(_plant_enhance_profile(kind).get("name", ""))
+		if role_text.length() > 3:
+			role_text = role_text.left(3)
+		var role_width := ui_font.get_string_size(role_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 11).x
+		_draw_text(role_text, rect.position + Vector2((rect.size.x - role_width) * 0.5, 91.0), 11, role_color.lightened(0.1))
+		var bar := Rect2(rect.position + Vector2(22.0, 99.0), Vector2(rect.size.x - 44.0, 7.0))
 		draw_rect(bar, Color(0.0, 0.0, 0.0, 0.38), true)
 		draw_rect(ThemeLib.progress_fill_rect(bar, morale_ratio), Color(0.44, 0.88, 0.56) if morale_ratio > 0.35 else Color(0.9, 0.42, 0.3), true)
 		if room != "":
-			var tag_rect := Rect2(rect.position + Vector2(7.0, 6.0), Vector2(48.0, 18.0))
-			draw_rect(tag_rect, Color(0.0, 0.0, 0.0, 0.32), true)
+			var tag_rect := Rect2(rect.position + Vector2(8.0, 12.0), Vector2(42.0, 18.0))
+			ThemeLib.draw_rounded_panel(self, tag_rect, Color(0.0, 0.0, 0.0, 0.32), Color(role_color.r, role_color.g, role_color.b, 0.36), 4.0, 0.0, 0.0)
 			_draw_text(String(Dictionary(BASE_ROOM_DEFS.get(room, {})).get("name", room)).left(3), tag_rect.position + Vector2(4.0, 14.0), 10, Color(0.9, 0.96, 1.0))
 		if disabled:
 			draw_rect(rect, Color(0.0, 0.0, 0.0, 0.28), true)
@@ -19544,7 +19695,9 @@ func _draw_base_transient_fx() -> void:
 
 func _draw_base_scene() -> void:
 	_init_base_defaults()
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.035, 0.05, 0.06), Color(0.09, 0.105, 0.09))
+	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.018, 0.028, 0.034), Color(0.035, 0.052, 0.05))
+	ThemeLib.draw_glow_circle(self, Vector2(1420.0, 108.0), 260.0, Color(0.26, 0.56, 0.48, 0.12), 5)
+	ThemeLib.draw_glow_circle(self, Vector2(220.0, 790.0), 240.0, Color(0.16, 0.72, 0.86, 0.08), 5)
 	for line_index in range(16):
 		var y := 112.0 + float(line_index) * 38.0 + fmod(ui_time * 12.0, 38.0)
 		draw_line(Vector2(0.0, y), Vector2(BASE_VIEWPORT_SIZE.x, y), Color(0.6, 0.82, 0.9, 0.025), 1.0)
@@ -19552,18 +19705,24 @@ func _draw_base_scene() -> void:
 		var x := float(col_index) * 140.0
 		draw_line(Vector2(x, 110.0), Vector2(x + 90.0, 874.0), Color(0.5, 0.72, 0.78, 0.018), 1.0)
 	var top := _base_top_bar_rect()
-	_draw_panel_shell(top, Color(0.052, 0.07, 0.082, 0.98), Color(0.38, 0.58, 0.66, 0.62), 0.2, 0.12)
-	_draw_fancy_button(_base_back_rect(), "返回", Color(0.18, 0.25, 0.28), Color(0.42, 0.58, 0.64), 18)
-	_draw_text("罗德岛温室基建", top.position + Vector2(150.0, 43.0), 31, Color(0.96, 0.99, 1.0))
-	_draw_text("RIIC / BOTANICAL INFRASTRUCTURE", top.position + Vector2(150.0, 63.0), 13, Color(0.55, 0.7, 0.76))
+	_draw_base_asset_panel("top_bar", top, Color(0.052, 0.07, 0.082, 0.98), Color(0.38, 0.58, 0.66, 0.62))
+	_draw_base_asset_panel("button_blue", _base_back_rect(), Color(0.18, 0.25, 0.28), Color(0.42, 0.58, 0.64), Color(0.72, 0.9, 0.96, 0.72))
+	var arrow_center := _base_back_rect().position + Vector2(26.0, 29.0)
+	draw_line(arrow_center + Vector2(12.0, -13.0), arrow_center + Vector2(-6.0, 0.0), Color(0.86, 0.98, 1.0, 0.9), 3.0)
+	draw_line(arrow_center + Vector2(-6.0, 0.0), arrow_center + Vector2(12.0, 13.0), Color(0.86, 0.98, 1.0, 0.9), 3.0)
+	_draw_text("返回", _base_back_rect().position + Vector2(58.0, 38.0), 19, Color(0.94, 0.99, 1.0))
+	var title_rect := _base_title_text_rect()
+	_draw_text("罗德岛温室基建", title_rect.position + Vector2(0.0, 34.0), 31, Color(0.96, 0.99, 1.0))
+	_draw_text("RIIC / BOTANICAL INFRASTRUCTURE", title_rect.position + Vector2(0.0, 58.0), 13, Color(0.55, 0.7, 0.76))
 	var summary := _base_resource_summary()
 	_draw_base_chip(_base_resource_chip_rect("coins"), "金币", str(coins_total), Color(0.95, 0.72, 0.25))
 	_draw_base_chip(_base_resource_chip_rect("drones"), "无人机", "%d" % int(floor(base_drones)), Color(0.38, 0.82, 1.0))
 	_draw_base_chip(_base_resource_chip_rect("pending"), "待领", "%d/%d/%d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], Color(0.66, 0.9, 0.48))
 	var grid := _base_room_grid_rect()
-	_draw_panel_shell(grid, Color(0.048, 0.066, 0.078, 0.97), Color(0.28, 0.42, 0.48, 0.52), 0.18, 0.1)
-	_draw_text("设施总览", grid.position + Vector2(24.0, 36.0), 24, Color(0.92, 0.98, 1.0))
-	_draw_text("进驻植物后自动生产，心情越高效率越稳。", grid.position + Vector2(152.0, 36.0), 15, Color(0.58, 0.7, 0.74))
+	_draw_base_asset_panel("grid_panel", grid, Color(0.048, 0.066, 0.078, 0.97), Color(0.28, 0.42, 0.48, 0.52))
+	var grid_title_rect := _base_grid_header_text_rect()
+	_draw_text("设施总览", grid_title_rect.position + Vector2(0.0, 28.0), 24, Color(0.92, 0.98, 1.0))
+	_draw_text("进驻植物后自动生产，心情越高效率越稳。", grid_title_rect.position + Vector2(130.0, 28.0), 15, Color(0.58, 0.7, 0.74))
 	for i in range(BASE_ROOM_ORDER.size()):
 		_draw_base_room_card(String(BASE_ROOM_ORDER[i]), i)
 	if base_scan_pulse > 0.0:

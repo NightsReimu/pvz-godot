@@ -14,6 +14,8 @@ func _run() -> void:
 	failed = not _test_base_elapsed_generates_pending_resources_and_morale_changes() or failed
 	failed = not _test_base_collect_all_transfers_rewards_to_existing_currencies() or failed
 	failed = not _test_base_offline_elapsed_is_capped() or failed
+	failed = not _test_base_image2_terminal_asset_manifest_is_declared() or failed
+	failed = not _test_base_terminal_text_safe_rects_stay_inside_panels() or failed
 	failed = not _test_base_layout_rects_do_not_overlap_or_leave_viewport() or failed
 	failed = not _test_base_roster_draws_complete_cells() or failed
 	failed = not _test_base_collect_spawns_typed_fx_and_decay() or failed
@@ -152,6 +154,39 @@ func _test_base_offline_elapsed_is_capped() -> bool:
 		game.call("_apply_base_elapsed", 8.0 * 3600.0)
 		var capped_coins := float(game.base_inventory.get("coins", 0.0))
 		passed = _assert_true(absf(day_coins - capped_coins) < 0.01, "offline production should be capped to the configured 8-hour window") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_base_image2_terminal_asset_manifest_is_declared() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_base_ui_asset_paths"), "base screen should expose Image2 terminal UI asset paths") \
+		and _assert_true(game.has_method("_base_ui_texture"), "base screen should load Image2 terminal UI textures through a helper")
+	if passed:
+		var paths: Dictionary = game.call("_base_ui_asset_paths")
+		for key_variant in ["top_bar", "grid_panel", "detail_panel", "room_card", "room_card_selected", "roster_panel", "roster_card", "resource_chip", "button_gold", "button_blue"]:
+			var key := String(key_variant)
+			passed = _assert_true(paths.has(key), "base Image2 manifest should include %s" % key) and passed
+			if paths.has(key):
+				var path := String(paths[key])
+				passed = _assert_true(path.begins_with("res://art/base_ui/"), "%s should live under art/base_ui" % key) and passed
+				passed = _assert_true(path.ends_with(".png") or path.ends_with(".webp"), "%s should be a PNG or WebP asset" % key) and passed
+				passed = _assert_true(FileAccess.file_exists(path), "%s should exist on disk" % path) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_base_terminal_text_safe_rects_stay_inside_panels() -> bool:
+	var game := _base_ready_game()
+	var passed := _assert_true(game.has_method("_base_title_text_rect"), "base title should expose a text-safe rect") \
+		and _assert_true(game.has_method("_base_grid_header_text_rect"), "base grid header should expose a text-safe rect") \
+		and _assert_true(game.has_method("_base_detail_title_text_rect"), "base detail title should expose a text-safe rect") \
+		and _assert_true(game.has_method("_base_roster_header_text_rect"), "base roster header should expose a text-safe rect")
+	if passed:
+		passed = _assert_true(Rect2(game.call("_base_top_bar_rect")).encloses(Rect2(game.call("_base_title_text_rect"))), "base title text should stay inside the top plate") and passed
+		passed = _assert_true(Rect2(game.call("_base_room_grid_rect")).encloses(Rect2(game.call("_base_grid_header_text_rect"))), "base grid header should stay inside the facility plate") and passed
+		passed = _assert_true(Rect2(game.call("_base_detail_rect")).encloses(Rect2(game.call("_base_detail_title_text_rect"))), "base detail title should stay inside the detail plate") and passed
+		passed = _assert_true(Rect2(game.call("_base_roster_panel_rect")).encloses(Rect2(game.call("_base_roster_header_text_rect"))), "base roster header should stay inside the roster plate") and passed
 	_free_game(game)
 	return passed
 
