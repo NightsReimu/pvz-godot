@@ -1465,6 +1465,15 @@ func _gacha_image_panel_draw_style(asset_key: String) -> Dictionary:
 	}
 
 
+func _world_image_panel_draw_style(asset_key: String) -> Dictionary:
+	var has_texture := _world_ui_texture(asset_key) != null
+	return {
+		"draw_rect_backing": not has_texture,
+		"draw_hover_frame": false,
+		"uses_asset_alpha": has_texture,
+	}
+
+
 func _draw_home_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, disabled: bool = false, tint: Color = Color.WHITE) -> void:
 	var texture := _home_ui_texture(asset_key)
 	if texture != null:
@@ -20135,10 +20144,20 @@ func _world_select_title_panel_rect() -> Rect2:
 	return Rect2(60.0, 34.0, 620.0, 132.0)
 
 
+func _world_select_title_text_rect() -> Rect2:
+	var panel_rect := _world_select_title_panel_rect()
+	return Rect2(panel_rect.position + Vector2(218.0, 38.0), Vector2(326.0, 48.0))
+
+
+func _world_select_title_subtitle_rect() -> Rect2:
+	var panel_rect := _world_select_title_panel_rect()
+	return Rect2(panel_rect.position + Vector2(170.0, 88.0), Vector2(410.0, 26.0))
+
+
 func _world_select_card_text_rect(index: int) -> Rect2:
 	var card_rect := _world_card_rect(index)
 	var scale := card_rect.size.x / 460.0
-	return Rect2(card_rect.position + Vector2(34.0, 52.0) * scale, Vector2(318.0, 156.0) * scale)
+	return Rect2(card_rect.position + Vector2(50.0, 64.0) * scale, Vector2(306.0, 150.0) * scale)
 
 
 func _world_select_card_preview_grid_rect(index: int) -> Rect2:
@@ -20377,8 +20396,14 @@ func _draw_world_select_scene() -> void:
 
 	var title_rect := _world_select_title_panel_rect()
 	_draw_world_asset_panel("title_panel", title_rect, Color(0.98, 0.94, 0.82, 0.95), Color(0.54, 0.4, 0.16))
-	ThemeLib.draw_text_with_shadow(self, ui_font, title_rect.position + Vector2(154.0, 62.0), "世界选择", 40, Color(0.34, 0.22, 0.08), Vector2(1.5, 3.0), 0.24)
-	ThemeLib.draw_text_with_shadow(self, ui_font, title_rect.position + Vector2(154.0, 96.0), "选择世界，再进入该世界的关卡地图。", 18, Color(0.42, 0.3, 0.14), Vector2(1.0, 2.0), 0.2)
+	var title_text_rect := _world_select_title_text_rect()
+	var title_label := "世界选择"
+	var title_width: float = ui_font.get_string_size(title_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, title_text_rect.position + Vector2(maxf(0.0, (title_text_rect.size.x - title_width) * 0.5), 38.0), title_label, 40, Color(0.34, 0.22, 0.08), Vector2(1.5, 3.0), 0.24)
+	var title_subtitle_rect := _world_select_title_subtitle_rect()
+	var subtitle_label := "选择世界，再进入该世界的关卡地图。"
+	var subtitle_width: float = ui_font.get_string_size(subtitle_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 18).x
+	ThemeLib.draw_text_with_shadow(self, ui_font, title_subtitle_rect.position + Vector2(maxf(0.0, (title_subtitle_rect.size.x - subtitle_width) * 0.5), 18.0), subtitle_label, 18, Color(0.42, 0.3, 0.14), Vector2(1.0, 2.0), 0.2)
 
 	for i in range(WorldDataLib.all().size()):
 		var world := Dictionary(WorldDataLib.all()[i])
@@ -20393,8 +20418,13 @@ func _draw_world_select_scene() -> void:
 		_draw_world_asset_panel(card_key, card_rect, Color(world["panel"]), Color(world["accent_dark"]), tint)
 		if selected:
 			var glow := 0.32 + 0.18 * sin(ui_time * 3.0)
-			draw_rect(card_rect.grow(5.0), Color(1.0, 0.86, 0.32, glow), false, 4.0)
-			draw_rect(card_rect.grow(10.0), Color(1.0, 0.86, 0.32, glow * 0.36), false, 2.0)
+			var selected_texture := _world_ui_texture(card_key)
+			if selected_texture != null:
+				draw_texture_rect(selected_texture, card_rect.grow(9.0), false, Color(1.0, 0.82, 0.28, glow * 0.42))
+				draw_texture_rect(selected_texture, card_rect.grow(18.0), false, Color(1.0, 0.82, 0.28, glow * 0.18))
+			else:
+				draw_rect(card_rect.grow(5.0), Color(1.0, 0.86, 0.32, glow), false, 4.0)
+				draw_rect(card_rect.grow(10.0), Color(1.0, 0.86, 0.32, glow * 0.36), false, 2.0)
 
 		var scale := card_rect.size.x / 460.0
 		var text_rect := _world_select_card_text_rect(i)

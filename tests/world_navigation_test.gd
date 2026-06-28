@@ -28,6 +28,8 @@ func _run() -> void:
 	failed = not _test_world_select_excludes_home_duplicate_mode_buttons() or failed
 	failed = not _test_world_select_image2_asset_manifest_is_declared() or failed
 	failed = not _test_world_select_image2_layout_keeps_text_on_boards() or failed
+	failed = not _test_world_select_title_text_stays_inside_visible_plaque() or failed
+	failed = not _test_world_select_card_assets_have_soft_alpha_edges() or failed
 	failed = not _test_world_select_buttons_keep_tap_priority_during_small_touch_motion() or failed
 	failed = not _test_world_select_command_dock_targets_are_unified() or failed
 	failed = not _test_map_supports_screen_drag_scroll() or failed
@@ -524,6 +526,74 @@ func _test_world_select_image2_layout_keeps_text_on_boards() -> bool:
 			passed = _assert_true(card_rect.encloses(grid_rect), "world card %d should contain its plant preview grid" % i) and passed
 			passed = _assert_true(not text_rect.intersects(grid_rect), "world card %d text and preview grid should not overlap" % i) and passed
 			passed = _assert_true(text_rect.size.x >= 300.0 and text_rect.size.y >= 150.0, "world card %d text safe area should remain readable" % i) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_world_select_title_text_stays_inside_visible_plaque() -> bool:
+	var game := _make_game()
+	game.call("_build_font")
+	var passed := _assert_true(game.has_method("_world_select_title_panel_rect"), "world select should expose a title panel rect") \
+		and _assert_true(game.has_method("_world_select_title_text_rect"), "world select should expose a title text-safe rect") \
+		and _assert_true(game.has_method("_world_select_title_subtitle_rect"), "world select should expose a subtitle text-safe rect")
+	if passed:
+		var panel_rect := Rect2(game.call("_world_select_title_panel_rect"))
+		var title_text_rect := Rect2(game.call("_world_select_title_text_rect"))
+		var subtitle_text_rect := Rect2(game.call("_world_select_title_subtitle_rect"))
+		var title_width: float = game.ui_font.get_string_size("世界选择", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40).x
+		var subtitle_width: float = game.ui_font.get_string_size("选择世界，再进入该世界的关卡地图。", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 18).x
+		passed = _assert_true(panel_rect.encloses(title_text_rect), "world title text-safe rect should stay inside the plaque image") and passed
+		passed = _assert_true(panel_rect.encloses(subtitle_text_rect), "world subtitle text-safe rect should stay inside the plaque image") and passed
+		passed = _assert_true(title_text_rect.position.x >= panel_rect.position.x + 210.0, "world title should avoid the left decorative transparent area") and passed
+		passed = _assert_true(title_text_rect.size.x >= title_width, "world title text-safe rect should fit the title") and passed
+		passed = _assert_true(subtitle_text_rect.size.x >= subtitle_width, "world subtitle text-safe rect should fit the subtitle") and passed
+		passed = _assert_true(title_text_rect.position.y + 40.0 <= subtitle_text_rect.position.y, "world title and subtitle baselines should not collide") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_world_select_card_assets_have_soft_alpha_edges() -> bool:
+	var game := _make_game()
+	var paths: Dictionary = game.call("_world_ui_asset_paths")
+	var passed := true
+	for world_variant in GameScript.WorldDataLib.all():
+		var world := Dictionary(world_variant)
+		var card_key := "card_%s" % String(world.get("key", ""))
+		if not paths.has(card_key):
+			passed = _assert_true(false, "world card asset %s should exist in manifest" % card_key) and passed
+			continue
+		var path := String(paths[card_key])
+		var image := Image.load_from_file(ProjectSettings.globalize_path(path))
+		if image == null:
+			passed = _assert_true(false, "world card asset %s should be loadable" % path) and passed
+			continue
+		image.convert(Image.FORMAT_RGBA8)
+		var w := image.get_width()
+		var h := image.get_height()
+		var corner_alpha := [
+			image.get_pixel(0, 0).a,
+			image.get_pixel(w - 1, 0).a,
+			image.get_pixel(0, h - 1).a,
+			image.get_pixel(w - 1, h - 1).a,
+		]
+		for alpha_variant in corner_alpha:
+			passed = _assert_true(float(alpha_variant) <= 0.08, "%s corners should be transparent so the card does not read as a square cutout" % card_key) and passed
+		var transparent_edge_samples := 0
+		var total_edge_samples := 0
+		for x in range(0, w, 10):
+			total_edge_samples += 2
+			if image.get_pixel(x, 0).a <= 0.18:
+				transparent_edge_samples += 1
+			if image.get_pixel(x, h - 1).a <= 0.18:
+				transparent_edge_samples += 1
+		for y in range(0, h, 10):
+			total_edge_samples += 2
+			if image.get_pixel(0, y).a <= 0.18:
+				transparent_edge_samples += 1
+			if image.get_pixel(w - 1, y).a <= 0.18:
+				transparent_edge_samples += 1
+		var soft_edge_ratio := float(transparent_edge_samples) / float(maxi(total_edge_samples, 1))
+		passed = _assert_true(soft_edge_ratio >= 0.55, "%s should have enough transparent edge samples to blend into the background" % card_key) and passed
 	_free_game(game)
 	return passed
 
