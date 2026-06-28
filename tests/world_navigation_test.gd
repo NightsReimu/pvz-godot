@@ -11,6 +11,7 @@ func _run() -> void:
 	var failed := false
 	failed = not _test_home_terminal_routes_mainline_to_world_select() or failed
 	failed = not _test_home_terminal_mode_entries_are_inside_viewport() or failed
+	failed = not _test_home_image2_asset_manifest_is_declared() or failed
 	failed = not _test_home_resource_status_text_fits_panel() or failed
 	failed = not _test_home_terminal_touch_targets_match_action_rects() or failed
 	failed = not _test_daily_terminal_stage_layout_stays_inside_viewport() or failed
@@ -164,6 +165,22 @@ func _test_home_terminal_mode_entries_are_inside_viewport() -> bool:
 			for j in range(i + 1, keys.size()):
 				var second_rect := Rect2(action_rects[keys[j]])
 				passed = _assert_true(not first_rect.intersects(second_rect), "home terminal entries should not overlap: %s and %s" % [String(keys[i]), String(keys[j])]) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_image2_asset_manifest_is_declared() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_home_ui_asset_paths"), "home screen should expose Image2 UI asset paths")
+	if passed:
+		var paths: Dictionary = game.call("_home_ui_asset_paths")
+		for key_variant in ["logo", "main_board", "card_daily", "card_entertainment", "card_base", "card_enhance", "card_gacha", "card_almanac", "card_locked", "resource_bar", "lock_badge"]:
+			var key := String(key_variant)
+			passed = _assert_true(paths.has(key), "home Image2 manifest should include %s" % key) and passed
+			if paths.has(key):
+				var path := String(paths[key])
+				passed = _assert_true(path.begins_with("res://art/home_ui/"), "%s should live under art/home_ui" % key) and passed
+				passed = _assert_true(path.ends_with(".png") or path.ends_with(".webp"), "%s should be a PNG or WebP asset" % key) and passed
 	_free_game(game)
 	return passed
 

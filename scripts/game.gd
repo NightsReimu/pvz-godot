@@ -102,6 +102,19 @@ const POLISHED_PLANT_TEXTURE_PATHS := {
 	"sunflower": "res://art/polish/sunflower-polished.png",
 	"wallnut": "res://art/polish/wallnut-polished.png",
 }
+const HOME_UI_ASSETS := {
+	"logo": "res://art/home_ui/home_logo.png",
+	"main_board": "res://art/home_ui/home_board_main.png",
+	"card_daily": "res://art/home_ui/home_card_blue.png",
+	"card_entertainment": "res://art/home_ui/home_card_red.png",
+	"card_base": "res://art/home_ui/home_card_teal.png",
+	"card_enhance": "res://art/home_ui/home_card_gold.png",
+	"card_gacha": "res://art/home_ui/home_card_purple.png",
+	"card_almanac": "res://art/home_ui/home_card_green.png",
+	"card_locked": "res://art/home_ui/home_card_locked.png",
+	"resource_bar": "res://art/home_ui/home_resource_bar.png",
+	"lock_badge": "res://art/home_ui/home_lock_badge.png",
+}
 const POLISHED_PROJECTILE_TEXTURE_PATHS := {
 	"pea": "res://art/polish/pea-polished.png",
 }
@@ -1321,6 +1334,10 @@ func _home_resource_rect() -> Rect2:
 func _home_resource_status_rect() -> Rect2:
 	var resource_rect := _home_resource_rect()
 	return Rect2(resource_rect.position + Vector2(336.0, 18.0), Vector2(resource_rect.size.x - 350.0, 26.0))
+
+
+func _home_ui_asset_paths() -> Dictionary:
+	return HOME_UI_ASSETS.duplicate()
 
 
 func _home_touch_target(position: Vector2) -> Dictionary:
