@@ -1312,9 +1312,9 @@ func _world_select_touch_target(position: Vector2) -> Dictionary:
 func _home_action_rects() -> Dictionary:
 	var left_x := 78.0
 	var middle_x := 626.0
-	var right_x := 1018.0
+	var right_x := 990.0
 	var top_y := 206.0
-	var right_card_w := 432.0
+	var right_card_w := 448.0
 	var right_card_h := 122.0
 	var right_gap_y := 22.0
 	return {
@@ -1367,10 +1367,17 @@ func _home_ui_texture(asset_key: String) -> Texture2D:
 func _draw_home_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, disabled: bool = false) -> void:
 	var texture := _home_ui_texture(asset_key)
 	if texture != null:
-		ThemeLib.draw_soft_shadow(self, rect, Color(0.0, 0.0, 0.0, 0.22 if not disabled else 0.14), 4, 16.0, 10.0)
+		_draw_home_asset_shadow(texture, rect, 0.22 if not disabled else 0.14)
 		draw_texture_rect(texture, rect, false, Color(1.0, 1.0, 1.0, 0.68 if disabled else 1.0))
 	else:
 		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.20, 0.14)
+
+
+func _draw_home_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.22) -> void:
+	for layer in range(3):
+		var t := float(layer + 1) / 3.0
+		var shadow_rect := Rect2(rect.position + Vector2(0.0, 6.0 + t * 5.0), rect.size)
+		draw_texture_rect(texture, shadow_rect.grow(t * 3.5), false, Color(0.0, 0.0, 0.0, alpha * (1.0 - t * 0.48)))
 
 
 func _home_entry_asset_key(entry_id: String) -> String:
@@ -1399,12 +1406,12 @@ func _home_entry_text_rect(entry_id: String) -> Rect2:
 	var action_rects := _home_action_rects()
 	var rect := Rect2(action_rects.get(entry_id, Rect2()))
 	if entry_id == "mainline":
-		return Rect2(rect.position + Vector2(58.0, 78.0), Vector2(rect.size.x - 230.0, 146.0))
+		return Rect2(rect.position + Vector2(70.0, 82.0), Vector2(rect.size.x - 250.0, 138.0))
 	if entry_id == "events":
 		return Rect2(rect.position + Vector2(178.0, 42.0), Vector2(rect.size.x - 430.0, 74.0))
 	if entry_id == "daily" or entry_id == "entertainment":
-		return Rect2(rect.position + Vector2(48.0, 38.0), Vector2(rect.size.x - 138.0, 74.0))
-	return Rect2(rect.position + Vector2(48.0, 34.0), Vector2(rect.size.x - 150.0, 66.0))
+		return Rect2(rect.position + Vector2(70.0, 38.0), Vector2(rect.size.x - 166.0, 74.0))
+	return Rect2(rect.position + Vector2(82.0, 34.0), Vector2(rect.size.x - 190.0, 66.0))
 
 
 func _home_touch_target(position: Vector2) -> Dictionary:
@@ -19587,12 +19594,13 @@ func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Colo
 	# hover 时整张卡片轻微上浮 + 加重阴影。
 	var lift := 4.0 if hovered else 0.0
 	var card_rect := Rect2(rect.position - Vector2(0.0, lift), rect.size)
-	ThemeLib.draw_soft_shadow(self, card_rect, Color(0.0, 0.0, 0.0, 0.30 if hovered else 0.24), 4, 16.0, 10.0 + lift)
+	var asset_key := _home_entry_asset_key(entry_id)
+	if _home_ui_texture(asset_key) == null:
+		ThemeLib.draw_soft_shadow(self, card_rect, Color(0.0, 0.0, 0.0, 0.30 if hovered else 0.24), 4, 16.0, 10.0 + lift)
 	if hovered:
 		draw_rect(card_rect.grow(6.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.10 + pulse * 0.10), true)
 		draw_rect(card_rect.grow(4.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.50), false, 2.4)
 	# 卡片本体：优先使用 Image2 单元素框，缺图时回退到旧的代码绘制面板。
-	var asset_key := _home_entry_asset_key(entry_id)
 	_draw_home_asset_panel(asset_key, card_rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), disabled)
 	if _home_ui_texture(asset_key) == null:
 		draw_rect(Rect2(card_rect.position, Vector2(7.0, card_rect.size.y)), actual_accent, true)
@@ -19624,7 +19632,10 @@ func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Colo
 	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.92, 0.9, 0.78), 5.0, 3 if large else 2)
 	# Disabled overlay with lock icon on top
 	if disabled:
-		ThemeLib.draw_disabled_overlay(self, card_rect, false)
+		if _home_ui_texture(asset_key) != null:
+			draw_texture_rect(_home_ui_texture(asset_key), card_rect, false, Color(0.05, 0.07, 0.08, 0.36))
+		else:
+			ThemeLib.draw_disabled_overlay(self, card_rect, false)
 		var lock_texture := _home_ui_texture("lock_badge")
 		if lock_texture != null:
 			var lock_size := Vector2(82.0, 82.0)
@@ -19649,7 +19660,7 @@ func _draw_home_scene() -> void:
 	ThemeLib.draw_glow_circle(self, logo_rect.get_center() + Vector2(0.0, -12.0), 165.0, Color(1.0, 0.94, 0.52, 0.22), 4)
 	var logo_texture := _home_ui_texture("logo")
 	if logo_texture != null:
-		ThemeLib.draw_soft_shadow(self, logo_rect, Color(0.0, 0.0, 0.0, 0.2), 4, 16.0, 10.0)
+		_draw_home_asset_shadow(logo_texture, logo_rect, 0.20)
 		draw_texture_rect(logo_texture, logo_rect, false)
 	else:
 		_draw_panel_shell(logo_rect.grow(-20.0), Color(0.94, 0.78, 0.42, 0.92), Color(0.42, 0.26, 0.1), 0.18, 0.14)
@@ -19678,7 +19689,7 @@ func _draw_home_scene() -> void:
 
 	var action_rects := _home_action_rects()
 	var mainline_rect := Rect2(action_rects["mainline"])
-	_draw_home_entry(mainline_rect, "主线关卡", "进入世界选择，推进各世界地图与 Boss 关卡。当前世界：%s" % _map_mode_title_for_world(current_world_key), Color(0.96, 0.74, 0.22), Color(0.16, 0.22, 0.16, 0.9), "mainline", true)
+	_draw_home_entry(mainline_rect, "主线关卡", "进入世界选择，推进地图与首领关卡。当前世界：%s" % _map_mode_title_for_world(current_world_key), Color(0.96, 0.74, 0.22), Color(0.16, 0.22, 0.16, 0.9), "mainline", true)
 	var worlds := WorldDataLib.all()
 	var preview_count: int = mini(5, worlds.size())
 	var chip_rects := _home_mainline_chip_rects()

@@ -15,6 +15,7 @@ func _run() -> void:
 	failed = not _test_home_image2_decorative_layout_is_reserved() or failed
 	failed = not _test_home_image2_asset_manifest_is_declared() or failed
 	failed = not _test_home_image2_asset_helpers_exist() or failed
+	failed = not _test_home_image2_asset_shadow_helper_exists() or failed
 	failed = not _test_home_resource_status_text_fits_panel() or failed
 	failed = not _test_home_terminal_touch_targets_match_action_rects() or failed
 	failed = not _test_daily_terminal_stage_layout_stays_inside_viewport() or failed
@@ -250,6 +251,13 @@ func _test_home_image2_asset_helpers_exist() -> bool:
 	var game := _make_game()
 	var passed := _assert_true(game.has_method("_home_ui_texture"), "home screen should load Image2 UI textures through a helper") \
 		and _assert_true(game.has_method("_draw_home_asset_panel"), "home screen should draw Image2 panels through a helper")
+	_free_game(game)
+	return passed
+
+
+func _test_home_image2_asset_shadow_helper_exists() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_draw_home_asset_shadow"), "home Image2 panels should use alpha-shaped texture shadows instead of rectangular soft shadows")
 	_free_game(game)
 	return passed
 
