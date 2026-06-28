@@ -883,6 +883,7 @@ var lava_eruption_timers := {}
 var polished_texture_cache := {}
 var image2_texture_cache := {}
 var image2_flipped_zombie_cache := {}
+var home_ui_texture_cache := {}
 var update_manager := UpdateManagerLib.new()
 var update_check_request: HTTPRequest
 var update_download_request: HTTPRequest
@@ -1338,6 +1339,19 @@ func _home_resource_status_rect() -> Rect2:
 
 func _home_ui_asset_paths() -> Dictionary:
 	return HOME_UI_ASSETS.duplicate()
+
+
+func _home_ui_texture(asset_key: String) -> Texture2D:
+	return _load_cached_texture(String(HOME_UI_ASSETS.get(asset_key, "")), home_ui_texture_cache, shared_image2_texture_cache)
+
+
+func _draw_home_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, disabled: bool = false) -> void:
+	var texture := _home_ui_texture(asset_key)
+	if texture != null:
+		ThemeLib.draw_soft_shadow(self, rect, Color(0.0, 0.0, 0.0, 0.22 if not disabled else 0.14), 4, 16.0, 10.0)
+		draw_texture_rect(texture, rect, false, Color(1.0, 1.0, 1.0, 0.68 if disabled else 1.0))
+	else:
+		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.20, 0.14)
 
 
 func _home_touch_target(position: Vector2) -> Dictionary:

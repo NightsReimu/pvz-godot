@@ -12,6 +12,7 @@ func _run() -> void:
 	failed = not _test_home_terminal_routes_mainline_to_world_select() or failed
 	failed = not _test_home_terminal_mode_entries_are_inside_viewport() or failed
 	failed = not _test_home_image2_asset_manifest_is_declared() or failed
+	failed = not _test_home_image2_asset_helpers_exist() or failed
 	failed = not _test_home_resource_status_text_fits_panel() or failed
 	failed = not _test_home_terminal_touch_targets_match_action_rects() or failed
 	failed = not _test_daily_terminal_stage_layout_stays_inside_viewport() or failed
@@ -181,6 +182,14 @@ func _test_home_image2_asset_manifest_is_declared() -> bool:
 				var path := String(paths[key])
 				passed = _assert_true(path.begins_with("res://art/home_ui/"), "%s should live under art/home_ui" % key) and passed
 				passed = _assert_true(path.ends_with(".png") or path.ends_with(".webp"), "%s should be a PNG or WebP asset" % key) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_home_image2_asset_helpers_exist() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_home_ui_texture"), "home screen should load Image2 UI textures through a helper") \
+		and _assert_true(game.has_method("_draw_home_asset_panel"), "home screen should draw Image2 panels through a helper")
 	_free_game(game)
 	return passed
 
