@@ -1421,11 +1421,31 @@ func _gacha_ui_texture(asset_key: String) -> Texture2D:
 	return _load_cached_texture(String(GACHA_UI_ASSETS.get(asset_key, "")), gacha_ui_texture_cache, shared_image2_texture_cache)
 
 
-func _draw_home_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, disabled: bool = false) -> void:
+func _home_image_panel_draw_style(asset_key: String) -> Dictionary:
+	var has_texture := _home_ui_texture(asset_key) != null
+	return {
+		"draw_rect_backing": not has_texture,
+		"draw_hover_frame": false,
+		"uses_asset_alpha": has_texture,
+	}
+
+
+func _gacha_image_panel_draw_style(asset_key: String) -> Dictionary:
+	var has_texture := _gacha_ui_texture(asset_key) != null
+	return {
+		"draw_rect_backing": not has_texture,
+		"draw_hover_frame": false,
+		"uses_asset_alpha": has_texture,
+	}
+
+
+func _draw_home_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, disabled: bool = false, tint: Color = Color.WHITE) -> void:
 	var texture := _home_ui_texture(asset_key)
 	if texture != null:
 		_draw_home_asset_shadow(texture, rect, 0.22 if not disabled else 0.14)
-		draw_texture_rect(texture, rect, false, Color(1.0, 1.0, 1.0, 0.68 if disabled else 1.0))
+		var final_tint := tint
+		final_tint.a *= 0.68 if disabled else 1.0
+		draw_texture_rect(texture, rect, false, final_tint)
 	else:
 		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.20, 0.14)
 
@@ -1447,7 +1467,6 @@ func _draw_gacha_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.
 func _draw_gacha_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
 	var texture := _gacha_ui_texture(asset_key)
 	if texture != null:
-		_draw_panel_shell(rect, Color(fallback_fill.r, fallback_fill.g, fallback_fill.b, fallback_fill.a * 0.54), Color(fallback_border.r, fallback_border.g, fallback_border.b, fallback_border.a * 0.34), 0.18, 0.08)
 		_draw_gacha_asset_shadow(texture, rect, 0.24)
 		draw_texture_rect(texture, rect, false, tint)
 	else:
@@ -19600,14 +19619,15 @@ func _draw_gacha_scene() -> void:
 func _draw_gacha_draw_button(button_id: String, label: String, cost: String, asset_key: String, fallback_fill: Color, fallback_border: Color) -> void:
 	var rect := _gacha_draw_button_rect(button_id)
 	var hovered := rect.has_point(_pointer_local_position())
-	var tint := Color(1.0, 1.0, 1.0, 1.0) if not hovered else Color(1.08, 1.06, 1.0, 1.0)
-	_draw_gacha_asset_panel(asset_key, rect, fallback_fill, fallback_border, tint)
+	var draw_rect_local := rect
 	if hovered:
-		draw_rect(rect.grow(4.0), Color(fallback_border.r, fallback_border.g, fallback_border.b, 0.3), false, 2.0)
+		draw_rect_local.position.y -= 3.0
+	var tint := Color(1.0, 1.0, 1.0, 1.0) if not hovered else Color(1.08, 1.06, 1.0, 1.0)
+	_draw_gacha_asset_panel(asset_key, draw_rect_local, fallback_fill, fallback_border, tint)
 	var label_width := ui_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 24).x
-	ThemeLib.draw_text_with_shadow(self, ui_font, rect.position + Vector2((rect.size.x - label_width) * 0.5, 42.0), label, 24, Color(1.0, 0.96, 0.9), Vector2(1.0, 2.0), 0.32)
+	ThemeLib.draw_text_with_shadow(self, ui_font, draw_rect_local.position + Vector2((draw_rect_local.size.x - label_width) * 0.5, 42.0), label, 24, Color(1.0, 0.96, 0.9), Vector2(1.0, 2.0), 0.32)
 	var cost_width := ui_font.get_string_size(cost, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16).x
-	ThemeLib.draw_text_with_shadow(self, ui_font, rect.position + Vector2((rect.size.x - cost_width) * 0.5, 72.0), cost, 16, Color(0.92, 0.84, 1.0), Vector2(1.0, 1.5), 0.25)
+	ThemeLib.draw_text_with_shadow(self, ui_font, draw_rect_local.position + Vector2((draw_rect_local.size.x - cost_width) * 0.5, 72.0), cost, 16, Color(0.92, 0.84, 1.0), Vector2(1.0, 1.5), 0.25)
 
 
 func _draw_gacha_empty_results(rect: Rect2) -> void:
@@ -20066,11 +20086,9 @@ func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Colo
 	var asset_key := _home_entry_asset_key(entry_id)
 	if _home_ui_texture(asset_key) == null:
 		ThemeLib.draw_soft_shadow(self, card_rect, Color(0.0, 0.0, 0.0, 0.30 if hovered else 0.24), 4, 16.0, 10.0 + lift)
-	if hovered:
-		draw_rect(card_rect.grow(6.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.10 + pulse * 0.10), true)
-		draw_rect(card_rect.grow(4.0), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.50), false, 2.4)
 	# 卡片本体：优先使用 Image2 单元素框，缺图时回退到旧的代码绘制面板。
-	_draw_home_asset_panel(asset_key, card_rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), disabled)
+	var panel_tint := Color(1.06, 1.045, 1.0, 1.0) if hovered else Color.WHITE
+	_draw_home_asset_panel(asset_key, card_rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), disabled, panel_tint)
 	if _home_ui_texture(asset_key) == null:
 		draw_rect(Rect2(card_rect.position, Vector2(7.0, card_rect.size.y)), actual_accent, true)
 		draw_rect(Rect2(card_rect.position + Vector2(7.0, 0.0), Vector2(card_rect.size.x - 7.0, 36.0)), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.14), true)

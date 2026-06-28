@@ -11,6 +11,7 @@ func _run() -> void:
 	var failed := false
 	failed = not _test_gacha_image2_asset_manifest_is_declared() or failed
 	failed = not _test_gacha_layout_rects_stay_inside_viewport() or failed
+	failed = not _test_gacha_image_panels_do_not_draw_rect_backings() or failed
 	failed = not _test_gacha_click_targets_match_draw_button_rects() or failed
 	failed = not _test_gacha_collection_grid_shows_complete_cards() or failed
 	quit(1 if failed else 0)
@@ -84,6 +85,19 @@ func _test_gacha_layout_rects_stay_inside_viewport() -> bool:
 		var back_rect := Rect2(game.call("_gacha_back_rect"))
 		passed = _assert_true(not title_rect.intersects(coin_rect), "gacha title should not overlap the coin chip") and passed
 		passed = _assert_true(not title_rect.intersects(back_rect), "gacha title should not overlap the back button") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_gacha_image_panels_do_not_draw_rect_backings() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_gacha_image_panel_draw_style"), "gacha image panels should expose draw style for regression tests")
+	if passed:
+		for key_variant in ["coin_chip", "button_common", "button_premium", "button_multi", "collection_panel"]:
+			var key := String(key_variant)
+			var style: Dictionary = game.call("_gacha_image_panel_draw_style", key)
+			passed = _assert_true(not bool(style.get("draw_rect_backing", true)), "%s should not draw a rectangular backing behind Image2 art" % key) and passed
+			passed = _assert_true(not bool(style.get("draw_hover_frame", true)), "%s hover should tint/shift the image instead of drawing an extra frame" % key) and passed
 	_free_game(game)
 	return passed
 

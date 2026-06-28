@@ -17,6 +17,7 @@ func _run() -> void:
 	failed = not _test_home_image2_asset_manifest_is_declared() or failed
 	failed = not _test_home_image2_asset_helpers_exist() or failed
 	failed = not _test_home_image2_asset_shadow_helper_exists() or failed
+	failed = not _test_home_image2_hover_uses_asset_shape() or failed
 	failed = not _test_home_image2_title_asset_is_declared_and_positioned() or failed
 	failed = not _test_home_resource_text_stays_on_visible_bar() or failed
 	failed = not _test_home_resource_status_text_fits_panel() or failed
@@ -305,6 +306,19 @@ func _test_home_image2_asset_helpers_exist() -> bool:
 func _test_home_image2_asset_shadow_helper_exists() -> bool:
 	var game := _make_game()
 	var passed := _assert_true(game.has_method("_draw_home_asset_shadow"), "home Image2 panels should use alpha-shaped texture shadows instead of rectangular soft shadows")
+	_free_game(game)
+	return passed
+
+
+func _test_home_image2_hover_uses_asset_shape() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_home_image_panel_draw_style"), "home Image2 panels should expose draw style for regression tests")
+	if passed:
+		for key_variant in ["main_board", "card_daily", "card_gacha", "card_base", "resource_bar"]:
+			var key := String(key_variant)
+			var style: Dictionary = game.call("_home_image_panel_draw_style", key)
+			passed = _assert_true(not bool(style.get("draw_rect_backing", true)), "%s should not draw a rectangular backing behind Image2 art" % key) and passed
+			passed = _assert_true(not bool(style.get("draw_hover_frame", true)), "%s hover should tint/shift the image instead of drawing an extra frame" % key) and passed
 	_free_game(game)
 	return passed
 
