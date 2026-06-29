@@ -150,7 +150,10 @@ func _test_sakuya_assets_and_bgm_are_present() -> bool:
 		"res://audio/sakuya_intro.mp3",
 		"res://audio/sakuya_boss.mp3",
 	]
-	for frame_index in range(8):
+	var game = _make_game()
+	var frame_count := int(game.call("_boss_frame_count_for_kind", "sakuya_boss"))
+	_free_game(game)
+	for frame_index in range(frame_count):
 		required_paths.append("res://art/sakuya/frame_%02d.png" % frame_index)
 	var passed := true
 	for path in required_paths:

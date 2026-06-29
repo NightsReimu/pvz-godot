@@ -155,8 +155,14 @@ func _test_prismriver_assets_and_bgm_are_present() -> bool:
 	for path in ["res://audio/prismriver_intro.mp3", "res://audio/prismriver_boss.mp3"]:
 		passed = _assert_true(FileAccess.file_exists(path), "%s should exist" % path) and passed
 		passed = _assert_true(FileAccess.file_exists("%s.import" % path), "%s should have a Godot import sidecar" % path) and passed
-	for folder in ["lily_white", "prismriver"]:
-		for frame_index in range(8):
+	var game = _make_game()
+	var boss_folders := {
+		"lily_white": int(game.call("_boss_frame_count_for_kind", "lily_white_boss")),
+		"prismriver": int(game.call("_boss_frame_count_for_kind", "prismriver_boss")),
+	}
+	_free_game(game)
+	for folder in boss_folders.keys():
+		for frame_index in range(int(boss_folders[folder])):
 			var path = "res://art/%s/frame_%02d.png" % [folder, frame_index]
 			passed = _assert_true(FileAccess.file_exists(path), "%s should exist" % path) and passed
 			passed = _assert_true(FileAccess.file_exists("%s.import" % path), "%s should have a Godot import sidecar" % path) and passed

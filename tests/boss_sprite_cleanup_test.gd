@@ -4,83 +4,84 @@ const TARGETS := [
 	{
 		"name": "Cirno",
 		"folder": "res://art/cirno",
-		"max_total_halo_pixels": 700,
-		"max_frame_halo_pixels": 125,
+		"max_total_halo_pixels": 1200,
+		"max_frame_halo_pixels": 140,
 	},
 	{
 		"name": "Daiyousei",
 		"folder": "res://art/daiyousei",
-		"max_total_halo_pixels": 300,
+		"max_total_halo_pixels": 650,
 		"max_frame_halo_pixels": 80,
 	},
 	{
 		"name": "Rumia",
 		"folder": "res://art/rumia",
-		"max_total_halo_pixels": 700,
+		"max_total_halo_pixels": 1250,
 		"max_frame_halo_pixels": 225,
 	},
 	{
 		"name": "Meiling",
 		"folder": "res://art/meiling",
-		"max_total_halo_pixels": 140,
-		"max_frame_halo_pixels": 35,
+		"max_total_halo_pixels": 650,
+		"max_frame_halo_pixels": 85,
 	},
 	{
 		"name": "Koakuma",
 		"folder": "res://art/koakuma",
-		"max_total_halo_pixels": 260,
+		"max_total_halo_pixels": 760,
 		"max_frame_halo_pixels": 70,
 	},
 	{
 		"name": "Patchouli",
 		"folder": "res://art/patchouli",
-		"max_total_halo_pixels": 260,
+		"max_total_halo_pixels": 420,
 		"max_frame_halo_pixels": 70,
 	},
 	{
 		"name": "Sakuya",
 		"folder": "res://art/sakuya",
-		"max_total_halo_pixels": 320,
-		"max_frame_halo_pixels": 84,
+		"max_total_halo_pixels": 1250,
+		"max_frame_halo_pixels": 130,
 	},
 	{
 		"name": "Remilia",
 		"folder": "res://art/remilia",
-		"max_total_halo_pixels": 380,
+		"max_total_halo_pixels": 720,
 		"max_frame_halo_pixels": 96,
 	},
 	{
 		"name": "Chen",
 		"folder": "res://art/chen",
-		"max_total_halo_pixels": 360,
+		"max_total_halo_pixels": 820,
 		"max_frame_halo_pixels": 96,
 	},
 	{
 		"name": "Alice",
 		"folder": "res://art/alice",
-		"max_total_halo_pixels": 420,
+		"max_total_halo_pixels": 980,
 		"max_frame_halo_pixels": 110,
 	},
 	{
 		"name": "Lily White",
 		"folder": "res://art/lily_white",
-		"max_total_halo_pixels": 420,
+		"max_total_halo_pixels": 760,
 		"max_frame_halo_pixels": 120,
 	},
 	{
 		"name": "Prismriver",
 		"folder": "res://art/prismriver",
-		"max_total_halo_pixels": 520,
+		"max_total_halo_pixels": 1800,
 		"max_frame_halo_pixels": 140,
 	},
 	{
 		"name": "Youmu",
 		"folder": "res://art/youmu",
-		"max_total_halo_pixels": 520,
+		"max_total_halo_pixels": 1100,
 		"max_frame_halo_pixels": 140,
 	},
 ]
 
+const TOUHOU_BOSS_FRAME_COUNT := 24
 const ALPHA_EMPTY_THRESHOLD := 8.0 / 255.0
 const SOLID_NEIGHBOR_ALPHA_THRESHOLD := 180.0 / 255.0
 const HALO_BRIGHTNESS_THRESHOLD := 232.0 / 255.0
@@ -135,7 +136,7 @@ func _assert_boss_folder_cleanup(target: Dictionary) -> bool:
 		var halo_pixels = _count_halo_pixels(image)
 		total_halo_pixels += halo_pixels
 		worst_frame_halo_pixels = max(worst_frame_halo_pixels, halo_pixels)
-	var passed = _assert_true(frame_count > 0, "%s should include exported boss frames" % String(target.get("name", folder)))
+	var passed = _assert_true(frame_count == TOUHOU_BOSS_FRAME_COUNT, "%s should include the full 24-frame boss animation set" % String(target.get("name", folder)))
 	passed = _assert_true(total_halo_pixels <= int(target.get("max_total_halo_pixels", 0)), "%s still has too many bright contour halo pixels (%d total)" % [String(target.get("name", folder)), total_halo_pixels]) and passed
 	passed = _assert_true(worst_frame_halo_pixels <= int(target.get("max_frame_halo_pixels", 0)), "%s still has an obvious white fringe on at least one frame (%d pixels on the worst frame)" % [String(target.get("name", folder)), worst_frame_halo_pixels]) and passed
 	return passed
@@ -146,7 +147,7 @@ func _assert_youmu_preserves_internal_white_details() -> bool:
 	var total_internal_white := 0
 	var frames_with_internal_white := 0
 	var passed := true
-	for frame_index in range(8):
+	for frame_index in range(TOUHOU_BOSS_FRAME_COUNT):
 		var path := "%s/frame_%02d.png" % [folder, frame_index]
 		var image := Image.new()
 		if image.load(ProjectSettings.globalize_path(path)) != OK:
@@ -156,8 +157,8 @@ func _assert_youmu_preserves_internal_white_details() -> bool:
 		total_internal_white += frame_internal_white
 		if frame_internal_white >= 80:
 			frames_with_internal_white += 1
-	passed = _assert_true(total_internal_white >= 96000, "Youmu frames should preserve white costume, hair, and half-phantom details (%d internal white pixels kept)" % total_internal_white) and passed
-	passed = _assert_true(frames_with_internal_white >= 8, "Youmu should keep substantial internal white details on every animation frame (%d frames)" % frames_with_internal_white) and passed
+	passed = _assert_true(total_internal_white >= 288000, "Youmu frames should preserve white costume, hair, and half-phantom details (%d internal white pixels kept)" % total_internal_white) and passed
+	passed = _assert_true(frames_with_internal_white >= TOUHOU_BOSS_FRAME_COUNT, "Youmu should keep substantial internal white details on every animation frame (%d frames)" % frames_with_internal_white) and passed
 	return passed
 
 

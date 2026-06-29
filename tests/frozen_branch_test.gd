@@ -376,7 +376,10 @@ func _test_boss_frame_cleanup_removes_white_border_and_faces_left() -> bool:
 
 func _test_prebaked_cirno_frames_have_clean_transparent_outer_edges() -> bool:
 	var passed := true
-	for frame_index in range(8):
+	var game = _make_game()
+	var frame_count := int(game.call("_boss_frame_count_for_kind", "cirno_boss"))
+	_free_game(game)
+	for frame_index in range(frame_count):
 		var image := Image.new()
 		var path = ProjectSettings.globalize_path("res://art/cirno/frame_%02d.png" % frame_index)
 		if image.load(path) != OK:
@@ -397,7 +400,10 @@ func _test_prebaked_cirno_frames_have_clean_transparent_outer_edges() -> bool:
 
 func _test_prebaked_cirno_frames_keep_safe_transparent_margin_and_no_far_fragments() -> bool:
 	var passed := true
-	for frame_index in range(8):
+	var game = _make_game()
+	var frame_count := int(game.call("_boss_frame_count_for_kind", "cirno_boss"))
+	_free_game(game)
+	for frame_index in range(frame_count):
 		var image := Image.new()
 		var path = ProjectSettings.globalize_path("res://art/cirno/frame_%02d.png" % frame_index)
 		if image.load(path) != OK:
@@ -552,13 +558,16 @@ func _test_1_18_assets_and_bgm_are_present() -> bool:
 		"res://audio/cirno_intro.mp3",
 		"res://audio/cirno_boss.mp3",
 	]
-	for frame_index in range(8):
+	var game = _make_game()
+	var cirno_frame_count := int(game.call("_boss_frame_count_for_kind", "cirno_boss"))
+	var daiyousei_frame_count := int(game.call("_boss_frame_count_for_kind", "daiyousei_boss"))
+	for frame_index in range(cirno_frame_count):
 		required_paths.append("res://art/cirno/frame_%02d.png" % frame_index)
+	for frame_index in range(daiyousei_frame_count):
 		required_paths.append("res://art/daiyousei/frame_%02d.png" % frame_index)
 	var passed := true
 	for path in required_paths:
 		passed = _assert_true(FileAccess.file_exists(ProjectSettings.globalize_path(path)), "expected 1-18 asset to exist: %s" % path) and passed
-	var game = _make_game()
 	var intro_stream = game._load_audio_stream("res://audio/cirno_intro.mp3")
 	var boss_stream = game._load_audio_stream("res://audio/cirno_boss.mp3")
 	passed = _assert_true(intro_stream is AudioStreamMP3, "Cirno intro BGM should load as AudioStreamMP3") and passed
@@ -650,8 +659,11 @@ func _test_cirno_shared_frame_cache_reloads_when_stale() -> bool:
 	var previous_loaded = GameScript.shared_cirno_frames_loaded
 	var previous_frames = GameScript.shared_cirno_frames
 	var previous_face_left = GameScript.shared_cirno_frames_face_left
+	var probe_game = _make_game()
+	var expected_frame_count := int(probe_game.call("_boss_frame_count_for_kind", "cirno_boss"))
+	_free_game(probe_game)
 	var stale_frames: Array = []
-	for frame_index in range(8):
+	for frame_index in range(expected_frame_count):
 		var image := Image.create(2, 1, false, Image.FORMAT_RGBA8)
 		image.fill(Color(0.0, 0.0, 0.0, 0.0))
 		image.set_pixel(0, 0, Color(1.0, 0.0, 0.0, 1.0))
@@ -664,7 +676,7 @@ func _test_cirno_shared_frame_cache_reloads_when_stale() -> bool:
 	game.cirno_frames = []
 	game.cirno_frames_loaded = false
 	game.call("_ensure_cirno_frames_loaded")
-	var passed = _assert_true(game.cirno_frames.size() == 8, "Cirno should still load a full boss frame set when the shared cache is stale") \
+	var passed = _assert_true(game.cirno_frames.size() == expected_frame_count, "Cirno should still load a full boss frame set when the shared cache is stale") \
 		and _assert_true(game.cirno_frames[0] != stale_frames[0], "Cirno should rebuild a stale shared boss frame cache instead of reusing mismatched orientation metadata")
 	_free_game(game)
 	GameScript.shared_cirno_frames_loaded = previous_loaded

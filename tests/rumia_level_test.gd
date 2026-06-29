@@ -160,7 +160,10 @@ func _test_rumia_assets_present() -> bool:
 		"res://audio/rumia_intro.mp3",
 		"res://audio/rumia_boss.mp3",
 	]
-	for frame_index in range(8):
+	var game = _make_game()
+	var frame_count := int(game.call("_boss_frame_count_for_kind", "rumia_boss"))
+	_free_game(game)
+	for frame_index in range(frame_count):
 		required_paths.append("res://art/rumia/frame_%02d.png" % frame_index)
 	var passed := true
 	for path in required_paths:
@@ -399,7 +402,8 @@ func _test_rumia_idle_animation_stays_stable_without_skill_or_movement() -> bool
 	var first_frame = int(game.call("_rumia_frame_index", boss))
 	game.level_time = 2.4
 	var second_frame = int(game.call("_rumia_frame_index", boss))
-	var passed = _assert_true(first_frame == second_frame, "rumia idle animation should stay stable until she moves or casts")
+	var passed = _assert_true(first_frame >= 0 and first_frame <= 2, "rumia idle animation should stay inside the neutral 3-frame pose group") \
+		and _assert_true(second_frame >= 0 and second_frame <= 2, "rumia idle animation should not jump to a casting or movement pose until she moves or casts")
 	_free_game(game)
 	return passed
 

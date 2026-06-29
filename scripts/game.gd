@@ -427,21 +427,24 @@ const ENDLESS_BONUS_DEFS := {
 	},
 }
 
-const RUMIA_FRAME_COUNT := 8
-const CIRNO_FRAME_COUNT := 8
-const DAIYOUSEI_FRAME_COUNT := 8
-const MEILING_FRAME_COUNT := 8
-const KOAKUMA_FRAME_COUNT := 8
-const PATCHOULI_FRAME_COUNT := 8
-const SAKUYA_FRAME_COUNT := 8
-const REMILIA_FRAME_COUNT := 8
-const LETTY_FRAME_COUNT := 8
-const CHEN_FRAME_COUNT := 8
-const ALICE_FRAME_COUNT := 8
-const LILY_WHITE_FRAME_COUNT := 8
-const PRISMRIVER_FRAME_COUNT := 8
-const YOUMU_FRAME_COUNT := 8
-const FLANDRE_FRAME_COUNT := 8
+const TOUHOU_BOSS_POSE_COUNT := 8
+const TOUHOU_BOSS_POSE_FRAME_COUNT := 3
+const TOUHOU_BOSS_FRAME_COUNT := TOUHOU_BOSS_POSE_COUNT * TOUHOU_BOSS_POSE_FRAME_COUNT
+const RUMIA_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const CIRNO_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const DAIYOUSEI_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const MEILING_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const KOAKUMA_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const PATCHOULI_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const SAKUYA_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const REMILIA_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const LETTY_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const CHEN_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const ALICE_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const LILY_WHITE_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const PRISMRIVER_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const YOUMU_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const FLANDRE_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 
 static var shared_audio_stream_cache := {}
 static var shared_sfx_stream_cache := {}
@@ -30164,10 +30167,55 @@ func _flandre_draw_scale(phase: int) -> float:
 	return 0.5 + float(phase) * 0.018
 
 
-func _rumia_cycle_frame(frames: Array, speed: float, phase: float) -> int:
+func _boss_pose_frame(pose_index: int, speed: float, phase: float) -> int:
+	var clamped_pose = clampi(pose_index, 0, TOUHOU_BOSS_POSE_COUNT - 1)
+	var subframe = int(floor(level_time * speed + phase * TOUHOU_BOSS_POSE_FRAME_COUNT * 3.0)) % TOUHOU_BOSS_POSE_FRAME_COUNT
+	if subframe < 0:
+		subframe += TOUHOU_BOSS_POSE_FRAME_COUNT
+	return clamped_pose * TOUHOU_BOSS_POSE_FRAME_COUNT + subframe
+
+
+func _boss_pose_cycle_frame(frames: Array, speed: float, phase: float) -> int:
 	if frames.is_empty():
-		return 0
-	return int(frames[int(floor(level_time * speed + phase)) % frames.size()])
+		return _boss_pose_frame(0, speed, phase)
+	var pose_index = int(frames[int(floor(level_time * speed + phase)) % frames.size()])
+	return _boss_pose_frame(pose_index, maxf(speed * 1.35, 1.0), phase)
+
+
+func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
+	match String(zombie.get("kind", "")):
+		"rumia_boss":
+			return _rumia_frame_index(zombie)
+		"daiyousei_boss":
+			return _daiyousei_frame_index(zombie)
+		"cirno_boss":
+			return _cirno_frame_index(zombie)
+		"meiling_boss":
+			return _meiling_frame_index(zombie)
+		"koakuma_boss":
+			return _koakuma_frame_index(zombie)
+		"patchouli_boss":
+			return _patchouli_frame_index(zombie)
+		"sakuya_boss":
+			return _sakuya_frame_index(zombie)
+		"remilia_boss":
+			return _remilia_frame_index(zombie)
+		"letty_boss":
+			return _letty_frame_index(zombie)
+		"chen_boss":
+			return _chen_frame_index(zombie)
+		"alice_boss":
+			return _alice_frame_index(zombie)
+		"lily_white_boss":
+			return _lily_white_frame_index(zombie)
+		"prismriver_boss":
+			return _prismriver_frame_index(zombie)
+		"youmu_boss":
+			return _youmu_frame_index(zombie)
+		"flandre_boss":
+			return _flandre_frame_index(zombie)
+		_:
+			return 0
 
 
 func _rumia_frame_index(zombie: Dictionary) -> int:
@@ -30175,22 +30223,26 @@ func _rumia_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"summon":
-			return _rumia_cycle_frame([5, 6, 5, 3], 7.8, phase * 0.65)
+			return _boss_pose_cycle_frame([5, 6, 5, 3], 7.8, phase * 0.65)
 		"beam":
-			return _rumia_cycle_frame([2, 6, 2, 4], 8.6, phase * 0.45)
+			return _boss_pose_cycle_frame([2, 6, 2, 4], 8.6, phase * 0.45)
 		"bird":
-			return _rumia_cycle_frame([3, 4, 1, 4], 7.0, phase * 0.5)
+			return _boss_pose_cycle_frame([3, 4, 1, 4], 7.0, phase * 0.5)
 		"dark":
-			return _rumia_cycle_frame([7, 6, 5, 6], 8.8, phase * 0.75)
+			return _boss_pose_cycle_frame([7, 6, 5, 6], 8.8, phase * 0.75)
+		"night":
+			return _boss_pose_cycle_frame([7, 6, 5, 6], 8.0, phase * 0.62)
+		"swallow":
+			return _boss_pose_cycle_frame([2, 6, 2, 4], 8.2, phase * 0.58)
 		"phase":
-			return _rumia_cycle_frame([4, 6, 5, 6, 4], 9.4, phase * 0.8)
+			return _boss_pose_cycle_frame([4, 6, 5, 6, 4], 9.4, phase * 0.8)
 		"shift":
-			return _rumia_cycle_frame([1, 4, 3, 4], 5.1, phase * 0.3)
+			return _boss_pose_cycle_frame([1, 4, 3, 4], 5.1, phase * 0.3)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 4, 1], 6.2, phase * 0.3)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 4, 1], 6.2, phase * 0.3)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _daiyousei_frame_index(zombie: Dictionary) -> int:
@@ -30198,20 +30250,24 @@ func _daiyousei_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"summon":
-			return _rumia_cycle_frame([5, 6, 5, 7], 7.2, phase * 0.62)
+			return _boss_pose_cycle_frame([5, 6, 5, 7], 7.2, phase * 0.62)
+		"heal":
+			return _boss_pose_cycle_frame([4, 5, 6, 5], 6.8, phase * 0.5)
+		"fairy":
+			return _boss_pose_cycle_frame([5, 6, 5, 7], 7.0, phase * 0.48)
 		"ring":
-			return _rumia_cycle_frame([4, 5, 6, 5], 6.8, phase * 0.46)
+			return _boss_pose_cycle_frame([4, 5, 6, 5], 6.8, phase * 0.46)
 		"lance":
-			return _rumia_cycle_frame([2, 3, 4, 3], 7.8, phase * 0.52)
+			return _boss_pose_cycle_frame([2, 3, 4, 3], 7.8, phase * 0.52)
 		"phase":
-			return _rumia_cycle_frame([6, 7, 6, 5], 7.0, phase * 0.48)
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 7.0, phase * 0.48)
 		"shift":
-			return _rumia_cycle_frame([1, 3, 2, 3], 5.4, phase * 0.32)
+			return _boss_pose_cycle_frame([1, 3, 2, 3], 5.4, phase * 0.32)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 2, 1], 5.8, phase * 0.28)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 2, 1], 5.8, phase * 0.28)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _cirno_frame_index(zombie: Dictionary) -> int:
@@ -30219,20 +30275,24 @@ func _cirno_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"icicle":
-			return _rumia_cycle_frame([2, 4, 2, 5], 8.0, phase * 0.52)
+			return _boss_pose_cycle_frame([2, 4, 2, 5], 8.0, phase * 0.52)
+		"ice":
+			return _boss_pose_cycle_frame([2, 4, 2, 5], 7.8, phase * 0.48)
 		"freeze":
-			return _rumia_cycle_frame([6, 7, 6, 5], 7.2, phase * 0.6)
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 7.2, phase * 0.6)
 		"blizzard":
-			return _rumia_cycle_frame([4, 6, 5, 6], 7.6, phase * 0.54)
+			return _boss_pose_cycle_frame([4, 6, 5, 6], 7.6, phase * 0.54)
+		"snow":
+			return _boss_pose_cycle_frame([4, 6, 5, 6], 7.0, phase * 0.46)
 		"phase":
-			return _rumia_cycle_frame([5, 6, 7, 6], 7.0, phase * 0.44)
+			return _boss_pose_cycle_frame([5, 6, 7, 6], 7.0, phase * 0.44)
 		"shift":
-			return _rumia_cycle_frame([1, 3, 2, 3], 5.2, phase * 0.3)
+			return _boss_pose_cycle_frame([1, 3, 2, 3], 5.2, phase * 0.3)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 2, 1], 6.0, phase * 0.3)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 2, 1], 6.0, phase * 0.3)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _koakuma_frame_index(zombie: Dictionary) -> int:
@@ -30240,20 +30300,20 @@ func _koakuma_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"books":
-			return _rumia_cycle_frame([2, 3, 2, 3], 7.8, phase * 0.48)
+			return _boss_pose_cycle_frame([2, 3, 2, 3], 7.8, phase * 0.48)
 		"familiar":
-			return _rumia_cycle_frame([5, 6, 5, 6], 7.0, phase * 0.56)
+			return _boss_pose_cycle_frame([5, 6, 5, 6], 7.0, phase * 0.56)
 		"summon":
-			return _rumia_cycle_frame([6, 4, 6, 4], 6.4, phase * 0.42)
+			return _boss_pose_cycle_frame([6, 4, 6, 4], 6.4, phase * 0.42)
 		"phase":
-			return _rumia_cycle_frame([4, 5, 4, 5], 6.8, phase * 0.44)
+			return _boss_pose_cycle_frame([4, 5, 4, 5], 6.8, phase * 0.44)
 		"shift":
-			return _rumia_cycle_frame([1, 4, 1, 4], 5.2, phase * 0.28)
+			return _boss_pose_cycle_frame([1, 4, 1, 4], 5.2, phase * 0.28)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 2, 1], 5.8, phase * 0.24)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 2, 1], 5.8, phase * 0.24)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _patchouli_frame_index(zombie: Dictionary) -> int:
@@ -30261,24 +30321,24 @@ func _patchouli_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"fire":
-			return _rumia_cycle_frame([2, 2, 6, 2], 7.0, phase * 0.5)
+			return _boss_pose_cycle_frame([2, 2, 6, 2], 7.0, phase * 0.5)
 		"water":
-			return _rumia_cycle_frame([1, 2, 1, 2], 6.0, phase * 0.36)
+			return _boss_pose_cycle_frame([1, 2, 1, 2], 6.0, phase * 0.36)
 		"wind":
-			return _rumia_cycle_frame([3, 6, 3, 6], 6.4, phase * 0.46)
+			return _boss_pose_cycle_frame([3, 6, 3, 6], 6.4, phase * 0.46)
 		"metal":
-			return _rumia_cycle_frame([5, 6, 5, 6], 6.8, phase * 0.52)
+			return _boss_pose_cycle_frame([5, 6, 5, 6], 6.8, phase * 0.52)
 		"flare":
-			return _rumia_cycle_frame([6, 5, 6, 3], 7.4, phase * 0.54)
+			return _boss_pose_cycle_frame([6, 5, 6, 3], 7.4, phase * 0.54)
 		"phase":
-			return _rumia_cycle_frame([4, 6, 4, 6], 6.4, phase * 0.42)
+			return _boss_pose_cycle_frame([4, 6, 4, 6], 6.4, phase * 0.42)
 		"shift":
-			return _rumia_cycle_frame([1, 3, 1, 3], 4.8, phase * 0.28)
+			return _boss_pose_cycle_frame([1, 3, 1, 3], 4.8, phase * 0.28)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.24)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.0, phase * 0.24)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _sakuya_frame_index(zombie: Dictionary) -> int:
@@ -30286,26 +30346,26 @@ func _sakuya_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"knives":
-			return _rumia_cycle_frame([1, 2, 1, 2], 7.6, phase * 0.44)
+			return _boss_pose_cycle_frame([1, 2, 1, 2], 7.6, phase * 0.44)
 		"rain":
-			return _rumia_cycle_frame([3, 4, 3, 4], 7.2, phase * 0.42)
+			return _boss_pose_cycle_frame([3, 4, 3, 4], 7.2, phase * 0.42)
 		"doll":
-			return _rumia_cycle_frame([5, 6, 5, 6], 6.4, phase * 0.38)
+			return _boss_pose_cycle_frame([5, 6, 5, 6], 6.4, phase * 0.38)
 		"time":
-			return _rumia_cycle_frame([6, 7, 6, 7], 5.8, phase * 0.34)
+			return _boss_pose_cycle_frame([6, 7, 6, 7], 5.8, phase * 0.34)
 		"clock":
-			return _rumia_cycle_frame([4, 2, 4, 2], 6.6, phase * 0.4)
+			return _boss_pose_cycle_frame([4, 2, 4, 2], 6.6, phase * 0.4)
 		"summon":
-			return _rumia_cycle_frame([2, 5, 2, 5], 6.0, phase * 0.36)
+			return _boss_pose_cycle_frame([2, 5, 2, 5], 6.0, phase * 0.36)
 		"phase":
-			return _rumia_cycle_frame([7, 5, 7, 5], 6.8, phase * 0.42)
+			return _boss_pose_cycle_frame([7, 5, 7, 5], 6.8, phase * 0.42)
 		"shift":
-			return _rumia_cycle_frame([3, 0, 3, 0], 8.0, phase * 0.5)
+			return _boss_pose_cycle_frame([3, 0, 3, 0], 8.0, phase * 0.5)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.4, phase * 0.24)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.4, phase * 0.24)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _remilia_frame_index(zombie: Dictionary) -> int:
@@ -30313,30 +30373,30 @@ func _remilia_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"scarlet":
-			return _rumia_cycle_frame([2, 4, 2, 1], 7.2, phase * 0.42)
+			return _boss_pose_cycle_frame([2, 4, 2, 1], 7.2, phase * 0.42)
 		"magic":
-			return _rumia_cycle_frame([3, 2, 3, 0], 6.4, phase * 0.36)
+			return _boss_pose_cycle_frame([3, 2, 3, 0], 6.4, phase * 0.36)
 		"heart":
-			return _rumia_cycle_frame([7, 2, 7, 2], 7.8, phase * 0.48)
+			return _boss_pose_cycle_frame([7, 2, 7, 2], 7.8, phase * 0.48)
 		"gungnir":
-			return _rumia_cycle_frame([4, 7, 4, 7], 7.0, phase * 0.42)
+			return _boss_pose_cycle_frame([4, 7, 4, 7], 7.0, phase * 0.42)
 		"cradle":
-			return _rumia_cycle_frame([4, 5, 4, 5], 6.2, phase * 0.34)
+			return _boss_pose_cycle_frame([4, 5, 4, 5], 6.2, phase * 0.34)
 		"drain":
-			return _rumia_cycle_frame([5, 6, 5, 6], 5.8, phase * 0.32)
+			return _boss_pose_cycle_frame([5, 6, 5, 6], 5.8, phase * 0.32)
 		"bats":
-			return _rumia_cycle_frame([4, 1, 4, 1], 6.6, phase * 0.38)
+			return _boss_pose_cycle_frame([4, 1, 4, 1], 6.6, phase * 0.38)
 		"meister":
-			return _rumia_cycle_frame([6, 5, 6, 7], 6.0, phase * 0.34)
+			return _boss_pose_cycle_frame([6, 5, 6, 7], 6.0, phase * 0.34)
 		"phase":
-			return _rumia_cycle_frame([5, 6, 5, 6], 6.4, phase * 0.36)
+			return _boss_pose_cycle_frame([5, 6, 5, 6], 6.4, phase * 0.36)
 		"shift":
-			return _rumia_cycle_frame([1, 0, 1, 0], 5.6, phase * 0.26)
+			return _boss_pose_cycle_frame([1, 0, 1, 0], 5.6, phase * 0.26)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _letty_frame_index(zombie: Dictionary) -> int:
@@ -30344,24 +30404,24 @@ func _letty_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"lingering":
-			return _rumia_cycle_frame([2, 3, 2, 4], 6.8, phase * 0.44)
+			return _boss_pose_cycle_frame([2, 3, 2, 4], 6.8, phase * 0.44)
 		"wither":
-			return _rumia_cycle_frame([5, 6, 5, 1], 6.2, phase * 0.36)
+			return _boss_pose_cycle_frame([5, 6, 5, 1], 6.2, phase * 0.36)
 		"ray":
-			return _rumia_cycle_frame([3, 7, 3, 7], 7.2, phase * 0.5)
+			return _boss_pose_cycle_frame([3, 7, 3, 7], 7.2, phase * 0.5)
 		"snap":
-			return _rumia_cycle_frame([6, 7, 6, 4], 6.6, phase * 0.42)
+			return _boss_pose_cycle_frame([6, 7, 6, 4], 6.6, phase * 0.42)
 		"table":
-			return _rumia_cycle_frame([4, 5, 6, 5], 6.0, phase * 0.34)
+			return _boss_pose_cycle_frame([4, 5, 6, 5], 6.0, phase * 0.34)
 		"phase":
-			return _rumia_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.38)
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.38)
 		"shift":
-			return _rumia_cycle_frame([1, 0, 1, 0], 5.4, phase * 0.24)
+			return _boss_pose_cycle_frame([1, 0, 1, 0], 5.4, phase * 0.24)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _chen_frame_index(zombie: Dictionary) -> int:
@@ -30369,26 +30429,26 @@ func _chen_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"phoenix":
-			return _rumia_cycle_frame([3, 2, 3, 0], 7.4, phase * 0.42)
+			return _boss_pose_cycle_frame([3, 2, 3, 0], 7.4, phase * 0.42)
 		"shikigami":
-			return _rumia_cycle_frame([5, 6, 5, 1], 7.2, phase * 0.4)
+			return _boss_pose_cycle_frame([5, 6, 5, 1], 7.2, phase * 0.4)
 		"dash":
-			return _rumia_cycle_frame([2, 6, 2, 6], 9.2, phase * 0.52)
+			return _boss_pose_cycle_frame([2, 6, 2, 6], 9.2, phase * 0.52)
 		"oni":
-			return _rumia_cycle_frame([4, 7, 4, 5], 7.0, phase * 0.44)
+			return _boss_pose_cycle_frame([4, 7, 4, 5], 7.0, phase * 0.44)
 		"idaten":
-			return _rumia_cycle_frame([6, 2, 6, 2], 10.2, phase * 0.58)
+			return _boss_pose_cycle_frame([6, 2, 6, 2], 10.2, phase * 0.58)
 		"rampage":
-			return _rumia_cycle_frame([7, 6, 4, 6], 8.2, phase * 0.48)
+			return _boss_pose_cycle_frame([7, 6, 4, 6], 8.2, phase * 0.48)
 		"phase":
-			return _rumia_cycle_frame([7, 4, 7, 5], 7.0, phase * 0.38)
+			return _boss_pose_cycle_frame([7, 4, 7, 5], 7.0, phase * 0.38)
 		"shift":
-			return _rumia_cycle_frame([1, 2, 1, 0], 6.4, phase * 0.3)
+			return _boss_pose_cycle_frame([1, 2, 1, 0], 6.4, phase * 0.3)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.8, phase * 0.24)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.8, phase * 0.24)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _alice_frame_index(zombie: Dictionary) -> int:
@@ -30396,28 +30456,28 @@ func _alice_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"procession":
-			return _rumia_cycle_frame([2, 5, 2, 6], 6.8, phase * 0.38)
+			return _boss_pose_cycle_frame([2, 5, 2, 6], 6.8, phase * 0.38)
 		"marionette":
-			return _rumia_cycle_frame([5, 6, 5, 1], 6.6, phase * 0.36)
+			return _boss_pose_cycle_frame([5, 6, 5, 1], 6.6, phase * 0.36)
 		"seven":
-			return _rumia_cycle_frame([3, 4, 3, 7], 7.2, phase * 0.42)
+			return _boss_pose_cycle_frame([3, 4, 3, 7], 7.2, phase * 0.42)
 		"shanghai":
-			return _rumia_cycle_frame([6, 7, 6, 2], 6.8, phase * 0.4)
+			return _boss_pose_cycle_frame([6, 7, 6, 2], 6.8, phase * 0.4)
 		"forest":
-			return _rumia_cycle_frame([4, 5, 4, 6], 5.8, phase * 0.32)
+			return _boss_pose_cycle_frame([4, 5, 4, 6], 5.8, phase * 0.32)
 		"grave":
-			return _rumia_cycle_frame([7, 6, 7, 5], 6.2, phase * 0.36)
+			return _boss_pose_cycle_frame([7, 6, 7, 5], 6.2, phase * 0.36)
 		"return":
-			return _rumia_cycle_frame([7, 5, 6, 5], 7.0, phase * 0.42)
+			return _boss_pose_cycle_frame([7, 5, 6, 5], 7.0, phase * 0.42)
 		"phase":
-			return _rumia_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.36)
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.36)
 		"shift":
-			return _rumia_cycle_frame([1, 0, 1, 0], 5.6, phase * 0.26)
+			return _boss_pose_cycle_frame([1, 0, 1, 0], 5.6, phase * 0.26)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.0, phase * 0.2)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _lily_white_frame_index(zombie: Dictionary) -> int:
@@ -30425,22 +30485,22 @@ func _lily_white_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"spring_herald":
-			return _rumia_cycle_frame([2, 3, 2, 4], 6.8, phase * 0.38)
+			return _boss_pose_cycle_frame([2, 3, 2, 4], 6.8, phase * 0.38)
 		"petals":
-			return _rumia_cycle_frame([5, 6, 5, 1], 6.6, phase * 0.36)
+			return _boss_pose_cycle_frame([5, 6, 5, 1], 6.6, phase * 0.36)
 		"cloud_bloom":
-			return _rumia_cycle_frame([3, 7, 3, 6], 7.2, phase * 0.42)
+			return _boss_pose_cycle_frame([3, 7, 3, 6], 7.2, phase * 0.42)
 		"fairy_barrage":
-			return _rumia_cycle_frame([6, 7, 6, 4], 7.0, phase * 0.4)
+			return _boss_pose_cycle_frame([6, 7, 6, 4], 7.0, phase * 0.4)
 		"phase":
-			return _rumia_cycle_frame([7, 6, 5, 6], 6.2, phase * 0.34)
+			return _boss_pose_cycle_frame([7, 6, 5, 6], 6.2, phase * 0.34)
 		"shift":
-			return _rumia_cycle_frame([1, 0, 1, 0], 5.8, phase * 0.26)
+			return _boss_pose_cycle_frame([1, 0, 1, 0], 5.8, phase * 0.26)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.0, phase * 0.22)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.0, phase * 0.22)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _prismriver_frame_index(zombie: Dictionary) -> int:
@@ -30448,30 +30508,30 @@ func _prismriver_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"phantom_dinning":
-			return _rumia_cycle_frame([2, 3, 4, 3], 6.8, phase * 0.36)
+			return _boss_pose_cycle_frame([2, 3, 4, 3], 6.8, phase * 0.36)
 		"lunasa":
-			return _rumia_cycle_frame([5, 2, 5, 1], 7.2, phase * 0.42)
+			return _boss_pose_cycle_frame([5, 2, 5, 1], 7.2, phase * 0.42)
 		"merlin":
-			return _rumia_cycle_frame([3, 6, 3, 6], 7.8, phase * 0.46)
+			return _boss_pose_cycle_frame([3, 6, 3, 6], 7.8, phase * 0.46)
 		"lyrica":
-			return _rumia_cycle_frame([4, 7, 4, 1], 7.4, phase * 0.44)
+			return _boss_pose_cycle_frame([4, 7, 4, 1], 7.4, phase * 0.44)
 		"concerto":
-			return _rumia_cycle_frame([6, 7, 6, 5], 6.6, phase * 0.38)
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 6.6, phase * 0.38)
 		"riverside":
-			return _rumia_cycle_frame([5, 6, 5, 2], 6.8, phase * 0.4)
+			return _boss_pose_cycle_frame([5, 6, 5, 2], 6.8, phase * 0.4)
 		"wheel":
-			return _rumia_cycle_frame([7, 4, 7, 4], 8.2, phase * 0.48)
+			return _boss_pose_cycle_frame([7, 4, 7, 4], 8.2, phase * 0.48)
 		"live_poltergeist":
-			return _rumia_cycle_frame([7, 6, 5, 6], 8.0, phase * 0.46)
+			return _boss_pose_cycle_frame([7, 6, 5, 6], 8.0, phase * 0.46)
 		"phase":
-			return _rumia_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.36)
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.36)
 		"shift":
-			return _rumia_cycle_frame([1, 0, 1, 0], 6.4, phase * 0.3)
+			return _boss_pose_cycle_frame([1, 0, 1, 0], 6.4, phase * 0.3)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.4, phase * 0.24)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.4, phase * 0.24)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _youmu_frame_index(zombie: Dictionary) -> int:
@@ -30479,24 +30539,24 @@ func _youmu_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"slash":
-			return _rumia_cycle_frame([2, 3, 2, 5], 8.8, phase * 0.5)
+			return _boss_pose_cycle_frame([2, 3, 2, 5], 8.8, phase * 0.5)
 		"dash", "instant", "shift":
-			return _rumia_cycle_frame([4, 6, 4, 7], 11.2, phase * 0.58)
+			return _boss_pose_cycle_frame([4, 6, 4, 7], 11.2, phase * 0.58)
 		"cross":
-			return _rumia_cycle_frame([3, 5, 3, 6], 9.6, phase * 0.48)
+			return _boss_pose_cycle_frame([3, 5, 3, 6], 9.6, phase * 0.48)
 		"half_ghost", "wraith":
-			return _rumia_cycle_frame([5, 7, 5, 1], 7.6, phase * 0.38)
+			return _boss_pose_cycle_frame([5, 7, 5, 1], 7.6, phase * 0.38)
 		"six_realms":
-			return _rumia_cycle_frame([6, 7, 6, 5], 8.4, phase * 0.44)
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 8.4, phase * 0.44)
 		"finale":
-			return _rumia_cycle_frame([7, 6, 4, 6], 10.6, phase * 0.52)
+			return _boss_pose_cycle_frame([7, 6, 4, 6], 10.6, phase * 0.52)
 		"phase":
-			return _rumia_cycle_frame([7, 5, 6, 5], 7.2, phase * 0.36)
+			return _boss_pose_cycle_frame([7, 5, 6, 5], 7.2, phase * 0.36)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 6.2, phase * 0.24)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 6.2, phase * 0.24)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _flandre_frame_index(zombie: Dictionary) -> int:
@@ -30504,36 +30564,36 @@ func _flandre_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"laevatein":
-			return _rumia_cycle_frame([2, 6, 7, 6], 7.6, phase * 0.44)
+			return _boss_pose_cycle_frame([2, 6, 7, 6], 7.6, phase * 0.44)
 		"clones":
-			return _rumia_cycle_frame([5, 6, 5, 2], 7.2, phase * 0.4)
+			return _boss_pose_cycle_frame([5, 6, 5, 2], 7.2, phase * 0.4)
 		"kagome":
-			return _rumia_cycle_frame([3, 4, 3, 4], 6.4, phase * 0.34)
+			return _boss_pose_cycle_frame([3, 4, 3, 4], 6.4, phase * 0.34)
 		"starbow":
-			return _rumia_cycle_frame([4, 6, 4, 1], 7.0, phase * 0.42)
+			return _boss_pose_cycle_frame([4, 6, 4, 1], 7.0, phase * 0.42)
 		"dolls":
-			return _rumia_cycle_frame([2, 5, 2, 5], 6.0, phase * 0.32)
+			return _boss_pose_cycle_frame([2, 5, 2, 5], 6.0, phase * 0.32)
 		"crystal":
-			return _rumia_cycle_frame([6, 7, 6, 4], 7.4, phase * 0.46)
+			return _boss_pose_cycle_frame([6, 7, 6, 4], 7.4, phase * 0.46)
 		"break":
-			return _rumia_cycle_frame([7, 5, 7, 1], 6.8, phase * 0.4)
+			return _boss_pose_cycle_frame([7, 5, 7, 1], 6.8, phase * 0.4)
 		"storm":
-			return _rumia_cycle_frame([1, 3, 5, 3], 6.6, phase * 0.36)
+			return _boss_pose_cycle_frame([1, 3, 5, 3], 6.6, phase * 0.36)
 		"secret":
-			return _rumia_cycle_frame([6, 4, 6, 2], 7.2, phase * 0.42)
+			return _boss_pose_cycle_frame([6, 4, 6, 2], 7.2, phase * 0.42)
 		"judgement":
-			return _rumia_cycle_frame([7, 6, 7, 3], 6.2, phase * 0.34)
+			return _boss_pose_cycle_frame([7, 6, 7, 3], 6.2, phase * 0.34)
 		"cranberry":
-			return _rumia_cycle_frame([5, 4, 5, 0], 6.4, phase * 0.3)
+			return _boss_pose_cycle_frame([5, 4, 5, 0], 6.4, phase * 0.3)
 		"phase":
-			return _rumia_cycle_frame([7, 6, 5, 6], 6.8, phase * 0.38)
+			return _boss_pose_cycle_frame([7, 6, 5, 6], 6.8, phase * 0.38)
 		"shift":
-			return _rumia_cycle_frame([1, 0, 1, 0], 5.8, phase * 0.26)
+			return _boss_pose_cycle_frame([1, 0, 1, 0], 5.8, phase * 0.26)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 0, 1], 5.2, phase * 0.22)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 0, 1], 5.2, phase * 0.22)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 # --- 火山世界 zombie drawing ---
@@ -30720,7 +30780,7 @@ func _draw_volcano_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_rumia_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _rumia_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 4
+		frame_index = _boss_pose_frame(4, 10.0, float(zombie.get("anim_phase", 0.0)))
 	var texture := _try_get_boss_frame_texture("rumia_boss", frame_index)
 	var draw_scale = _rumia_draw_scale(int(zombie.get("boss_phase", 0)))
 	var local_phase = float(zombie.get("anim_phase", 0.0))
@@ -30749,7 +30809,7 @@ func _draw_rumia_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_daiyousei_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _daiyousei_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 4
+		frame_index = _boss_pose_frame(4, 10.0, float(zombie.get("anim_phase", 0.0)))
 	var texture := _try_get_boss_frame_texture("daiyousei_boss", frame_index)
 	var draw_scale = _daiyousei_draw_scale(int(zombie.get("boss_phase", 0)))
 	var local_phase = float(zombie.get("anim_phase", 0.0))
@@ -30776,7 +30836,7 @@ func _draw_daiyousei_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_cirno_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _cirno_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 5
+		frame_index = _boss_pose_frame(5, 10.0, float(zombie.get("anim_phase", 0.0)))
 	var texture := _try_get_boss_frame_texture("cirno_boss", frame_index)
 	var draw_scale = _cirno_draw_scale(int(zombie.get("boss_phase", 0)))
 	var local_phase = float(zombie.get("anim_phase", 0.0))
@@ -30813,27 +30873,36 @@ func _draw_cirno_boss(center: Vector2, zombie: Dictionary) -> void:
 
 
 func _meiling_frame_index(zombie: Dictionary) -> int:
-	var phase = int(zombie.get("boss_phase", 0))
-	match String(zombie.get("boss_state", "")):
+	var phase = float(zombie.get("anim_phase", float(zombie.get("boss_phase", 0))))
+	var state = String(zombie.get("boss_state", String(zombie.get("rumia_state", ""))))
+	match state:
 		"kick":
-			return _rumia_cycle_frame([2, 3, 2, 3], 8.0, phase * 0.5)
+			return _boss_pose_cycle_frame([2, 3, 2, 3], 8.0, phase * 0.5)
+		"punch":
+			return _boss_pose_cycle_frame([2, 3, 2, 3], 8.2, phase * 0.5)
 		"rainbow":
-			return _rumia_cycle_frame([3, 7, 3, 7], 6.4, phase * 0.4)
+			return _boss_pose_cycle_frame([3, 7, 3, 7], 6.4, phase * 0.4)
 		"dragon":
-			return _rumia_cycle_frame([6, 7, 6, 7], 5.6, phase * 0.38)
+			return _boss_pose_cycle_frame([6, 7, 6, 7], 5.6, phase * 0.38)
+		"dash":
+			return _boss_pose_cycle_frame([3, 7, 3, 7], 8.8, phase * 0.44)
+		"guard":
+			return _boss_pose_cycle_frame([4, 5, 4, 5], 5.8, phase * 0.32)
 		"phase":
-			return _rumia_cycle_frame([4, 5, 4, 5], 6.8, phase * 0.42)
+			return _boss_pose_cycle_frame([4, 5, 4, 5], 6.8, phase * 0.42)
+		"shift":
+			return _boss_pose_cycle_frame([1, 2, 1, 0], 6.0, phase * 0.28)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _rumia_cycle_frame([1, 2, 1], 5.8, phase * 0.28)
-			return 0
-	return 0
+				return _boss_pose_cycle_frame([1, 2, 1], 5.8, phase * 0.28)
+			return _boss_pose_frame(0, 3.0, phase)
+	return _boss_pose_frame(0, 3.0, phase)
 
 
 func _draw_meiling_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _meiling_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 4
+		frame_index = _boss_pose_frame(4, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_meiling_frames_loaded()
 	var texture := _try_get_boss_frame_texture("meiling_boss", frame_index)
 	var draw_scale = _meiling_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -30868,7 +30937,7 @@ func _draw_meiling_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_koakuma_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _koakuma_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 4
+		frame_index = _boss_pose_frame(4, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_koakuma_frames_loaded()
 	var texture := _try_get_boss_frame_texture("koakuma_boss", frame_index)
 	var draw_scale = _koakuma_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -30896,7 +30965,7 @@ func _draw_koakuma_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_patchouli_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _patchouli_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 4
+		frame_index = _boss_pose_frame(4, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_patchouli_frames_loaded()
 	var texture := _try_get_boss_frame_texture("patchouli_boss", frame_index)
 	var draw_scale = _patchouli_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -30931,7 +31000,7 @@ func _draw_patchouli_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_sakuya_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _sakuya_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 7
+		frame_index = _boss_pose_frame(7, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_sakuya_frames_loaded()
 	var texture := _try_get_boss_frame_texture("sakuya_boss", frame_index)
 	var draw_scale = _sakuya_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -30964,7 +31033,7 @@ func _draw_sakuya_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_remilia_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _remilia_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 5
+		frame_index = _boss_pose_frame(5, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_remilia_frames_loaded()
 	var texture := _try_get_boss_frame_texture("remilia_boss", frame_index)
 	var draw_scale = _remilia_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -31001,7 +31070,7 @@ func _draw_remilia_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_letty_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _letty_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 6
+		frame_index = _boss_pose_frame(6, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_letty_frames_loaded()
 	var texture := _try_get_boss_frame_texture("letty_boss", frame_index)
 	var draw_scale = _letty_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -31037,7 +31106,7 @@ func _draw_letty_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_chen_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _chen_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 5
+		frame_index = _boss_pose_frame(5, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_chen_frames_loaded()
 	var texture := _try_get_boss_frame_texture("chen_boss", frame_index)
 	var draw_scale = _chen_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -31071,7 +31140,7 @@ func _draw_chen_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_alice_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _alice_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 6
+		frame_index = _boss_pose_frame(6, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_alice_frames_loaded()
 	var texture := _try_get_boss_frame_texture("alice_boss", frame_index)
 	var draw_scale = _alice_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -31119,7 +31188,7 @@ func _draw_alice_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_lily_white_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _lily_white_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 6
+		frame_index = _boss_pose_frame(6, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_lily_white_frames_loaded()
 	var texture := _try_get_boss_frame_texture("lily_white_boss", frame_index)
 	var draw_scale = _lily_white_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -31148,7 +31217,7 @@ func _draw_lily_white_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_prismriver_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _prismriver_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 7
+		frame_index = _boss_pose_frame(7, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_prismriver_frames_loaded()
 	var texture := _try_get_boss_frame_texture("prismriver_boss", frame_index)
 	var draw_scale = _prismriver_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -31181,7 +31250,7 @@ func _draw_prismriver_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_youmu_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _youmu_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 6
+		frame_index = _boss_pose_frame(6, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_youmu_frames_loaded()
 	var texture := _try_get_boss_frame_texture("youmu_boss", frame_index)
 	var draw_scale = _youmu_draw_scale(int(zombie.get("boss_phase", 0)))
@@ -31225,7 +31294,7 @@ func _draw_youmu_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_flandre_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _flandre_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 7
+		frame_index = _boss_pose_frame(7, 10.0, float(zombie.get("anim_phase", 0.0)))
 	_ensure_flandre_frames_loaded()
 	var texture := _try_get_boss_frame_texture("flandre_boss", frame_index)
 	var draw_scale = _flandre_draw_scale(int(zombie.get("boss_phase", 0)))

@@ -125,8 +125,13 @@ func _test_patchouli_branch_assets_and_bgm_are_present() -> bool:
 		"res://audio/patchouli_intro.mp3",
 		"res://audio/patchouli_boss.mp3",
 	]
-	for frame_index in range(8):
+	var game = _make_game()
+	var koakuma_frame_count := int(game.call("_boss_frame_count_for_kind", "koakuma_boss"))
+	var patchouli_frame_count := int(game.call("_boss_frame_count_for_kind", "patchouli_boss"))
+	_free_game(game)
+	for frame_index in range(koakuma_frame_count):
 		required_paths.append("res://art/koakuma/frame_%02d.png" % frame_index)
+	for frame_index in range(patchouli_frame_count):
 		required_paths.append("res://art/patchouli/frame_%02d.png" % frame_index)
 	var passed := true
 	for path in required_paths:

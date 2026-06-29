@@ -162,7 +162,10 @@ func _test_youmu_assets_and_bgm_are_present() -> bool:
 	for path in ["res://audio/youmu_intro.mp3", "res://audio/youmu_boss.mp3"]:
 		passed = _assert_true(FileAccess.file_exists(path), "%s should exist" % path) and passed
 		passed = _assert_true(FileAccess.file_exists("%s.import" % path), "%s should have a Godot import sidecar" % path) and passed
-	for frame_index in range(8):
+	var game = _make_game()
+	var frame_count := int(game.call("_boss_frame_count_for_kind", "youmu_boss"))
+	_free_game(game)
+	for frame_index in range(frame_count):
 		var path = "res://art/youmu/frame_%02d.png" % frame_index
 		passed = _assert_true(FileAccess.file_exists(path), "%s should exist" % path) and passed
 		passed = _assert_true(FileAccess.file_exists("%s.import" % path), "%s should have a Godot import sidecar" % path) and passed
