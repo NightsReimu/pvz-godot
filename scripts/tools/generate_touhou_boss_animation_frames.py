@@ -12,6 +12,7 @@ back to the local expansion instead of blocking a release.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import math
 import os
@@ -24,11 +25,12 @@ from PIL import Image, ImageChops, ImageStat
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = Path("/Users/hecrereed/xianyu/蜂蜜/image2画图配置")
+DEFAULT_CONFIG = Path("/Users/hecrereed/xianyu/数学包课/配置")
 DEFAULT_IMAGE_GEN = Path.home() / ".codex/skills/.system/imagegen/scripts/image_gen.py"
 OUTPUT_ROOT = ROOT / "output/imagegen/touhou-boss-animation"
 TMP_ROOT = ROOT / "tmp/imagegen/touhou-boss-animation"
 CONTACT_ROOT = ROOT / "output/touhou-boss-animation-contact-sheets"
+COMMITTED_METADATA = ROOT / "art/touhou_boss_animation_sources.json"
 
 BOSSES = [
     ("rumia_boss", "rumia", "Rumia"),
@@ -61,6 +63,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bosses", default="", help="Comma-separated folder names to process")
     parser.add_argument("--use-image2", action="store_true", help="Try gpt-image-2 sheets before local fallback")
+    parser.add_argument("--require-image2", action="store_true", help="Fail instead of falling back when gpt-image-2 output is unavailable or invalid")
+    parser.add_argument("--direct-image2", action="store_true", help="Skip the bundled CLI and call the configured gpt-image-2 proxy directly")
     parser.add_argument("--force-image2", action="store_true", help="Regenerate existing gpt-image-2 sheets")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--image-gen", type=Path, default=DEFAULT_IMAGE_GEN)
@@ -223,14 +227,80 @@ def image2_prompt(display_name: str, key: tuple[int, int, int]) -> str:
     )
 
 
+def extract_image2_b64_json(payload) -> str:
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    if isinstance(payload, dict):
+        if isinstance(payload.get("b64_json"), str):
+            return payload["b64_json"]
+        data = payload.get("data")
+        if isinstance(data, list) and data:
+            return extract_image2_b64_json(data[0])
+        for key in ("output", "response", "result"):
+            nested = payload.get(key)
+            if isinstance(nested, (str, dict, list)):
+                return extract_image2_b64_json(nested)
+    if isinstance(payload, list) and payload:
+        return extract_image2_b64_json(payload[0])
+    raise ValueError("image2 response did not contain data[0].b64_json")
+
+
+def run_image2_sheet_direct(
+    folder_name: str,
+    display_name: str,
+    reference_path: Path,
+    out_path: Path,
+    config_lines: list[str],
+    args: argparse.Namespace,
+) -> bool:
+    try:
+        import requests
+    except Exception as exc:
+        print(f"Direct image2 fallback unavailable for {folder_name}: {exc}", file=sys.stderr)
+        return False
+    base_url = config_lines[0].strip().rstrip("/")
+    api_key = config_lines[1].strip()
+    if not base_url or not api_key:
+        print(f"Direct image2 fallback missing base URL or key for {folder_name}", file=sys.stderr)
+        return False
+    prompt = image2_prompt(display_name, key_color_for_folder(folder_name))
+    headers = {"Authorization": f"Bearer {api_key}"}
+    data = {
+        "model": "gpt-image-2",
+        "prompt": prompt,
+        "n": "1",
+        "size": args.size,
+        "quality": args.quality,
+        "output_format": "png",
+    }
+    print(f"Calling gpt-image-2 direct proxy for {folder_name}...")
+    try:
+        with reference_path.open("rb") as image_file:
+            files = {"image": (reference_path.name, image_file, "image/png")}
+            response = requests.post(
+                f"{base_url}/v1/images/edits",
+                headers=headers,
+                data=data,
+                files=files,
+                timeout=420,
+            )
+        response.raise_for_status()
+        b64_image = extract_image2_b64_json(response.text)
+        out_path.write_bytes(base64.b64decode(b64_image))
+        return out_path.exists() and out_path.stat().st_size > 0
+    except Exception as exc:
+        print(f"Direct gpt-image-2 call failed for {folder_name}: {exc}", file=sys.stderr)
+        return False
+
+
 def run_image2_sheet(
     folder_name: str,
     display_name: str,
     reference_path: Path,
     args: argparse.Namespace,
 ) -> Path | None:
-    if not args.config.exists() or not args.image_gen.exists():
-        print(f"Skipping image2 for {folder_name}: config or CLI missing", file=sys.stderr)
+    if not args.config.exists():
+        print(f"Skipping image2 for {folder_name}: config missing", file=sys.stderr)
         return None
     out_path = OUTPUT_ROOT / f"{folder_name}-24frame-sheet.png"
     if out_path.exists() and not args.force_image2:
@@ -244,30 +314,34 @@ def run_image2_sheet(
     env["OPENAI_BASE_URL"] = config_lines[0].strip()
     env["OPENAI_API_KEY"] = config_lines[1].strip()
     prompt = image2_prompt(display_name, key_color_for_folder(folder_name))
-    command = [
-        sys.executable,
-        str(args.image_gen),
-        "edit",
-        "--model",
-        "gpt-image-2",
-        "--image",
-        str(reference_path),
-        "--prompt",
-        prompt,
-        "--size",
-        args.size,
-        "--quality",
-        args.quality,
-        "--output-format",
-        "png",
-        "--out",
-        str(out_path),
-        "--force",
-    ]
     print(f"Calling gpt-image-2 for {folder_name}...")
-    result = subprocess.run(command, cwd=ROOT, env=env, text=True)
-    if result.returncode != 0:
-        print(f"gpt-image-2 failed for {folder_name}; local expansion will be used", file=sys.stderr)
+    if args.image_gen.exists() and not args.direct_image2:
+        command = [
+            sys.executable,
+            str(args.image_gen),
+            "edit",
+            "--model",
+            "gpt-image-2",
+            "--image",
+            str(reference_path),
+            "--prompt",
+            prompt,
+            "--size",
+            args.size,
+            "--quality",
+            args.quality,
+            "--output-format",
+            "png",
+            "--out",
+            str(out_path),
+            "--force",
+        ]
+        result = subprocess.run(command, cwd=ROOT, env=env, text=True)
+        if result.returncode == 0 and out_path.exists():
+            return out_path
+        print(f"gpt-image-2 CLI failed for {folder_name}; trying direct proxy response", file=sys.stderr)
+    if not run_image2_sheet_direct(folder_name, display_name, reference_path, out_path, config_lines, args):
+        print(f"gpt-image-2 failed for {folder_name}; local expansion will be used unless strict mode is enabled", file=sys.stderr)
         return None
     return out_path if out_path.exists() else None
 
@@ -297,7 +371,12 @@ def trim_with_padding(image: Image.Image, padding: int = 12) -> Image.Image | No
     y0 = max(0, y0 - padding)
     x1 = min(image.width, x1 + padding)
     y1 = min(image.height, y1 + padding)
-    return image.crop((x0, y0, x1, y1))
+    crop = image.crop((x0, y0, x1, y1))
+    # Some generated sheets place a sprite flush with a cell edge. Always add a
+    # transparent border after cropping so Godot never samples opaque corners.
+    out = Image.new("RGBA", (crop.width + padding * 2, crop.height + padding * 2), (255, 255, 255, 0))
+    out.alpha_composite(crop, (padding, padding))
+    return out
 
 
 def split_image2_sheet(path: Path, folder_name: str) -> list[Image.Image] | None:
@@ -367,6 +446,7 @@ def write_metadata(records: list[dict]) -> None:
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     path = OUTPUT_ROOT / "touhou-boss-animation-sources.json"
     path.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    COMMITTED_METADATA.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main() -> int:
@@ -386,6 +466,10 @@ def main() -> int:
                 if generated_sheet_is_usable(generated or [], keyframes):
                     frames = generated
                     source = "gpt-image-2_sheet"
+                elif args.require_image2:
+                    raise RuntimeError(f"gpt-image-2 sheet for {folder_name} failed sprite validation")
+            elif args.require_image2:
+                raise RuntimeError(f"gpt-image-2 did not produce a sheet for {folder_name}")
         if frames is None:
             frames = local_expand(keyframes)
         save_frames(frames, folder)

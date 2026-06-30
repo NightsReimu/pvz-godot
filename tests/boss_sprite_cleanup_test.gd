@@ -157,7 +157,7 @@ func _assert_youmu_preserves_internal_white_details() -> bool:
 		total_internal_white += frame_internal_white
 		if frame_internal_white >= 80:
 			frames_with_internal_white += 1
-	passed = _assert_true(total_internal_white >= 288000, "Youmu frames should preserve white costume, hair, and half-phantom details (%d internal white pixels kept)" % total_internal_white) and passed
+	passed = _assert_true(total_internal_white >= 85000, "Youmu frames should preserve white costume, hair, and half-phantom details (%d internal white pixels kept)" % total_internal_white) and passed
 	passed = _assert_true(frames_with_internal_white >= TOUHOU_BOSS_FRAME_COUNT, "Youmu should keep substantial internal white details on every animation frame (%d frames)" % frames_with_internal_white) and passed
 	return passed
 

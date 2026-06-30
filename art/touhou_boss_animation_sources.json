@@ -1,0 +1,137 @@
+[
+  {
+    "kind": "rumia_boss",
+    "folder": "art/rumia",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/rumia-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/rumia-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/rumia-24frame-contact.png"
+  },
+  {
+    "kind": "daiyousei_boss",
+    "folder": "art/daiyousei",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/daiyousei-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/daiyousei-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/daiyousei-24frame-contact.png"
+  },
+  {
+    "kind": "cirno_boss",
+    "folder": "art/cirno",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/cirno-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/cirno-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/cirno-24frame-contact.png"
+  },
+  {
+    "kind": "meiling_boss",
+    "folder": "art/meiling",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/meiling-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/meiling-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/meiling-24frame-contact.png"
+  },
+  {
+    "kind": "koakuma_boss",
+    "folder": "art/koakuma",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/koakuma-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/koakuma-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/koakuma-24frame-contact.png"
+  },
+  {
+    "kind": "patchouli_boss",
+    "folder": "art/patchouli",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/patchouli-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/patchouli-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/patchouli-24frame-contact.png"
+  },
+  {
+    "kind": "sakuya_boss",
+    "folder": "art/sakuya",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/sakuya-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/sakuya-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/sakuya-24frame-contact.png"
+  },
+  {
+    "kind": "remilia_boss",
+    "folder": "art/remilia",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/remilia-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/remilia-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/remilia-24frame-contact.png"
+  },
+  {
+    "kind": "flandre_boss",
+    "folder": "art/flandre",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/flandre-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/flandre-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/flandre-24frame-contact.png"
+  },
+  {
+    "kind": "letty_boss",
+    "folder": "art/letty",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/letty-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/letty-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/letty-24frame-contact.png"
+  },
+  {
+    "kind": "chen_boss",
+    "folder": "art/chen",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/chen-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/chen-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/chen-24frame-contact.png"
+  },
+  {
+    "kind": "alice_boss",
+    "folder": "art/alice",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/alice-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/alice-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/alice-24frame-contact.png"
+  },
+  {
+    "kind": "lily_white_boss",
+    "folder": "art/lily_white",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/lily_white-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/lily_white-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/lily_white-24frame-contact.png"
+  },
+  {
+    "kind": "prismriver_boss",
+    "folder": "art/prismriver",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/prismriver-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/prismriver-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/prismriver-24frame-contact.png"
+  },
+  {
+    "kind": "youmu_boss",
+    "folder": "art/youmu",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/youmu-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/youmu-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/youmu-24frame-contact.png"
+  }
+]
