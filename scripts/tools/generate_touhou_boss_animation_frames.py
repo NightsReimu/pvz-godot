@@ -21,7 +21,7 @@ import subprocess
 import sys
 from typing import Iterable
 
-from PIL import Image, ImageChops, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageStat
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -182,6 +182,70 @@ def remove_external_white_halo(image: Image.Image) -> Image.Image:
             r, g, b, _a = pixels[x, y]
             pixels[x, y] = (r, g, b, 0)
     return cleaned
+
+
+def soften_youmu_edge_fringe(image: Image.Image) -> Image.Image:
+    """Dim only Youmu's outer sticker-like whites without deleting her white costume."""
+    cleaned = image.copy().convert("RGBA")
+    edge_mask = cleaned.getchannel("A").point(lambda value: 255 if value <= 10 else 0).filter(ImageFilter.MaxFilter(5))
+    source = cleaned.load()
+    out = cleaned.copy()
+    pixels = out.load()
+    for y in range(cleaned.height):
+        for x in range(cleaned.width):
+            if edge_mask.getpixel((x, y)) == 0:
+                continue
+            r, g, b, a = source[x, y]
+            if a <= 8:
+                continue
+            max_channel = max(r, g, b)
+            min_channel = min(r, g, b)
+            if max_channel < 224 or max_channel - min_channel > 34:
+                continue
+            has_darker_neighbor = False
+            for ny in range(max(0, y - 2), min(cleaned.height, y + 3)):
+                for nx in range(max(0, x - 2), min(cleaned.width, x + 3)):
+                    if nx == x and ny == y:
+                        continue
+                    nr, ng, nb, na = source[nx, ny]
+                    neighbor_max = max(nr, ng, nb)
+                    neighbor_min = min(nr, ng, nb)
+                    if na >= 175 and (neighbor_max <= 205 or (neighbor_max <= 218 and neighbor_max - neighbor_min > 18)):
+                        has_darker_neighbor = True
+                        break
+                if has_darker_neighbor:
+                    break
+            if not has_darker_neighbor:
+                continue
+            pixels[x, y] = (int(r * 0.82), int(g * 0.9), int(b * 0.96), max(0, int(a * 0.62)))
+    return out
+
+
+def normalize_shared_canvas(frames: list[Image.Image], padding: int = 4) -> list[Image.Image]:
+    max_w = max(frame.width for frame in frames) + padding * 2
+    max_h = max(frame.height for frame in frames) + padding * 2
+    max_w += max_w % 2
+    max_h += max_h % 2
+    normalized: list[Image.Image] = []
+    for frame in frames:
+        bounds = image_bbox(frame)
+        out = Image.new("RGBA", (max_w, max_h), (255, 255, 255, 0))
+        if bounds is None:
+            out.alpha_composite(frame, ((max_w - frame.width) // 2, (max_h - frame.height) // 2))
+        else:
+            center_x = (bounds[0] + bounds[2]) * 0.5
+            center_y = (bounds[1] + bounds[3]) * 0.5
+            out.alpha_composite(frame, (round(max_w * 0.5 - center_x), round(max_h * 0.5 - center_y)))
+        normalized.append(out)
+    return normalized
+
+
+def postprocess_frames_for_boss(folder_name: str, frames: list[Image.Image]) -> list[Image.Image]:
+    processed = [remove_external_white_halo(frame) for frame in frames]
+    if folder_name == "youmu":
+        processed = [soften_youmu_edge_fringe(frame) for frame in processed]
+        processed = normalize_shared_canvas(processed)
+    return processed
 
 
 def local_expand(keyframes: list[Image.Image]) -> list[Image.Image]:
@@ -423,7 +487,7 @@ def generated_sheet_is_usable(generated: list[Image.Image], keyframes: list[Imag
 
 def save_frames(frames: Iterable[Image.Image], folder: Path) -> None:
     for index, frame in enumerate(frames):
-        remove_external_white_halo(frame).save(folder / f"frame_{index:02d}.png")
+        frame.save(folder / f"frame_{index:02d}.png")
     for stale in folder.glob("frame_*.webp"):
         stale.unlink()
 
@@ -443,6 +507,21 @@ def make_contact_sheet(folder_name: str, frames: list[Image.Image]) -> Path:
 
 
 def write_metadata(records: list[dict]) -> None:
+    if COMMITTED_METADATA.exists():
+        existing_records = json.loads(COMMITTED_METADATA.read_text(encoding="utf-8"))
+        merged = {str(record.get("kind", "")): record for record in existing_records}
+        for record in records:
+            kind = str(record.get("kind", ""))
+            previous = dict(merged.get(kind, {}))
+            for optional_key in ("image2_sheet", "contact_sheet"):
+                if not str(record.get(optional_key, "")) and str(previous.get(optional_key, "")):
+                    record[optional_key] = previous[optional_key]
+            merged[kind] = record
+        ordered: list[dict] = []
+        for kind, _folder_name, _display_name in BOSSES:
+            if kind in merged:
+                ordered.append(merged[kind])
+        records = ordered
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     path = OUTPUT_ROOT / "touhou-boss-animation-sources.json"
     path.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -472,6 +551,7 @@ def main() -> int:
                 raise RuntimeError(f"gpt-image-2 did not produce a sheet for {folder_name}")
         if frames is None:
             frames = local_expand(keyframes)
+        frames = postprocess_frames_for_boss(folder_name, frames)
         save_frames(frames, folder)
         contact_path = None if args.no_contact_sheets else make_contact_sheet(folder_name, frames)
         records.append(

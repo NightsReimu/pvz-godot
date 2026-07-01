@@ -30160,7 +30160,7 @@ func _prismriver_draw_scale(phase: int) -> float:
 
 
 func _youmu_draw_scale(phase: int) -> float:
-	return 0.72 + float(phase) * 0.016
+	return 0.6 + float(phase) * 0.012
 
 
 func _flandre_draw_scale(phase: int) -> float:
@@ -30180,6 +30180,15 @@ func _boss_pose_cycle_frame(frames: Array, speed: float, phase: float) -> int:
 		return _boss_pose_frame(0, speed, phase)
 	var pose_index = int(frames[int(floor(level_time * speed + phase)) % frames.size()])
 	return _boss_pose_frame(pose_index, maxf(speed * 1.35, 1.0), phase)
+
+
+func _boss_absolute_frame_cycle(frames: Array, speed: float, phase: float) -> int:
+	if frames.is_empty():
+		return _boss_pose_frame(0, speed, phase)
+	var index = int(floor(level_time * speed + phase * float(frames.size()))) % frames.size()
+	if index < 0:
+		index += frames.size()
+	return clampi(int(frames[index]), 0, TOUHOU_BOSS_FRAME_COUNT - 1)
 
 
 func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
@@ -30539,19 +30548,19 @@ func _youmu_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
 	match state:
 		"slash":
-			return _boss_pose_cycle_frame([2, 3, 2, 5], 8.8, phase * 0.5)
+			return _boss_absolute_frame_cycle([4, 5, 6, 5], 9.2, phase * 0.52)
 		"dash", "instant", "shift":
-			return _boss_pose_cycle_frame([4, 6, 4, 7], 11.2, phase * 0.58)
+			return _boss_absolute_frame_cycle([12, 13, 14, 15, 14, 13], 13.0, phase * 0.64)
 		"cross":
-			return _boss_pose_cycle_frame([3, 5, 3, 6], 9.6, phase * 0.48)
+			return _boss_absolute_frame_cycle([17, 18, 19, 18], 10.4, phase * 0.48)
 		"half_ghost", "wraith":
-			return _boss_pose_cycle_frame([5, 7, 5, 1], 7.6, phase * 0.38)
+			return _boss_absolute_frame_cycle([8, 9, 10, 11, 10, 9], 7.8, phase * 0.4)
 		"six_realms":
-			return _boss_pose_cycle_frame([6, 7, 6, 5], 8.4, phase * 0.44)
+			return _boss_absolute_frame_cycle([20, 21, 22, 23, 22, 21], 8.8, phase * 0.44)
 		"finale":
-			return _boss_pose_cycle_frame([7, 6, 4, 6], 10.6, phase * 0.52)
+			return _boss_absolute_frame_cycle([17, 18, 19, 20, 21, 22, 23, 22, 21, 20], 11.2, phase * 0.52)
 		"phase":
-			return _boss_pose_cycle_frame([7, 5, 6, 5], 7.2, phase * 0.36)
+			return _boss_absolute_frame_cycle([20, 21, 22, 23, 22, 21], 7.2, phase * 0.36)
 		_:
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
 				return _boss_pose_cycle_frame([1, 0, 1], 6.2, phase * 0.24)
