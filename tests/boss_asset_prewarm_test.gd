@@ -321,11 +321,11 @@ func _test_entering_night_map_queues_pcb_boss_assets() -> bool:
 			game.completed_levels[i] = false
 		for i in range(GameScript.Defs.LEVELS.size()):
 			var level_id := String(GameScript.Defs.LEVELS[i].get("id", ""))
-			if level_id == "1-16" or level_id == "1-22" or level_id == "2-25" or level_id == "2-26" or level_id == "2-27" or level_id == "2-28":
+			if level_id == "1-16" or level_id == "1-22" or level_id == "2-25" or level_id == "2-26" or level_id == "2-27" or level_id == "2-28" or level_id == "2-29":
 				game.completed_levels[i] = true
 		game.current_world_key = "night"
 		game.call("_enter_map_mode")
-		passed = _assert_true(int(game.asset_prewarm_queue.size()) > 0, "entering the night map should queue 2-25 through 2-29 boss assets before the player clicks those stages") and passed
+		passed = _assert_true(int(game.asset_prewarm_queue.size()) > 0, "entering the night map should queue 2-25 through 2-30 boss assets before the player clicks those stages") and passed
 		game.call("_drain_asset_prewarm_queue")
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/letty_intro.mp3"), "night map prewarm should decode the Letty intro BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/letty_boss.mp3"), "night map prewarm should decode the Letty boss BGM ahead of the click path") and passed
@@ -337,12 +337,16 @@ func _test_entering_night_map_queues_pcb_boss_assets() -> bool:
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/prismriver_boss.mp3"), "night map prewarm should decode the Prismriver boss BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/youmu_intro.mp3"), "night map prewarm should decode the Youmu intro BGM ahead of the click path") and passed
 		passed = _assert_true(game.audio_stream_cache.has("res://audio/youmu_boss.mp3"), "night map prewarm should decode the Youmu boss BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/yuyuko_intro.mp3"), "night map prewarm should decode the Yuyuko intro BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/yuyuko_boss.mp3"), "night map prewarm should decode the Yuyuko boss BGM ahead of the click path") and passed
+		passed = _assert_true(game.audio_stream_cache.has("res://audio/yuyuko_revival.mp3"), "night map prewarm should decode the Yuyuko revival BGM ahead of the click path") and passed
 		passed = _assert_true(bool(GameScript.shared_letty_frames_loaded), "night map prewarm should populate Letty art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_chen_frames_loaded), "night map prewarm should populate Chen art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_alice_frames_loaded), "night map prewarm should populate Alice art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_lily_white_frames_loaded), "night map prewarm should populate Lily White art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_prismriver_frames_loaded), "night map prewarm should populate Prismriver art into the shared cache") and passed
 		passed = _assert_true(bool(GameScript.shared_youmu_frames_loaded), "night map prewarm should populate Youmu art into the shared cache") and passed
+		passed = _assert_true(bool(GameScript.shared_yuyuko_frames_loaded), "night map prewarm should populate Yuyuko art into the shared cache") and passed
 		var letty_texture = game.call("_try_get_boss_frame_texture", "letty_boss", 0)
 		passed = _assert_true(letty_texture is Texture2D, "night map prewarm should populate Letty art before the player clicks 2-25") and passed
 		var chen_texture = game.call("_try_get_boss_frame_texture", "chen_boss", 0)
@@ -355,6 +359,8 @@ func _test_entering_night_map_queues_pcb_boss_assets() -> bool:
 		passed = _assert_true(prismriver_texture is Texture2D, "night map prewarm should populate Prismriver art before the player clicks 2-28") and passed
 		var youmu_texture = game.call("_try_get_boss_frame_texture", "youmu_boss", 0)
 		passed = _assert_true(youmu_texture is Texture2D, "night map prewarm should populate Youmu art before the player clicks 2-29") and passed
+		var yuyuko_texture = game.call("_try_get_boss_frame_texture", "yuyuko_boss", 0)
+		passed = _assert_true(yuyuko_texture is Texture2D, "night map prewarm should populate Yuyuko art before the player clicks 2-30") and passed
 	_free_game(game)
 	_restore_shared_state(snapshot)
 	return passed

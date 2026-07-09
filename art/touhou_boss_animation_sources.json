@@ -133,5 +133,14 @@
     "reference_sheet": "tmp/imagegen/touhou-boss-animation/youmu-8pose-reference.png",
     "image2_sheet": "output/imagegen/touhou-boss-animation/youmu-24frame-sheet.png",
     "contact_sheet": "output/touhou-boss-animation-contact-sheets/youmu-24frame-contact.png"
+  },
+  {
+    "kind": "yuyuko_boss",
+    "folder": "art/yuyuko",
+    "frame_count": 24,
+    "source": "local_alpha_preserving_expansion",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/yuyuko-8pose-reference.png",
+    "image2_sheet": "",
+    "contact_sheet": ""
   }
 ]

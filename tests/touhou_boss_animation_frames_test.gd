@@ -17,6 +17,7 @@ const BOSS_KINDS := [
 	"lily_white_boss",
 	"prismriver_boss",
 	"youmu_boss",
+	"yuyuko_boss",
 	"flandre_boss",
 ]
 
@@ -35,6 +36,7 @@ const STATE_SAMPLES := {
 	"lily_white_boss": ["spring_herald", "petals", "cloud_bloom", "fairy_barrage", "phase", "shift"],
 	"prismriver_boss": ["phantom_dinning", "lunasa", "merlin", "lyrica", "live_poltergeist", "phase", "shift"],
 	"youmu_boss": ["slash", "dash", "instant", "cross", "wraith", "finale", "phase"],
+	"yuyuko_boss": ["sakura", "butterfly", "grave", "spirit", "tree", "full_bloom", "resurrection", "phase"],
 	"flandre_boss": ["laevatein", "clones", "kagome", "crystal", "judgement", "cranberry", "phase", "shift"],
 }
 
@@ -48,6 +50,9 @@ func _run() -> void:
 	failed = not _test_all_touhou_bosses_have_24_frame_sets() or failed
 	failed = not _test_all_touhou_boss_frame_textures_load() or failed
 	failed = not _test_touhou_boss_frame_indices_use_24_frame_ranges() or failed
+	failed = not _test_touhou_boss_frames_share_stable_canvases() or failed
+	failed = not _test_touhou_boss_prepared_frames_keep_complete_silhouettes() or failed
+	failed = not _test_prismriver_render_scale_stays_readable() or failed
 	failed = not _test_youmu_render_scale_stays_compact() or failed
 	failed = not _test_youmu_frames_share_a_stable_canvas() or failed
 	failed = not _test_youmu_skill_states_use_coherent_frame_ranges() or failed
@@ -125,6 +130,64 @@ func _test_touhou_boss_frame_indices_use_24_frame_ranges() -> bool:
 				state_frames[frame_index] = true
 				passed = _assert_true(frame_index >= 0 and frame_index < 24, "%s state %s should return a valid 24-frame index" % [kind, String(state)]) and passed
 			passed = _assert_true(state_frames.size() >= 2, "%s state %s should animate across multiple 24-frame indices" % [kind, String(state)]) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_touhou_boss_frames_share_stable_canvases() -> bool:
+	var game := _make_game()
+	var passed := true
+	for kind in BOSS_KINDS:
+		var expected_size := Vector2i.ZERO
+		var folder := String(game.call("_boss_frame_folder_for_kind", kind))
+		for frame_index in range(24):
+			var path := "%s/frame_%02d.png" % [folder, frame_index]
+			var image := Image.new()
+			var load_result := image.load(ProjectSettings.globalize_path(path))
+			passed = _assert_true(load_result == OK, "%s should load for canvas stability checks" % path) and passed
+			if load_result != OK:
+				continue
+			var size := Vector2i(image.get_width(), image.get_height())
+			if expected_size == Vector2i.ZERO:
+				expected_size = size
+			passed = _assert_true(size == expected_size, "%s should keep the same canvas as the other %s frames to avoid anchor jitter" % [path, kind]) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_touhou_boss_prepared_frames_keep_complete_silhouettes() -> bool:
+	var game := _make_game()
+	var passed := true
+	for kind in BOSS_KINDS:
+		var heights: Array[float] = []
+		for frame_index in range(24):
+			var bounds := _prepared_alpha_bounds_for_frame(game, kind, frame_index)
+			passed = _assert_true(bounds.size.y > 0, "%s frame %02d should have visible prepared sprite pixels" % [kind, frame_index]) and passed
+			heights.append(float(bounds.size.y))
+		heights.sort()
+		var median := (float(heights[11]) + float(heights[12])) * 0.5
+		var required_ratio := 0.78 if kind == "daiyousei_boss" else 0.66
+		for frame_index in range(24):
+			var bounds := _prepared_alpha_bounds_for_frame(game, kind, frame_index)
+			var ratio := float(bounds.size.y) / maxf(1.0, median)
+			passed = _assert_true(ratio >= required_ratio, "%s frame %02d should keep a complete silhouette instead of collapsing to %.2f of median height" % [kind, frame_index, ratio]) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_prismriver_render_scale_stays_readable() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_prismriver_draw_scale"), "Prismriver should expose a draw scale helper")
+	var max_alpha_height := 0.0
+	for frame_index in range(24):
+		var bounds := _prepared_alpha_bounds_for_frame(game, "prismriver_boss", frame_index)
+		passed = _assert_true(bounds.size.y > 0, "Prismriver frame %02d should have visible prepared sprite pixels" % frame_index) and passed
+		max_alpha_height = maxf(max_alpha_height, float(bounds.size.y))
+	if game.has_method("_prismriver_draw_scale"):
+		var opening_height := max_alpha_height * float(game.call("_prismriver_draw_scale", 0))
+		var late_height := max_alpha_height * float(game.call("_prismriver_draw_scale", 3))
+		passed = _assert_true(opening_height <= 172.0, "Prismriver opening render should not balloon after image2 split cleanup (%.1fpx)" % opening_height) and passed
+		passed = _assert_true(late_height <= 182.0, "Prismriver late-phase render should remain readable without becoming oversized (%.1fpx)" % late_height) and passed
 	_free_game(game)
 	return passed
 
@@ -223,6 +286,21 @@ func _alpha_bounds_for_frame(path: String) -> Rect2i:
 	if load_result != OK:
 		return Rect2i()
 	image.convert(Image.FORMAT_RGBA8)
+	return _alpha_bounds_for_image(image)
+
+
+func _prepared_alpha_bounds_for_frame(game: Control, kind: String, frame_index: int) -> Rect2i:
+	var texture = game.call("_load_single_boss_frame", kind, frame_index, false)
+	if texture == null or not texture is Texture2D:
+		return Rect2i()
+	var image: Image = texture.get_image()
+	if image == null:
+		return Rect2i()
+	image.convert(Image.FORMAT_RGBA8)
+	return _alpha_bounds_for_image(image)
+
+
+func _alpha_bounds_for_image(image: Image) -> Rect2i:
 	var min_x := image.get_width()
 	var min_y := image.get_height()
 	var max_x := -1

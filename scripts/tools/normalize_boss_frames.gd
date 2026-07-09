@@ -110,6 +110,15 @@ const TARGETS := {
 		"fringe_passes": 3,
 		"preserve_internal_white": true,
 	},
+	"yuyuko_boss": {
+		"output_folder": "res://art/yuyuko",
+		"frame_count": 8,
+		"sheet_path": "/Users/hecrereed/Downloads/ChatGPT Image 2026年7月9日 22_33_22.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+		"fringe_passes": 3,
+		"preserve_internal_white": true,
+	},
 }
 
 const WHITE_THRESHOLD := 0.93

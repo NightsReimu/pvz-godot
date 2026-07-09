@@ -48,6 +48,7 @@ BOSSES = [
     ("lily_white_boss", "lily_white", "Lily White"),
     ("prismriver_boss", "prismriver", "Prismriver Sisters"),
     ("youmu_boss", "youmu", "Youmu Konpaku"),
+    ("yuyuko_boss", "yuyuko", "Yuyuko Saigyouji"),
 ]
 
 GREEN_KEY = (0, 255, 0)
@@ -57,6 +58,9 @@ HALO_ALPHA_THRESHOLD = 13
 HALO_SOLID_ALPHA_THRESHOLD = 180
 HALO_BRIGHTNESS_THRESHOLD = 232
 HALO_CHROMA_THRESHOLD = 22
+SPRITE_ALPHA_THRESHOLD = 12
+SPRITE_COMPONENT_MIN_AREA = 12
+TOUHOU_BOSS_POSE_FRAME_COUNT = 3
 
 
 def parse_args() -> argparse.Namespace:
@@ -240,11 +244,39 @@ def normalize_shared_canvas(frames: list[Image.Image], padding: int = 4) -> list
     return normalized
 
 
+def repair_collapsed_frames(frames: list[Image.Image], min_height_ratio: float = 0.66) -> list[Image.Image]:
+    heights: list[int] = []
+    for frame in frames:
+        bounds = image_bbox(frame)
+        heights.append(0 if bounds is None else bounds[3] - bounds[1])
+    positive_heights = sorted(height for height in heights if height > 0)
+    if not positive_heights:
+        return frames
+    median = positive_heights[len(positive_heights) // 2]
+    repaired = [frame.copy() for frame in frames]
+    bad_indices = {index for index, height in enumerate(heights) if height < median * min_height_ratio}
+    if not bad_indices:
+        return repaired
+    good_indices = [index for index in range(len(frames)) if index not in bad_indices and heights[index] > 0]
+    for index in sorted(bad_indices):
+        group_start = (index // TOUHOU_BOSS_POSE_FRAME_COUNT) * TOUHOU_BOSS_POSE_FRAME_COUNT
+        group_end = min(len(frames), group_start + TOUHOU_BOSS_POSE_FRAME_COUNT)
+        same_group = [candidate for candidate in range(group_start, group_end) if candidate in good_indices]
+        candidates = same_group if same_group else good_indices
+        if not candidates:
+            continue
+        replacement_index = min(candidates, key=lambda candidate: abs(candidate - index))
+        repaired[index] = frames[replacement_index].copy()
+    return repaired
+
+
 def postprocess_frames_for_boss(folder_name: str, frames: list[Image.Image]) -> list[Image.Image]:
     processed = [remove_external_white_halo(frame) for frame in frames]
     if folder_name == "youmu":
         processed = [soften_youmu_edge_fringe(frame) for frame in processed]
-        processed = normalize_shared_canvas(processed)
+    collapse_ratio = 0.78 if folder_name == "daiyousei" else 0.66
+    processed = repair_collapsed_frames(processed, collapse_ratio)
+    processed = normalize_shared_canvas(processed)
     return processed
 
 
@@ -286,7 +318,9 @@ def image2_prompt(display_name: str, key: tuple[int, int, int]) -> str:
         "Expand each original pose into three smooth adjacent motion frames: pose, subtle in-between, subtle follow-through. "
         f"Every cell must have a perfectly flat solid {key_hex} chroma-key background in all empty space. "
         "No transparency, no shadows on the background, no grid lines, no borders, no text, no watermark, no labels. "
-        "Keep one complete full-body character centered in each cell with generous padding. "
+        "The output must contain exactly 6 rows and exactly 4 columns, no seventh row and no extra sprites outside the 24 cells. "
+        "Keep one complete full-body character centered in each cell at about 70% of the cell height with generous padding. "
+        "Never crop feet, legs, hands, weapons, wings, hair, dresses, instruments, or spell effects at the cell edge. "
         "Do not erase internal white clothing, white hair, pale skin, instruments, wings, weapons, or phantom effects."
     )
 
@@ -426,6 +460,81 @@ def remove_chroma(image: Image.Image, key: tuple[int, int, int]) -> Image.Image:
     return rgba
 
 
+def sprite_components(image: Image.Image, min_area: int = SPRITE_COMPONENT_MIN_AREA) -> list[dict]:
+    rgba = image.convert("RGBA")
+    width, height = rgba.size
+    alpha = rgba.getchannel("A")
+    pixels = alpha.load()
+    visited = bytearray(width * height)
+    components: list[dict] = []
+    directions = (
+        (-1, -1), (0, -1), (1, -1),
+        (-1, 0), (1, 0),
+        (-1, 1), (0, 1), (1, 1),
+    )
+    for y in range(height):
+        for x in range(width):
+            index = y * width + x
+            if visited[index] or pixels[x, y] <= SPRITE_ALPHA_THRESHOLD:
+                continue
+            stack = [(x, y)]
+            visited[index] = 1
+            points: list[tuple[int, int]] = []
+            min_x = max_x = x
+            min_y = max_y = y
+            while stack:
+                px, py = stack.pop()
+                points.append((px, py))
+                min_x = min(min_x, px)
+                max_x = max(max_x, px)
+                min_y = min(min_y, py)
+                max_y = max(max_y, py)
+                for ox, oy in directions:
+                    nx = px + ox
+                    ny = py + oy
+                    if nx < 0 or nx >= width or ny < 0 or ny >= height:
+                        continue
+                    next_index = ny * width + nx
+                    if visited[next_index] or pixels[nx, ny] <= SPRITE_ALPHA_THRESHOLD:
+                        continue
+                    visited[next_index] = 1
+                    stack.append((nx, ny))
+            if len(points) < min_area:
+                continue
+            components.append(
+                {
+                    "points": points,
+                    "area": len(points),
+                    "bbox": (min_x, min_y, max_x + 1, max_y + 1),
+                    "center": ((min_x + max_x + 1) * 0.5, (min_y + max_y + 1) * 0.5),
+                }
+            )
+    return components
+
+
+def cluster_axis(values: list[float], threshold: float) -> list[float]:
+    if not values:
+        return []
+    clusters: list[list[float]] = []
+    for value in sorted(values):
+        if not clusters or value - clusters[-1][-1] > threshold:
+            clusters.append([value])
+        else:
+            clusters[-1].append(value)
+    return [sum(cluster) / len(cluster) for cluster in clusters]
+
+
+def nearest_index(value: float, centers: list[float]) -> int:
+    best_index = 0
+    best_distance = float("inf")
+    for index, center in enumerate(centers):
+        distance = abs(value - center)
+        if distance < best_distance:
+            best_index = index
+            best_distance = distance
+    return best_index
+
+
 def trim_with_padding(image: Image.Image, padding: int = 12) -> Image.Image | None:
     bbox = image_bbox(image)
     if bbox is None:
@@ -443,13 +552,85 @@ def trim_with_padding(image: Image.Image, padding: int = 12) -> Image.Image | No
     return out
 
 
-def split_image2_sheet(path: Path, folder_name: str) -> list[Image.Image] | None:
-    try:
-        sheet = Image.open(path).convert("RGBA")
-    except Exception as exc:
-        print(f"Failed to load image2 sheet {path}: {exc}", file=sys.stderr)
+def trim_components_with_padding(image: Image.Image, components: list[dict], padding: int = 12) -> Image.Image | None:
+    if not components:
         return None
-    key = key_color_for_folder(folder_name)
+    x0 = min(int(component["bbox"][0]) for component in components)
+    y0 = min(int(component["bbox"][1]) for component in components)
+    x1 = max(int(component["bbox"][2]) for component in components)
+    y1 = max(int(component["bbox"][3]) for component in components)
+    crop_w = x1 - x0
+    crop_h = y1 - y0
+    if crop_w <= 0 or crop_h <= 0:
+        return None
+    out = Image.new("RGBA", (crop_w + padding * 2, crop_h + padding * 2), (255, 255, 255, 0))
+    source = image.load()
+    target = out.load()
+    for component in components:
+        for px, py in component["points"]:
+            target[px - x0 + padding, py - y0 + padding] = source[px, py]
+    return out
+
+
+def prune_distant_specks(components: list[dict]) -> list[dict]:
+    if len(components) <= 1:
+        return components
+    largest = max(components, key=lambda component: int(component["area"]))
+    lx0, ly0, lx1, ly1 = [float(value) for value in largest["bbox"]]
+    largest_area = float(largest["area"])
+    largest_w = lx1 - lx0
+    largest_h = ly1 - ly0
+    margin_x = max(56.0, largest_w * 0.72)
+    margin_y = max(64.0, largest_h * 0.72)
+    kept: list[dict] = []
+    for component in components:
+        if component is largest:
+            kept.append(component)
+            continue
+        cx, cy = component["center"]
+        area = float(component["area"])
+        inside_loose_body_band = lx0 - margin_x <= cx <= lx1 + margin_x and ly0 - margin_y <= cy <= ly1 + margin_y
+        large_enough_effect = area >= max(42.0, largest_area * 0.018)
+        if inside_loose_body_band or large_enough_effect:
+            kept.append(component)
+    return kept
+
+
+def split_image2_sheet_by_components(sheet: Image.Image, key: tuple[int, int, int]) -> list[Image.Image] | None:
+    cleaned_sheet = remove_chroma(sheet, key)
+    components = sprite_components(cleaned_sheet)
+    main_components = [
+        component for component in components
+        if int(component["area"]) >= 240 and int(component["bbox"][3]) - int(component["bbox"][1]) >= 42
+    ]
+    if len(main_components) < 18:
+        return None
+    column_centers = cluster_axis([float(component["center"][0]) for component in main_components], sheet.width / 8.0)
+    row_centers = cluster_axis([float(component["center"][1]) for component in main_components], sheet.height / 16.0)
+    if len(column_centers) < 4 or len(row_centers) < 6:
+        return None
+    column_centers = column_centers[:4]
+    row_centers = row_centers[:6]
+    buckets: list[list[dict]] = [[] for _ in range(24)]
+    for component in components:
+        cx, cy = component["center"]
+        col = nearest_index(float(cx), column_centers)
+        row = nearest_index(float(cy), row_centers)
+        if abs(float(cy) - row_centers[row]) > sheet.height / 12.0:
+            continue
+        buckets[row * 4 + col].append(component)
+    frames: list[Image.Image] = []
+    for index, components in enumerate(buckets):
+        frame = trim_components_with_padding(cleaned_sheet, prune_distant_specks(components))
+        if frame is None:
+            return None
+        if frame.width < 80 or frame.height < 80:
+            return None
+        frames.append(frame)
+    return frames
+
+
+def split_image2_sheet_by_grid(sheet: Image.Image, key: tuple[int, int, int]) -> list[Image.Image] | None:
     cell_w = sheet.width // 4
     cell_h = sheet.height // 6
     frames: list[Image.Image] = []
@@ -464,6 +645,19 @@ def split_image2_sheet(path: Path, folder_name: str) -> list[Image.Image] | None
                 return None
             frames.append(trimmed)
     return frames if len(frames) == 24 else None
+
+
+def split_image2_sheet(path: Path, folder_name: str) -> list[Image.Image] | None:
+    try:
+        sheet = Image.open(path).convert("RGBA")
+    except Exception as exc:
+        print(f"Failed to load image2 sheet {path}: {exc}", file=sys.stderr)
+        return None
+    key = key_color_for_folder(folder_name)
+    component_frames = split_image2_sheet_by_components(sheet, key)
+    if component_frames is not None:
+        return component_frames
+    return split_image2_sheet_by_grid(sheet, key)
 
 
 def alpha_similarity(a: Image.Image, b: Image.Image) -> float:
