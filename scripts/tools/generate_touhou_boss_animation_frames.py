@@ -319,13 +319,17 @@ def image2_prompt(display_name: str, key: tuple[int, int, int]) -> str:
         f"Every cell must have a perfectly flat solid {key_hex} chroma-key background in all empty space. "
         "No transparency, no shadows on the background, no grid lines, no borders, no text, no watermark, no labels. "
         "The output must contain exactly 6 rows and exactly 4 columns, no seventh row and no extra sprites outside the 24 cells. "
-        "Keep one complete full-body character centered in each cell at about 70% of the cell height with generous padding. "
+        "Keep one complete full-body character centered in each cell at about 58-62% of the cell height with generous padding. "
         "Never crop feet, legs, hands, weapons, wings, hair, dresses, instruments, or spell effects at the cell edge. "
         "Do not erase internal white clothing, white hair, pale skin, instruments, wings, weapons, or phantom effects."
     )
 
 
 def extract_image2_b64_json(payload) -> str:
+    if hasattr(payload, "data"):
+        return extract_image2_b64_json(payload.data)
+    if hasattr(payload, "b64_json"):
+        return extract_image2_b64_json({"b64_json": payload.b64_json})
     if isinstance(payload, str):
         payload = json.loads(payload)
     if isinstance(payload, dict):
@@ -343,6 +347,46 @@ def extract_image2_b64_json(payload) -> str:
     raise ValueError("image2 response did not contain data[0].b64_json")
 
 
+def run_image2_sheet_openai_sdk(
+    folder_name: str,
+    display_name: str,
+    reference_path: Path,
+    out_path: Path,
+    config_lines: list[str],
+    args: argparse.Namespace,
+) -> bool:
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        print(f"OpenAI SDK image2 path unavailable for {folder_name}: {exc}", file=sys.stderr)
+        return False
+    base_url = image2_api_base_url(config_lines[0])
+    api_key = config_lines[1].strip()
+    if not base_url or not api_key:
+        print(f"OpenAI SDK image2 path missing base URL or key for {folder_name}", file=sys.stderr)
+        return False
+    prompt = image2_prompt(display_name, key_color_for_folder(folder_name))
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    print(f"Calling gpt-image-2 SDK path for {folder_name}...")
+    try:
+        with reference_path.open("rb") as image_file:
+            result = client.images.edit(
+                model="gpt-image-2",
+                image=image_file,
+                prompt=prompt,
+                n=1,
+                size=args.size,
+                quality=args.quality,
+                output_format="png",
+            )
+        b64_image = extract_image2_b64_json(result)
+        out_path.write_bytes(base64.b64decode(b64_image))
+        return out_path.exists() and out_path.stat().st_size > 0
+    except Exception as exc:
+        print(f"OpenAI SDK gpt-image-2 call failed for {folder_name}: {exc}", file=sys.stderr)
+        return False
+
+
 def run_image2_sheet_direct(
     folder_name: str,
     display_name: str,
@@ -356,7 +400,7 @@ def run_image2_sheet_direct(
     except Exception as exc:
         print(f"Direct image2 fallback unavailable for {folder_name}: {exc}", file=sys.stderr)
         return False
-    base_url = config_lines[0].strip().rstrip("/")
+    base_url = image2_api_base_url(config_lines[0])
     api_key = config_lines[1].strip()
     if not base_url or not api_key:
         print(f"Direct image2 fallback missing base URL or key for {folder_name}", file=sys.stderr)
@@ -376,7 +420,7 @@ def run_image2_sheet_direct(
         with reference_path.open("rb") as image_file:
             files = {"image": (reference_path.name, image_file, "image/png")}
             response = requests.post(
-                f"{base_url}/v1/images/edits",
+                f"{base_url}/images/edits",
                 headers=headers,
                 data=data,
                 files=files,
@@ -388,7 +432,14 @@ def run_image2_sheet_direct(
         return out_path.exists() and out_path.stat().st_size > 0
     except Exception as exc:
         print(f"Direct gpt-image-2 call failed for {folder_name}: {exc}", file=sys.stderr)
-        return False
+    return False
+
+
+def image2_api_base_url(raw_base_url: str) -> str:
+    base_url = raw_base_url.strip().rstrip("/")
+    if not base_url.endswith("/v1"):
+        base_url += "/v1"
+    return base_url
 
 
 def run_image2_sheet(
@@ -409,10 +460,12 @@ def run_image2_sheet(
         return None
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
-    env["OPENAI_BASE_URL"] = config_lines[0].strip()
+    env["OPENAI_BASE_URL"] = image2_api_base_url(config_lines[0])
     env["OPENAI_API_KEY"] = config_lines[1].strip()
     prompt = image2_prompt(display_name, key_color_for_folder(folder_name))
     print(f"Calling gpt-image-2 for {folder_name}...")
+    if not args.direct_image2 and run_image2_sheet_openai_sdk(folder_name, display_name, reference_path, out_path, config_lines, args):
+        return out_path
     if args.image_gen.exists() and not args.direct_image2:
         command = [
             sys.executable,
@@ -452,11 +505,24 @@ def remove_chroma(image: Image.Image, key: tuple[int, int, int]) -> Image.Image:
         for x in range(rgba.width):
             r, g, b, a = pixels[x, y]
             distance = abs(r - kr) + abs(g - kg) + abs(b - kb)
-            if distance <= 54:
+            green_key_pixel = False
+            green_edge_pixel = False
+            if key == GREEN_KEY:
+                green_gap = g - max(r, b)
+                green_key_pixel = g >= 128 and green_gap >= 32
+                green_edge_pixel = g >= 92 and green_gap >= 18
+            if distance <= 54 or green_key_pixel:
                 pixels[x, y] = (r, g, b, 0)
-            elif distance <= 130:
+            elif distance <= 130 or green_edge_pixel:
                 alpha = int(a * (distance - 54) / 76)
-                pixels[x, y] = (r, g, b, alpha)
+                if green_edge_pixel:
+                    green_gap = max(0, g - max(r, b))
+                    green_alpha = int(a * max(0.0, min(1.0, (32.0 - green_gap) / 14.0)))
+                    alpha = min(alpha, green_alpha)
+                    g = min(g, max(r, b) + 10)
+                pixels[x, y] = (r, g, b, max(0, alpha))
+            elif key == GREEN_KEY and g > max(r, b) + 12:
+                pixels[x, y] = (r, min(g, max(r, b) + 12), b, a)
     return rgba
 
 

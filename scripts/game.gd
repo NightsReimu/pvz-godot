@@ -6736,6 +6736,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	if _is_daily_level():
 		spawn_director_timer = minf(spawn_director_timer, 0.9)
 	conveyor_spawn_timer = 0.35
+	yuyuko_grave_timer = _roll_yuyuko_grave_interval(true) if _is_saigyouji_sakura_level() else 0.0
 	level_end_time = float(current_level["events"].size())
 	var sky_range = Vector2(current_level.get("sky_sun_range", Vector2(999.0, 999.0)))
 	sky_sun_cooldown = rng.randf_range(sky_range.x, sky_range.y)
@@ -16794,7 +16795,10 @@ func _grow_yuyuko_graves(delta: float) -> void:
 	yuyuko_grave_timer -= delta
 	if yuyuko_grave_timer > 0.0:
 		return
-	var raised = _raise_random_graves(rng.randi_range(1, 2), "yuyuko_grave_rise", Color(1.0, 0.56, 0.84, 0.28))
+	if not _has_yuyuko_grave_buster_counterplay():
+		yuyuko_grave_timer = 4.8
+		return
+	var raised = _raise_random_graves(1, "yuyuko_grave_rise", Color(1.0, 0.56, 0.84, 0.28))
 	if raised > 0:
 		effects.append({
 			"shape": "yuyuko_grave_bloom",
@@ -16805,7 +16809,30 @@ func _grow_yuyuko_graves(delta: float) -> void:
 			"anim_speed": 6.8,
 			"color": Color(1.0, 0.62, 0.86, 0.22),
 		})
-	yuyuko_grave_timer = rng.randf_range(8.4, 12.6)
+	yuyuko_grave_timer = _roll_yuyuko_grave_interval(false)
+
+
+func _roll_yuyuko_grave_interval(initial: bool = false) -> float:
+	if initial:
+		return rng.randf_range(24.0, 32.0)
+	return rng.randf_range(18.0, 26.0)
+
+
+func _has_yuyuko_grave_buster_counterplay() -> bool:
+	if graves.is_empty():
+		return true
+	for kind in active_cards:
+		if String(kind) == "grave_buster":
+			return true
+	for row in range(ROWS):
+		for col in range(COLS):
+			var plant_variant = grid[row][col]
+			if plant_variant != null and String(plant_variant.get("kind", "")) == "grave_buster":
+				return true
+			var support_variant = support_grid[row][col]
+			if support_variant != null and String(support_variant.get("kind", "")) == "grave_buster":
+				return true
+	return false
 
 
 func _spawn_yuyuko_grave_spirits(count: int) -> void:
@@ -19550,6 +19577,8 @@ func _break_vase_at(row: int, col: int) -> bool:
 func _setup_level_graves() -> void:
 	graves = []
 	if not _is_night_level():
+		return
+	if _is_saigyouji_sakura_level():
 		return
 	if current_level.has("grave_layout"):
 		for cell in current_level["grave_layout"]:
@@ -30767,7 +30796,7 @@ func _youmu_draw_scale(phase: int) -> float:
 
 
 func _yuyuko_draw_scale(phase: int) -> float:
-	return 0.66 + float(phase) * 0.014
+	return 0.42 + float(phase) * 0.01
 
 
 func _flandre_draw_scale(phase: int) -> float:

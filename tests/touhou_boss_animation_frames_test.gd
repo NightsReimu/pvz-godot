@@ -54,6 +54,7 @@ func _run() -> void:
 	failed = not _test_touhou_boss_prepared_frames_keep_complete_silhouettes() or failed
 	failed = not _test_prismriver_render_scale_stays_readable() or failed
 	failed = not _test_youmu_render_scale_stays_compact() or failed
+	failed = not _test_yuyuko_render_scale_stays_compact() or failed
 	failed = not _test_youmu_frames_share_a_stable_canvas() or failed
 	failed = not _test_youmu_skill_states_use_coherent_frame_ranges() or failed
 	quit(1 if failed else 0)
@@ -206,6 +207,24 @@ func _test_youmu_render_scale_stays_compact() -> bool:
 		var late_height := max_alpha_height * float(game.call("_youmu_draw_scale", 3))
 		passed = _assert_true(opening_height <= 158.0, "Youmu opening render should stay close to the old boss size instead of ballooning to %.1fpx" % opening_height) and passed
 		passed = _assert_true(late_height <= 166.0, "Youmu late-phase render should stay readable without becoming oversized (%.1fpx)" % late_height) and passed
+	_free_game(game)
+	return passed
+
+
+func _test_yuyuko_render_scale_stays_compact() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_yuyuko_draw_scale"), "Yuyuko should expose a draw scale helper")
+	var max_alpha_height := 0.0
+	for frame_index in range(24):
+		var path := "res://art/yuyuko/frame_%02d.png" % frame_index
+		var bounds := _alpha_bounds_for_frame(path)
+		passed = _assert_true(bounds.size.y > 0, "%s should have visible sprite pixels" % path) and passed
+		max_alpha_height = maxf(max_alpha_height, float(bounds.size.y))
+	if game.has_method("_yuyuko_draw_scale"):
+		var opening_height := max_alpha_height * float(game.call("_yuyuko_draw_scale", 0))
+		var late_height := max_alpha_height * float(game.call("_yuyuko_draw_scale", 3))
+		passed = _assert_true(opening_height <= 174.0, "Yuyuko opening render should not tower over the other Touhou bosses (%.1fpx)" % opening_height) and passed
+		passed = _assert_true(late_height <= 184.0, "Yuyuko late-phase render should keep the revived boss readable without becoming oversized (%.1fpx)" % late_height) and passed
 	_free_game(game)
 	return passed
 

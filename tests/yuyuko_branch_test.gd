@@ -18,6 +18,7 @@ func _run() -> void:
 	failed = not _test_yuyuko_definition_and_almanac_copy() or failed
 	failed = not _test_yuyuko_bgm_routing_and_revival_switch() or failed
 	failed = not _test_yuyuko_graves_spirits_and_sakura_skill_fx() or failed
+	failed = not _test_yuyuko_passive_graves_start_slowly_enough_for_grave_busters() or failed
 	failed = not _test_yuyuko_uses_prebaked_left_facing_frames() or failed
 	quit(1 if failed else 0)
 
@@ -287,6 +288,30 @@ func _test_yuyuko_graves_spirits_and_sakura_skill_fx() -> bool:
 		passed = _assert_true(has_grave_fx, "Yuyuko skills and grave growth should create grave/spirit effects") and passed
 		passed = _assert_true(spirit_count > 0, "Yuyuko grave death/revival pressure should spawn physical spirit enemies") and passed
 		passed = _assert_true(float(damaged_plant.get("health", 0.0)) > 0.0, "Yuyuko skill cycle should pressure plants without instantly deleting a 1400 HP plant") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_yuyuko_passive_graves_start_slowly_enough_for_grave_busters() -> bool:
+	var game = _make_game()
+	var level_index = _begin_level(game, "2-30")
+	var passed = _assert_true(level_index != -1, "expected 2-30 to exist before checking passive grave pacing")
+	if passed:
+		passed = _assert_true(float(game.yuyuko_grave_timer) >= 22.0, "Yuyuko passive graves should not appear before the conveyor has time to offer grave_buster") and passed
+		game.call("_grow_yuyuko_graves", 18.0)
+		passed = _assert_true(game.graves.is_empty(), "Yuyuko passive graves should not spawn during the early no-grave-buster opening") and passed
+		game.yuyuko_grave_timer = 0.0
+		game.call("_grow_yuyuko_graves", 1.0)
+		passed = _assert_true(game.graves.size() == 1, "Yuyuko passive grave growth should add only one grave at a time") and passed
+		passed = _assert_true(float(game.yuyuko_grave_timer) >= 18.0, "Yuyuko passive grave interval should be slow enough for grave_buster counterplay") and passed
+		game.active_cards = ["puff_shroom", "snow_pea", "wallnut", "repeater", "fume_shroom", "ice_shroom"]
+		game.yuyuko_grave_timer = 0.0
+		game.call("_grow_yuyuko_graves", 99.0)
+		passed = _assert_true(game.graves.size() == 1, "Yuyuko should pause passive grave growth while no grave_buster is available for existing graves") and passed
+		game.active_cards[0] = "grave_buster"
+		game.yuyuko_grave_timer = 0.0
+		game.call("_grow_yuyuko_graves", 99.0)
+		passed = _assert_true(game.graves.size() == 2, "Yuyuko may continue passive grave growth once grave_buster counterplay is available") and passed
 	_free_game(game)
 	return passed
 
