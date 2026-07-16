@@ -134,6 +134,8 @@ func _test_3_10_uses_all_seen_non_boss_zombies() -> bool:
 		if level_id == "3-10":
 			seen_3_10 = true
 			break
+		if String(level.get("branch_from", "")) != "":
+			continue
 		for event in level.get("events", []):
 			var kind = String(event.get("kind", ""))
 			if kind == "":

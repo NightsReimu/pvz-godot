@@ -9338,7 +9338,7 @@ func _execute_generic_ultimate(plant: Dictionary, kind: String, row: int, col: i
 				var dragged_zombie = zombies[resolved_index]
 				var target_x = minf(float(dragged_zombie["x"]), anchor_x + float(order_index) * 18.0)
 				dragged_zombie["x"] = target_x
-				dragged_zombie = _apply_zombie_damage(dragged_zombie, drag_damage, 0.18, 1.1)
+				dragged_zombie = _apply_zombie_damage(dragged_zombie, drag_damage, 0.18, 1.1, true)
 				dragged_zombie["special_pause_timer"] = maxf(float(dragged_zombie.get("special_pause_timer", 0.0)), 0.38)
 				dragged_zombie["impact_timer"] = maxf(float(dragged_zombie.get("impact_timer", 0.0)), 0.22)
 				zombies[resolved_index] = dragged_zombie
@@ -11944,7 +11944,7 @@ func _update_effects(delta: float) -> void:
 					continue
 				if absf(float(zombie["x"]) - car_pos.x) > 56.0:
 					continue
-				zombie = _apply_zombie_damage(zombie, float(effect.get("damage", 520.0)), 0.28)
+				zombie = _apply_zombie_damage(zombie, float(effect.get("damage", 520.0)), 0.28, 0.0, true)
 				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.26)
 				zombie["x"] += 22.0
 				zombies[zombie_index] = zombie
@@ -13001,6 +13001,7 @@ func _spawn_lotus_lancer_converge_barrage(origin: Vector2, target_index: int, sh
 			"fire": false,
 			"free_aim": true,
 			"anti_air": true,
+			"ignore_shield": true,
 			"target_uid": target_uid,
 			"target_position": target_point,
 			"spin_angle": angle,

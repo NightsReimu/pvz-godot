@@ -638,7 +638,7 @@ func update_projectiles(delta: float) -> void:
 				game.projectiles.remove_at(i)
 				continue
 
-			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]))
+			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]), bool(projectile.get("ignore_shield", false)))
 			if projectile_kind == "mist_bloom":
 				var reveal_duration = float(projectile.get("reveal_duration", 0.0))
 				if reveal_duration > 0.0:
