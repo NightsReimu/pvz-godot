@@ -9812,6 +9812,599 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 		_execute_generic_ultimate(plant, kind, row, col, profile)
 		return
 	match kind:
+		# === CAMPAIGN CORE: SHOOTERS ===
+		"sea_shroom":
+			for s in range(15):
+				projectiles.append({"row": row, "position": Vector2(center.x + fmod(float(s) * 9.0, 30.0), center.y + rng.randf_range(-12.0, 12.0)), "speed": 460.0, "velocity_y": 0.0, "damage": maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 20.0), "slow_duration": 2.5, "color": Color(0.42, 0.78, 0.96), "radius": 7.0, "reflected": false, "fire": false, "free_aim": false})
+			effects.append({"shape": "lane_spray", "position": center + Vector2(16.0, -6.0), "length": board_size.x, "width": 60.0, "radius": board_size.x * 0.5, "time": 0.28, "duration": 0.28, "color": Color(0.38, 0.82, 0.98, 0.28)})
+			_trigger_screen_shake(3.0)
+		"cactus":
+			for s in range(10):
+				projectiles.append({"row": row, "position": Vector2(center.x + float(s) * 6.0, center.y - 12.0), "speed": 520.0, "velocity_y": 0.0, "damage": maxf(float(Defs.PLANTS[kind].get("damage", 20.0)) * 1.8, 36.0), "slow_duration": 0.0, "color": Color(1.0, 0.42, 0.38), "radius": 6.0, "reflected": false, "fire": false, "free_aim": false, "pierce_left": 2, "hit_uids": []})
+			effects.append({"shape": "lane_spray", "position": center + Vector2(14.0, -6.0), "length": board_size.x, "width": 56.0, "radius": board_size.x * 0.5, "time": 0.26, "duration": 0.26, "color": Color(0.38, 0.72, 0.14, 0.26)})
+			_trigger_screen_shake(3.0)
+		"scaredy_shroom":
+			var scared_damage = maxf(float(Defs.PLANTS[kind].get("damage", 20.0)) * 1.6, 30.0)
+			var has_near_zombie = false
+			for z in zombies:
+				if int(z["row"]) == row and absf(float(z["x"]) - center.x) < CELL_SIZE.x * 3.0 and _is_enemy_zombie(z):
+					has_near_zombie = true; break
+			for s in range(14 if has_near_zombie else 20):
+				projectiles.append({"row": row, "position": Vector2(center.x + fmod(float(s) * 8.0, 26.0), center.y + rng.randf_range(-14.0, 14.0)), "speed": 620.0 if has_near_zombie else 440.0, "velocity_y": 0.0, "damage": scared_damage * (1.3 if has_near_zombie else 1.0), "color": Color(0.72, 0.44, 0.96), "radius": 8.0, "reflected": false, "fire": false, "free_aim": false})
+			effects.append({"position": center, "radius": 90.0, "time": 0.3, "duration": 0.3, "color": Color(0.76, 0.42, 1.0, 0.24)})
+			_trigger_screen_shake(4.0 if has_near_zombie else 2.0)
+		"split_pea":
+			for _dir in range(2):
+				var forward = (_dir == 0)
+				var spd = 540.0 if forward else -520.0
+				for s in range(8):
+					projectiles.append({"row": row, "position": Vector2(center.x + (16.0 if forward else -14.0) + float(s) * 4.0, center.y + (rng.randf_range(-8.0, 8.0) if forward else rng.randf_range(-6.0, 6.0))), "speed": spd, "velocity_y": 0.0, "damage": maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 20.0), "color": Color(0.34, 0.72, 0.22) if forward else Color(0.82, 0.62, 0.18), "radius": 7.0, "reflected": false, "fire": false, "free_aim": false})
+			effects.append({"shape": "lane_spray", "position": center, "length": board_size.x, "width": 74.0, "radius": board_size.x * 0.5, "time": 0.3, "duration": 0.3, "color": Color(0.42, 0.82, 0.24, 0.26)})
+			_trigger_screen_shake(4.0)
+		"boomerang_shooter":
+			for b in range(8):
+				_spawn_boomerang_projectile(row, center + Vector2(24.0 + float(b) * 4.0, -12.0 + float(b % 3) * 5.0), BOARD_ORIGIN.x + board_size.x + 30.0, maxf(float(Defs.PLANTS[kind].get("damage", 20.0)) * 1.5, 30.0), 5)
+			effects.append({"shape": "lane_spray", "position": center + Vector2(18.0, -8.0), "length": board_size.x, "width": 64.0, "radius": board_size.x * 0.5, "time": 0.3, "duration": 0.3, "color": Color(0.78, 0.52, 0.92, 0.26)})
+			_trigger_screen_shake(4.0)
+		"sakura_shooter":
+			for s in range(12):
+				_spawn_sakura_projectile(row, center + Vector2(22.0 + float(s) * 5.0, -10.0), maxf(float(Defs.PLANTS[kind].get("damage", 18.0)) * 1.4, 24.0), float(s % 2) * 40.0 - 20.0)
+			effects.append({"position": center, "radius": 110.0, "time": 0.32, "duration": 0.32, "color": Color(1.0, 0.76, 0.84, 0.26)})
+			_trigger_screen_shake(3.0)
+		"mist_orchid":
+			for mz in range(8):
+				var mt = _find_global_frontmost_target()
+				if int(mt.get("row", -1)) == -1: break
+				_spawn_mist_projectile(row, center + Vector2(24.0, -12.0), maxf(float(Defs.PLANTS[kind].get("damage", 26.0)) * 1.5, 42.0), 4.0, float(Defs.PLANTS[kind].get("splash_radius", 48.0)) + 24.0, 4.0)
+			effects.append({"position": center, "radius": 130.0, "time": 0.34, "duration": 0.34, "color": Color(0.62, 0.56, 0.92, 0.26)})
+			_trigger_screen_shake(4.0)
+		"frost_fan":
+			for lane in [max(0,row-1), row, min(ROWS-1,row+1)]:
+				_damage_zombies_in_row_segment(lane, center.x - 20.0, BOARD_ORIGIN.x + board_size.x + 30.0, maxf(float(Defs.PLANTS[kind].get("damage", 22.0)) * 2.0, 48.0), 5.0)
+				for zi in range(zombies.size()):
+					var fz = zombies[zi]
+					if int(fz["row"]) == lane and float(fz["x"]) > center.x - 20.0 and _is_enemy_zombie(fz):
+						fz["frozen_timer"] = maxf(float(fz.get("frozen_timer", 0.0)), 3.0)
+						fz["flash"] = 0.2; zombies[zi] = fz
+			effects.append({"shape": "lane_spray", "position": center + Vector2(14.0, -8.0), "length": board_size.x, "width": CELL_SIZE.y * 2.2, "radius": board_size.x * 0.5, "time": 0.34, "duration": 0.34, "color": Color(0.66, 0.92, 1.0, 0.3)})
+			_trigger_screen_shake(5.0)
+		"heather_shooter":
+			for h in range(10):
+				projectiles.append({"row": row, "position": Vector2(center.x + 20.0 + float(h % 4) * 8.0, center.y + rng.randf_range(-10.0, 10.0)), "speed": 500.0, "velocity_y": 0.0, "damage": maxf(float(Defs.PLANTS[kind].get("damage", 22.0)), 22.0), "color": Color(0.86, 0.44, 0.64), "radius": 7.0, "reflected": false, "fire": false, "free_aim": false, "dot_damage": float(Defs.PLANTS[kind].get("dot_damage", 0.0)), "dot_duration": 4.0, "stun_duration": 0.25, "kind_override": "heather_thorn"})
+			effects.append({"shape": "lane_spray", "position": center + Vector2(16.0, -6.0), "length": board_size.x, "width": 62.0, "radius": board_size.x * 0.5, "time": 0.28, "duration": 0.28, "color": Color(0.92, 0.42, 0.68, 0.24)})
+			_trigger_screen_shake(3.0)
+		"chimney_pepper":
+			for _v in range(10):
+				var vt = _find_global_frontmost_target()
+				if int(vt.get("row", -1)) == -1: break
+				_ensure_plant_runtime().spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(14.0, -32.0), Vector2(float(vt["x"]), _row_center_y(int(vt["row"])) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 32.0)) * 1.6, 54.0), Color(1.0, 0.44, 0.22), 72.0, 10.0, float(Defs.PLANTS[kind].get("splash_radius", 44.0)) + 20.0, 0.0, "chimney_pepper")
+			effects.append({"position": center, "radius": 140.0, "time": 0.36, "duration": 0.36, "color": Color(1.0, 0.48, 0.18, 0.28)})
+			_trigger_screen_shake(4.0)
+		"skylight_melon":
+			for _sm in range(6):
+				var st = _find_global_frontmost_target()
+				if int(st.get("row", -1)) == -1: break
+				_ensure_plant_runtime().spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -40.0), Vector2(float(st["x"]), _row_center_y(int(st["row"])) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 90.0)) * 1.5, 140.0), Color(1.0, 0.94, 0.52), 86.0, 14.0, float(Defs.PLANTS[kind].get("splash_radius", 72.0)) + 30.0, 0.0, "skylight_melon")
+			effects.append({"position": center, "radius": 150.0, "time": 0.38, "duration": 0.38, "color": Color(1.0, 0.96, 0.48, 0.3)})
+			_trigger_screen_shake(5.0)
+		"cluster_boomerang":
+			for cb in range(12):
+				var angle = TAU * float(cb) / 12.0
+				_spawn_boomerang_projectile(row, center + Vector2(cos(angle) * 30.0, sin(angle) * 30.0 - 8.0), BOARD_ORIGIN.x + board_size.x + 60.0, maxf(float(Defs.PLANTS[kind].get("damage", 24.0)) * 1.3, 32.0), 4)
+			effects.append({"position": center, "radius": 120.0, "time": 0.34, "duration": 0.34, "color": Color(0.68, 0.84, 0.22, 0.28)})
+			_trigger_screen_shake(5.0)
+		"glitch_walnut":
+			plant["health"] = float(plant["max_health"])
+			plant["armor_health"] = maxf(float(plant.get("armor_health", 0.0)), 5000.0)
+			plant["max_armor_health"] = maxf(float(plant.get("max_armor_health", 0.0)), 5000.0)
+			_set_targetable_plant(row, col, plant)
+			for zi in _find_closest_zombies_in_radius(center, 200.0, 8):
+				var gz = zombies[zi]
+				gz = _apply_zombie_damage(gz, 120.0, 0.22, 3.0)
+				gz["x"] += rng.randf_range(-40.0, 40.0)
+				gz["special_pause_timer"] = maxf(float(gz.get("special_pause_timer", 0.0)), 0.6)
+				zombies[zi] = gz
+			effects.append({"position": center, "radius": 200.0, "time": 0.36, "duration": 0.36, "color": Color(0.48, 0.88, 0.78, 0.32)})
+			_trigger_screen_shake(5.0)
+
+		# === CAMPAIGN CORE: SUN PRODUCERS ===
+		"sun_shroom":
+			plant["mature"] = true; plant["grow_timer"] = 0.0
+			_set_targetable_plant(row, col, plant)
+			for s in range(6):
+				var angle = TAU * float(s) / 6.0
+				_spawn_sun(center + Vector2(cos(angle) * 34.0, sin(angle) * 34.0), center.y - 24.0, "plant_food", 50)
+			_damage_zombies_in_circle(center + Vector2(60.0, 0.0), 120.0, 70.0)
+			effects.append({"position": center, "radius": 100.0, "time": 0.32, "duration": 0.32, "color": Color(1.0, 0.92, 0.42, 0.28)})
+		"sun_bean":
+			for s in range(5):
+				var angle = TAU * float(s) / 5.0
+				_spawn_sun(center + Vector2(cos(angle) * 38.0, sin(angle) * 38.0), center.y - 26.0, "plant_food", 50)
+			for zi in _find_closest_zombies_in_radius(center, 180.0, 6):
+				zombies[zi] = _apply_zombie_damage(zombies[zi], 80.0, 0.2, 3.0)
+			effects.append({"position": center, "radius": 120.0, "time": 0.3, "duration": 0.3, "color": Color(1.0, 0.86, 0.22, 0.26)})
+		"moon_lotus":
+			for s in range(6):
+				var angle = TAU * float(s) / 6.0
+				_spawn_sun(center + Vector2(cos(angle) * 40.0, sin(angle) * 40.0), center.y - 22.0, "plant_food", 75)
+			_wake_all_plants()
+			for zi in range(zombies.size()):
+				var mz = zombies[zi]
+				if not _is_enemy_zombie(mz): continue
+				if center.distance_to(Vector2(float(mz["x"]), _row_center_y(int(mz["row"])))) > 260.0: continue
+				mz["special_pause_timer"] = maxf(float(mz.get("special_pause_timer", 0.0)), 1.8)
+				zombies[zi] = mz
+			effects.append({"position": center, "radius": 160.0, "time": 0.38, "duration": 0.38, "color": Color(0.64, 0.48, 0.92, 0.3)})
+		"marigold":
+			for s in range(6):
+				var angle = TAU * float(s) / 6.0
+				_spawn_sun(center + Vector2(cos(angle) * 36.0, sin(angle) * 36.0), center.y - 24.0, "plant_food", 50)
+			sun_points += 100
+			for _g in range(8):
+				var angle = rng.randf_range(0.0, TAU)
+				_spawn_sun(center + Vector2(cos(angle) * rng.randf_range(30.0, 80.0), sin(angle) * rng.randf_range(20.0, 60.0)), center.y - 30.0, "plant_food", 25)
+			effects.append({"position": center, "radius": 130.0, "time": 0.36, "duration": 0.36, "color": Color(1.0, 0.84, 0.22, 0.32)})
+
+		# === CAMPAIGN CORE: MULTI-LANE ===
+		"threepeater":
+			for lane in [max(0,row-1), row, min(ROWS-1,row+1)]:
+				if not _is_row_active(lane): continue
+				for _w in range(2):
+					for tp in range(9):
+						projectiles.append({"row": lane, "position": Vector2(center.x + 24.0 + float(tp % 3) * 8.0, _row_center_y(lane) - 10.0 + float(tp % 2) * 6.0), "speed": 560.0, "velocity_y": 0.0, "damage": maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 20.0), "color": Color(0.22, 0.78, 0.22), "radius": 7.0, "reflected": false, "fire": false, "free_aim": false})
+			effects.append({"position": center, "radius": 180.0, "time": 0.34, "duration": 0.34, "color": Color(0.26, 0.82, 0.24, 0.24)})
+			_trigger_screen_shake(5.0)
+		"starfruit":
+			for star_dir in range(5):
+				var star_angle = -PI + TAU * float(star_dir) / 5.0
+				var star_dir_x = cos(star_angle); var star_dir_y = sin(star_angle)
+				for st in range(6):
+					projectiles.append({"row": clampi(row + int(round(star_dir_y * 2.0)), 0, ROWS - 1), "position": Vector2(center.x + star_dir_x * 16.0, center.y + star_dir_y * 16.0 - 6.0 + float(st) * star_dir_y * 3.0), "speed": 460.0 * maxf(star_dir_x, 0.1) + rng.randf_range(-20.0, 20.0), "velocity_y": star_dir_y * 120.0 + rng.randf_range(-20.0, 20.0), "damage": maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 20.0), "color": Color(1.0, 0.88, 0.18), "radius": 7.0, "reflected": false, "fire": false, "free_aim": true})
+			effects.append({"position": center, "radius": 140.0, "time": 0.32, "duration": 0.32, "color": Color(1.0, 0.92, 0.26, 0.26)})
+			_trigger_screen_shake(5.0)
+
+		# === CAMPAIGN CORE: ARTILLERY ===
+		"pepper_mortar":
+			var wall_col = _spawn_pepper_mortar_fire_wall(12.0, maxf(float(Defs.PLANTS[kind].get("damage", 32.0)) * 1.2, 64.0), row)
+			for ar_variant in active_rows:
+				var ar_row = int(ar_variant)
+				for _pm in range(3):
+					var pm_tgt = _find_frontmost_zombie(ar_row)
+					if pm_tgt == -1: break
+					_ensure_plant_runtime().spawn_roof_lobbed_projectile("cabbage", ar_row, _cell_center(ar_row, col) + Vector2(12.0, -36.0), Vector2(float(zombies[pm_tgt]["x"]), _row_center_y(ar_row) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 32.0)) * 1.5, 52.0), Color(1.0, 0.36, 0.12), 74.0, 10.0, float(Defs.PLANTS[kind].get("splash_radius", 56.0)) + 24.0, 0.0, "pepper_mortar")
+			effects.append({"position": center, "radius": 180.0, "time": 0.42, "duration": 0.42, "color": Color(1.0, 0.38, 0.14, 0.34)})
+			_trigger_screen_shake(6.0)
+		"mango_bowling":
+			for m_row_variant in active_rows:
+				var m_row = int(m_row_variant)
+				_spawn_bowling_roller(m_row, col + 1, true)
+			effects.append({"position": center, "radius": 160.0, "time": 0.36, "duration": 0.36, "color": Color(1.0, 0.72, 0.18, 0.32)})
+			_trigger_screen_shake(5.0)
+
+		# === CAMPAIGN CORE: DEFENSE ===
+		"wallnut":
+			plant["health"] = float(plant["max_health"])
+			plant["armor_health"] = maxf(float(plant.get("armor_health", 0.0)), 10000.0)
+			plant["max_armor_health"] = maxf(float(plant.get("max_armor_health", 0.0)), 10000.0)
+			_set_targetable_plant(row, col, plant)
+			for zi in _find_closest_zombies_in_radius(center, 140.0, 8):
+				var wz = zombies[zi]
+				wz = _apply_zombie_damage(wz, 100.0, 0.2, 1.5)
+				wz["x"] += 36.0; wz["special_pause_timer"] = maxf(float(wz.get("special_pause_timer", 0.0)), 0.35)
+				zombies[zi] = wz
+			effects.append({"position": center, "radius": 140.0, "time": 0.34, "duration": 0.34, "color": Color(0.62, 0.54, 0.28, 0.3)})
+			_trigger_screen_shake(5.0)
+		"tallnut":
+			plant["health"] = float(plant["max_health"])
+			plant["armor_health"] = maxf(float(plant.get("armor_health", 0.0)), 16000.0)
+			plant["max_armor_health"] = maxf(float(plant.get("max_armor_health", 0.0)), 16000.0)
+			_set_targetable_plant(row, col, plant)
+			_damage_zombies_in_circle(center, 160.0, 140.0)
+			for zi in range(zombies.size()):
+				var tz = zombies[zi]
+				if not _is_enemy_zombie(tz): continue
+				var tdist = Vector2(float(tz["x"]), _row_center_y(int(tz["row"]))).distance_to(center)
+				if tdist < 160.0:
+					tz["rooted_timer"] = maxf(float(tz.get("rooted_timer", 0.0)), 3.0)
+					zombies[zi] = tz
+			effects.append({"position": center, "radius": 160.0, "time": 0.38, "duration": 0.38, "color": Color(0.54, 0.76, 0.38, 0.3)})
+			_trigger_screen_shake(6.0)
+		"pumpkin":
+			for rr in range(ROWS):
+				for cc in range(COLS):
+					var pp = _top_plant_at(rr, cc)
+					if pp == null or int(pp.get("uid", -1)) == int(plant.get("uid", -1)): continue
+					pp = _apply_pumpkin_shell_to_plant(pp, true)
+					pp["armor_health"] = maxf(float(pp.get("armor_health", 0.0)), 6000.0)
+					pp["max_armor_health"] = maxf(float(pp.get("max_armor_health", 0.0)), 6000.0)
+					grid[rr][cc] = pp
+			plant = _apply_pumpkin_shell_to_plant(plant, true)
+			_set_targetable_plant(row, col, plant)
+			effects.append({"position": center, "radius": 300.0, "time": 0.4, "duration": 0.4, "color": Color(1.0, 0.78, 0.34, 0.26)})
+			_trigger_screen_shake(4.0)
+		"cactus_guard":
+			plant["health"] = float(plant["max_health"])
+			plant["armor_health"] = maxf(float(plant.get("armor_health", 0.0)), 6000.0)
+			plant["max_armor_health"] = maxf(float(plant.get("max_armor_health", 0.0)), 6000.0)
+			_set_targetable_plant(row, col, plant)
+			for zi in range(zombies.size()):
+				var cgz = zombies[zi]
+				if not _is_enemy_zombie(cgz): continue
+				if Vector2(float(cgz["x"]), _row_center_y(int(cgz["row"]))).distance_to(center) < 200.0:
+					cgz = _apply_zombie_damage(cgz, 80.0, 0.2, 2.0)
+					zombies[zi] = cgz
+			effects.append({"position": center, "radius": 200.0, "time": 0.34, "duration": 0.34, "color": Color(0.68, 0.82, 0.36, 0.28)})
+			_trigger_screen_shake(4.0)
+		"holo_nut":
+			plant["health"] = float(plant["max_health"])
+			plant["armor_health"] = maxf(float(plant.get("armor_health", 0.0)), 9000.0)
+			plant["max_armor_health"] = maxf(float(plant.get("max_armor_health", 0.0)), 9000.0)
+			_set_targetable_plant(row, col, plant)
+			for _d in range(2):
+				var decoy_col = clampi(col + (1 if _d==0 else -1), 0, COLS-1)
+				if _top_plant_at(row, decoy_col) == null and _cell_terrain_kind(row, decoy_col) != "water":
+					grid[row][decoy_col] = _create_plant("holo_nut", row, decoy_col)
+					grid[row][decoy_col]["health"] = 3000.0
+					grid[row][decoy_col]["flash"] = 0.24
+			effects.append({"position": center, "radius": 120.0, "time": 0.32, "duration": 0.32, "color": Color(0.56, 0.94, 0.98, 0.3)})
+			_trigger_screen_shake(4.0)
+		"garlic":
+			for _gz in range(2):
+				for zi in range(zombies.size()):
+					var gz = zombies[zi]
+					if not _is_enemy_zombie(gz): continue
+					if Vector2(float(gz["x"]), _row_center_y(int(gz["row"]))).distance_to(center) > 250.0: continue
+					var nr = _choose_adjacent_valid_row_for_kind(String(gz["kind"]), int(gz["row"]))
+					gz["row"] = nr; gz["special_pause_timer"] = maxf(float(gz.get("special_pause_timer", 0.0)), 0.5)
+					gz["flash"] = maxf(float(gz.get("flash", 0.0)), 0.18)
+					zombies[zi] = gz
+			effects.append({"position": center, "radius": 250.0, "time": 0.36, "duration": 0.36, "color": Color(0.92, 0.96, 0.86, 0.28)})
+			_trigger_screen_shake(3.0)
+		"umbrella_leaf":
+			for zi in range(zombies.size()-1, -1, -1):
+				var uz = zombies[zi]
+				if String(uz.get("kind","")) == "bungee_zombie": zombies.remove_at(zi); continue
+				if String(uz.get("kind","")) == "catapult_zombie":
+					uz["catapult_cooldown"] = maxf(float(uz.get("catapult_cooldown",0.0)), 4.0)
+					uz["special_pause_timer"] = maxf(float(uz.get("special_pause_timer",0.0)), 1.0)
+					zombies[zi] = uz
+			for rr in range(ROWS):
+				for cc in range(COLS):
+					var up = _top_plant_at(rr, cc)
+					if up != null:
+						up["armor_health"] = maxf(float(up.get("armor_health",0.0)), 400.0)
+						up["max_armor_health"] = maxf(float(up.get("max_armor_health",0.0)), 400.0)
+						grid[rr][cc] = up
+			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.44, 0.84, 0.96, 0.26)})
+			_trigger_screen_shake(3.0)
+
+		# === CAMPAIGN CORE: EXPLOSIVES ===
+		"cherry_bomb":
+			_explode_cherry(row, col, true)
+			plant["fuse_timer"] = 0.0
+			_set_targetable_plant(row, col, plant)
+		"potato_mine":
+			plant["armed"] = true; plant["arm_timer"] = 0.0
+			_set_targetable_plant(row, col, plant)
+			_spawn_bonus_potato_mines(row, col, 3)
+			effects.append({"position": center, "radius": 120.0, "time": 0.32, "duration": 0.32, "color": Color(0.82, 0.56, 0.28, 0.28)})
+			_trigger_screen_shake(3.0)
+		"ice_shroom":
+			_trigger_ice_shroom(row, col, true)
+			plant["fuse_timer"] = 0.0
+			_set_targetable_plant(row, col, plant)
+		"doom_shroom":
+			_trigger_doom_shroom(row, col, true)
+			plant["fuse_timer"] = 0.0
+			_set_targetable_plant(row, col, plant)
+		"jalapeno":
+			_trigger_jalapeno(row, col, true)
+			plant["fuse_timer"] = 0.0
+			_set_targetable_plant(row, col, plant)
+		"squash":
+			var sq_targets = _find_closest_zombies_in_radius(center, 320.0, 5)
+			for sqz_idx in sq_targets:
+				var sqz = zombies[sqz_idx]
+				sqz = _apply_zombie_damage(sqz, float(Defs.PLANTS["squash"]["damage"]), 0.35, 0.0, true)
+				zombies[sqz_idx] = sqz
+			plant["health"] = 0.0
+			effects.append({"position": center, "radius": 320.0, "time": 0.36, "duration": 0.36, "color": Color(0.76, 0.88, 0.24, 0.28)})
+			_trigger_screen_shake(6.0)
+		"tangle_kelp":
+			var tk_targets = _find_closest_zombies_in_radius(center, 300.0, 4)
+			for tkz_idx in tk_targets:
+				var tkz = zombies[tkz_idx]
+				tkz = _apply_zombie_damage(tkz, float(Defs.PLANTS["tangle_kelp"]["damage"]), 0.3, 0.0, true)
+				zombies[tkz_idx] = tkz
+			plant["health"] = 0.0
+			effects.append({"position": center, "radius": 300.0, "time": 0.34, "duration": 0.34, "color": Color(0.42, 0.82, 0.54, 0.28)})
+			_trigger_screen_shake(5.0)
+		"snow_bloom":
+			for sr in range(ROWS):
+				if not _is_row_active(sr): continue
+				_damage_zombies_in_row_segment(sr, center.x - 20.0, BOARD_ORIGIN.x + board_size.x + 30.0, 120.0, 6.0)
+				for sc in range(COLS):
+					if rng.randf() < 0.55:
+						_create_snowfield_tile(sr, sc, float(Defs.PLANTS["snow_bloom"].get("snow_duration", 10.0)) + 6.0)
+				for zi in range(zombies.size()):
+					var sz = zombies[zi]
+					if int(sz["row"]) != sr: continue
+					sz["frozen_timer"] = maxf(float(sz.get("frozen_timer",0.0)), 4.0)
+					zombies[zi] = sz
+			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": board_size.x, "time": 0.5, "duration": 0.5, "color": Color(0.78, 0.96, 1.0, 0.3)})
+			_trigger_screen_shake(8.0)
+
+		# === CAMPAIGN CORE: PULSE / CONTROL ===
+		"signal_ivy":
+			for rr in range(ROWS):
+				for cc in range(COLS):
+					var si = _top_plant_at(rr, cc)
+					if si == null: continue
+					var sid = String(Defs.PLANTS.get(String(si["kind"]), {}).get("class",""))
+					if sid in ["tech", "electric"] or si.get("tesla_boost", false):
+						si["ultimate_charge"] = minf(1.0, float(si.get("ultimate_charge",0.0)) + 0.5)
+						si["flash"] = maxf(float(si.get("flash",0.0)), 0.2)
+						grid[rr][cc] = si
+			_damage_zombies_in_circle(center, 180.0, 100.0)
+			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.56, 0.98, 0.46, 0.28)})
+			_trigger_screen_shake(4.0)
+		"vine_lasher":
+			for zi in range(zombies.size()):
+				var vl = zombies[zi]
+				if not _is_enemy_zombie(vl): continue
+				if absf(int(vl["row"]) - row) > 1 or float(vl["x"]) - center.x < -30.0 or float(vl["x"]) - center.x > 350.0: continue
+				vl = _apply_zombie_damage(vl, 100.0, 0.22, 3.0)
+				vl["x"] = maxf(float(vl["x"]) - 60.0, center.x - 10.0)
+				vl["special_pause_timer"] = maxf(float(vl.get("special_pause_timer",0.0)), 0.4)
+				zombies[zi] = vl
+			_damage_obstacles_in_radius(row, center.x + 170.0, 170.0, 100.0)
+			effects.append({"shape": "lane_spray", "position": center + Vector2(16.0, -6.0), "length": 350.0, "width": 80.0, "radius": 180.0, "time": 0.32, "duration": 0.32, "color": Color(0.38, 0.92, 0.28, 0.3)})
+			_trigger_screen_shake(5.0)
+		"anchor_fern":
+			for zi in range(zombies.size()):
+				var af = zombies[zi]
+				if not _is_enemy_zombie(af): continue
+				if absf(int(af["row"]) - row) > 1 or float(af["x"]) - center.x < -40.0 or float(af["x"]) - center.x > 320.0: continue
+				af = _apply_zombie_damage(af, 120.0, 0.22)
+				af["rooted_timer"] = maxf(float(af.get("rooted_timer",0.0)), 6.0)
+				var pull = (center.x - float(af["x"])) * 0.4
+				af["x"] += pull
+				zombies[zi] = af
+			for ar in range(max(0,row-1), min(ROWS,row+2)):
+				for ac in range(max(0,col-2), min(COLS,col+3)):
+					var ap = _targetable_plant_at(ar, ac)
+					if ap != null:
+						ap["rooted_timer"] = maxf(float(ap.get("rooted_timer",0.0)), 5.0)
+						ap["flash"] = maxf(float(ap.get("flash",0.0)), 0.16)
+						_set_targetable_plant(ar, ac, ap)
+			effects.append({"position": center, "radius": 200.0, "time": 0.34, "duration": 0.34, "color": Color(0.42, 0.74, 0.58, 0.28)})
+			_trigger_screen_shake(5.0)
+		"glowvine":
+			for gr in range(max(0,row-1), min(ROWS,row+2)):
+				if not _is_row_active(gr): continue
+				_damage_zombies_in_row_segment(gr, center.x, BOARD_ORIGIN.x + board_size.x + 30.0, maxf(float(Defs.PLANTS[kind].get("damage", 28.0)) * 2.5, 72.0), 0.0)
+				for gc in range(COLS):
+					var gp = _top_plant_at(gr, gc)
+					if gp == null: continue
+					gp["health"] = minf(float(gp["health"]) + 200.0, float(gp.get("max_health",120.0)))
+					gp["flash"] = maxf(float(gp.get("flash",0.0)), 0.14)
+					grid[gr][gc] = gp
+			effects.append({"position": center, "radius": 200.0, "time": 0.38, "duration": 0.38, "color": Color(0.52, 0.98, 0.72, 0.26)})
+			_trigger_screen_shake(3.0)
+		"brine_pot":
+			for _bp in range(4):
+				var bt = _find_global_frontmost_target()
+				if int(bt.get("row", -1)) == -1: break
+				var bi = Vector2(float(bt["x"]) + rng.randf_range(-20.0, 20.0), _row_center_y(int(bt["row"])))
+				_damage_zombies_in_circle(bi, float(Defs.PLANTS["brine_pot"]["splash_radius"]) + 30.0, 140.0)
+				_damage_obstacles_in_circle(bi, float(Defs.PLANTS["brine_pot"]["splash_radius"]), 140.0)
+				_spawn_bog_pool(bi, float(Defs.PLANTS["brine_pot"]["bog_radius"]) + 40.0, float(Defs.PLANTS["brine_pot"]["bog_duration"]) + 4.0)
+			effects.append({"position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(0.28, 0.56, 0.44, 0.3)})
+			_trigger_screen_shake(5.0)
+		"storm_reed":
+			for lane in active_rows:
+				var l = int(lane)
+				var st = _find_storm_reed_target(l, _cell_center(l, int(Defs.PLANTS["storm_reed"]["trigger_col"])).x - CELL_SIZE.x * 0.6)
+				if st != -1: _strike_thunder_chain(st, 160.0, 90.0, 220.0, 5)
+			for _se in range(3):
+				var sett = _find_global_frontmost_target()
+				var se_row = int(sett.get("row", -1))
+				if se_row != -1:
+					var sei = _find_nearest_enemy_index_to_point(Vector2(float(sett["x"]), _row_center_y(se_row)))
+					if sei != -1: _strike_thunder_chain(sei, 140.0, 70.0, 180.0, 4)
+			effects.append({"position": center, "radius": 200.0, "time": 0.4, "duration": 0.4, "color": Color(0.92, 0.96, 0.48, 0.3)})
+			_trigger_screen_shake(7.0)
+		"root_snare":
+			for zi in range(zombies.size()):
+				var rs = zombies[zi]
+				if not _is_enemy_zombie(rs): continue
+				if Vector2(float(rs["x"]), _row_center_y(int(rs["row"]))).distance_to(center) > 500.0: continue
+				rs = _apply_zombie_damage(rs, 120.0, 0.22)
+				rs["rooted_timer"] = maxf(float(rs.get("rooted_timer",0.0)), 8.0)
+				zombies[zi] = rs
+			effects.append({"position": center, "radius": 500.0, "time": 0.4, "duration": 0.4, "color": Color(0.58, 0.46, 0.24, 0.28)})
+			_trigger_screen_shake(6.0)
+		"meteor_gourd":
+			for _mg in range(5):
+				var mgt = _find_global_frontmost_target()
+				if int(mgt.get("row", -1)) == -1: break
+				var mi = Vector2(float(mgt["x"]) + rng.randf_range(-22.0, 22.0), _row_center_y(int(mgt["row"])))
+				_damage_zombies_in_circle(mi, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 30.0, 200.0)
+				_damage_obstacles_in_circle(mi, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 30.0, 200.0)
+				_spawn_meteor_strike_effect(mi, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 28.0, 0.36, Color(1.0, 0.46, 0.14, 0.36))
+			effects.append({"position": center, "radius": 180.0, "time": 0.42, "duration": 0.42, "color": Color(1.0, 0.52, 0.16, 0.3)})
+			_trigger_screen_shake(7.0)
+		"leyline":
+			var ll_range = float(Defs.PLANTS[kind].get("range", 260.0)) + 120.0
+			for lane in active_rows:
+				var l = int(lane)
+				_damage_zombies_in_row_segment(l, center.x - 40.0, BOARD_ORIGIN.x + board_size.x + 30.0, maxf(float(Defs.PLANTS[kind].get("damage", 38.0)) * 2.0, 80.0), 2.0)
+				for zi in range(zombies.size()):
+					var lz = zombies[zi]
+					if int(lz["row"]) != l: continue
+					lz["slow_timer"] = maxf(float(lz.get("slow_timer",0.0)), 5.0)
+					zombies[zi] = lz
+			effects.append({"shape": "lane_spray", "position": Vector2(center.x, center.y), "length": board_size.x, "width": board_size.y * 0.85, "radius": board_size.x * 0.5, "time": 0.4, "duration": 0.4, "color": Color(0.64, 0.48, 0.92, 0.28)})
+			_trigger_screen_shake(6.0)
+
+		# === CAMPAIGN CORE: WIND / GALE ===
+		"blover":
+			for i in range(zombies.size()):
+				var bz = zombies[i]
+				if not _is_enemy_zombie(bz): continue
+				bz["x"] += 180.0
+				bz["special_pause_timer"] = maxf(float(bz.get("special_pause_timer",0.0)), 0.5)
+				if bool(bz.get("balloon_flying", false)):
+					bz["balloon_flying"] = false
+					bz["base_speed"] = float(Defs.ZOMBIES["balloon_zombie"]["speed"])
+				zombies[i] = bz
+			_trigger_blover_fog_clear(10.0)
+			effects.append({"shape": "lane_spray", "position": Vector2(BOARD_ORIGIN.x, center.y), "length": board_size.x, "width": board_size.y * 0.95, "radius": board_size.x * 0.5, "time": 0.34, "duration": 0.34, "color": Color(0.82, 0.96, 1.0, 0.26)})
+			_trigger_screen_shake(4.0)
+
+		# === CAMPAIGN CORE: HYPNOTIZE / MIND ===
+		"hypno_shroom":
+			for zi in _find_closest_zombies_in_radius(center, 300.0, 5):
+				var hz = zombies[zi]
+				if _is_boss_zombie(hz): continue
+				hz = _hypnotize_zombie(hz)
+				hz["special_pause_timer"] = maxf(float(hz.get("special_pause_timer",0.0)), 1.0)
+				zombies[zi] = hz
+			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.92, 0.44, 1.0, 0.3)})
+			_trigger_screen_shake(4.0)
+
+		# === CAMPAIGN CORE: MAGNET ===
+		"magnet_shroom":
+			for zi in range(zombies.size()):
+				var mz = zombies[zi]
+				if not _is_enemy_zombie(mz): continue
+				if Vector2(float(mz["x"]), _row_center_y(int(mz["row"]))).distance_to(center) > 400.0: continue
+				if not _can_magnet_strip(mz): continue
+				zombies[zi] = _strip_metal_from_zombie(mz)
+			effects.append({"position": center, "radius": 400.0, "time": 0.36, "duration": 0.36, "color": Color(0.82, 0.74, 1.0, 0.3)})
+			_trigger_screen_shake(5.0)
+
+		# === CAMPAIGN CORE: REVEAL / LIGHT ===
+		"plantern":
+			_trigger_blover_fog_clear(10.0)
+			for zi in range(zombies.size()):
+				var pz = zombies[zi]
+				if String(pz.get("kind","")) == "shouyue":
+					pz["revealed_timer"] = maxf(float(pz.get("revealed_timer",0.0)), 10.0)
+					zombies[zi] = pz
+			for rr in range(ROWS):
+				for cc in range(COLS):
+					var pp = _top_plant_at(rr, cc)
+					if pp != null:
+						pp["sleep_timer"] = 0.0
+						grid[rr][cc] = pp
+			effects.append({"position": center, "radius": board_size.x, "time": 0.38, "duration": 0.38, "color": Color(1.0, 0.96, 0.66, 0.28)})
+			_trigger_screen_shake(3.0)
+		"lantern_bloom":
+			var lb_radius = maxf(float(Defs.PLANTS[kind].get("wake_radius", 180.0)), 260.0)
+			for zi in _find_closest_zombies_in_radius(center, lb_radius, 10):
+				var lbz = zombies[zi]
+				lbz = _apply_zombie_damage(lbz, maxf(float(Defs.PLANTS[kind].get("damage", 26.0)) * 3.5, 96.0), 0.2)
+				lbz["special_pause_timer"] = maxf(float(lbz.get("special_pause_timer",0.0)), 3.0)
+				zombies[zi] = lbz
+			_wake_plants_in_radius(center, lb_radius)
+			effects.append({"shape": "lantern_bloom_ring", "position": center, "radius": lb_radius, "time": 0.36, "duration": 0.36, "color": Color(1.0, 0.82, 0.32, 0.3)})
+
+		# === CAMPAIGN CORE: GRAVE ===
+		"grave_buster":
+			for gi in range(graves.size()-1, -1, -1): graves.remove_at(gi)
+			for _gs in range(5):
+				var angle = rng.randf_range(0.0, TAU)
+				_spawn_sun(center + Vector2(cos(angle)*rng.randf_range(26.0, 70.0), sin(angle)*rng.randf_range(20.0, 50.0)), center.y - 20.0, "plant_food", 25)
+			effects.append({"position": center, "radius": 200.0, "time": 0.36, "duration": 0.36, "color": Color(0.48, 0.94, 0.36, 0.26)})
+			_trigger_screen_shake(4.0)
+
+		# === CAMPAIGN CORE: DRUM / WAKE ===
+		"dream_drum":
+			_wake_all_plants()
+			for zi in range(zombies.size()):
+				var dz = zombies[zi]
+				if not _is_enemy_zombie(dz): continue
+				dz = _apply_zombie_damage(dz, 100.0, 0.2)
+				dz["special_pause_timer"] = maxf(float(dz.get("special_pause_timer",0.0)), 1.5)
+				zombies[zi] = dz
+			effects.append({"position": center, "radius": 280.0, "time": 0.38, "duration": 0.38, "color": Color(0.88, 0.72, 0.32, 0.26)})
+			_trigger_screen_shake(5.0)
+		"coffee_bean":
+			_wake_all_plants()
+			for rr in range(ROWS):
+				for cc in range(COLS):
+					var cp = _top_plant_at(rr, cc)
+					if cp != null:
+						cp["sleep_timer"] = 0.0
+						cp["ultimate_charge"] = minf(1.0, float(cp.get("ultimate_charge",0.0)) + 0.3)
+						cp["flash"] = maxf(float(cp.get("flash",0.0)), 0.16)
+						grid[rr][cc] = cp
+			_sleep_zombies_in_radius(center, 300.0, 3.0, false)
+			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.72, 0.52, 0.36, 0.26)})
+			_trigger_screen_shake(3.0)
+
+		# === CAMPAIGN CORE: TORCHWOOD (FIRE) ===
+		"torchwood":
+			_damage_zombies_in_circle(center, float(Defs.PLANTS[kind].get("range", 180.0)) + 80.0, 240.0)
+			for zi in range(zombies.size()):
+				var tz = zombies[zi]
+				var tdist = Vector2(float(tz["x"]), _row_center_y(int(tz["row"]))).distance_to(center)
+				if tdist <= float(Defs.PLANTS[kind].get("range", 180.0)) + 80.0:
+					tz["burn_timer"] = maxf(float(tz.get("burn_timer",0.0)), 5.0)
+					tz["burn_dps"] = maxf(float(tz.get("burn_dps",0.0)), 50.0)
+					tz["flash"] = 0.3; zombies[zi] = tz
+			for pi in range(projectiles.size()):
+				var tp = projectiles[pi]
+				if Vector2(tp["position"]).distance_to(center) <= float(Defs.PLANTS[kind].get("range", 180.0)) + 80.0 and String(tp.get("kind","")) == "pea" and not bool(tp.get("fire",false)):
+					tp["fire"] = true; tp["damage"] = float(tp["damage"]) * 1.8; projectiles[pi] = tp
+			effects.append({"position": center, "radius": float(Defs.PLANTS[kind].get("range", 180.0)) + 80.0, "time": 0.4, "duration": 0.4, "color": Color(1.0, 0.4, 0.1, 0.32)})
+			_trigger_screen_shake(6.0)
+
+		# === CAMPAIGN CORE: HEALING ===
+		"healing_gourd":
+			for rr in range(ROWS):
+				for cc in range(COLS):
+					var hp = _top_plant_at(rr, cc)
+					if hp == null: continue
+					hp["health"] = float(hp.get("max_health",120.0))
+					hp["armor_health"] = maxf(float(hp.get("armor_health",0.0)), float(hp.get("max_health",120.0)) * 0.5)
+					hp["max_armor_health"] = maxf(float(hp.get("max_armor_health",1.0)), float(hp["armor_health"]))
+					hp["flash"] = maxf(float(hp.get("flash",0.0)), 0.2)
+					grid[rr][cc] = hp
+			_damage_zombies_in_circle(center, 200.0, 100.0)
+			effects.append({"position": center, "radius": 400.0, "time": 0.42, "duration": 0.42, "color": Color(0.56, 0.98, 0.42, 0.28)})
+			_trigger_screen_shake(4.0)
+
+		# === CAMPAIGN CORE: WATER PLANTS ===
+		"lily_pad":
+			var pad_count := 0
+			for wr_variant in water_rows:
+				var wr = int(wr_variant)
+				for wc in range(COLS):
+					if _cell_terrain_kind(wr, wc) != "water": continue
+					if _support_plant_at(wr, wc) != null or _top_plant_at(wr, wc) != null: continue
+					support_grid[wr][wc] = _create_plant("lily_pad", wr, wc)
+					support_grid[wr][wc]["flash"] = 0.2; pad_count += 1
+			effects.append({"position": center, "radius": 130.0 + float(pad_count) * 3.0, "time": 0.32, "duration": 0.32, "color": Color(0.42, 0.88, 0.96, 0.28)})
+			_trigger_screen_shake(3.0)
+		"spikeweed":
+			for sr in range(max(0,row-1), min(ROWS,row+2)):
+				if not _is_row_active(sr): continue
+				var sd = maxf(float(Defs.PLANTS[kind].get("contact_damage",20.0)) * 8.0, 160.0)
+				for zi in range(zombies.size()):
+					var sz = zombies[zi]
+					if int(sz["row"]) != sr: continue
+					if float(sz["x"]) - center.x < -40.0 or float(sz["x"]) - center.x > CELL_SIZE.x * 4.0: continue
+					sz = _apply_zombie_damage(sz, sd, 0.22, 1.4, true)
+					var anchor_x = center.x + CELL_SIZE.x * 0.3
+					sz["x"] = minf(float(sz["x"]), anchor_x)
+					sz["special_pause_timer"] = maxf(float(sz.get("special_pause_timer",0.0)), 0.4)
+					zombies[zi] = sz
+			effects.append({"shape": "spike_dragline", "position": center + Vector2(10.0, 18.0), "length": board_size.x, "width": 68.0, "radius": 180.0, "time": 0.38, "duration": 0.38, "color": Color(0.72, 0.48, 0.16, 0.36)})
+			_trigger_screen_shake(5.0)
+
+		# === VOLCANO / TOUHOU BRANCH PLANTS ===
 		"dragon_bubble_pult":
 			_execute_volcano_dragon_bubble_ultimate(row, col)
 		"cork_plug":
