@@ -9049,30 +9049,114 @@ func _ultimate_profile_for_kind(kind: String) -> Dictionary:
 		return {"style": "thunder_cloud_hunt", "ultimate_name": "雷云狩猎", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 8.0}
 	if kind == "spikeweed":
 		return {"style": "spike_dragline", "ultimate_name": "荆刺牵杀", "ultimate_charge_time": charge_time - 2.0, "ultimate_duration": 0.9}
-	if kind == "peashooter":
-		return {"style": "explicit", "ultimate_name": "豌豆风暴", "ultimate_charge_time": charge_time, "ultimate_duration": 0.7}
-	if kind == "sunflower":
-		return {"style": "explicit", "ultimate_name": "阳光普照", "ultimate_charge_time": charge_time - 4.0, "ultimate_duration": 0.5}
-	if kind == "repeater":
-		return {"style": "explicit", "ultimate_name": "双重风暴", "ultimate_charge_time": charge_time + 1.0, "ultimate_duration": 0.7}
-	if kind == "snow_pea":
-		return {"style": "explicit", "ultimate_name": "冰河世纪", "ultimate_charge_time": charge_time, "ultimate_duration": 0.7}
-	if kind == "chomper":
-		return {"style": "explicit", "ultimate_name": "大快朵颐", "ultimate_charge_time": charge_time, "ultimate_duration": 0.6}
-	if kind == "torchwood":
-		return {"style": "explicit", "ultimate_name": "烈焰风暴", "ultimate_charge_time": charge_time, "ultimate_duration": 0.6}
-	if kind == "puff_shroom":
-		return {"style": "explicit", "ultimate_name": "孢子云", "ultimate_charge_time": charge_time, "ultimate_duration": 0.6}
-	if kind == "fume_shroom":
-		return {"style": "explicit", "ultimate_name": "毒雾弥漫", "ultimate_charge_time": charge_time, "ultimate_duration": 0.7}
-	if kind == "cabbage_pult":
-		return {"style": "explicit", "ultimate_name": "卷心菜轰炸", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 0.8}
-	if kind == "kernel_pult":
-		return {"style": "explicit", "ultimate_name": "黄油风暴", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 0.8}
-	if kind == "melon_pult":
-		return {"style": "explicit", "ultimate_name": "西瓜连砸", "ultimate_charge_time": charge_time + 3.0, "ultimate_duration": 0.8}
-	if PlantFoodRuntime.supported_kinds().has(kind):
-		return {"style": "plant_food_ultimate", "ultimate_name": String(data.get("ultimate_name", "植物能量")), "ultimate_charge_time": charge_time, "ultimate_duration": 0.8}
+	if kind == "abyss_tentacle":
+		return {"style": "explicit", "ultimate_name": "深渊吞噬", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "aurora_orchid":
+		return {"style": "explicit", "ultimate_name": "极光天幕", "ultimate_charge_time": 68.0, "ultimate_duration": 1.0}
+	if kind == "blast_pomegranate":
+		return {"style": "explicit", "ultimate_name": "万籽天降", "ultimate_charge_time": 70.0, "ultimate_duration": 1.0}
+	if kind == "bubble_lotus":
+		return {"style": "explicit", "ultimate_name": "万泡护盾", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "chain_lotus":
+		return {"style": "explicit", "ultimate_name": "连环斩", "ultimate_charge_time": 68.0, "ultimate_duration": 1.0}
+	if kind == "chambord_sniper":
+		return {"style": "explicit", "ultimate_name": "断城猎杀", "ultimate_charge_time": 64.0, "ultimate_duration": 0.8}
+	if kind == "chaos_shroom":
+		return {"style": "explicit", "ultimate_name": "混沌风暴", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "core_blossom":
+		return {"style": "explicit", "ultimate_name": "地核裂变", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "cork_plug":
+		return {"style": "explicit", "ultimate_name": "地脉封堵", "ultimate_charge_time": 48.0, "ultimate_duration": 0.6}
+	if kind == "corn_cannon":
+		return {"style": "explicit", "ultimate_name": "饱和炮击", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "crystal_nut":
+		return {"style": "explicit", "ultimate_name": "钻石护盾", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "cyclone_grass":
+		return {"style": "explicit", "ultimate_name": "火山风眼", "ultimate_charge_time": 58.0, "ultimate_duration": 0.8}
+	if kind == "destiny_tree":
+		return {"style": "explicit", "ultimate_name": "命运逆转", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "dragon_bubble_pult":
+		return {"style": "explicit", "ultimate_name": "龙息连爆", "ultimate_charge_time": 60.0, "ultimate_duration": 0.8}
+	if kind == "dragon_fruit":
+		return {"style": "explicit", "ultimate_name": "龙焰吐息", "ultimate_charge_time": 70.0, "ultimate_duration": 1.0}
+	if kind == "dream_disc":
+		return {"style": "explicit", "ultimate_name": "沉眠星雨", "ultimate_charge_time": 56.0, "ultimate_duration": 0.8}
+	if kind == "echo_fern":
+		return {"style": "explicit", "ultimate_name": "超声波轰鸣", "ultimate_charge_time": 64.0, "ultimate_duration": 0.8}
+	if kind == "frost_boomerang":
+		return {"style": "explicit", "ultimate_name": "霜环回旋", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "frost_cypress":
+		return {"style": "explicit", "ultimate_name": "永冻领域", "ultimate_charge_time": 68.0, "ultimate_duration": 1.0}
+	if kind == "galaxy_sunflower":
+		return {"style": "explicit", "ultimate_name": "超新星", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "gator_cannon":
+		return {"style": "explicit", "ultimate_name": "鳄龙贯穿", "ultimate_charge_time": 66.0, "ultimate_duration": 1.0}
+	if kind == "glow_ivy":
+		return {"style": "explicit", "ultimate_name": "荧光缠绕", "ultimate_charge_time": 60.0, "ultimate_duration": 0.8}
+	if kind == "hive_flower":
+		return {"style": "explicit", "ultimate_name": "蜂后围猎", "ultimate_charge_time": 58.0, "ultimate_duration": 0.8}
+	if kind == "holy_flower":
+		return {"style": "explicit", "ultimate_name": "圣盾天幕", "ultimate_charge_time": 58.0, "ultimate_duration": 0.8}
+	if kind == "holy_lotus":
+		return {"style": "explicit", "ultimate_name": "神圣裁决", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "honey_blossom":
+		return {"style": "explicit", "ultimate_name": "蜜糖洪流", "ultimate_charge_time": 58.0, "ultimate_duration": 0.8}
+	if kind == "ice_cream":
+		return {"style": "explicit", "ultimate_name": "甜霜充能", "ultimate_charge_time": 56.0, "ultimate_duration": 0.8}
+	if kind == "ice_queen":
+		return {"style": "explicit", "ultimate_name": "绝对零度", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "laser_lily":
+		return {"style": "explicit", "ultimate_name": "歼灭射线", "ultimate_charge_time": 70.0, "ultimate_duration": 1.0}
+	if kind == "magma_stream":
+		return {"style": "explicit", "ultimate_name": "熔城漫流", "ultimate_charge_time": 52.0, "ultimate_duration": 0.6}
+	if kind == "magnet_daisy":
+		return {"style": "explicit", "ultimate_name": "磁暴漩涡", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "mamba_tree":
+		return {"style": "explicit", "ultimate_name": "凋零炭化", "ultimate_charge_time": 60.0, "ultimate_duration": 0.8}
+	if kind == "meteor_flower":
+		return {"style": "explicit", "ultimate_name": "流星天降", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "mirror_shroom":
+		return {"style": "explicit", "ultimate_name": "万镜迷宫", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "nether_shroom":
+		return {"style": "explicit", "ultimate_name": "冥河倒戈", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "orange_bloom":
+		return {"style": "explicit", "ultimate_name": "橙海爆浆", "ultimate_charge_time": 60.0, "ultimate_duration": 0.8}
+	if kind == "phoenix_tree":
+		return {"style": "explicit", "ultimate_name": "涅槃重生", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "plasma_shooter":
+		return {"style": "explicit", "ultimate_name": "离子炮", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "plasma_shroom":
+		return {"style": "explicit", "ultimate_name": "等离子风暴", "ultimate_charge_time": 70.0, "ultimate_duration": 1.0}
+	if kind == "prism_pea":
+		return {"style": "explicit", "ultimate_name": "棱镜裂变", "ultimate_charge_time": 64.0, "ultimate_duration": 0.8}
+	if kind == "rock_armor_fruit":
+		return {"style": "explicit", "ultimate_name": "地壳震荡", "ultimate_charge_time": 66.0, "ultimate_duration": 1.0}
+	if kind == "sand_lotus":
+		return {"style": "explicit", "ultimate_name": "流沙结界", "ultimate_charge_time": 56.0, "ultimate_duration": 0.8}
+	if kind == "seraph_flower":
+		return {"style": "explicit", "ultimate_name": "炽羽圣裁", "ultimate_charge_time": 66.0, "ultimate_duration": 1.0}
+	if kind == "shadow_assassin":
+		return {"style": "explicit", "ultimate_name": "暗影刺客", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "shadow_pea":
+		return {"style": "explicit", "ultimate_name": "暗影风暴", "ultimate_charge_time": 64.0, "ultimate_duration": 0.8}
+	if kind == "solar_emperor":
+		return {"style": "explicit", "ultimate_name": "日冕爆发", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "soul_flower":
+		return {"style": "explicit", "ultimate_name": "灵魂收割", "ultimate_charge_time": 60.0, "ultimate_duration": 0.8}
+	if kind == "spiral_bamboo":
+		return {"style": "explicit", "ultimate_name": "竹林旋风", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "thorn_cactus":
+		return {"style": "explicit", "ultimate_name": "千刺齐发", "ultimate_charge_time": 60.0, "ultimate_duration": 0.8}
+	if kind == "thunder_god":
+		return {"style": "explicit", "ultimate_name": "万雷齐发", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
+	if kind == "time_rose":
+		return {"style": "explicit", "ultimate_name": "时间停止", "ultimate_charge_time": 68.0, "ultimate_duration": 1.0}
+	if kind == "toxic_gum_pult":
+		return {"style": "explicit", "ultimate_name": "毒胶爆雨", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "vine_emperor":
+		return {"style": "explicit", "ultimate_name": "荆棘牢笼", "ultimate_charge_time": 62.0, "ultimate_duration": 0.8}
+	if kind == "void_shroom":
+		return {"style": "explicit", "ultimate_name": "虚空吞噬", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
 	match kind:
 		"sunflower", "sun_shroom", "sun_bean", "moon_lotus", "marigold":
 			return {"style": "sun_burst", "ultimate_name": "光合作用", "ultimate_charge_time": charge_time - 4.0, "ultimate_duration": 0.6}
