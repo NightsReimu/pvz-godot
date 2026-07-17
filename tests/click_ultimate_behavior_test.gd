@@ -128,10 +128,12 @@ func _test_peashooter_click_ultimate_uses_its_own_plant_food_pattern() -> bool:
 	plant["ultimate_charge"] = 1.0
 	game.grid[row][col] = plant
 	game.call("_spawn_zombie_at", "normal", row, game.call("_cell_center", row, 6).x)
+	var before_count: int = game.projectiles.size()
 	var activated := bool(game.call("_try_activate_ultimate", row, col))
-	var updated_plant: Dictionary = game.grid[row][col]
+	var after_count: int = game.projectiles.size()
 	var passed := _assert_true(activated, "peashooter should accept click ultimate activation when fully charged") \
-		and _assert_true(String(updated_plant.get("plant_food_mode", "")) == "pea_storm", "peashooter click ultimate should trigger its own pea storm pattern instead of the generic lane burst template")
+		and _assert_true(after_count > before_count, "peashooter click ultimate should fire its dedicated pea volley instead of reusing the plant-food mode") \
+		and _assert_true(_count_effect_shape(game, "lane_spray") > 0, "peashooter click ultimate should emit a lane_spray effect")
 	_free_game(game)
 	return passed
 

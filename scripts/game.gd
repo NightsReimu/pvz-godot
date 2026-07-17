@@ -9049,6 +9049,28 @@ func _ultimate_profile_for_kind(kind: String) -> Dictionary:
 		return {"style": "thunder_cloud_hunt", "ultimate_name": "雷云狩猎", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 8.0}
 	if kind == "spikeweed":
 		return {"style": "spike_dragline", "ultimate_name": "荆刺牵杀", "ultimate_charge_time": charge_time - 2.0, "ultimate_duration": 0.9}
+	if kind == "peashooter":
+		return {"style": "explicit", "ultimate_name": "豌豆风暴", "ultimate_charge_time": charge_time, "ultimate_duration": 0.7}
+	if kind == "sunflower":
+		return {"style": "explicit", "ultimate_name": "阳光普照", "ultimate_charge_time": charge_time - 4.0, "ultimate_duration": 0.5}
+	if kind == "repeater":
+		return {"style": "explicit", "ultimate_name": "双重风暴", "ultimate_charge_time": charge_time + 1.0, "ultimate_duration": 0.7}
+	if kind == "snow_pea":
+		return {"style": "explicit", "ultimate_name": "冰河世纪", "ultimate_charge_time": charge_time, "ultimate_duration": 0.7}
+	if kind == "chomper":
+		return {"style": "explicit", "ultimate_name": "大快朵颐", "ultimate_charge_time": charge_time, "ultimate_duration": 0.6}
+	if kind == "torchwood":
+		return {"style": "explicit", "ultimate_name": "烈焰风暴", "ultimate_charge_time": charge_time, "ultimate_duration": 0.6}
+	if kind == "puff_shroom":
+		return {"style": "explicit", "ultimate_name": "孢子云", "ultimate_charge_time": charge_time, "ultimate_duration": 0.6}
+	if kind == "fume_shroom":
+		return {"style": "explicit", "ultimate_name": "毒雾弥漫", "ultimate_charge_time": charge_time, "ultimate_duration": 0.7}
+	if kind == "cabbage_pult":
+		return {"style": "explicit", "ultimate_name": "卷心菜轰炸", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 0.8}
+	if kind == "kernel_pult":
+		return {"style": "explicit", "ultimate_name": "黄油风暴", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 0.8}
+	if kind == "melon_pult":
+		return {"style": "explicit", "ultimate_name": "西瓜连砸", "ultimate_charge_time": charge_time + 3.0, "ultimate_duration": 0.8}
 	if PlantFoodRuntime.supported_kinds().has(kind):
 		return {"style": "plant_food_ultimate", "ultimate_name": String(data.get("ultimate_name", "植物能量")), "ultimate_charge_time": charge_time, "ultimate_duration": 0.8}
 	match kind:
@@ -10182,6 +10204,161 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 								z["health"] = float(z["health"]) - 200.0
 								z["flash"] = 0.35
 				effects.append({"position": mpos, "radius": 300.0, "time": 1.0, "duration": 1.0, "color": Color(0.8, 0.9, 1.0, 0.55)})
+		# -- Core-campaign explicit click ultimates --
+		"peashooter":
+			var pea_damage = maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 22.0)
+			for pea_volley in range(20):
+				var spread_angle = lerpf(-0.22, 0.22, float(pea_volley) / 19.0)
+				projectiles.append({
+					"row": row,
+					"position": Vector2(center.x + 18.0 + fmod(float(pea_volley) * 7.0, 32.0), center.y - 4.0 + spread_angle * 80.0),
+					"speed": 500.0 + float(pea_volley % 3) * 40.0,
+					"velocity_y": 0.0,
+					"damage": pea_damage,
+					"color": Color(0.28, 0.82, 0.18),
+					"radius": 7.0,
+					"reflected": false,
+					"fire": false,
+					"free_aim": false,
+				})
+			effects.append({"shape": "lane_spray", "position": center + Vector2(18.0, -8.0), "length": board_size.x, "width": 68.0, "radius": board_size.x * 0.5, "time": 0.3, "duration": 0.3, "color": Color(0.24, 0.88, 0.26, 0.3)})
+			_trigger_screen_shake(4.0)
+		"sunflower":
+			for s in range(6):
+				var angle = TAU * float(s) / 6.0
+				_spawn_sun(center + Vector2(cos(angle) * 36.0, sin(angle) * 36.0), center.y - 28.0, "plant_food", 50)
+			effects.append({"position": center, "radius": 110.0, "time": 0.32, "duration": 0.32, "color": Color(1.0, 0.9, 0.36, 0.28)})
+		"repeater":
+			var rep_damage = maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 22.0)
+			for _wave in range(2):
+				for rep_shot in range(8):
+					projectiles.append({
+						"row": row,
+						"position": Vector2(center.x + 32.0 + float(rep_shot % 3) * 12.0, center.y - 12.0 + float(rep_shot % 2) * 8.0),
+						"speed": 580.0,
+						"velocity_y": 0.0,
+						"damage": rep_damage,
+						"color": Color(0.26, 0.78, 0.16),
+						"radius": 7.0,
+						"reflected": false,
+						"fire": false,
+						"free_aim": false,
+					})
+			effects.append({"shape": "lane_spray", "position": center + Vector2(22.0, -8.0), "length": board_size.x, "width": 72.0, "radius": board_size.x * 0.5, "time": 0.3, "duration": 0.3, "color": Color(0.22, 0.8, 0.18, 0.3)})
+			_trigger_screen_shake(5.0)
+		"snow_pea":
+			var snow_damage = maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 20.0)
+			for snow_shot in range(12):
+				projectiles.append({
+					"row": row,
+					"position": Vector2(center.x + 18.0 + float(snow_shot) * 8.0, center.y - 8.0),
+					"speed": 520.0,
+					"velocity_y": 0.0,
+					"damage": snow_damage,
+					"slow_duration": 8.0,
+					"color": Color(0.62, 0.92, 1.0),
+					"radius": 7.0,
+					"reflected": false,
+					"fire": false,
+					"free_aim": false,
+				})
+			for i in range(zombies.size()):
+				var z = zombies[i]
+				if int(z["row"]) != row or not _is_enemy_zombie(z):
+					continue
+				z["frozen_timer"] = maxf(float(z.get("frozen_timer", 0.0)), 4.0)
+				zombies[i] = z
+			effects.append({"shape": "lane_spray", "position": center + Vector2(18.0, -8.0), "length": board_size.x, "width": 64.0, "radius": board_size.x * 0.5, "time": 0.3, "duration": 0.3, "color": Color(0.56, 0.96, 1.0, 0.32)})
+			_trigger_screen_shake(4.0)
+		"chomper":
+			var eaten_count := 0
+			var chomp_range = CELL_SIZE.x * 3.8
+			for i in range(zombies.size()):
+				var z = zombies[i]
+				if int(z["row"]) != row or float(z["x"]) - center.x < -20.0 or float(z["x"]) - center.x > chomp_range:
+					continue
+				if not _is_enemy_zombie(z) or bool(z.get("boss", false)):
+					continue
+				z["health"] = 0.0
+				z["flash"] = 0.3
+				zombies[i] = z
+				eaten_count += 1
+			effects.append({"shape": "lane_spray", "position": center + Vector2(10.0, -6.0), "length": chomp_range, "width": 52.0, "radius": chomp_range * 0.5, "time": 0.32, "duration": 0.32, "color": Color(0.72, 0.24, 0.68, 0.3)})
+			if eaten_count > 0:
+				_trigger_screen_shake(6.0)
+		"torchwood":
+			var fire_radius = maxf(float(Defs.PLANTS[kind].get("range", 180.0)), 180.0)
+			_damage_zombies_in_circle(center, fire_radius + 40.0, 200.0)
+			for z in zombies:
+				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
+				if zpos.distance_to(center) <= fire_radius + 40.0:
+					z["burn_timer"] = maxf(float(z.get("burn_timer", 0.0)), 4.0)
+					z["burn_dps"] = maxf(float(z.get("burn_dps", 0.0)), 42.0)
+					z["flash"] = 0.3
+			# Boost all nearby pea projectiles into fire peas
+			for p in projectiles:
+				var ppos = Vector2(p["position"])
+				if ppos.distance_to(center) <= fire_radius + 60.0 and String(p.get("kind", "")) == "pea" and not bool(p.get("fire", false)):
+					p["fire"] = true
+					p["damage"] = float(p["damage"]) * 1.6
+			effects.append({"position": center, "radius": fire_radius + 40.0, "time": 0.42, "duration": 0.42, "color": Color(1.0, 0.42, 0.12, 0.3)})
+			_trigger_screen_shake(5.0)
+		"puff_shroom":
+			var spore_damage = maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 20.0)
+			for _s in range(10):
+				var spore_angle = rng.randf_range(-0.5, 0.5)
+				projectiles.append({
+					"row": row,
+					"position": Vector2(center.x + rng.randf_range(4.0, 22.0), center.y + rng.randf_range(-16.0, 16.0)),
+					"speed": 360.0 + rng.randf_range(-40.0, 40.0),
+					"velocity_y": spore_angle * 60.0,
+					"damage": spore_damage,
+					"color": Color(0.68, 0.48, 0.82),
+					"radius": 6.0,
+					"reflected": false,
+					"fire": false,
+					"free_aim": false,
+				})
+			effects.append({"position": center, "radius": 100.0, "time": 0.28, "duration": 0.28, "color": Color(0.72, 0.44, 0.9, 0.24)})
+			_trigger_screen_shake(3.0)
+		"fume_shroom":
+			var fume_range = float(Defs.PLANTS[kind].get("range", 320.0)) + 120.0
+			for i in range(zombies.size()):
+				var z = zombies[i]
+				if int(z["row"]) != row or bool(z.get("jumping", false)) or not _is_enemy_zombie(z):
+					continue
+				var dz = float(z["x"]) - center.x
+				if dz < -20.0 or dz > fume_range:
+					continue
+				z = _apply_zombie_damage(z, 200.0, 0.24, 4.0)
+				zombies[i] = z
+			_damage_obstacles_in_radius(row, center.x + fume_range * 0.5, fume_range * 0.5, 200.0)
+			effects.append({"shape": "lane_spray", "position": center + Vector2(26.0, -6.0), "length": fume_range, "width": float(Defs.PLANTS[kind].get("width", 92.0)) * 1.85, "radius": fume_range * 0.58, "time": 0.38, "duration": 0.38, "color": Color(0.88, 0.62, 1.0, 0.32)})
+			_trigger_screen_shake(5.0)
+		"cabbage_pult":
+			for _cb in range(8):
+				var tgt = _find_global_frontmost_target()
+				if int(tgt.get("row", -1)) == -1:
+					break
+				_ensure_plant_runtime().spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), Vector2(float(tgt["x"]), _row_center_y(int(tgt["row"])) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 40.0)) * 2.0, 90.0), Color(0.56, 0.92, 0.34), 68.0, 10.0, 0.0, 0.0, "cabbage_pult")
+			effects.append({"position": center, "radius": 150.0, "time": 0.36, "duration": 0.36, "color": Color(0.66, 0.88, 0.26, 0.28)})
+			_trigger_screen_shake(5.0)
+		"kernel_pult":
+			for _kn in range(6):
+				var kt = _find_global_frontmost_target()
+				if int(kt.get("row", -1)) == -1:
+					break
+				_ensure_plant_runtime().spawn_roof_lobbed_projectile("butter", row, center + Vector2(14.0, -26.0), Vector2(float(kt["x"]), _row_center_y(int(kt["row"])) - 6.0), maxf(float(Defs.PLANTS[kind].get("damage", 20.0)) * 3.0, 70.0), Color(1.0, 0.92, 0.42), 64.0, 10.0, 0.0, 6.0, "kernel_pult")
+			effects.append({"position": center, "radius": 120.0, "time": 0.32, "duration": 0.32, "color": Color(0.96, 0.92, 0.46, 0.28)})
+			_trigger_screen_shake(4.0)
+		"melon_pult":
+			for _wm in range(5):
+				var wm_tgt = _find_global_frontmost_target()
+				if int(wm_tgt.get("row", -1)) == -1:
+					break
+				_ensure_plant_runtime().spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -34.0), Vector2(float(wm_tgt["x"]), _row_center_y(int(wm_tgt["row"])) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 80.0)) * 2.0, 180.0), Color(0.42, 0.82, 0.26), 80.0, 14.0, float(Defs.PLANTS[kind].get("splash_radius", 66.0)), 0.0, "melon_pult")
+			effects.append({"position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(0.26, 0.64, 0.16, 0.32)})
+			_trigger_screen_shake(6.0)
 		"chain_lotus":
 			var clpos = center
 			var hit_ids: Array = []
