@@ -9,7 +9,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed := false
-	failed = not _test_peashooter_click_ultimate_uses_its_own_plant_food_pattern() or failed
+	failed = not _test_campaign_click_ultimates_restore_plant_food_power() or failed
 	failed = not _test_amber_shooter_click_ultimate_spawns_dedicated_amber_barrage() or failed
 	failed = not _test_moonforge_click_ultimate_launches_moonfall_projectiles() or failed
 	failed = not _test_flower_pot_click_ultimate_creates_supports_instead_of_generic_heal() or failed
@@ -120,20 +120,22 @@ func _unique_projectile_kind_count(game: Control) -> int:
 	return kinds.size()
 
 
-func _test_peashooter_click_ultimate_uses_its_own_plant_food_pattern() -> bool:
+func _test_campaign_click_ultimates_restore_plant_food_power() -> bool:
 	var game := _make_game()
+	var passed := true
+	for kind in ["peashooter", "sunflower", "wallnut", "cherry_bomb", "fume_shroom"]:
+		var profile: Dictionary = game.call("_ultimate_profile_for_kind", kind)
+		passed = _assert_true(String(profile.get("style", "")) == "plant_food_ultimate", "%s click ultimate should restore its strong plant-food power" % kind) and passed
 	var row := 2
 	var col := 2
 	var plant = game.call("_create_plant", "peashooter", row, col)
 	plant["ultimate_charge"] = 1.0
 	game.grid[row][col] = plant
 	game.call("_spawn_zombie_at", "normal", row, game.call("_cell_center", row, 6).x)
-	var before_count: int = game.projectiles.size()
 	var activated := bool(game.call("_try_activate_ultimate", row, col))
-	var after_count: int = game.projectiles.size()
-	var passed := _assert_true(activated, "peashooter should accept click ultimate activation when fully charged") \
-		and _assert_true(after_count > before_count, "peashooter click ultimate should fire its dedicated pea volley instead of reusing the plant-food mode") \
-		and _assert_true(_count_effect_shape(game, "lane_spray") > 0, "peashooter click ultimate should emit a lane_spray effect")
+	var updated_plant: Dictionary = game.grid[row][col]
+	passed = _assert_true(activated, "peashooter should accept click ultimate activation when fully charged") and passed
+	passed = _assert_true(String(updated_plant.get("plant_food_mode", "")) == "pea_storm", "peashooter click ultimate should enter its full plant-food pea storm") and passed
 	_free_game(game)
 	return passed
 

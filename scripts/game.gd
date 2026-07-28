@@ -9049,6 +9049,8 @@ func _ultimate_profile_for_kind(kind: String) -> Dictionary:
 		return {"style": "thunder_cloud_hunt", "ultimate_name": "雷云狩猎", "ultimate_charge_time": charge_time + 2.0, "ultimate_duration": 8.0}
 	if kind == "spikeweed":
 		return {"style": "spike_dragline", "ultimate_name": "荆刺牵杀", "ultimate_charge_time": charge_time - 2.0, "ultimate_duration": 0.9}
+	if PlantFoodRuntime.supported_kinds().has(kind):
+		return {"style": "plant_food_ultimate", "ultimate_name": String(data.get("ultimate_name", "植物能量")), "ultimate_charge_time": charge_time, "ultimate_duration": 0.8}
 	if kind == "abyss_tentacle":
 		return {"style": "explicit", "ultimate_name": "深渊吞噬", "ultimate_charge_time": 72.0, "ultimate_duration": 1.0}
 	if kind == "aurora_orchid":
