@@ -142,5 +142,23 @@
     "reference_sheet": "tmp/imagegen/touhou-boss-animation/yuyuko-8pose-reference.png",
     "image2_sheet": "output/imagegen/touhou-boss-animation/yuyuko-24frame-sheet.png",
     "contact_sheet": "output/touhou-boss-animation-contact-sheets/yuyuko-24frame-contact.png"
+  },
+  {
+    "kind": "ran_boss",
+    "folder": "art/ran",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/ran-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/ran-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/ran-24frame-contact.png"
+  },
+  {
+    "kind": "yukari_boss",
+    "folder": "art/yukari",
+    "frame_count": 24,
+    "source": "gpt-image-2_sheet",
+    "reference_sheet": "tmp/imagegen/touhou-boss-animation/yukari-8pose-reference.png",
+    "image2_sheet": "output/imagegen/touhou-boss-animation/yukari-24frame-sheet.png",
+    "contact_sheet": "output/touhou-boss-animation-contact-sheets/yukari-24frame-contact.png"
   }
 ]

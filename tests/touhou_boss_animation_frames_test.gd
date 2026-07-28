@@ -18,6 +18,8 @@ const BOSS_KINDS := [
 	"prismriver_boss",
 	"youmu_boss",
 	"yuyuko_boss",
+	"ran_boss",
+	"yukari_boss",
 	"flandre_boss",
 ]
 
@@ -37,6 +39,8 @@ const STATE_SAMPLES := {
 	"prismriver_boss": ["phantom_dinning", "lunasa", "merlin", "lyrica", "live_poltergeist", "phase", "shift"],
 	"youmu_boss": ["slash", "dash", "instant", "cross", "wraith", "finale", "phase"],
 	"yuyuko_boss": ["sakura", "butterfly", "grave", "spirit", "tree", "full_bloom", "resurrection", "phase"],
+	"ran_boss": ["shikigami", "fox", "star", "boundary", "phase", "shift"],
+	"yukari_boss": ["gap", "boundary", "train", "butterfly", "phase", "shift"],
 	"flandre_boss": ["laevatein", "clones", "kagome", "crystal", "judgement", "cranberry", "phase", "shift"],
 }
 

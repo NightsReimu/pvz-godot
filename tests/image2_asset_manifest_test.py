@@ -27,6 +27,8 @@ TOUHOU_BOSSES = {
     "prismriver_boss",
     "youmu_boss",
     "yuyuko_boss",
+    "ran_boss",
+    "yukari_boss",
     "flandre_boss",
 }
 

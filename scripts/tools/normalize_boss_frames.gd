@@ -119,6 +119,24 @@ const TARGETS := {
 		"fringe_passes": 3,
 		"preserve_internal_white": true,
 	},
+	"ran_boss": {
+		"output_folder": "res://art/ran",
+		"frame_count": 8,
+		"sheet_path": "/var/folders/xh/7z0xwb9j0ss_812rll0w1f300000gn/T/codex-clipboard-444b33d9-1b08-478b-b14c-3dfc151ec1c7.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+		"fringe_passes": 3,
+		"preserve_internal_white": true,
+	},
+	"yukari_boss": {
+		"output_folder": "res://art/yukari",
+		"frame_count": 8,
+		"sheet_path": "/var/folders/xh/7z0xwb9j0ss_812rll0w1f300000gn/T/codex-clipboard-d35671dc-f350-4437-ace5-19ee9ae5d0e5.png",
+		"grid": Vector2i(4, 2),
+		"flip_x": false,
+		"fringe_passes": 3,
+		"preserve_internal_white": true,
+	},
 }
 
 const WHITE_THRESHOLD := 0.93

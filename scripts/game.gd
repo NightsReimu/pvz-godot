@@ -445,6 +445,8 @@ const LILY_WHITE_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const PRISMRIVER_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const YOUMU_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const YUYUKO_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const RAN_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const YUKARI_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const FLANDRE_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 
 static var shared_audio_stream_cache := {}
@@ -496,6 +498,9 @@ static var shared_youmu_frames_face_left = null
 static var shared_yuyuko_frames: Array = []
 static var shared_yuyuko_frames_loaded := false
 static var shared_yuyuko_frames_face_left = null
+static var shared_dynamic_boss_frames := {}
+static var shared_dynamic_boss_frames_loaded := {}
+static var shared_dynamic_boss_frames_face_left := {}
 static var shared_flandre_frames: Array = []
 static var shared_flandre_frames_loaded := false
 static var shared_flandre_frames_face_left = null
@@ -588,6 +593,8 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"youmu_wraith",
 	"yuyuko_spirit",
 	"yuyuko_boss",
+	"ran_boss",
+	"yukari_boss",
 	"flandre_boss",
 	"umbrella_zombie",
 	"shania_zombie",
@@ -1005,6 +1012,9 @@ var youmu_frames_face_left = null
 var yuyuko_frames: Array = []
 var yuyuko_frames_loaded := false
 var yuyuko_frames_face_left = null
+var dynamic_boss_frames := {}
+var dynamic_boss_frames_loaded := {}
+var dynamic_boss_frames_face_left := {}
 var flandre_frames: Array = []
 var flandre_frames_loaded := false
 var flandre_frames_face_left = null
@@ -3082,6 +3092,10 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 			return YOUMU_FRAME_COUNT
 		"yuyuko_boss":
 			return YUYUKO_FRAME_COUNT
+		"ran_boss":
+			return RAN_FRAME_COUNT
+		"yukari_boss":
+			return YUKARI_FRAME_COUNT
 		"flandre_boss":
 			return FLANDRE_FRAME_COUNT
 		_:
@@ -3120,6 +3134,10 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 			return "res://art/youmu"
 		"yuyuko_boss":
 			return "res://art/yuyuko"
+		"ran_boss":
+			return "res://art/ran"
+		"yukari_boss":
+			return "res://art/yukari"
 		"flandre_boss":
 			return "res://art/flandre"
 		_:
@@ -3134,7 +3152,7 @@ func _boss_frame_resource_path(kind: String, frame_index: int) -> String:
 
 
 func _boss_assets_are_preprocessed(kind: String) -> bool:
-	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "lily_white_boss" or kind == "prismriver_boss" or kind == "youmu_boss" or kind == "yuyuko_boss" or kind == "flandre_boss"
+	return _boss_frame_count_for_kind(kind) > 0
 
 
 func _is_existing_touhou_boss_kind(kind: String) -> bool:
@@ -3258,7 +3276,7 @@ func _shared_boss_frames_for_kind(kind: String) -> Array:
 		"flandre_boss":
 			return shared_flandre_frames
 		_:
-			return []
+			return Array(shared_dynamic_boss_frames.get(kind, []))
 
 
 func _shared_boss_frames_face_left_for_kind(kind: String):
@@ -3296,7 +3314,7 @@ func _shared_boss_frames_face_left_for_kind(kind: String):
 		"flandre_boss":
 			return shared_flandre_frames_face_left
 		_:
-			return null
+			return shared_dynamic_boss_frames_face_left.get(kind, null)
 
 
 func _set_shared_boss_frames_for_kind(kind: String, frames: Array, loaded: bool, face_left) -> void:
@@ -3365,6 +3383,11 @@ func _set_shared_boss_frames_for_kind(kind: String, frames: Array, loaded: bool,
 			shared_flandre_frames = frames
 			shared_flandre_frames_loaded = loaded
 			shared_flandre_frames_face_left = face_left
+		_:
+			if _boss_frame_count_for_kind(kind) > 0:
+				shared_dynamic_boss_frames[kind] = frames
+				shared_dynamic_boss_frames_loaded[kind] = loaded
+				shared_dynamic_boss_frames_face_left[kind] = face_left
 
 
 func _instance_boss_frames_for_kind(kind: String) -> Array:
@@ -3402,7 +3425,7 @@ func _instance_boss_frames_for_kind(kind: String) -> Array:
 		"flandre_boss":
 			return flandre_frames
 		_:
-			return []
+			return Array(dynamic_boss_frames.get(kind, []))
 
 
 func _instance_boss_frames_face_left_for_kind(kind: String):
@@ -3440,7 +3463,7 @@ func _instance_boss_frames_face_left_for_kind(kind: String):
 		"flandre_boss":
 			return flandre_frames_face_left
 		_:
-			return null
+			return dynamic_boss_frames_face_left.get(kind, null)
 
 
 func _set_instance_boss_frames_for_kind(kind: String, frames: Array, loaded: bool, face_left) -> void:
@@ -3509,6 +3532,11 @@ func _set_instance_boss_frames_for_kind(kind: String, frames: Array, loaded: boo
 			flandre_frames = frames
 			flandre_frames_loaded = loaded
 			flandre_frames_face_left = face_left
+		_:
+			if _boss_frame_count_for_kind(kind) > 0:
+				dynamic_boss_frames[kind] = frames
+				dynamic_boss_frames_loaded[kind] = loaded
+				dynamic_boss_frames_face_left[kind] = face_left
 
 
 func _boss_frame_array_is_complete(frames: Array, expected_count: int) -> bool:
@@ -3575,6 +3603,7 @@ func _queue_level_boss_asset_prewarm(level: Dictionary) -> void:
 	_queue_audio_stream_prewarm(String(level.get("boss_intro_bgm", "")))
 	_queue_audio_stream_prewarm(String(level.get("boss_bgm", "")))
 	_queue_audio_stream_prewarm(String(level.get("boss_revival_bgm", "")))
+	_queue_audio_stream_prewarm(String(level.get("boss_successor_bgm", "")))
 	var boss_kinds := {}
 	var midboss_kind = String(level.get("mid_boss_kind", ""))
 	if _is_image_backed_hover_boss(midboss_kind):
@@ -3583,6 +3612,12 @@ func _queue_level_boss_asset_prewarm(level: Dictionary) -> void:
 		var kind = String(event.get("kind", ""))
 		if _is_image_backed_hover_boss(kind):
 			boss_kinds[kind] = true
+		var successor_kind = String(Defs.ZOMBIES.get(kind, {}).get("successor_kind", ""))
+		if _is_image_backed_hover_boss(successor_kind):
+			boss_kinds[successor_kind] = true
+	var configured_successor = String(level.get("boss_successor_kind", ""))
+	if _is_image_backed_hover_boss(configured_successor):
+		boss_kinds[configured_successor] = true
 	for kind in boss_kinds.keys():
 		_queue_boss_frame_set_prewarm(String(kind))
 
@@ -3602,7 +3637,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	var target_tab = tab if tab != "" else almanac_tab
 	if target_tab != "zombies":
 		return
-	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "lily_white_boss", "prismriver_boss", "youmu_boss", "yuyuko_boss", "flandre_boss"]:
+	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "lily_white_boss", "prismriver_boss", "youmu_boss", "yuyuko_boss", "ran_boss", "yukari_boss", "flandre_boss"]:
 		_queue_boss_frame_set_prewarm(kind)
 
 
@@ -7359,7 +7394,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		var ski = zombies[ski_index]
 		ski["special_pause_timer"] = 0.0
 		zombies[ski_index] = ski
-	if kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "lily_white_boss" or kind == "prismriver_boss" or kind == "youmu_boss" or kind == "yuyuko_boss" or kind == "flandre_boss":
+	if _is_image_backed_hover_boss(kind):
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
 		boss_unit["x"] = _boss_anchor_x(kind)
@@ -7443,6 +7478,24 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 				"color": Color(1.0, 0.58, 0.78, 0.34),
 			})
 			_show_banner("西行寺幽幽子从樱花中现身！", 3.0)
+		elif kind == "ran_boss":
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.get("boss_bgm", "")))
+			effects.append({
+				"shape": "ran_shikigami_arrival",
+				"position": Vector2(float(boss_unit["x"]), _row_center_y(int(boss_unit["row"])) - 28.0),
+				"radius": 190.0,
+				"time": 0.82,
+				"duration": 0.82,
+				"anim_speed": 7.2,
+				"color": Color(1.0, 0.64, 0.22, 0.34),
+			})
+			_show_banner("九尾式神八云蓝展开结界！", 2.9)
+		elif kind == "yukari_boss":
+			var successor_bgm = String(current_level.get("boss_successor_bgm", ""))
+			if successor_bgm != "":
+				_play_bgm(successor_bgm)
+			_show_banner("境界裂开，八云紫从隙间中现身！", 3.1)
 		elif kind == "flandre_boss":
 			if String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
@@ -12890,6 +12943,9 @@ func _cleanup_dead_zombies() -> void:
 		if String(zombie.get("kind", "")) == "yuyuko_boss" and bool(Defs.ZOMBIES["yuyuko_boss"].get("revive_once", false)) and not bool(zombie.get("yuyuko_revived", false)):
 			zombies[i] = _trigger_yuyuko_boss_revival(zombie)
 			continue
+		if String(zombie.get("kind", "")) == "ran_boss":
+			zombies[i] = _trigger_ran_boss_successor(zombie)
+			continue
 		total_kills += 1
 		# Death VFX
 		var death_pos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
@@ -14450,7 +14506,7 @@ func _boss_anchor_x(_kind: String) -> float:
 
 
 func _is_hovering_boss_kind(kind: String) -> bool:
-	return kind == "rumia_boss" or kind == "daiyousei_boss" or kind == "cirno_boss" or kind == "meiling_boss" or kind == "koakuma_boss" or kind == "patchouli_boss" or kind == "sakuya_boss" or kind == "remilia_boss" or kind == "letty_boss" or kind == "chen_boss" or kind == "alice_boss" or kind == "lily_white_boss" or kind == "prismriver_boss" or kind == "youmu_boss" or kind == "yuyuko_boss" or kind == "flandre_boss"
+	return _is_image_backed_hover_boss(kind)
 
 
 func _prismriver_boss_bounds() -> Dictionary:
@@ -14558,6 +14614,14 @@ func _roll_hover_shift_interval(kind: String, phase: int) -> float:
 			var min_interval = maxf(3.4, 4.8 - float(phase) * 0.1)
 			var max_interval = maxf(min_interval + 0.72, 6.0 - float(phase) * 0.08)
 			return rng.randf_range(min_interval, max_interval)
+		"ran_boss":
+			var min_interval = maxf(2.8, 3.8 - float(phase) * 0.12)
+			var max_interval = maxf(min_interval + 0.62, 5.0 - float(phase) * 0.08)
+			return rng.randf_range(min_interval, max_interval)
+		"yukari_boss":
+			var min_interval = maxf(3.2, 4.4 - float(phase) * 0.1)
+			var max_interval = maxf(min_interval + 0.72, 5.7 - float(phase) * 0.08)
+			return rng.randf_range(min_interval, max_interval)
 		"flandre_boss":
 			var min_interval = maxf(2.4, 3.4 - float(phase) * 0.16)
 			var max_interval = maxf(min_interval + 0.54, 4.5 - float(phase) * 0.12)
@@ -14609,6 +14673,10 @@ func _hover_boss_effect_tint(kind: String) -> Color:
 			return Color(0.76, 0.96, 1.0, 0.3)
 		"yuyuko_boss":
 			return Color(1.0, 0.58, 0.78, 0.28)
+		"ran_boss":
+			return Color(1.0, 0.58, 0.2, 0.3)
+		"yukari_boss":
+			return Color(0.72, 0.42, 1.0, 0.32)
 		"flandre_boss":
 			return Color(0.98, 0.42, 0.2, 0.28)
 		_:
@@ -14643,6 +14711,10 @@ func _hover_boss_move_duration(kind: String) -> float:
 			return 0.34
 		"yuyuko_boss":
 			return 0.82
+		"ran_boss":
+			return 0.64
+		"yukari_boss":
+			return 0.9
 		"flandre_boss":
 			return 0.76
 		_:
@@ -15012,6 +15084,20 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["yuyuko_spirit", "dark_football", "wizard_zombie", "wither_zombie", "basketball"],
 			]
 			tint = Color(1.0, 0.62, 0.86, 0.3)
+		"ran_boss":
+			pools = [
+				["nether", "ninja", "screen_door", "newspaper"],
+				["wizard_zombie", "balloon_zombie", "football", "ninja"],
+				["dark_football", "gargantuar", "wizard_zombie", "tornado_zombie"],
+			]
+			tint = Color(1.0, 0.58, 0.2, 0.3)
+		"yukari_boss":
+			pools = [
+				["nether", "balloon_zombie", "ninja", "digger_zombie"],
+				["wizard_zombie", "tornado_zombie", "football", "basketball"],
+				["dark_football", "gargantuar", "mech_zombie", "wither_zombie", "tornado_zombie"],
+			]
+			tint = Color(0.72, 0.42, 1.0, 0.32)
 		"flandre_boss":
 			# 1-23 is the Touhou (红魔馆) finale, so the reinforcement pool
 			# deliberately excludes programmer_zombie: its global attack-speed
@@ -16315,6 +16401,196 @@ func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
 			return _set_rumia_state(zombie, "cranberry", 0.56)
 
 
+func _yakumo_effect_points(cells: Array) -> Array:
+	var points: Array = []
+	for cell_variant in cells:
+		var cell = Vector2i(cell_variant)
+		points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
+	return points
+
+
+func _yakumo_radial_effect_points(center: Vector2, count: int, radius: float) -> Array:
+	var points: Array = []
+	for point_index in range(maxi(0, count)):
+		var angle = TAU * float(point_index) / float(maxi(1, count)) - PI * 0.5
+		points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+	return points
+
+
+func _trigger_ran_boss_skill(zombie: Dictionary) -> Dictionary:
+	var data = Dictionary(Defs.ZOMBIES.get("ran_boss", {}))
+	var phase = int(zombie.get("boss_phase", 0))
+	var row = int(zombie.get("row", 2))
+	var center = Vector2(float(zombie.get("x", _boss_anchor_x("ran_boss"))), _row_center_y(row) - 24.0)
+	var cells: Array = []
+	var shape := "ran_senko_meditation"
+	var state := "senko"
+	var banner := "式神「仙狐思念」"
+	match int(zombie.get("boss_skill_cycle", 0)):
+		0:
+			_damage_plants_in_row_segment(row, BOARD_ORIGIN.x, BOARD_ORIGIN.x + board_size.x, float(data.get("senko_damage", 46.0)) + phase * 4.0)
+		1:
+			shape = "ran_twelve_generals"
+			state = "generals"
+			banner = "式神「十二神将之宴」"
+			for lane_variant in active_rows:
+				_damage_front_plant_in_row(int(lane_variant), float(data.get("twelve_generals_damage", 36.0)) + phase * 3.0)
+			for _i in range(mini(3, 1 + phase)):
+				_spawn_hover_boss_reinforcement("ran_boss", phase)
+		2:
+			shape = "ran_fox_tanuki_laser"
+			state = "laser"
+			banner = "式辉「狐狸狸猫妖怪激光」"
+			var laser_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else row
+			_damage_plants_in_row_segment(laser_row, BOARD_ORIGIN.x, BOARD_ORIGIN.x + board_size.x, float(data.get("fox_tanuki_laser_damage", 82.0)) + phase * 6.0)
+			center = Vector2(BOARD_ORIGIN.x, _row_center_y(laser_row) - 10.0)
+		3:
+			shape = "ran_princess_tenko"
+			state = "tenko"
+			banner = "式辉「天狐公主 -Illusion-」"
+			cells = _pick_random_active_cells(4 + phase, 1, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("princess_tenko_damage", 62.0)) + phase * 4.0, 0.5)
+		4:
+			shape = "ran_ultimate_buddhist"
+			state = "buddhist"
+			banner = "式弹「Ultimate Buddhist」"
+			cells = _pick_random_active_cells(5 + phase, 2, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("ultimate_buddhist_damage", 54.0)) + phase * 4.0)
+		5:
+			shape = "ran_shiki_god_chen"
+			state = "shiki"
+			banner = "式神「橙」"
+			for summon_kind in ["ninja", "nether"]:
+				_spawn_zombie_at(summon_kind, _choose_spawn_row_for_kind(summon_kind), BOARD_ORIGIN.x + board_size.x + 34.0, true)
+			cells = _pick_random_active_cells(3 + phase, 3, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("shiki_god_damage", 48.0)) + phase * 3.0)
+		6:
+			shape = "ran_unilateral_contact"
+			state = "contact"
+			banner = "式神「单向接触」"
+			var contact_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else row
+			_damage_plants_in_row_segment(contact_row, BOARD_ORIGIN.x, BOARD_ORIGIN.x + board_size.x, float(data.get("unilateral_contact_damage", 88.0)) + phase * 6.0)
+			center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, _row_center_y(contact_row) - 10.0)
+		7:
+			shape = "ran_kokkuri_contract"
+			state = "kokkuri"
+			banner = "式神「狐狗狸契约」"
+			cells = _pick_random_active_cells(5 + phase, 1, COLS - 2)
+			_damage_plants_in_cells(cells, float(data.get("kokkuri_damage", 56.0)) + phase * 4.0, 0.7)
+			_spawn_hover_boss_reinforcement("ran_boss", phase)
+		_:
+			shape = "ran_izuna_gongen"
+			state = "izuna"
+			banner = "幻神「饭纲权现降临」"
+			cells = _pick_random_active_cells(6 + phase, 0, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("izuna_gongen_damage", 40.0)) + phase * 3.0, 0.45)
+			zombie = _heal_hover_boss(zombie, 90.0 + phase * 45.0)
+	effects.append({
+		"shape": shape,
+		"position": center,
+		"target": Vector2(BOARD_ORIGIN.x + board_size.x, center.y),
+		"points": _yakumo_effect_points(cells),
+		"radius": 210.0 + phase * 16.0,
+		"length": board_size.x * 0.92,
+		"width": CELL_SIZE.y * (1.25 + phase * 0.08),
+		"time": 0.68,
+		"duration": 0.68,
+		"anim_speed": 8.0 + phase * 0.6,
+		"color": Color(1.0, 0.58, 0.2, 0.34),
+	})
+	_show_banner(banner, 1.25)
+	return _set_rumia_state(zombie, state, 0.7)
+
+
+func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
+	var data = Dictionary(Defs.ZOMBIES.get("yukari_boss", {}))
+	var phase = int(zombie.get("boss_phase", 0))
+	var row = int(zombie.get("row", 2))
+	var center = Vector2(float(zombie.get("x", _boss_anchor_x("yukari_boss"))), _row_center_y(row) - 26.0)
+	var cells: Array = []
+	var shape := "yukari_boundary_wave"
+	var state := "boundary"
+	var banner := "境符「四重结界」"
+	match int(zombie.get("boss_skill_cycle", 0)):
+		0:
+			for lane_index in range(active_rows.size()):
+				if lane_index % 2 == phase % 2:
+					_damage_front_plant_in_row(int(active_rows[lane_index]), float(data.get("boundary_wave_damage", 46.0)) + phase * 3.0)
+		1:
+			shape = "yukari_duplex_barrier"
+			state = "barrier"
+			banner = "罔两「二重黑死蝶」"
+			cells = _pick_random_active_cells(5 + phase, 1, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("duplex_barrier_damage", 54.0)) + phase * 4.0, 0.45)
+		2:
+			shape = "yukari_mesh_of_light"
+			state = "mesh"
+			banner = "式神「八云蓝」"
+			cells = _pick_random_active_cells(6 + phase, 0, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("mesh_of_light_damage", 42.0)) + phase * 3.0)
+			_spawn_hover_boss_reinforcement("yukari_boss", phase)
+		3:
+			shape = "yukari_evil_eyes"
+			state = "eyes"
+			banner = "境符「百万鬼夜行」"
+			cells = _pick_random_active_cells(4 + phase, 2, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("evil_eye_damage", 58.0)) + phase * 4.0, 0.6)
+		4:
+			shape = "yukari_flying_object"
+			state = "object"
+			banner = "罔两「直与曲的梦乡」"
+			var object_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else row
+			_damage_plants_in_row_segment(object_row, BOARD_ORIGIN.x, BOARD_ORIGIN.x + board_size.x, float(data.get("flying_object_damage", 72.0)) + phase * 5.0)
+			center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, _row_center_y(object_row) - 10.0)
+		5:
+			shape = "yukari_dream_reality"
+			state = "dream"
+			banner = "罔两「梦与现实的诅咒」"
+			cells = _pick_random_active_cells(4 + phase, 1, COLS - 2)
+			_damage_plants_in_cells(cells, float(data.get("dream_reality_damage", 54.0)) + phase * 4.0, 1.0)
+		6:
+			shape = "yukari_butterfly_dream"
+			state = "butterfly"
+			banner = "魍魉「二重黑死蝶」"
+			cells = _pick_random_active_cells(7 + phase, 0, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("butterfly_dream_damage", 44.0)) + phase * 3.0)
+		7:
+			shape = "yukari_deep_fog_labyrinth"
+			state = "labyrinth"
+			banner = "境符「色与空的境界」"
+			cells = _pick_random_active_cells(6 + phase, 1, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("deep_fog_damage", 48.0)) + phase * 3.0, 1.15)
+		8:
+			shape = "yukari_infinite_supernatural"
+			state = "infinite"
+			banner = "结界「客观结界」"
+			for lane_variant in active_rows:
+				_damage_front_plant_in_row(int(lane_variant), float(data.get("infinite_supernatural_damage", 38.0)) + phase * 2.0)
+		_:
+			shape = "yukari_necrofantasia"
+			state = "necrofantasia"
+			banner = "紫奥义「弹幕结界」"
+			cells = _pick_random_active_cells(8 + phase, 0, COLS - 1)
+			_damage_plants_in_cells(cells, float(data.get("necrofantasia_damage", 40.0)) + phase * 3.0, 0.8)
+			for _i in range(mini(3, 1 + phase)):
+				_spawn_hover_boss_reinforcement("yukari_boss", phase)
+	effects.append({
+		"shape": shape,
+		"position": center,
+		"target": Vector2(BOARD_ORIGIN.x, center.y),
+		"points": _yakumo_effect_points(cells),
+		"radius": 230.0 + phase * 18.0,
+		"length": board_size.x * 0.94,
+		"width": CELL_SIZE.y * (1.42 + phase * 0.08),
+		"time": 0.74,
+		"duration": 0.74,
+		"anim_speed": 8.6 + phase * 0.7,
+		"color": Color(0.68, 0.34, 1.0, 0.36),
+	})
+	_show_banner(banner, 1.3)
+	return _set_rumia_state(zombie, state, 0.76)
+
+
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 	if String(zombie["kind"]) == "rumia_boss":
 		return _trigger_rumia_boss_skill(zombie)
@@ -16346,6 +16622,10 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		return _trigger_youmu_boss_skill(zombie)
 	if String(zombie["kind"]) == "yuyuko_boss":
 		return _trigger_yuyuko_boss_skill(zombie)
+	if String(zombie["kind"]) == "ran_boss":
+		return _trigger_ran_boss_skill(zombie)
+	if String(zombie["kind"]) == "yukari_boss":
+		return _trigger_yukari_boss_skill(zombie)
 	if String(zombie["kind"]) == "flandre_boss":
 		return _trigger_flandre_boss_skill(zombie)
 	if String(zombie["kind"]) == "night_boss":
@@ -17776,6 +18056,52 @@ func _trigger_yuyuko_boss_revival(zombie: Dictionary) -> Dictionary:
 	return zombie
 
 
+func _trigger_ran_boss_successor(zombie: Dictionary) -> Dictionary:
+	var data = Dictionary(Defs.ZOMBIES.get("yukari_boss", {}))
+	var successor = zombie.duplicate(true)
+	var row = clampi(int(zombie.get("row", 2)), 0, ROWS - 1)
+	var center = Vector2(float(zombie.get("x", _boss_anchor_x("ran_boss"))), _row_center_y(row) - 28.0)
+	successor["kind"] = "yukari_boss"
+	successor["row"] = row
+	successor["x"] = _boss_anchor_x("yukari_boss")
+	successor["health"] = float(data.get("health", 42800.0))
+	successor["max_health"] = float(data.get("health", 42800.0))
+	successor["base_speed"] = 0.0
+	successor["attack_dps"] = 0.0
+	successor["boss_phase"] = 0
+	successor["boss_skill_cycle"] = 0
+	successor["boss_skill_timer"] = _boss_skill_interval("yukari_boss", 0) + 0.8
+	successor["rumia_reinforcement_timer"] = _boss_reinforcement_interval("yukari_boss", 0) + 0.8
+	successor["hover_shift_timer"] = _roll_hover_shift_interval("yukari_boss", 0)
+	successor["special_pause_timer"] = 1.15
+	successor["flash"] = 0.42
+	successor["impact_timer"] = 0.0
+	successor["rumia_move_from_y"] = _row_center_y(row)
+	successor["rumia_move_to_y"] = _row_center_y(row)
+	successor["rumia_move_timer"] = 0.0
+	successor["rumia_move_duration"] = 0.0
+	successor["rumia_state"] = "arrival"
+	successor["rumia_state_timer"] = 1.35
+	effects.append({
+		"shape": "yukari_boundary_arrival",
+		"position": center,
+		"target": Vector2(_boss_anchor_x("yukari_boss"), _row_center_y(row) - 28.0),
+		"radius": 260.0,
+		"length": board_size.x * 0.86,
+		"width": 170.0,
+		"time": 1.18,
+		"duration": 1.18,
+		"anim_speed": 8.4,
+		"color": Color(0.72, 0.36, 1.0, 0.4),
+	})
+	var successor_bgm = String(current_level.get("boss_successor_bgm", ""))
+	if successor_bgm != "":
+		_play_bgm(successor_bgm)
+	_show_banner("式神退场，生与死的境界裂开了！八云紫现身！", 3.2)
+	_trigger_screen_shake(10.0)
+	return successor
+
+
 func _trigger_youmu_boss_skill(zombie: Dictionary) -> Dictionary:
 	var data = Defs.ZOMBIES["youmu_boss"]
 	var row = int(zombie.get("row", 0))
@@ -18172,6 +18498,66 @@ func _trigger_yuyuko_boss_phase_shift(zombie: Dictionary, phase: int) -> Diction
 	_raise_random_graves(phase + 1, "yuyuko_grave_rise", Color(1.0, 0.58, 0.86, 0.32))
 	_spawn_yuyuko_grave_spirits(mini(3, phase + 1))
 	return _set_rumia_state(zombie, "phase", 0.72)
+
+
+func _trigger_ran_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
+	var center = Vector2(float(zombie.get("x", _boss_anchor_x("ran_boss"))), _row_center_y(int(zombie.get("row", 2))) - 24.0)
+	_show_banner("八云蓝展开第 %d 重式神结界！" % (phase + 1), 2.1)
+	effects.append({
+		"shape": "ran_nine_tail_mandala",
+		"position": center,
+		"points": _yakumo_radial_effect_points(center, 9, 92.0 + phase * 12.0),
+		"radius": 188.0 + phase * 22.0,
+		"time": 0.74,
+		"duration": 0.74,
+		"anim_speed": 8.4,
+		"color": Color(1.0, 0.62, 0.18, 0.36),
+	})
+	effects.append({
+		"shape": "ran_shikigami_seals",
+		"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.57, BOARD_ORIGIN.y + board_size.y * 0.5),
+		"points": _yakumo_radial_effect_points(Vector2(BOARD_ORIGIN.x + board_size.x * 0.57, BOARD_ORIGIN.y + board_size.y * 0.5), 12, 150.0 + phase * 14.0),
+		"radius": 230.0 + phase * 18.0,
+		"time": 0.68,
+		"duration": 0.68,
+		"anim_speed": 7.2,
+		"color": Color(1.0, 0.84, 0.4, 0.3),
+	})
+	_damage_plants_in_circle(center, 174.0 + phase * 14.0, 34.0 + phase * 9.0)
+	for _i in range(mini(3, phase + 1)):
+		_spawn_hover_boss_reinforcement("ran_boss", phase)
+	return _set_rumia_state(zombie, "phase", 0.76)
+
+
+func _trigger_yukari_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
+	var center = Vector2(float(zombie.get("x", _boss_anchor_x("yukari_boss"))), _row_center_y(int(zombie.get("row", 2))) - 26.0)
+	_show_banner("八云紫改写了第 %d 重境界！" % (phase + 1), 2.2)
+	effects.append({
+		"shape": "yukari_boundary_expansion",
+		"position": center,
+		"target": Vector2(BOARD_ORIGIN.x + CELL_SIZE.x * 0.45, center.y),
+		"radius": 230.0 + phase * 24.0,
+		"length": board_size.x * 0.82,
+		"width": 150.0 + phase * 12.0,
+		"time": 0.82,
+		"duration": 0.82,
+		"anim_speed": 8.0,
+		"color": Color(0.7, 0.4, 1.0, 0.36),
+	})
+	effects.append({
+		"shape": "yukari_evil_eye_screen",
+		"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.52, BOARD_ORIGIN.y + board_size.y * 0.48),
+		"points": _yakumo_radial_effect_points(Vector2(BOARD_ORIGIN.x + board_size.x * 0.52, BOARD_ORIGIN.y + board_size.y * 0.48), 8 + phase, 168.0 + phase * 12.0),
+		"radius": 270.0 + phase * 20.0,
+		"time": 0.76,
+		"duration": 0.76,
+		"anim_speed": 6.8,
+		"color": Color(0.54, 0.28, 0.92, 0.34),
+	})
+	_damage_plants_in_circle(center, 190.0 + phase * 14.0, 38.0 + phase * 10.0)
+	for _i in range(mini(3, phase + 1)):
+		_spawn_hover_boss_reinforcement("yukari_boss", phase)
+	return _set_rumia_state(zombie, "phase", 0.82)
 
 
 func _trigger_meiling_boss_skill(zombie: Dictionary) -> Dictionary:
@@ -18640,6 +19026,10 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		return _trigger_youmu_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "yuyuko_boss":
 		return _trigger_yuyuko_boss_phase_shift(zombie, phase)
+	if String(zombie["kind"]) == "ran_boss":
+		return _trigger_ran_boss_phase_shift(zombie, phase)
+	if String(zombie["kind"]) == "yukari_boss":
+		return _trigger_yukari_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "flandre_boss":
 		return _trigger_flandre_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "night_boss":
@@ -20260,6 +20650,10 @@ func _is_spiral_staircase_level() -> bool:
 
 func _is_saigyouji_sakura_level() -> bool:
 	return String(current_level.get("terrain", "")) == "saigyouji_sakura"
+
+
+func _is_hakugyokurou_border_level() -> bool:
+	return String(current_level.get("terrain", "")) == "hakugyokurou_border"
 
 
 func _is_pool_level() -> bool:
@@ -22277,6 +22671,15 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 			lane_alt = Color(0.38, 0.28, 0.38)
 			accent = Color(1.0, 0.62, 0.86)
 			water = Color(0.64, 0.74, 1.0)
+		"hakugyokurou_border":
+			label = "冥界樱树边境"
+			sky_top = Color(0.025, 0.035, 0.12)
+			sky_bottom = Color(0.13, 0.1, 0.25)
+			ground = Color(0.22, 0.22, 0.32)
+			lane = Color(0.36, 0.36, 0.5)
+			lane_alt = Color(0.29, 0.3, 0.43)
+			accent = Color(1.0, 0.66, 0.86)
+			water = Color(0.58, 0.68, 1.0)
 		"blood_moon":
 			label = "血月庭院"
 			sky_top = Color(0.12, 0.0, 0.02)
@@ -22316,6 +22719,7 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 		"water_rows": water_rows,
 		"cell_terrain_mask": level.get("cell_terrain_mask", []),
 		"lava_cells": level.get("lava_cells", []),
+		"sky_color": sky_top,
 		"sky_top": sky_top,
 		"sky_bottom": sky_bottom,
 		"ground": ground,
@@ -22360,6 +22764,8 @@ func _selection_preview_cell_kind(style: Dictionary, row: int, col: int) -> Stri
 		return "stair"
 	if terrain_key == "saigyouji_sakura":
 		return "sakura"
+	if terrain_key == "hakugyokurou_border":
+		return "nether_stone"
 	return "land"
 
 
@@ -22376,7 +22782,7 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 		var hill_x = rect.position.x + rect.size.x * (0.04 + float(hill_index) * 0.22)
 		var hill_y = rect.position.y + horizon_h + sin(ui_time * 0.4 + float(hill_index)) * 4.0
 		draw_circle(Vector2(hill_x, hill_y), rect.size.x * 0.11, Color(ground.r * 0.75, ground.g * 0.8, ground.b * 0.75, 0.18 * alpha_scale))
-	if terrain_key == "night" or terrain_key == "vasebreaker_night" or terrain_key == "city" or terrain_key == "winter_forest" or terrain_key == "mayohiga_house" or terrain_key == "forest_of_magic" or terrain_key == "spiral_staircase" or terrain_key == "saigyouji_sakura":
+	if terrain_key == "night" or terrain_key == "vasebreaker_night" or terrain_key == "city" or terrain_key == "winter_forest" or terrain_key == "mayohiga_house" or terrain_key == "forest_of_magic" or terrain_key == "spiral_staircase" or terrain_key == "saigyouji_sakura" or terrain_key == "hakugyokurou_border":
 		for star_index in range(18):
 			var star_pos = rect.position + Vector2(rect.size.x * (0.16 + float(star_index % 9) * 0.085), 22.0 + float(star_index / 9) * 26.0)
 			draw_circle(star_pos, 1.5, Color(0.9, 0.96, 1.0, 0.34 * alpha_scale))
@@ -22482,6 +22888,30 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 			var petal_x = rect.position.x + fmod(float(petal_index * 67) + ui_time * (18.0 + float(petal_index % 4) * 3.0), rect.size.x)
 			var petal_y = rect.position.y + 34.0 + float((petal_index * 31) % int(maxf(42.0, rect.size.y * 0.52)))
 			draw_circle(Vector2(petal_x, petal_y), 2.2, Color(1.0, 0.72, 0.9, 0.28 * alpha_scale))
+	if terrain_key == "hakugyokurou_border":
+		var border_moon = rect.position + Vector2(rect.size.x * 0.18, 54.0)
+		draw_circle(border_moon, 31.0, Color(1.0, 0.95, 0.78, 0.24 * alpha_scale))
+		draw_circle(border_moon, 22.0, Color(1.0, 0.98, 0.88, 0.72 * alpha_scale))
+		var border_tree_base = rect.position + Vector2(rect.size.x * 0.83, horizon_h + rect.size.y * 0.38)
+		draw_rect(Rect2(border_tree_base + Vector2(-8.0, -80.0), Vector2(16.0, 122.0)), Color(0.12, 0.07, 0.14, 0.72 * alpha_scale), true)
+		for branch_index in range(7):
+			var branch_start = border_tree_base + Vector2(0.0, -62.0 + float(branch_index % 3) * 13.0)
+			var branch_end = branch_start + Vector2(-58.0 - float(branch_index % 4) * 13.0, -36.0 + float(branch_index) * 11.0)
+			draw_line(branch_start, branch_end, Color(0.13, 0.07, 0.15, 0.7 * alpha_scale), 4.0)
+		for blossom_index in range(22):
+			var blossom_angle = TAU * float(blossom_index) / 22.0
+			var blossom_pos = border_tree_base + Vector2(cos(blossom_angle) * (76.0 + float(blossom_index % 4) * 9.0) - 38.0, -88.0 + sin(blossom_angle) * (38.0 + float(blossom_index % 3) * 6.0))
+			draw_circle(blossom_pos, 11.0 + float(blossom_index % 3) * 2.0, Color(1.0, 0.72, 0.9, 0.14 * alpha_scale))
+		for post_index in range(7):
+			var post_x = rect.position.x + rect.size.x * (0.13 + float(post_index) * 0.11)
+			var post_y = rect.position.y + horizon_h + rect.size.y * 0.24 + float(post_index % 2) * 4.0
+			draw_rect(Rect2(Vector2(post_x - 3.0, post_y - 18.0), Vector2(6.0, 28.0)), Color(0.88, 0.9, 0.94, 0.32 * alpha_scale), true)
+			if post_index < 6:
+				draw_line(Vector2(post_x, post_y - 13.0), Vector2(post_x + rect.size.x * 0.11, post_y - 9.0), Color(0.78, 0.82, 0.9, 0.3 * alpha_scale), 2.0)
+		for gap_index in range(2):
+			var gap_center = rect.position + Vector2(rect.size.x * (0.38 + float(gap_index) * 0.25), horizon_h * (0.52 + float(gap_index) * 0.18))
+			draw_arc(gap_center, 25.0, 0.0, TAU, 32, Color(0.72, 0.42, 1.0, 0.22 * alpha_scale), 5.0)
+			draw_circle(gap_center, 18.0, Color(0.02, 0.01, 0.08, 0.38 * alpha_scale))
 	var board_margin := Vector2(rect.size.x * 0.08, rect.size.y * 0.36)
 	var board_rect := Rect2(rect.position + board_margin, Vector2(rect.size.x * 0.84, rect.size.y * 0.48))
 	var row_count := int(style.get("row_count", DEFAULT_BOARD_ROWS))
@@ -22521,6 +22951,8 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 					tile_color = Color(0.2, 0.58, 1.0, 0.28 * alpha_scale)
 				"stair":
 					tile_color = Color(0.48, 0.54, 0.66, 0.56 * alpha_scale) if (row + col) % 2 == 0 else Color(0.34, 0.38, 0.5, 0.56 * alpha_scale)
+				"nether_stone":
+					tile_color = Color(0.48, 0.49, 0.62, 0.54 * alpha_scale) if (row + col) % 2 == 0 else Color(0.34, 0.35, 0.5, 0.56 * alpha_scale)
 			draw_rect(tile_rect, tile_color, true)
 			if cell_kind == "cloud":
 				var cloud_center = tile_rect.position + tile_rect.size * 0.5
@@ -22536,6 +22968,12 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 				draw_line(tile_rect.position + Vector2(12.0, tile_rect.size.y * 0.68), tile_rect.position + Vector2(tile_rect.size.x - 12.0, tile_rect.size.y * 0.68), Color(0.06, 0.08, 0.14, 0.18 * alpha_scale), 1.2)
 				if (row + col) % 4 == 0:
 					draw_circle(stair_center + Vector2(7.0, -7.0), 2.6, Color(0.76, 0.94, 1.0, 0.2 * alpha_scale))
+			elif cell_kind == "nether_stone":
+				var seam_color = Color(0.86, 0.9, 1.0, 0.14 * alpha_scale)
+				draw_line(tile_rect.position + Vector2(4.0, tile_rect.size.y * 0.3), tile_rect.position + Vector2(tile_rect.size.x - 4.0, tile_rect.size.y * 0.3), seam_color, 1.0)
+				draw_line(tile_rect.position + Vector2(tile_rect.size.x * 0.46, 4.0), tile_rect.position + Vector2(tile_rect.size.x * 0.54, tile_rect.size.y - 4.0), Color(0.04, 0.03, 0.12, 0.2 * alpha_scale), 1.0)
+				if (row * COLS + col) % 5 == 0:
+					draw_circle(tile_rect.position + tile_rect.size * 0.5, 2.4, Color(1.0, 0.68, 0.9, 0.24 * alpha_scale))
 			draw_rect(tile_rect, Color(0.0, 0.0, 0.0, 0.08 * alpha_scale), false, 1.0)
 	draw_rect(board_rect, Color(accent.r, accent.g, accent.b, 0.52 * alpha_scale), false, 3.0)
 	if terrain_key == "fog" or terrain_key == "storm_fog":
@@ -22976,6 +23414,11 @@ func _ambient_light_for_level() -> Dictionary:
 		tint_alpha = 0.11
 		shadow_tint = Color(0.08, 0.03, 0.08)
 		shadow_alpha = 0.08
+	elif _is_hakugyokurou_border_level():
+		tint = Color(0.66, 0.58, 1.0)
+		tint_alpha = 0.1
+		shadow_tint = Color(0.025, 0.02, 0.09)
+		shadow_alpha = 0.085
 	elif _is_frozen_branch_level():
 		tint = Color(0.62, 0.8, 1.0)
 		tint_alpha = 0.10
@@ -23140,7 +23583,56 @@ func _draw_endless_bonus_overlay() -> void:
 
 
 func _draw_battle_background() -> void:
-	if _is_saigyouji_sakura_level():
+	if _is_hakugyokurou_border_level():
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 176.0)), Color(0.015, 0.02, 0.09), Color(0.13, 0.09, 0.24))
+		ThemeLib.draw_glow_circle(self, Vector2(122.0, 70.0), 42.0, Color(1.0, 0.94, 0.72), 6)
+		draw_circle(Vector2(122.0, 70.0), 30.0, Color(1.0, 0.97, 0.84, 0.88))
+		for star_index in range(30):
+			var star_pos = Vector2(206.0 + float(star_index % 15) * 74.0, 22.0 + float(star_index / 15) * 42.0 + float((star_index * 11) % 17))
+			draw_circle(star_pos, 1.1 + float(star_index % 3) * 0.45, Color(0.9, 0.94, 1.0, 0.22))
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(0.0, 116.0), Vector2(size.x, size.y - 116.0)), Color(0.21, 0.2, 0.31), Color(0.07, 0.065, 0.14))
+		for ridge_index in range(7):
+			var ridge_x = 170.0 + float(ridge_index) * 210.0
+			var ridge_y = 168.0 + float(ridge_index % 3) * 18.0
+			draw_circle(Vector2(ridge_x, ridge_y), 128.0, Color(0.08, 0.07, 0.16, 0.28))
+		var tree_root = Vector2(BOARD_ORIGIN.x + board_size.x + 40.0, BOARD_ORIGIN.y + board_size.y * 0.46)
+		draw_rect(Rect2(tree_root + Vector2(-25.0, -146.0), Vector2(44.0, 260.0)), Color(0.13, 0.065, 0.14, 0.84), true)
+		for branch_index in range(11):
+			var branch_angle = -2.95 + float(branch_index) * 0.36
+			var branch_len = 96.0 + float(branch_index % 5) * 23.0
+			var branch_start = tree_root + Vector2(-3.0, -106.0 + float(branch_index % 4) * 20.0)
+			var branch_end = branch_start + Vector2(cos(branch_angle), sin(branch_angle)) * branch_len
+			draw_line(branch_start, branch_end, Color(0.14, 0.07, 0.15, 0.78), 7.0)
+		for blossom_index in range(48):
+			var blossom_angle = TAU * float(blossom_index) / 48.0 + sin(ui_time * 0.24) * 0.035
+			var blossom_pos = tree_root + Vector2(cos(blossom_angle) * (132.0 + float(blossom_index % 7) * 10.0) - 46.0, -164.0 + sin(blossom_angle) * (64.0 + float(blossom_index % 5) * 7.0))
+			draw_circle(blossom_pos, 14.0 + float(blossom_index % 4) * 2.8, Color(1.0, 0.66, 0.86, 0.11))
+		for post_index in range(10):
+			var post_x = BOARD_ORIGIN.x - 36.0 + float(post_index) * 112.0
+			var post_y = BOARD_ORIGIN.y - 4.0 + float(post_index % 2) * 8.0
+			draw_rect(Rect2(Vector2(post_x - 5.0, post_y - 20.0), Vector2(10.0, 48.0)), Color(0.76, 0.78, 0.84, 0.42), true)
+			draw_rect(Rect2(Vector2(post_x - 8.0, post_y - 23.0), Vector2(16.0, 6.0)), Color(0.9, 0.9, 0.94, 0.34), true)
+			if post_index < 9:
+				draw_line(Vector2(post_x, post_y - 12.0), Vector2(post_x + 112.0, post_y - 7.0), Color(0.68, 0.7, 0.8, 0.32), 3.0)
+		for grave_index in range(8):
+			var grave_x = BOARD_ORIGIN.x + 24.0 + float(grave_index) * 126.0
+			var grave_y = BOARD_ORIGIN.y + board_size.y + 22.0 + float(grave_index % 3) * 7.0
+			draw_rect(Rect2(Vector2(grave_x - 8.0, grave_y - 24.0), Vector2(16.0, 30.0)), Color(0.16, 0.15, 0.24, 0.46), true)
+			draw_arc(Vector2(grave_x, grave_y - 23.0), 8.0, PI, TAU, 12, Color(0.28, 0.27, 0.4, 0.42), 3.0)
+		for gap_index in range(3):
+			var gap_center = Vector2(BOARD_ORIGIN.x + board_size.x * (0.32 + float(gap_index) * 0.23), BOARD_ORIGIN.y - 38.0 + float(gap_index % 2) * 28.0)
+			var gap_pulse = 0.78 + 0.22 * sin(ui_time * 2.0 + float(gap_index))
+			draw_arc(gap_center, 30.0 + gap_pulse * 4.0, 0.0, TAU, 36, Color(0.74, 0.42, 1.0, 0.16), 7.0)
+			draw_circle(gap_center, 22.0, Color(0.012, 0.008, 0.05, 0.38))
+			for eye_index in range(3):
+				var eye_angle = TAU * float(eye_index) / 3.0 + ui_time * 0.22
+				draw_circle(gap_center + Vector2(cos(eye_angle), sin(eye_angle)) * 15.0, 2.2, Color(1.0, 0.88, 0.44, 0.4))
+		for petal_index in range(26):
+			var petal_x = BOARD_ORIGIN.x - 70.0 + fmod(ui_time * (18.0 + float(petal_index % 5) * 4.0) + float(petal_index * 83), board_size.x + 230.0)
+			var petal_y = BOARD_ORIGIN.y - 36.0 + float((petal_index * 43) % int(board_size.y + 110.0)) + sin(ui_time * 1.2 + float(petal_index)) * 7.0
+			draw_circle(Vector2(petal_x, petal_y), 2.1 + float(petal_index % 2), Color(1.0, 0.7, 0.9, 0.2))
+		ThemeLib.draw_ambient_particles(self, size, ui_time, "dust_motes", 10)
+	elif _is_saigyouji_sakura_level():
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 170.0)), Color(0.05, 0.04, 0.14), Color(0.2, 0.14, 0.26))
 		ThemeLib.draw_glow_circle(self, Vector2(size.x - 134.0, 76.0), 40.0, Color(1.0, 0.78, 0.92), 5)
 		draw_circle(Vector2(size.x - 120.0, 70.0), 33.0, Color(0.05, 0.04, 0.14))
@@ -24103,6 +24595,8 @@ func _draw_battle_board() -> void:
 			lane_color = Color(0.28, 0.32, 0.46) if row % 2 == 0 else Color(0.22, 0.26, 0.38)
 		elif _is_saigyouji_sakura_level():
 			lane_color = Color(0.48, 0.34, 0.42) if row % 2 == 0 else Color(0.38, 0.28, 0.38)
+		elif _is_hakugyokurou_border_level():
+			lane_color = Color(0.32, 0.33, 0.48) if row % 2 == 0 else Color(0.24, 0.25, 0.4)
 		elif _is_night_level():
 			lane_color = Color(0.23, 0.38, 0.2) if row % 2 == 0 else Color(0.19, 0.32, 0.17)
 		elif _is_fog_level():
@@ -24254,6 +24748,9 @@ func _draw_battle_board() -> void:
 			elif _is_spiral_staircase_level():
 				tint = Color(0.54, 0.6, 0.72, 0.22) if (row + col) % 2 == 0 else Color(0.34, 0.38, 0.5, 0.22)
 				border_color = Color(0.72, 0.9, 1.0, 0.28)
+			elif _is_hakugyokurou_border_level():
+				tint = Color(0.66, 0.66, 0.82, 0.2) if (row + col) % 2 == 0 else Color(0.26, 0.24, 0.42, 0.25)
+				border_color = Color(0.76, 0.7, 0.98, 0.3)
 			elif _is_frozen_branch_level():
 				var terrain = _cell_terrain_kind(row, col)
 				if terrain == "water":
@@ -27752,6 +28249,58 @@ func _draw_effects() -> void:
 					var shard_point = wing_points[min(shard_index + 1, wing_points.size() - 1)]
 					draw_circle(shard_point, 7.0 + float(shard_index), Color(1.0, 0.94, 0.78, effect_color.a * (0.42 - float(shard_index) * 0.08)))
 			draw_circle(wing_center, wing_radius * 0.16, Color(1.0, 0.9, 0.68, effect_color.a * 0.22))
+			continue
+		if shape.begins_with("ran_"):
+			var ran_center = Vector2(effect["position"])
+			var ran_target = Vector2(effect.get("target", ran_center + Vector2(float(effect.get("length", 220.0)), 0.0)))
+			var ran_radius = _effect_visual_radius(effect, ratio)
+			var ran_width = _effect_visual_width(effect, ratio)
+			var ran_born = clampf(1.0 - ratio, 0.0, 1.0)
+			draw_circle(ran_center, ran_radius * 0.18, Color(1.0, 0.56, 0.12, effect_color.a * 0.12))
+			for tail_index in range(9):
+				var tail_angle = level_time * anim_speed * 0.17 + float(tail_index) * TAU / 9.0
+				var tail_radius = ran_radius * (0.34 + 0.05 * sin(level_time * 3.0 + float(tail_index)))
+				var tail_tip = ran_center + Vector2(cos(tail_angle), sin(tail_angle)) * tail_radius
+				draw_arc(tail_tip, 12.0 + ran_born * 8.0, tail_angle - 1.1, tail_angle + 1.1, 14, Color(1.0, 0.72, 0.24, effect_color.a * 0.5), 2.0)
+				draw_circle(tail_tip, 4.0 + float(tail_index % 3), Color(1.0, 0.9, 0.54, effect_color.a * 0.6))
+			if shape.find("laser") != -1 or shape.find("contact") != -1:
+				for band_index in range(3):
+					var offset = (float(band_index) - 1.0) * maxf(8.0, ran_width * 0.16)
+					draw_line(ran_center + Vector2(0.0, offset), ran_target + Vector2(0.0, offset), Color(1.0, 0.82, 0.3, effect_color.a * (0.62 - band_index * 0.1)), 2.4 + band_index)
+			for point_variant in effect.get("points", []):
+				var seal_point = Vector2(point_variant)
+				var seal_size = 8.0 + ran_born * 4.0
+				draw_rect(Rect2(seal_point - Vector2(seal_size * 0.38, seal_size), Vector2(seal_size * 0.76, seal_size * 2.0)), Color(1.0, 0.92, 0.62, effect_color.a * 0.38), true)
+				draw_line(seal_point + Vector2(0.0, -seal_size * 0.65), seal_point + Vector2(0.0, seal_size * 0.65), Color(0.78, 0.18, 0.06, effect_color.a * 0.72), 1.2)
+			continue
+		if shape.begins_with("yukari_"):
+			var yukari_center = Vector2(effect["position"])
+			var yukari_target = Vector2(effect.get("target", yukari_center))
+			var yukari_radius = _effect_visual_radius(effect, ratio)
+			var yukari_length = _effect_visual_length(effect, ratio)
+			var yukari_width = _effect_visual_width(effect, ratio)
+			var yukari_born = clampf(1.0 - ratio, 0.0, 1.0)
+			for gap_index in range(2):
+				var gap_center = yukari_center if gap_index == 0 else yukari_target
+				var gap_radius = yukari_radius * (0.22 + float(gap_index) * 0.03)
+				draw_set_transform(gap_center, level_time * (0.18 if gap_index == 0 else -0.15), Vector2(1.0, 0.42))
+				draw_circle(Vector2.ZERO, gap_radius, Color(0.025, 0.01, 0.06, effect_color.a * 0.72))
+				draw_arc(Vector2.ZERO, gap_radius, 0.0, TAU, 42, Color(0.82, 0.56, 1.0, effect_color.a * 0.72), 4.0)
+				draw_arc(Vector2.ZERO, gap_radius * 0.8, 0.0, TAU, 36, Color(1.0, 0.78, 0.24, effect_color.a * 0.5), 2.0)
+				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				var eye_width = gap_radius * 0.44
+				draw_line(gap_center + Vector2(-eye_width, 0.0), gap_center + Vector2(eye_width, 0.0), Color(1.0, 0.86, 0.96, effect_color.a * 0.52), 2.0)
+				draw_circle(gap_center, 4.0 + yukari_born * 3.0, Color(0.95, 0.3, 0.62, effect_color.a * 0.8))
+			if yukari_length > yukari_radius * 1.5:
+				for boundary_index in range(5):
+					var t = float(boundary_index) / 4.0
+					var y = yukari_center.y - yukari_width * 0.5 + yukari_width * t
+					draw_line(Vector2(minf(yukari_center.x, yukari_target.x), y), Vector2(maxf(yukari_center.x, yukari_target.x), y), Color(0.74, 0.5, 1.0, effect_color.a * 0.2), 1.6)
+			for point_variant in effect.get("points", []):
+				var mark = Vector2(point_variant)
+				draw_circle(mark + Vector2(-5.0, 0.0), 6.0, Color(0.06, 0.02, 0.12, effect_color.a * 0.54))
+				draw_circle(mark + Vector2(5.0, 0.0), 6.0, Color(0.64, 0.34, 0.94, effect_color.a * 0.36))
+				draw_line(mark + Vector2(0.0, -5.0), mark + Vector2(0.0, 6.0), Color(1.0, 0.76, 0.94, effect_color.a * 0.52), 1.2)
 			continue
 		if shape.begins_with("yuyuko_") and shape != "yuyuko_grave_rise":
 			var yuyuko_center = Vector2(effect["position"])
@@ -31656,6 +32205,14 @@ func _yuyuko_draw_scale(phase: int) -> float:
 	return 0.42 + float(phase) * 0.01
 
 
+func _ran_draw_scale(phase: int) -> float:
+	return 0.58 + float(phase) * 0.018
+
+
+func _yukari_draw_scale(phase: int) -> float:
+	return 0.52 + float(phase) * 0.02
+
+
 func _flandre_draw_scale(phase: int) -> float:
 	return 0.72 + float(phase) * 0.018
 
@@ -31716,6 +32273,10 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _youmu_frame_index(zombie)
 		"yuyuko_boss":
 			return _yuyuko_frame_index(zombie)
+		"ran_boss":
+			return _ran_frame_index(zombie)
+		"yukari_boss":
+			return _yukari_frame_index(zombie)
 		"flandre_boss":
 			return _flandre_frame_index(zombie)
 		_:
@@ -32084,6 +32645,42 @@ func _yuyuko_frame_index(zombie: Dictionary) -> int:
 				return _boss_pose_cycle_frame([1, 0, 1], 5.2, phase * 0.22)
 			return _boss_pose_frame(0, 3.0, phase)
 	return _boss_pose_frame(0, 3.0, phase)
+
+
+func _ran_frame_index(zombie: Dictionary) -> int:
+	var state = String(zombie.get("rumia_state", "idle"))
+	var phase = float(zombie.get("anim_phase", 0.0))
+	match state:
+		"senko", "buddhist":
+			return _boss_pose_cycle_frame([2, 3, 2, 4], 7.2, phase * 0.4)
+		"generals", "shiki", "kokkuri":
+			return _boss_pose_cycle_frame([5, 6, 5, 7], 7.6, phase * 0.44)
+		"laser", "contact":
+			return _boss_pose_cycle_frame([3, 7, 3, 6], 8.6, phase * 0.52)
+		"tenko", "izuna", "phase":
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 7.8, phase * 0.46)
+		"shift":
+			return _boss_pose_cycle_frame([1, 0, 1, 0], 6.8, phase * 0.3)
+		_:
+			return _boss_pose_frame(0, 3.2, phase)
+
+
+func _yukari_frame_index(zombie: Dictionary) -> int:
+	var state = String(zombie.get("rumia_state", "idle"))
+	var phase = float(zombie.get("anim_phase", 0.0))
+	match state:
+		"boundary", "barrier", "arrival":
+			return _boss_pose_cycle_frame([2, 3, 2, 4], 6.8, phase * 0.38)
+		"mesh", "eyes", "labyrinth":
+			return _boss_pose_cycle_frame([5, 6, 5, 7], 7.4, phase * 0.44)
+		"object", "dream", "butterfly":
+			return _boss_pose_cycle_frame([3, 7, 3, 6], 7.8, phase * 0.46)
+		"infinite", "necrofantasia", "phase":
+			return _boss_pose_cycle_frame([6, 7, 6, 5], 7.2, phase * 0.42)
+		"shift":
+			return _boss_pose_cycle_frame([1, 0, 1, 0], 5.8, phase * 0.26)
+		_:
+			return _boss_pose_frame(0, 2.8, phase)
 
 
 func _flandre_frame_index(zombie: Dictionary) -> int:
@@ -32857,6 +33454,72 @@ func _draw_yuyuko_boss(center: Vector2, zombie: Dictionary) -> void:
 			draw_arc(center + Vector2(0.0, -26.0), radius, level_time * (0.6 + ring_index * 0.12), level_time * (0.6 + ring_index * 0.12) + PI * 1.36, 36, Color(1.0, 0.72, 0.94, 0.18), 1.8)
 
 
+func _draw_ran_boss(center: Vector2, zombie: Dictionary) -> void:
+	var frame_index = _ran_frame_index(zombie)
+	if float(zombie.get("impact_timer", 0.0)) > 0.0:
+		frame_index = _boss_pose_frame(7, 10.0, float(zombie.get("anim_phase", 0.0)))
+	var texture := _try_get_boss_frame_texture("ran_boss", frame_index)
+	var draw_scale = _ran_draw_scale(int(zombie.get("boss_phase", 0)))
+	var local_phase = float(zombie.get("anim_phase", 0.0))
+	var bob = sin(level_time * 2.35 + local_phase) * 4.0
+	var sway = sin(level_time * 1.45 + local_phase) * 4.8
+	var aura_center = center + Vector2(sway * 0.05, -38.0 + bob * 0.12)
+	draw_circle(center + Vector2(0.0, 52.0), 24.0, Color(0.1, 0.04, 0.01, 0.18))
+	draw_circle(aura_center, 56.0, Color(1.0, 0.44, 0.08, 0.1))
+	for tail_index in range(9):
+		var angle = level_time * 0.82 + float(tail_index) * TAU / 9.0 + local_phase * 0.12
+		var tail_root = aura_center + Vector2(cos(angle), sin(angle)) * (40.0 + float(tail_index % 3) * 5.0)
+		var tail_tip = tail_root + Vector2(cos(angle + 0.42), sin(angle + 0.42)) * 18.0
+		draw_arc(tail_root, 13.0, angle - 1.0, angle + 1.05, 14, Color(1.0, 0.62, 0.14, 0.28), 3.2)
+		draw_circle(tail_tip, 4.0 + float(tail_index % 2), Color(1.0, 0.88, 0.42, 0.54))
+	for seal_index in range(4):
+		var seal_angle = -level_time * 1.2 + float(seal_index) * TAU / 4.0
+		var seal = center + Vector2(cos(seal_angle) * 54.0, -30.0 + sin(seal_angle) * 19.0)
+		draw_rect(Rect2(seal - Vector2(3.0, 8.0), Vector2(6.0, 16.0)), Color(1.0, 0.9, 0.52, 0.44), true)
+		draw_line(seal + Vector2(0.0, -5.0), seal + Vector2(0.0, 5.0), Color(0.72, 0.12, 0.04, 0.58), 1.1)
+	if texture != null:
+		var texture_size = texture.get_size() * draw_scale
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+	else:
+		draw_circle(center + Vector2(0.0, -38.0), 24.0, Color(1.0, 0.82, 0.44))
+		draw_rect(Rect2(center + Vector2(-21.0, -10.0), Vector2(42.0, 60.0)), Color(0.92, 0.48, 0.12), true)
+
+
+func _draw_yukari_boss(center: Vector2, zombie: Dictionary) -> void:
+	var frame_index = _yukari_frame_index(zombie)
+	if float(zombie.get("impact_timer", 0.0)) > 0.0:
+		frame_index = _boss_pose_frame(7, 9.0, float(zombie.get("anim_phase", 0.0)))
+	var texture := _try_get_boss_frame_texture("yukari_boss", frame_index)
+	var draw_scale = _yukari_draw_scale(int(zombie.get("boss_phase", 0)))
+	var local_phase = float(zombie.get("anim_phase", 0.0))
+	var bob = sin(level_time * 1.9 + local_phase) * 4.2
+	var sway = sin(level_time * 1.1 + local_phase) * 5.0
+	var aura_center = center + Vector2(sway * 0.04, -40.0 + bob * 0.12)
+	draw_circle(center + Vector2(0.0, 54.0), 25.0, Color(0.04, 0.015, 0.08, 0.2))
+	draw_circle(aura_center, 59.0, Color(0.55, 0.28, 0.9, 0.1))
+	for gap_index in range(3):
+		var angle = level_time * (0.44 + gap_index * 0.08) + float(gap_index) * TAU / 3.0
+		var gap = center + Vector2(cos(angle) * 53.0, -34.0 + sin(angle) * 19.0)
+		draw_set_transform(gap, angle * 0.25, Vector2(1.0, 0.46))
+		draw_circle(Vector2.ZERO, 14.0, Color(0.02, 0.0, 0.04, 0.66))
+		draw_arc(Vector2.ZERO, 14.0, 0.0, TAU, 24, Color(0.76, 0.48, 1.0, 0.48), 2.2)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		draw_circle(gap, 2.6, Color(1.0, 0.34, 0.7, 0.72))
+	for butterfly_index in range(5):
+		var b_angle = -level_time * 1.15 + float(butterfly_index) * TAU / 5.0
+		var butterfly = center + Vector2(cos(b_angle) * 44.0, -32.0 + sin(b_angle) * 17.0)
+		draw_circle(butterfly + Vector2(-3.5, 0.0), 4.0, Color(0.18, 0.04, 0.3, 0.5))
+		draw_circle(butterfly + Vector2(3.5, 0.0), 4.0, Color(0.72, 0.36, 1.0, 0.4))
+	if texture != null:
+		var texture_size = texture.get_size() * draw_scale
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+	else:
+		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.92, 0.82, 1.0))
+		draw_rect(Rect2(center + Vector2(-22.0, -10.0), Vector2(44.0, 62.0)), Color(0.52, 0.28, 0.72), true)
+
+
 func _draw_flandre_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _flandre_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
@@ -33458,6 +34121,12 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "yuyuko_boss":
 		_draw_yuyuko_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "ran_boss":
+		_draw_ran_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "yukari_boss":
+		_draw_yukari_boss(center + Vector2(0.0, -10.0), zombie)
 		return
 	if kind == "flandre_boss":
 		_draw_flandre_boss(center + Vector2(0.0, -10.0), zombie)
@@ -35043,6 +35712,10 @@ func _zombie_almanac_stats(kind: String) -> Array:
 			stats.append("特性：幽幽子召唤的实体亡灵，可被攻击；命中植物后造成轻伤并短暂魅惑")
 		"yuyuko_boss":
 			stats.append("特性：白玉楼终幕 Boss，樱花、亡灵、墓碑、西行妖与一次复活压场")
+		"ran_boss":
+			stats.append("特性：九尾狐式神 Boss，以十二神将、式神阵、狐狗狸契约和妖怪激光压场")
+		"yukari_boss":
+			stats.append("特性：隙间妖怪终幕 Boss，以境界、二重黑死蝶、客观结界与弹幕结界改写战场")
 	return stats
 
 

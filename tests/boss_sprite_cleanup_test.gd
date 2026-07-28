@@ -79,6 +79,18 @@ const TARGETS := [
 		"max_total_halo_pixels": 1100,
 		"max_frame_halo_pixels": 140,
 	},
+	{
+		"name": "Ran",
+		"folder": "res://art/ran",
+		"max_total_halo_pixels": 1800,
+		"max_frame_halo_pixels": 160,
+	},
+	{
+		"name": "Yukari",
+		"folder": "res://art/yukari",
+		"max_total_halo_pixels": 1800,
+		"max_frame_halo_pixels": 160,
+	},
 ]
 
 const TOUHOU_BOSS_FRAME_COUNT := 24

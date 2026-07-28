@@ -49,6 +49,8 @@ BOSSES = [
     ("prismriver_boss", "prismriver", "Prismriver Sisters"),
     ("youmu_boss", "youmu", "Youmu Konpaku"),
     ("yuyuko_boss", "yuyuko", "Yuyuko Saigyouji"),
+    ("ran_boss", "ran", "Ran Yakumo"),
+    ("yukari_boss", "yukari", "Yukari Yakumo"),
 ]
 
 GREEN_KEY = (0, 255, 0)
@@ -526,6 +528,72 @@ def remove_chroma(image: Image.Image, key: tuple[int, int, int]) -> Image.Image:
     return rgba
 
 
+def has_near_white_background(image: Image.Image) -> bool:
+    rgba = image.convert("RGBA")
+    sample_points = (
+        (0, 0),
+        (rgba.width - 1, 0),
+        (0, rgba.height - 1),
+        (rgba.width - 1, rgba.height - 1),
+        (rgba.width // 2, 0),
+        (rgba.width // 2, rgba.height - 1),
+    )
+    white_samples = 0
+    for x, y in sample_points:
+        red, green, blue, alpha = rgba.getpixel((x, y))
+        if alpha > 220 and min(red, green, blue) >= 242 and max(red, green, blue) - min(red, green, blue) <= 14:
+            white_samples += 1
+    return white_samples >= 4
+
+
+def remove_exterior_white_background(image: Image.Image) -> Image.Image:
+    """Clear only near-white pixels connected to the cell edge."""
+    rgba = image.convert("RGBA")
+    pixels = rgba.load()
+    width, height = rgba.size
+    visited = bytearray(width * height)
+    stack: list[tuple[int, int]] = []
+
+    def is_background_candidate(x: int, y: int) -> bool:
+        red, green, blue, alpha = pixels[x, y]
+        return alpha > 0 and min(red, green, blue) >= 228 and max(red, green, blue) - min(red, green, blue) <= 26
+
+    for x in range(width):
+        if is_background_candidate(x, 0):
+            stack.append((x, 0))
+        if is_background_candidate(x, height - 1):
+            stack.append((x, height - 1))
+    for y in range(height):
+        if is_background_candidate(0, y):
+            stack.append((0, y))
+        if is_background_candidate(width - 1, y):
+            stack.append((width - 1, y))
+
+    while stack:
+        x, y = stack.pop()
+        index = y * width + x
+        if visited[index] or not is_background_candidate(x, y):
+            continue
+        visited[index] = 1
+        pixels[x, y] = (*pixels[x, y][:3], 0)
+        if x > 0:
+            stack.append((x - 1, y))
+        if x + 1 < width:
+            stack.append((x + 1, y))
+        if y > 0:
+            stack.append((x, y - 1))
+        if y + 1 < height:
+            stack.append((x, y + 1))
+
+    return remove_external_white_halo(rgba)
+
+
+def clear_generated_background(image: Image.Image, key: tuple[int, int, int]) -> Image.Image:
+    if has_near_white_background(image):
+        return remove_exterior_white_background(image)
+    return remove_chroma(image, key)
+
+
 def sprite_components(image: Image.Image, min_area: int = SPRITE_COMPONENT_MIN_AREA) -> list[dict]:
     rgba = image.convert("RGBA")
     width, height = rgba.size
@@ -696,14 +764,63 @@ def split_image2_sheet_by_components(sheet: Image.Image, key: tuple[int, int, in
     return frames
 
 
-def split_image2_sheet_by_grid(sheet: Image.Image, key: tuple[int, int, int]) -> list[Image.Image] | None:
-    cell_w = sheet.width // 4
-    cell_h = sheet.height // 6
+def split_white_sheet_by_components(sheet: Image.Image) -> list[Image.Image] | None:
+    """Split a borderless 6x4 white sheet using the 24 character centers."""
+    cleaned_sheet = remove_exterior_white_background(sheet)
+    components = sprite_components(cleaned_sheet)
+    if len(components) < 24:
+        return None
+    largest_area = max(int(component["area"]) for component in components)
+    body_candidates = [
+        component
+        for component in components
+        if int(component["area"]) >= max(900, int(largest_area * 0.12))
+        and int(component["bbox"][3]) - int(component["bbox"][1]) >= sheet.height / 16.0
+    ]
+    if len(body_candidates) < 24:
+        return None
+    if len(body_candidates) > 24:
+        body_candidates = sorted(body_candidates, key=lambda component: int(component["area"]), reverse=True)[:24]
+
+    by_row = sorted(body_candidates, key=lambda component: (float(component["center"][1]), float(component["center"][0])))
+    anchors: list[dict] = []
+    for row in range(4):
+        anchors.extend(sorted(by_row[row * 6 : (row + 1) * 6], key=lambda component: float(component["center"][0])))
+    if len(anchors) != 24:
+        return None
+
+    column_scale = sheet.width / 6.0
+    row_scale = sheet.height / 4.0
+    buckets: list[list[dict]] = [[] for _ in range(24)]
+    for component in components:
+        center_x, center_y = component["center"]
+        nearest = min(
+            range(24),
+            key=lambda index: (
+                ((float(center_x) - float(anchors[index]["center"][0])) / column_scale) ** 2
+                + ((float(center_y) - float(anchors[index]["center"][1])) / row_scale) ** 2
+            ),
+        )
+        buckets[nearest].append(component)
+
     frames: list[Image.Image] = []
-    for row in range(6):
-        for col in range(4):
+    for bucket in buckets:
+        frame = trim_components_with_padding(cleaned_sheet, prune_distant_specks(bucket))
+        if frame is None or frame.width < 80 or frame.height < 80:
+            return None
+        frames.append(frame)
+    return frames
+
+
+def split_image2_sheet_by_grid(sheet: Image.Image, key: tuple[int, int, int]) -> list[Image.Image] | None:
+    columns, rows = (6, 4) if sheet.width >= sheet.height else (4, 6)
+    cell_w = sheet.width // columns
+    cell_h = sheet.height // rows
+    frames: list[Image.Image] = []
+    for row in range(rows):
+        for col in range(columns):
             cell = sheet.crop((col * cell_w, row * cell_h, (col + 1) * cell_w, (row + 1) * cell_h))
-            cleaned = remove_chroma(cell, key)
+            cleaned = clear_generated_background(cell, key)
             trimmed = trim_with_padding(cleaned)
             if trimmed is None:
                 return None
@@ -720,6 +837,11 @@ def split_image2_sheet(path: Path, folder_name: str) -> list[Image.Image] | None
         print(f"Failed to load image2 sheet {path}: {exc}", file=sys.stderr)
         return None
     key = key_color_for_folder(folder_name)
+    if has_near_white_background(sheet):
+        component_frames = split_white_sheet_by_components(sheet)
+        if component_frames is not None:
+            return component_frames
+        return split_image2_sheet_by_grid(sheet, key)
     component_frames = split_image2_sheet_by_components(sheet, key)
     if component_frames is not None:
         return component_frames
