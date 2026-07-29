@@ -33490,6 +33490,15 @@ func _draw_ran_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_rect(Rect2(center + Vector2(-21.0, -10.0), Vector2(42.0, 60.0)), Color(0.92, 0.48, 0.12), true)
 
 
+func _yukari_gap_outline_points(center: Vector2, radius: float, aspect: float, rotation: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for point_index in range(28):
+		var angle = float(point_index) * TAU / 28.0
+		var offset = Vector2(cos(angle) * radius, sin(angle) * radius * aspect).rotated(rotation)
+		points.append(center + offset)
+	return points
+
+
 func _draw_yukari_boss(center: Vector2, zombie: Dictionary) -> void:
 	var frame_index = _yukari_frame_index(zombie)
 	if float(zombie.get("impact_timer", 0.0)) > 0.0:
@@ -33505,10 +33514,11 @@ func _draw_yukari_boss(center: Vector2, zombie: Dictionary) -> void:
 	for gap_index in range(3):
 		var angle = level_time * (0.44 + gap_index * 0.08) + float(gap_index) * TAU / 3.0
 		var gap = center + Vector2(cos(angle) * 53.0, -34.0 + sin(angle) * 19.0)
-		draw_set_transform(gap, angle * 0.25, Vector2(1.0, 0.46))
-		draw_circle(Vector2.ZERO, 14.0, Color(0.02, 0.0, 0.04, 0.66))
-		draw_arc(Vector2.ZERO, 14.0, 0.0, TAU, 24, Color(0.76, 0.48, 1.0, 0.48), 2.2)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		var gap_points = _yukari_gap_outline_points(gap, 14.0, 0.46, angle * 0.25)
+		draw_colored_polygon(gap_points, Color(0.02, 0.0, 0.04, 0.66))
+		var gap_outline = gap_points.duplicate()
+		gap_outline.append(gap_points[0])
+		draw_polyline(gap_outline, Color(0.76, 0.48, 1.0, 0.48), 2.2, true)
 		draw_circle(gap, 2.6, Color(1.0, 0.34, 0.7, 0.72))
 	for butterfly_index in range(5):
 		var b_angle = -level_time * 1.15 + float(butterfly_index) * TAU / 5.0

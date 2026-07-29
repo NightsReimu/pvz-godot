@@ -18,6 +18,7 @@ func _run() -> void:
 	failed = not _test_yakumo_bgm_routing_and_successor_transition() or failed
 	failed = not _test_yakumo_spell_effects_and_bounds() or failed
 	failed = not _test_yakumo_phase_pressure_and_render_scale() or failed
+	failed = not _test_yukari_gap_geometry_stays_in_boss_local_space() or failed
 	failed = not _test_hakugyokurou_preview_style() or failed
 	quit(1 if failed else 0)
 
@@ -266,6 +267,21 @@ func _test_yakumo_phase_pressure_and_render_scale() -> bool:
 		passed = _assert_true(has_yukari_phase_fx, "Yukari phase shifts should produce dedicated boundary FX") and passed
 		passed = _assert_true(float(game.call("_ran_draw_scale", 3)) <= 0.66, "Ran render scale should remain compact") and passed
 		passed = _assert_true(float(game.call("_yukari_draw_scale", 3)) <= 0.62, "Yukari render scale should remain compact") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_yukari_gap_geometry_stays_in_boss_local_space() -> bool:
+	var game = _make_game()
+	var passed = _assert_true(game.has_method("_yukari_gap_outline_points"), "Yukari gap drawing should use local-space geometry instead of replacing the zombie draw transform")
+	if not passed:
+		_free_game(game)
+		return false
+	var center := Vector2(48.0, -34.0)
+	var points: PackedVector2Array = game.call("_yukari_gap_outline_points", center, 14.0, 0.46, 0.35)
+	passed = _assert_true(points.size() >= 25, "Yukari gap outline should be smooth enough for the boss animation") and passed
+	for point in points:
+		passed = _assert_true(Vector2(point).distance_to(center) <= 14.1, "Yukari gap points should stay around the boss-local center") and passed
 	_free_game(game)
 	return passed
 
