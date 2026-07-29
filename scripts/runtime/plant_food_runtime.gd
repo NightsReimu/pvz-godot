@@ -182,6 +182,11 @@ func activate(row: int, col: int) -> bool:
 	plant["sleep_timer"] = 0.0
 	var center = game._cell_center(row, col)
 	var kind = String(plant["kind"])
+	if game._plant_food_uses_click_ultimate(kind):
+		var profile: Dictionary = game._ultimate_profile_for_kind(kind)
+		game._execute_ultimate(plant, kind, row, col, profile)
+		var resolved_plant = game._targetable_plant_at(row, col)
+		return _finish_activation(resolved_plant, kind, row, col, center)
 	match kind:
 		"peashooter", "amber_shooter", "puff_shroom", "scaredy_shroom":
 			if (String(plant["plant_food_mode"]) == "pea_storm" or String(plant["plant_food_mode"]) == "amber_storm") and float(plant["plant_food_timer"]) > 0.0:
@@ -1441,8 +1446,14 @@ func activate(row: int, col: int) -> bool:
 		_:
 			plant = _activate_fallback_plant_food(plant, kind, row, col, center)
 
-	plant["flash"] = maxf(float(plant["flash"]), 0.22)
-	game._set_targetable_plant(row, col, plant)
+	return _finish_activation(plant, kind, row, col, center)
+
+
+func _finish_activation(plant_variant, kind: String, row: int, col: int, center: Vector2) -> bool:
+	if plant_variant != null:
+		var plant: Dictionary = plant_variant
+		plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.22)
+		game._set_targetable_plant(row, col, plant)
 	game.effects.append({
 		"position": center,
 		"radius": 72.0,

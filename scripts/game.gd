@@ -9060,6 +9060,10 @@ func _plant_supports_click_ultimate(kind: String) -> bool:
 	return not _ultimate_profile_for_kind(kind).is_empty()
 
 
+func _plant_food_uses_click_ultimate(kind: String) -> bool:
+	return String(_ultimate_profile_for_kind(kind).get("style", "")) == "explicit"
+
+
 func _ultimate_profile_for_kind(kind: String) -> Dictionary:
 	var data = Defs.PLANTS.get(kind, {})
 	if data.is_empty():

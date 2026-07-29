@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GameScript = preload("res://scripts/game.gd")
+const GameDefs = preload("res://scripts/game_defs.gd")
 
 
 func _initialize() -> void:
@@ -30,6 +31,8 @@ func _run() -> void:
 	failed = not _test_magic_flower_click_ultimate_spawns_random_lane_barrage() or failed
 	failed = not _test_tesla_tulip_click_ultimate_summons_model_y() or failed
 	failed = not _test_brick_guard_click_ultimate_creates_column_wall() or failed
+	failed = not _test_frost_boomerang_plant_food_uses_its_frost_ring_ultimate() or failed
+	failed = not _test_all_explicit_click_ultimates_are_shared_with_plant_food() or failed
 	quit(1 if failed else 0)
 
 
@@ -584,5 +587,35 @@ func _test_brick_guard_click_ultimate_creates_column_wall() -> bool:
 	var passed := _assert_true(activated, "brick_guard should accept click ultimate activation when fully charged") \
 		and _assert_true(wall_count == game.active_rows.size(), "brick_guard click ultimate should create a full-column wall of brick guards") \
 		and _assert_true(_count_effect_shape(game, "brick_column_wall") > 0, "brick_guard click ultimate should emit a dedicated brick_column_wall effect")
+	_free_game(game)
+	return passed
+
+
+func _test_frost_boomerang_plant_food_uses_its_frost_ring_ultimate() -> bool:
+	var game := _make_game("volcano")
+	var row := 2
+	var col := 2
+	game.grid[row][col] = game.call("_create_plant", "frost_boomerang", row, col)
+	var activated := bool(game.call("_activate_plant_food", row, col))
+	var frost_projectiles := _count_projectile_kind(game, "frost_boomerang")
+	var passed := _assert_true(activated, "frost_boomerang should accept plant food") \
+		and _assert_true(frost_projectiles == game.active_rows.size() * 3, "frost_boomerang plant food should launch three returning frost boomerangs in every active lane") \
+		and _assert_true(_count_effect_shape(game, "volcano_frost_ring") > 0, "frost_boomerang plant food should use its dedicated frost-ring effect")
+	_free_game(game)
+	return passed
+
+
+func _test_all_explicit_click_ultimates_are_shared_with_plant_food() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_plant_food_uses_click_ultimate"), "game should expose the shared click-ultimate plant-food routing helper")
+	if not passed:
+		_free_game(game)
+		return false
+	for kind_variant in GameDefs.PLANTS.keys():
+		var kind = String(kind_variant)
+		var profile: Dictionary = game.call("_ultimate_profile_for_kind", kind)
+		if String(profile.get("style", "")) != "explicit":
+			continue
+		passed = _assert_true(bool(game.call("_plant_food_uses_click_ultimate", kind)), "%s should reuse its dedicated click ultimate when plant food is applied" % kind) and passed
 	_free_game(game)
 	return passed

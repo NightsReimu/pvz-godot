@@ -40,6 +40,7 @@ func _make_grid() -> Array:
 
 func _make_game() -> Control:
 	var game := GameScript.new()
+	game.size = Vector2(1600.0, 900.0)
 	game.current_level = {"id": "1-test", "terrain": "day", "events": []}
 	game.active_rows = [0, 1, 2, 3, 4]
 	game.board_rows = 5
