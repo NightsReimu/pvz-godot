@@ -10,6 +10,7 @@ func _run() -> void:
 	failed = not _test_compare_versions_and_normalize_tags() or failed
 	failed = not _test_project_settings_release_payload_builds_stable_asset_links() or failed
 	failed = not _test_release_page_html_builds_release_payload() or failed
+	failed = not _test_release_endpoints_use_nightsreimu_repository() or failed
 	failed = not _test_default_update_sources_prioritize_release_sources() or failed
 	failed = not _test_web_update_sources_avoid_release_page_cors() or failed
 	failed = not _test_prefer_release_info_uses_the_highest_version() or failed
@@ -100,6 +101,23 @@ func _test_release_page_html_builds_release_payload() -> bool:
 	var passed := true
 	passed = _assert_true(String(payload.get("tag_name", "")) == "v1.0.2", "release page HTML should be converted into a synthetic payload using the detected tag") and passed
 	passed = _assert_true(String(payload.get("html_url", "")) == "https://github.com/NightsReimu/pvz-godot/releases/tag/v1.0.2", "release page HTML should resolve to the matching release page") and passed
+	return passed
+
+
+func _test_release_endpoints_use_nightsreimu_repository() -> bool:
+	var manager = _manager()
+	if manager == null:
+		return false
+	var urls := [
+		String(manager.releases_url()),
+		String(manager.latest_release_page_url()),
+		String(manager.latest_release_api_url()),
+		String(manager.project_settings_cdn_url()),
+		String(manager.project_settings_raw_url()),
+	]
+	var passed := true
+	for url in urls:
+		passed = _assert_true(url.contains("NightsReimu/pvz-godot"), "update endpoint should use the NightsReimu repository: %s" % url) and passed
 	return passed
 
 

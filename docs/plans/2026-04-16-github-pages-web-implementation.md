@@ -97,7 +97,7 @@ git commit -m "feat: deploy web release to github pages"
 
 **Step 1: Inspect current Pages configuration**
 
-Run: `gh api repos/HecreReed/pvz-godot/pages`  
+Run: `gh api repos/NightsReimu/pvz-godot/pages`
 Expected: either existing Pages metadata or a 404 indicating Pages has not been configured yet.
 
 **Step 2: Enable GitHub Pages for Actions if needed**
@@ -166,5 +166,5 @@ Expected:
 
 **Step 5: Verify live site**
 
-Open: `https://nightsreimu.github.io/pvz-godot/`  
+Open: `https://nightsreimu.github.io/pvz-godot/`
 Expected: the exported Godot Web build loads directly from GitHub Pages.

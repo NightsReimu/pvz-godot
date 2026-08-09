@@ -1,6 +1,6 @@
 extends RefCounted
 
-const REPO_OWNER := "HecreReed"
+const REPO_OWNER := "NightsReimu"
 const REPO_NAME := "pvz-godot"
 const RELEASES_URL := "https://github.com/NightsReimu/pvz-godot/releases"
 const LATEST_RELEASE_PAGE_URL := "https://github.com/NightsReimu/pvz-godot/releases/latest"
