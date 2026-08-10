@@ -4,6 +4,8 @@
 
 ![樱花与能量流光装饰](docs/readme/readme-accent.svg)
 
+![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
+
 **Godot 4.6** · **当前版本 v1.0.92** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
@@ -34,6 +36,21 @@
 This repository contains a fan-made lane-defense game built with Godot 4.6. It expands the classic plant-versus-zombie formula with seven adventure worlds, daily stages, endless run bonuses, plant enhancement, a base-management loop, a collection system, and Touhou-inspired boss branches.
 
 The original source code is available under the MIT License. Bundled artwork, audio, fonts, character names, Touhou Project derivative content, and other media are **not** covered by MIT. Original Touhou music in this repository has no verified redistribution license; distributors must obtain permission or replace those tracks. This is an unofficial, noncommercial fan project and is not endorsed by the relevant rights holders.
+
+## 视觉预览
+
+<table>
+<tr>
+<td width="56%"><img src="./art/world_ui/world_background.png" width="100%" alt="世界选择背景预览"></td>
+<td width="22%"><img src="./art/gacha_ui/gacha_heroine.png" width="100%" alt="抽卡角色立绘预览"></td>
+<td width="22%"><img src="./art/home_ui/home_logo.png" width="100%" alt="主页装饰框预览"></td>
+</tr>
+<tr>
+<td colspan="3"><img src="./art/base_ui/base_top_bar.png" width="100%" alt="基建终端资源栏预览"></td>
+</tr>
+</table>
+
+首屏的扫光、粒子和轨道动画由仓库内的 SVG 自托管，游戏内的植物、卡面和角色素材仍按各自管线维护。GitHub 禁用动画时，面板会保留静态线框、色块和完整的可读文本。
 
 ## 游戏内容
 

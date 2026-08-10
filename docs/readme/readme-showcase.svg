@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="210" viewBox="0 0 1200 210" role="img" aria-labelledby="title desc">
+  <title id="title">PVZ SVG system showcase</title>
+  <desc id="desc">A colorful animated command panel showing world, base, endless, and boss systems with scanlines, orbiting energy, and pulsing status lights.</desc>
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="large-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <clipPath id="panel-clip"><rect x="1" y="1" width="1198" height="208" rx="12"/></clipPath>
+  </defs>
+  <rect x="1" y="1" width="1198" height="208" rx="12" fill="#0a1118" stroke="#31515d" stroke-width="2"/>
+  <g clip-path="url(#panel-clip)">
+    <rect x="0" y="0" width="1200" height="210" fill="#101d26" opacity="0.76"/>
+    <path d="M0 40 H1200 M0 82 H1200 M0 124 H1200 M0 166 H1200" stroke="#1f3640" stroke-width="1" opacity="0.65"/>
+    <path d="M42 0 V210 M330 0 V210 M620 0 V210 M910 0 V210" stroke="#1f3640" stroke-width="1" opacity="0.45"/>
+    <path d="M0 38 H1200" stroke="#65d5df" stroke-width="2" opacity="0.7" stroke-dasharray="3 22">
+      <animate attributeName="stroke-dashoffset" values="0;100" dur="3s" repeatCount="indefinite"/>
+    </path>
+    <g fill="none" stroke-width="2">
+      <rect x="28" y="28" width="260" height="152" rx="8" stroke="#65d5df" opacity="0.68"/>
+      <rect x="318" y="28" width="260" height="152" rx="8" stroke="#f5bf55" opacity="0.68"/>
+      <rect x="608" y="28" width="260" height="152" rx="8" stroke="#f19bb0" opacity="0.68"/>
+      <rect x="898" y="28" width="274" height="152" rx="8" stroke="#99db9d" opacity="0.68"/>
+    </g>
+    <g font-family="Arial, sans-serif" font-size="12" letter-spacing="2" fill="#d8f4f4">
+      <text x="48" y="54">WORLD SELECT</text>
+      <text x="338" y="54" fill="#fff0bc">BASE TERMINAL</text>
+      <text x="628" y="54" fill="#ffdce6">ENDLESS RUN</text>
+      <text x="918" y="54" fill="#d8f7d8">BOSS ARCHIVE</text>
+    </g>
+    <g font-family="Arial, sans-serif" font-size="11" fill="#7fa4ad">
+      <text x="48" y="76">07 WORLDS / 171 STAGES</text>
+      <text x="338" y="76">07 ROOMS / OFFLINE LOOP</text>
+      <text x="628" y="76">3 CHOICES / 1 BUILD</text>
+      <text x="918" y="76">24-FRAME SPELL CARDS</text>
+    </g>
+    <g fill="none" stroke-linecap="round" filter="url(#glow)">
+      <path d="M52 136 H250" stroke="#65d5df" stroke-width="6" opacity="0.18"/>
+      <path d="M52 136 H181" stroke="#65d5df" stroke-width="3">
+        <animate attributeName="stroke-dasharray" values="12 18;74 8;12 18" dur="2.8s" repeatCount="indefinite"/>
+      </path>
+      <path d="M342 136 H554" stroke="#f5bf55" stroke-width="6" opacity="0.16"/>
+      <path d="M342 136 H489" stroke="#f5bf55" stroke-width="3">
+        <animate attributeName="stroke-dasharray" values="18 12;86 7;18 12" dur="3.2s" repeatCount="indefinite"/>
+      </path>
+      <path d="M632 136 H844" stroke="#f19bb0" stroke-width="6" opacity="0.16"/>
+      <path d="M632 136 H796" stroke="#f19bb0" stroke-width="3">
+        <animate attributeName="stroke-dasharray" values="8 16;92 5;8 16" dur="2.4s" repeatCount="indefinite"/>
+      </path>
+      <path d="M922 136 H1148" stroke="#99db9d" stroke-width="6" opacity="0.16"/>
+      <path d="M922 136 H1080" stroke="#99db9d" stroke-width="3">
+        <animate attributeName="stroke-dasharray" values="24 14;106 6;24 14" dur="3.8s" repeatCount="indefinite"/>
+      </path>
+    </g>
+    <g fill="#65d5df" filter="url(#glow)">
+      <circle cx="78" cy="108" r="4"><animate attributeName="cx" values="78;242;78" dur="3.4s" repeatCount="indefinite"/></circle>
+      <circle cx="430" cy="108" r="4" fill="#f5bf55"><animate attributeName="cx" values="430;548;430" dur="2.6s" repeatCount="indefinite"/></circle>
+      <circle cx="746" cy="108" r="4" fill="#f19bb0"><animate attributeName="cy" values="108;158;108" dur="2.1s" repeatCount="indefinite"/></circle>
+      <circle cx="1032" cy="108" r="4" fill="#99db9d"><animate attributeName="cx" values="1032;1150;1032" dur="3s" repeatCount="indefinite"/></circle>
+    </g>
+    <g fill="none" stroke="#f19bb0" stroke-width="2" opacity="0.75" filter="url(#glow)">
+      <circle cx="746" cy="136" r="25"><animate attributeName="r" values="18;42;18" dur="2.6s" repeatCount="indefinite"/></circle>
+      <circle cx="746" cy="136" r="10"><animateTransform attributeName="transform" type="rotate" values="0 746 136;360 746 136" dur="4s" repeatCount="indefinite"/></circle>
+    </g>
+    <g fill="#f5bf55" opacity="0.7">
+      <path d="M292 20 l5 9 l10 2 l-7 7 l2 10 l-10-5 l-9 5 l2-10 l-7-7 l10-2Z"><animateTransform attributeName="transform" type="rotate" values="0 297 34;360 297 34" dur="5s" repeatCount="indefinite"/></path>
+      <path d="M883 165 l4 7 l8 2 l-6 5 l2 8 l-8-4 l-7 4 l2-8 l-6-5 l8-2Z"><animateTransform attributeName="transform" type="rotate" values="360 887 174;0 887 174" dur="4s" repeatCount="indefinite"/></path>
+    </g>
+    <rect x="-280" y="0" width="280" height="210" fill="#65d5df" opacity="0.07" filter="url(#large-glow)">
+      <animate attributeName="x" values="-280;1200" dur="7s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+  <path d="M20 12 H230 M970 198 H1180" stroke="#f5bf55" stroke-width="2" opacity="0.8"/>
+</svg>

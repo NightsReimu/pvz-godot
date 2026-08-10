@@ -1,10 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="76" viewBox="0 0 1200 76" role="img" aria-labelledby="title desc">
   <title id="title">Animated cherry blossom and energy accent</title>
-  <desc id="desc">A restrained animated divider with petals, cyan energy lines, and a moving gold highlight.</desc>
+  <desc id="desc">Animated cherry blossoms, orbiting particles, cyan energy lines, and a moving gold scan highlight.</desc>
+  <defs>
+    <filter id="soft-glow" x="-30%" y="-100%" width="160%" height="300%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="wide-glow" x="-30%" y="-100%" width="160%" height="300%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
   <rect x="0" y="6" width="1200" height="64" rx="8" fill="#101a21"/>
+  <rect x="18" y="16" width="1164" height="44" rx="5" fill="none" stroke="#26434c" stroke-width="1"/>
   <path d="M24 38 H1176" fill="none" stroke="#65d5df" stroke-width="2" opacity="0.32"/>
-  <path d="M80 27 H420 M780 49 H1120" fill="none" stroke="#f5bf55" stroke-width="3" opacity="0.54">
-    <animate attributeName="opacity" values="0.25;0.75;0.25" dur="3.6s" repeatCount="indefinite"/>
+  <path d="M35 26 H130 M260 50 H405 M795 26 H940 M1068 50 H1165" fill="none" stroke="#65d5df" stroke-width="1" opacity="0.4"/>
+  <path d="M80 27 H420 M780 49 H1120" fill="none" stroke="#f5bf55" stroke-width="3" opacity="0.54" filter="url(#soft-glow)">
+    <animate attributeName="opacity" values="0.25;0.9;0.25" dur="3.6s" repeatCount="indefinite"/>
+  </path>
+  <path d="M290 38 C420 12 520 64 650 38 S880 12 1030 38" fill="none" stroke="#65d5df" stroke-width="1" opacity="0.25">
+    <animate attributeName="stroke-dashoffset" values="0;180" dur="4s" repeatCount="indefinite"/>
+    <animate attributeName="stroke-dasharray" values="4 18;18 4;4 18" dur="4s" repeatCount="indefinite"/>
   </path>
   <g fill="#f19bb0">
     <path d="M165 31 C151 18 143 35 157 40 C143 47 157 60 166 45 C177 59 190 45 176 39 C188 27 173 18 165 31Z">
@@ -14,7 +29,7 @@
       <animateTransform attributeName="transform" type="rotate" values="360 1030 38;0 1030 38" dur="7s" repeatCount="indefinite"/>
     </path>
   </g>
-  <g fill="#65d5df">
+  <g fill="#65d5df" filter="url(#soft-glow)">
     <circle cx="500" cy="38" r="4">
       <animate attributeName="r" values="3;7;3" dur="2.4s" repeatCount="indefinite"/>
       <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.4s" repeatCount="indefinite"/>
@@ -23,7 +38,12 @@
       <animate attributeName="r" values="7;3;7" dur="2.4s" repeatCount="indefinite"/>
       <animate attributeName="opacity" values="0.2;0.9;0.2" dur="2.4s" repeatCount="indefinite"/>
     </circle>
+    <circle cx="365" cy="25" r="2"><animate attributeName="cy" values="25;49;25" dur="3.1s" repeatCount="indefinite"/></circle>
+    <circle cx="840" cy="51" r="2"><animate attributeName="cy" values="51;27;51" dur="2.7s" repeatCount="indefinite"/></circle>
   </g>
+  <rect x="-220" y="9" width="220" height="58" rx="8" fill="#f5bf55" opacity="0.1" filter="url(#wide-glow)">
+    <animate attributeName="opacity" values="0.03;0.16;0.03" dur="4.8s" repeatCount="indefinite"/>
+  </rect>
   <rect x="-220" y="9" width="220" height="58" rx="8" fill="#f5bf55" opacity="0.1">
     <animate attributeName="x" values="-220;1200" dur="4.8s" repeatCount="indefinite"/>
   </rect>
