@@ -10,8 +10,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed := false
-	failed = not _test_flandre_skill_cycle_uses_eleven_distinct_signature_effects() or failed
-	failed = not _test_flandre_signature_spell_damage_uses_configured_keys() or failed
+	failed = not _test_flandre_skill_cycle_uses_ten_distinct_patterns() or failed
+	failed = not _test_flandre_declarations_allow_reaction_before_damage() or failed
 	failed = not _test_flandre_phase_shift_uses_dedicated_destroyer_field_effect() or failed
 	quit(1 if failed else 0)
 
@@ -78,20 +78,11 @@ func _effect_shapes(game: Control) -> Array:
 	return shapes
 
 
-func _test_flandre_skill_cycle_uses_eleven_distinct_signature_effects() -> bool:
+func _test_flandre_skill_cycle_uses_ten_distinct_patterns() -> bool:
 	var game = _make_game()
 	var expected_shapes = [
-		"flandre_laevatein",
-		"flandre_four_of_a_kind",
-		"flandre_kagome_ring",
-		"flandre_starbow_break",
-		"flandre_doll_box",
-		"flandre_crystal_spike",
-		"flandre_break_switch",
-		"flandre_toy_storm",
-		"flandre_secret_barrage",
-		"flandre_judgement_grid",
-		"flandre_cranberry_trap",
+		"cranberry", "laevatein", "four_of_a_kind", "kagome", "maze",
+		"starbow", "catadioptric", "past_clock", "and_then_none", "qed",
 	]
 	var seen := {}
 	var passed = _assert_true(game.has_method("_trigger_flandre_boss_skill"), "expected dedicated Flandre skill trigger to exist")
@@ -108,8 +99,7 @@ func _test_flandre_skill_cycle_uses_eleven_distinct_signature_effects() -> bool:
 				"health": 24800.0,
 			}
 			game.call("_trigger_flandre_boss_skill", boss)
-			var shapes = _effect_shapes(game)
-			seen[expected_shapes[cycle]] = shapes.has(expected_shapes[cycle])
+			seen[expected_shapes[cycle]] = String(game.touhou_danmaku.casts.back().pattern) == expected_shapes[cycle] and (not game.touhou_danmaku.bullets.is_empty() or not game.touhou_danmaku.beams.is_empty())
 		for shape in expected_shapes:
 			passed = _assert_true(bool(seen.get(shape, false)), "Flandre skill cycle should emit dedicated effect shape %s" % shape) and passed
 	_free_game(game)
@@ -136,11 +126,10 @@ func _flandre_damage_for_cycle(cycle: int, row: int, col: int) -> float:
 	return damage
 
 
-func _test_flandre_signature_spell_damage_uses_configured_keys() -> bool:
-	var data = Dictionary(Defs.ZOMBIES["flandre_boss"])
-	var passed = _assert_true(absf(_flandre_damage_for_cycle(0, 2, 3) - float(data["laevatein_damage"])) <= 0.01, "Laevatein should use laevatein_damage") \
-		and _assert_true(absf(_flandre_damage_for_cycle(2, 2, 3) - float(data["kagome_damage"])) <= 0.01, "Kagome should use kagome_damage") \
-		and _assert_true(absf(_flandre_damage_for_cycle(9, 2, 2) - float(data["judgement_damage"])) <= 0.01, "Judgement Grid should use judgement_damage")
+func _test_flandre_declarations_allow_reaction_before_damage() -> bool:
+	var passed = _assert_true(absf(_flandre_damage_for_cycle(1, 2, 3)) <= 0.01, "Laevatein must show a laser warning before impact") \
+		and _assert_true(absf(_flandre_damage_for_cycle(3, 2, 3)) <= 0.01, "Kagome must emit moving bullets before impact") \
+		and _assert_true(absf(_flandre_damage_for_cycle(9, 2, 2)) <= 0.01, "QED must emit expanding rings before impact")
 	return passed
 
 

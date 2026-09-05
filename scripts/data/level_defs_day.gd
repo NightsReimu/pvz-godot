@@ -546,7 +546,7 @@ const LEVELS = [
 	{
 		"id": "1-19",
 		"title": "白天 1-19",
-		"description": "红魔馆大门前。红美玲守卫着这扇大门，以彩虹气功弹、青龙波与踏破大地的踢击逐退来犯的植物军团。",
+		"description": "红魔馆大门前。红美铃以芳华绚烂、彩虹的风铃、彩雨与极彩台风迎战植物军团。",
 		"terrain": "scarlet_gate",
 		"mode": "conveyor",
 		"boss_level": true,
@@ -688,7 +688,7 @@ const LEVELS = [
 	{
 		"id": "1-22",
 		"title": "白天 1-22",
-		"description": "猩红长夜终幕。半程由咲夜在血夜庭院中央锁住战线，终幕则由蕾米莉亚以红魔枪雨、命运压场与猩红吸血持续榨干整片花坛。",
+		"description": "猩红长夜终幕。咲夜以 Eternal Meek 拦截道中，蕾米莉亚随后展开大卫之星、红色的冥界与红魔法；长夜持续压低植物血线。",
 		"terrain": "blood_moon",
 		"mode": "conveyor",
 		"boss_level": true,
@@ -735,7 +735,7 @@ const LEVELS = [
 	{
 		"id": "1-23",
 		"title": "白天 1-23",
-		"description": "血月玩具屋顶终幕。半程由帕秋莉的七曜法阵锁住推进，终幕则由芙兰朵露以禁忌玩具、分身弹幕与毁灭系符卡把整块战场拖进红月阁楼。",
+		"description": "血月玩具屋顶终幕。帕秋莉以月符、日符和贤者之石拦截道中，芙兰朵露随后展开 Extra 十符，最终迎来 QED「495年的波纹」。",
 		"terrain": "blood_toy_roof",
 		"mode": "conveyor",
 		"boss_level": true,

@@ -10,6 +10,8 @@ const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
 const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
+const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
+const TouhouDanmakuRuntime = preload("res://scripts/runtime/touhou_danmaku_runtime.gd")
 const ObjectiveRuntime = preload("res://scripts/runtime/objective_runtime.gd")
 const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
@@ -914,6 +916,7 @@ var card_cooldowns := {}
 var plant_runtime: PlantRuntime
 var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
+var touhou_danmaku: TouhouDanmakuRuntime
 var zombie_runtime: ZombieRuntime
 var objective_runtime: ObjectiveRuntime
 var save_dirty := false
@@ -2018,6 +2021,8 @@ func _process(delta: float) -> void:
 	_update_projectiles(delta)
 	_update_rollers(delta)
 	_update_zombies(delta)
+	if touhou_danmaku != null:
+		touhou_danmaku.update(delta)
 	_update_lava_cells(delta)
 	_update_cloud_sea(delta)
 	_grow_yuyuko_graves(delta)
@@ -3166,6 +3171,8 @@ func _is_existing_touhou_boss_kind(kind: String) -> bool:
 
 
 func _boss_skill_cycle_length(kind: String) -> int:
+	if TouhouSpellDefs.CARDS.has(kind):
+		return TouhouSpellDefs.cards_for(kind, current_level).size()
 	var data = Dictionary(Defs.ZOMBIES.get(kind, {}))
 	if data.has("skill_cycle_length"):
 		return max(1, int(data.get("skill_cycle_length", 3)))
@@ -6796,6 +6803,10 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		support_grid.append(support_row)
 
 	zombies = []
+	if touhou_danmaku != null:
+		touhou_danmaku.clear()
+	boss_time_stop_timer = 0.0
+	boss_time_stop_flash_timer = 0.0
 	next_zombie_uid = 1
 	projectiles = []
 	suns = []
@@ -9029,6 +9040,12 @@ func _ensure_zombie_runtime() -> ZombieRuntime:
 	return zombie_runtime
 
 
+func _ensure_touhou_danmaku() -> TouhouDanmakuRuntime:
+	if touhou_danmaku == null:
+		touhou_danmaku = TouhouDanmakuRuntime.new(self)
+	return touhou_danmaku
+
+
 func _ensure_objective_runtime() -> ObjectiveRuntime:
 	if objective_runtime == null:
 		objective_runtime = ObjectiveRuntime.new(self)
@@ -9304,6 +9321,8 @@ func _ready_click_ultimate_candidate_at(row: int, col: int) -> Dictionary:
 		if plant_variant == null:
 			continue
 		var plant = plant_variant
+		if float(plant.get("health", 0.0)) <= 0.0 or _plant_charm_blocks_actions(plant):
+			continue
 		var kind = String(plant.get("kind", ""))
 		var profile = _ultimate_profile_for_kind(kind)
 		if profile.is_empty():
@@ -12936,8 +12955,12 @@ func _spawn_kite_trap_from(_zombie: Dictionary) -> void:
 func _cleanup_dead_zombies() -> void:
 	for i in range(zombies.size() - 1, -1, -1):
 		var zombie = zombies[i]
+		if bool(zombie.get("touhou_invulnerable", false)) and float(zombie.get("touhou_survival_timer", 0.0)) > 0.0:
+			zombie["health"] = maxf(1.0, float(zombie.get("health", 0.0)))
 		if float(zombie["health"]) > 0.0:
 			continue
+		if touhou_danmaku != null and zombie.has("touhou_owner"):
+			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
 		if String(zombie.get("kind", "")) == "yuyuko_boss" and bool(Defs.ZOMBIES["yuyuko_boss"].get("revive_once", false)) and not bool(zombie.get("yuyuko_revived", false)):
 			zombies[i] = _trigger_yuyuko_boss_revival(zombie)
 			continue
@@ -14399,7 +14422,7 @@ func _apply_ash_hits_in_row_segment(row: int, min_x: float, max_x: float, hits: 
 
 
 func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12, slow_duration: float = 0.0, ignore_shield: bool = false) -> Dictionary:
-	if damage <= 0.0:
+	if damage <= 0.0 or bool(zombie.get("touhou_invulnerable", false)):
 		return zombie
 
 	var remaining_damage = damage
@@ -15230,11 +15253,13 @@ func _find_nearest_plant_cell_to_cell(row: int, col: int, skip_self: bool = true
 	var best_distance := INF
 	var origin = _cell_center(clampi(row, 0, ROWS - 1), clampi(col, 0, COLS - 1))
 	for candidate_row in range(ROWS):
+		if not _is_row_active(candidate_row):
+			continue
 		for candidate_col in range(COLS):
 			if skip_self and candidate_row == row and candidate_col == col:
 				continue
 			var plant_variant = _targetable_plant_at(candidate_row, candidate_col)
-			if plant_variant == null:
+			if plant_variant == null or float(plant_variant.get("health", 0.0)) <= 0.0:
 				continue
 			var distance = origin.distance_squared_to(_cell_center(candidate_row, candidate_col))
 			if distance < best_distance:
@@ -15244,13 +15269,15 @@ func _find_nearest_plant_cell_to_cell(row: int, col: int, skip_self: bool = true
 
 
 func _charm_plant_at_cell(row: int, col: int, duration: float) -> bool:
+	if row < 0 or row >= ROWS or col < 0 or col >= COLS or duration <= 0.0:
+		return false
 	var plant_variant = _targetable_plant_at(row, col)
-	if plant_variant == null:
+	if plant_variant == null or float(plant_variant.get("health", 0.0)) <= 0.0 or float(plant_variant.get("holy_invincible_timer", 0.0)) > 0.0:
 		return false
 	var plant = plant_variant
+	if float(plant.get("youmu_charm_timer", 0.0)) <= 0.0:
+		plant["youmu_charm_attack_timer"] = 0.1
 	plant["youmu_charm_timer"] = maxf(float(plant.get("youmu_charm_timer", 0.0)), duration)
-	plant["youmu_charm_attack_timer"] = minf(float(plant.get("youmu_charm_attack_timer", 0.55)), 0.1)
-	plant["shot_cooldown"] = maxf(float(plant.get("shot_cooldown", 0.0)), 0.35)
 	plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.18)
 	_set_targetable_plant(row, col, plant)
 	effects.append({
@@ -15268,36 +15295,32 @@ func _charm_plant_at_cell(row: int, col: int, duration: float) -> bool:
 func _update_charmed_plants(delta: float) -> void:
 	for row in range(ROWS):
 		for col in range(COLS):
-			var plant_variant = _targetable_plant_at(row, col)
-			if plant_variant == null:
-				continue
-			var plant = plant_variant
-			var charm_timer = float(plant.get("youmu_charm_timer", 0.0))
-			if charm_timer <= 0.0:
-				continue
-			charm_timer = maxf(0.0, charm_timer - delta)
-			plant["youmu_charm_timer"] = charm_timer
-			plant["shot_cooldown"] = maxf(float(plant.get("shot_cooldown", 0.0)), 0.32)
-			var attack_timer = maxf(0.0, float(plant.get("youmu_charm_attack_timer", 0.0)) - delta)
-			if attack_timer <= 0.0 and charm_timer > 0.0:
-				var target_cell = _find_nearest_plant_cell_to_cell(row, col, true)
-				if target_cell.x != -1:
+			for layer in [grid, support_grid]:
+				var plant_variant = layer[row][col]
+				if plant_variant == null:
+					continue
+				var plant: Dictionary = plant_variant
+				var remaining = maxf(0.0, float(plant.get("youmu_charm_timer", 0.0)))
+				plant["youmu_charm_blocked_frame"] = remaining > 0.0
+				if remaining <= 0.0:
+					continue
+				var active_delta = minf(maxf(0.0, delta), remaining)
+				plant["youmu_charm_timer"] = maxf(0.0, remaining - active_delta)
+				var attack_timer = float(plant.get("youmu_charm_attack_timer", 0.1)) - active_delta
+				# Tick both layers, but a covered support cannot attack through the plant above it.
+				var can_attack = float(plant.get("health", 0.0)) > 0.0 and is_same(plant, _targetable_plant_at(row, col)) and _is_row_active(row) and float(plant.get("sleep_timer", 0.0)) <= 0.0
+				while can_attack and attack_timer <= 0.0:
+					var target_cell = _find_nearest_plant_cell_to_cell(row, col, true)
+					if target_cell.x == -1:
+						break
 					_damage_plant_cell(target_cell.x, target_cell.y, float(Defs.ZOMBIES["youmu_boss"].get("wraith_damage", 46.0)), 0.16)
-					effects.append({
-						"shape": "youmu_wraith_charm",
-						"position": _cell_center(row, col) + Vector2(0.0, -10.0),
-						"target": _cell_center(target_cell.x, target_cell.y) + Vector2(0.0, -10.0),
-						"radius": 46.0,
-						"time": 0.34,
-						"duration": 0.34,
-						"anim_speed": 9.0,
-						"color": Color(0.72, 0.9, 1.0, 0.3),
-					})
-				attack_timer = 0.58
-			plant["youmu_charm_attack_timer"] = attack_timer
-			if charm_timer <= 0.0:
-				plant["youmu_charm_attack_timer"] = 0.0
-			_set_targetable_plant(row, col, plant)
+					effects.append({"shape": "youmu_wraith_charm", "position": _cell_center(row, col) + Vector2(0, -10), "target": _cell_center(target_cell.x, target_cell.y) + Vector2(0, -10), "radius": 46.0, "time": 0.34, "duration": 0.34, "anim_speed": 9.0, "color": Color(0.72, 0.9, 1.0, 0.3)})
+					attack_timer += 0.58
+				plant["youmu_charm_attack_timer"] = maxf(0.0, attack_timer) if float(plant["youmu_charm_timer"]) > 0.0 else 0.0
+
+
+func _plant_charm_blocks_actions(plant: Dictionary) -> bool:
+	return float(plant.get("youmu_charm_timer", 0.0)) > 0.0 or bool(plant.get("youmu_charm_blocked_frame", false))
 
 
 func _stagger_plants_in_circle(center: Vector2, radius: float, extra_cooldown: float) -> int:
@@ -15314,236 +15337,15 @@ func _stagger_plants_in_circle(center: Vector2, radius: float, extra_cooldown: f
 
 
 func _trigger_daiyousei_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["daiyousei_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("daiyousei_boss")
-	var ring_center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.72, _row_center_y(row) - 10.0)
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var ring_hit := false
-			var segment_start = BOARD_ORIGIN.x + board_size.x * 0.48
-			for lane in active_rows:
-				var lane_row = int(lane)
-				if abs(lane_row - row) > 1:
-					continue
-				ring_hit = _damage_plants_in_row_segment(
-					lane_row,
-					segment_start,
-					anchor_x,
-					float(data.get("ring_damage", 46.0)) * (2.8 + phase * 0.45)
-				) or ring_hit
-			effects.append({
-				"shape": "fairy_ring",
-				"position": ring_center,
-				"radius": 152.0 + phase * 18.0,
-				"time": 0.42,
-				"duration": 0.42,
-				"anim_speed": 5.6,
-				"color": Color(0.48, 0.98, 0.74, 0.3 if ring_hit else 0.2),
-			})
-			_show_banner("大妖精散开了星辉弹幕！", 1.2)
-			return _set_rumia_state(zombie, "ring", 0.48)
-		1:
-			var lance_start = BOARD_ORIGIN.x + board_size.x * 0.44
-			var lance_hit = _damage_plants_in_row_segment(
-				row,
-				lance_start,
-				anchor_x,
-				float(data.get("lance_damage", 180.0)) + phase * 32.0
-			)
-			effects.append({
-				"shape": "fairy_lance",
-				"position": Vector2(lance_start, _row_center_y(row) - 10.0),
-				"length": anchor_x - lance_start,
-				"width": CELL_SIZE.y * 0.36,
-				"radius": anchor_x - lance_start,
-				"time": 0.34,
-				"duration": 0.34,
-				"anim_speed": 7.2,
-				"color": Color(0.72, 1.0, 0.88, 0.34 if lance_hit else 0.22),
-			})
-			_show_banner("大妖精聚起了光枪！", 1.15)
-			return _set_rumia_state(zombie, "lance", 0.4)
-		_:
-			for _i in range(2 + (1 if phase >= 1 else 0)):
-				_spawn_hover_boss_reinforcement("daiyousei_boss", phase)
-			effects.append({
-				"shape": "fairy_ring",
-				"position": ring_center,
-				"radius": 124.0 + phase * 14.0,
-				"time": 0.36,
-				"duration": 0.36,
-				"anim_speed": 4.9,
-				"color": Color(0.56, 1.0, 0.82, 0.24),
-			})
-			_show_banner("大妖精呼来了更多妖精！", 1.2)
-			return _set_rumia_state(zombie, "summon", 0.54)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_cirno_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["cirno_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("cirno_boss")
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var impact_rows = [row]
-			var prev_row = _next_active_row(row, -1)
-			var next_row = _next_active_row(row, 1)
-			impact_rows.append(int(prev_row.get("row", row)))
-			impact_rows.append(int(next_row.get("row", row)))
-			var impact_cells: Array = []
-			var impact_points: Array = []
-			var land_cols = [5, 6, 7, 8]
-			for index in range(impact_rows.size()):
-				var impact_row = clampi(int(impact_rows[index]), 0, ROWS - 1)
-				var col = int(land_cols[min(index, land_cols.size() - 1)])
-				var cell = Vector2i(impact_row, col)
-				if impact_cells.has(cell):
-					continue
-				impact_cells.append(cell)
-				impact_points.append(_cell_center(impact_row, col))
-			var impact_hit_count = _damage_plants_in_cells(
-				impact_cells,
-				float(data.get("icicle_damage", 110.0)) + phase * 18.0,
-				1.1 + phase * 0.18
-			)
-			effects.append({
-				"shape": "icicle_fall",
-				"position": Vector2(anchor_x - 120.0, _row_center_y(row) - 28.0),
-				"points": impact_points,
-				"radius": 150.0,
-				"time": 0.4,
-				"duration": 0.4,
-				"anim_speed": 6.8,
-				"color": Color(0.78, 0.96, 1.0, 0.34 if impact_hit_count > 0 else 0.22),
-			})
-			_show_banner("Icicle Fall", 1.1)
-			return _set_rumia_state(zombie, "icicle", 0.44)
-		1:
-			var freeze_center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.64, _row_center_y(row) - 10.0)
-			var freeze_radius = 264.0 + phase * 22.0
-			var freeze_hit = _damage_plants_in_circle(
-				freeze_center,
-				freeze_radius,
-				float(data.get("freeze_damage", 86.0)) + phase * 16.0
-			)
-			_stagger_plants_in_circle(freeze_center, freeze_radius, 1.35 + phase * 0.2)
-			effects.append({
-				"shape": "perfect_freeze",
-				"position": freeze_center,
-				"radius": freeze_radius,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 5.6,
-				"color": Color(0.7, 0.92, 1.0, 0.32 if freeze_hit else 0.2),
-			})
-			_show_banner("Perfect Freeze", 1.15)
-			return _set_rumia_state(zombie, "freeze", 0.56)
-		_:
-			var blizzard_start = BOARD_ORIGIN.x + board_size.x * 0.42
-			var blizzard_hit := false
-			for lane in active_rows:
-				blizzard_hit = _damage_plants_in_row_segment(
-					int(lane),
-					blizzard_start,
-					anchor_x,
-					float(data.get("blizzard_damage", 62.0)) * (1.9 + phase * 0.18)
-				) or blizzard_hit
-			effects.append({
-				"shape": "diamond_blizzard",
-				"position": Vector2(blizzard_start, BOARD_ORIGIN.y + board_size.y * 0.5 - 4.0),
-				"length": anchor_x - blizzard_start,
-				"width": board_size.y * 0.9,
-				"radius": 220.0 + phase * 12.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 6.2,
-				"color": Color(0.78, 0.96, 1.0, 0.34 if blizzard_hit else 0.22),
-			})
-			if phase >= 1:
-				_spawn_hover_boss_reinforcement("cirno_boss", phase)
-			_show_banner("Diamond Blizzard", 1.15)
-			return _set_rumia_state(zombie, "blizzard", 0.54)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_rumia_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["rumia_boss"]
-	var center = Vector2(_rumia_anchor_x(), _row_center_y(int(zombie["row"])) - 8.0)
-	var phase = int(zombie.get("boss_phase", 0))
-	effects.append({
-		"shape": "rumia_burst",
-		"position": center,
-		"radius": 118.0 + phase * 12.0,
-		"time": 0.34,
-		"duration": 0.34,
-		"anim_speed": 4.6,
-		"color": Color(0.98, 0.08, 0.18, 0.34),
-	})
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var summon_rows: Array = []
-			summon_rows.append(int(zombie["row"]))
-			var row_data = _next_active_row(int(zombie["row"]), -1)
-			summon_rows.append(int(row_data["row"]))
-			row_data = _next_active_row(int(zombie["row"]), 1)
-			summon_rows.append(int(row_data["row"]))
-			var summon_kinds = ["normal", "conehead", "buckethead"]
-			for summon_index in range(min(int(data.get("summon_count", 3)), summon_rows.size())):
-				var summon_kind = summon_kinds[min(summon_index + phase, summon_kinds.size() - 1)]
-				_spawn_zombie_at(summon_kind, int(summon_rows[summon_index]), _rumia_anchor_x() - 64.0 - summon_index * 22.0, true)
-			_show_banner("露米娅召来了黑暗眷属！", 1.7)
-			return _set_rumia_state(zombie, "summon", 0.56)
-		1:
-			var beam_hit = _damage_plants_in_row_segment(int(zombie["row"]), BOARD_ORIGIN.x, _rumia_anchor_x(), float(data.get("moonlight_damage", 220.0)) + phase * 26.0)
-			effects.append({
-				"shape": "rumia_beam",
-				"position": Vector2(BOARD_ORIGIN.x + 12.0, _row_center_y(int(zombie["row"])) - 10.0),
-				"length": _rumia_anchor_x() - BOARD_ORIGIN.x,
-				"width": CELL_SIZE.y * 0.7,
-				"radius": _rumia_anchor_x() - BOARD_ORIGIN.x,
-				"time": 0.34,
-				"duration": 0.34,
-				"anim_speed": 8.4,
-				"color": Color(1.0, 0.16, 0.22, 0.34 if beam_hit else 0.24),
-			})
-			_show_banner("Moonlight Ray", 1.2)
-			return _set_rumia_state(zombie, "beam", 0.42)
-		2:
-			for lane in active_rows:
-				var lane_row = int(lane)
-				if abs(lane_row - int(zombie["row"])) > 1:
-					continue
-				var bird_x = BOARD_ORIGIN.x + board_size.x * (0.44 + 0.1 * float(abs(lane_row - int(zombie["row"]))))
-				_damage_plants_in_row_segment(lane_row, bird_x - 72.0, _rumia_anchor_x(), float(data.get("night_bird_damage", 34.0)) * (4.0 + phase * 0.6))
-				effects.append({
-					"shape": "night_bird_swarm",
-					"position": Vector2(bird_x, _row_center_y(lane_row) - 8.0),
-					"length": _rumia_anchor_x() - bird_x + 34.0,
-					"width": CELL_SIZE.y * 0.54,
-					"radius": 120.0,
-					"time": 0.42,
-					"duration": 0.42,
-					"anim_speed": 6.8,
-					"color": Color(0.16, 0.02, 0.04, 0.48),
-				})
-			_show_banner("Night Bird", 1.2)
-			return _set_rumia_state(zombie, "bird", 0.48)
-		_:
-			var slept = _sleep_plants_in_radius(center, float(data.get("darkness_radius", 170.0)) + phase * 16.0, 3.4 + phase * 0.7)
-			_damage_plants_in_circle(center, float(data.get("darkness_radius", 170.0)) * 0.72, 44.0 + phase * 12.0)
-			effects.append({
-				"shape": "dark_orbit",
-				"position": center,
-				"radius": float(data.get("darkness_radius", 170.0)) + phase * 16.0,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 5.4,
-				"color": Color(0.16, 0.0, 0.06, 0.42 if slept > 0 else 0.28),
-			})
-			_show_banner("Dark Side of the Moon", 1.3)
-			return _set_rumia_state(zombie, "dark", 0.56)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _sakuya_target_cells(row: int, count: int, base_col: int = 4) -> Array:
@@ -15568,268 +15370,7 @@ func _sakuya_target_cells(row: int, count: int, base_col: int = 4) -> Array:
 
 
 func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["sakuya_boss"]
-	var row = int(zombie.get("row", 0))
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("sakuya_boss")
-	var cycle = int(zombie.get("boss_skill_cycle", 0))
-	match cycle:
-		0:
-			var start_x = BOARD_ORIGIN.x + board_size.x * 0.44
-			var fan_hit := false
-			for lane_variant in [row, _next_active_row(row, -1).get("row", row), _next_active_row(row, 1).get("row", row)]:
-				fan_hit = _damage_plants_in_row_segment(
-					int(lane_variant),
-					start_x,
-					anchor_x,
-					float(data.get("knife_damage", 58.0)) + phase * 12.0
-				) or fan_hit
-			effects.append({
-				"shape": "sakuya_knife_fan",
-				"position": Vector2(anchor_x - 12.0, _row_center_y(row) - 10.0),
-				"length": anchor_x - start_x + CELL_SIZE.x * 0.24,
-				"width": CELL_SIZE.y * 2.8,
-				"radius": 210.0,
-				"knife_count": 8 + phase * 2,
-				"time": 0.4,
-				"duration": 0.4,
-				"anim_speed": 8.2,
-				"color": Color(0.84, 0.92, 1.0, 0.32 if fan_hit else 0.18),
-			})
-			_show_banner("Knife Sign \"Misdirection\"", 1.16)
-			return _set_rumia_state(zombie, "knives", 0.42)
-		1:
-			var rain_cells = _sakuya_target_cells(row, 4 + phase, 4)
-			var rain_hits = _damage_plants_in_cells(rain_cells, float(data.get("knife_rain_damage", 96.0)) + phase * 15.0, 1.0 + phase * 0.08)
-			var rain_points: Array = []
-			for cell_variant in rain_cells:
-				var cell = Vector2i(cell_variant)
-				rain_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "sakuya_knife_rain",
-				"position": Vector2(anchor_x - 88.0, _row_center_y(row) - 10.0),
-				"points": rain_points,
-				"radius": 52.0,
-				"knife_height": 120.0 + phase * 12.0,
-				"knife_count": 3 + phase,
-				"time": 0.46,
-				"duration": 0.46,
-				"anim_speed": 6.8,
-				"color": Color(0.88, 0.94, 1.0, 0.28 if rain_hits > 0 else 0.15),
-			})
-			_show_banner("Illusion Sign \"Killing Doll\"", 1.16)
-			return _set_rumia_state(zombie, "rain", 0.48)
-		2:
-			var doll_center = Vector2(anchor_x - 92.0, _row_center_y(row) - 10.0)
-			var doll_radius = 176.0 + phase * 18.0
-			var doll_hit = _damage_plants_in_circle(doll_center, doll_radius, float(data.get("doll_damage", 72.0)) + phase * 14.0)
-			_stagger_plants_in_circle(doll_center, doll_radius, 0.75 + phase * 0.12)
-			effects.append({
-				"shape": "storm_arc",
-				"position": doll_center + Vector2(0.0, -18.0),
-				"target": doll_center + Vector2(-86.0, 28.0),
-				"radius": doll_radius,
-				"time": 0.48,
-				"duration": 0.48,
-				"color": Color(0.78, 0.88, 1.0, 0.34 if doll_hit else 0.18),
-			})
-			_show_banner("Close-up Magic", 1.0)
-			return _set_rumia_state(zombie, "doll", 0.5)
-		3:
-			var target_row = _choose_rumia_hover_row(row)
-			if target_row != row:
-				var move_duration = _hover_boss_move_duration("sakuya_boss")
-				zombie["rumia_move_from_y"] = _row_center_y(row)
-				zombie["rumia_move_to_y"] = _row_center_y(target_row)
-				zombie["rumia_move_duration"] = move_duration
-				zombie["rumia_move_timer"] = move_duration
-				zombie["row"] = target_row
-				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), move_duration * 0.84)
-				effects.append({
-					"shape": "sakuya_time_grid",
-					"position": Vector2(anchor_x, _row_center_y(target_row) - 10.0),
-					"radius": 86.0,
-					"width": CELL_SIZE.y * 1.2,
-					"time": 0.34,
-					"duration": 0.34,
-					"anim_speed": 7.8,
-					"color": Color(0.84, 0.9, 1.0, 0.28),
-				})
-			_show_banner("Time Sign \"Teleport\"", 0.95)
-			return _set_rumia_state(zombie, "shift", 0.56)
-		4:
-			var time_stop_duration = minf(2.35, float(data.get("time_stop_duration", 2.2)) + phase * 0.05)
-			boss_time_stop_timer = maxf(boss_time_stop_timer, time_stop_duration)
-			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.5)
-			zombie["sakuya_relocate_timer"] = 0.26
-			zombie["sakuya_relocate_interval"] = maxf(0.24, minf(0.42, time_stop_duration * 0.26))
-			zombie["sakuya_relocations_remaining"] = mini(3, 1 + phase)
-			for _i in range(mini(2, 1 + phase)):
-				_spawn_hover_boss_reinforcement("sakuya_boss", phase)
-			effects.append({
-				"shape": "sakuya_time_grid",
-				"position": Vector2(anchor_x - 92.0, _row_center_y(int(zombie.get("row", row))) - 12.0),
-				"radius": 234.0 + phase * 20.0,
-				"width": board_size.y * 0.44,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 7.6,
-				"color": Color(0.86, 0.92, 1.0, 0.34),
-			})
-			_show_banner("Luna Dial", 1.18)
-			return _set_rumia_state(zombie, "time", 0.66)
-		5:
-			var clock_cells = _sakuya_target_cells(row, 5, 3)
-			var clock_hits = _damage_plants_in_cells(clock_cells, float(data.get("clock_damage", 108.0)) + phase * 18.0, 1.3 + phase * 0.1)
-			var clock_points: Array = []
-			for cell_variant in clock_cells:
-				var cell = Vector2i(cell_variant)
-				clock_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "sakuya_time_grid",
-				"position": Vector2(anchor_x - 96.0, _row_center_y(row) - 12.0),
-				"points": clock_points,
-				"radius": 42.0,
-				"width": 30.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 8.6,
-				"color": Color(0.8, 0.9, 1.0, 0.28 if clock_hits > 0 else 0.14),
-			})
-			_show_banner("Clock Sign \"Private Square\"", 1.16)
-			return _set_rumia_state(zombie, "clock", 0.54)
-		6:
-			var column_targets: Array = []
-			var candidate_columns: Array = []
-			for col in range(2, COLS):
-				candidate_columns.append(col)
-			candidate_columns.shuffle()
-			var chosen_column_count = min(2 + phase, candidate_columns.size())
-			for col_index in range(chosen_column_count):
-				var target_col = int(candidate_columns[col_index])
-				for lane in active_rows:
-					column_targets.append(Vector2i(int(lane), target_col))
-			var column_hits = _damage_plants_in_cells(column_targets, float(data.get("clock_damage", 108.0)) * 0.66 + phase * 12.0, 0.92 + phase * 0.08)
-			var column_points: Array = []
-			for cell_variant in column_targets:
-				var cell = Vector2i(cell_variant)
-				column_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "sakuya_time_grid",
-				"position": Vector2(anchor_x - 96.0, _row_center_y(row) - 12.0),
-				"points": column_points,
-				"radius": 34.0,
-				"width": 26.0,
-				"time": 0.4,
-				"duration": 0.4,
-				"anim_speed": 9.0,
-				"color": Color(0.82, 0.92, 1.0, 0.28 if column_hits > 0 else 0.14),
-			})
-			_show_banner("Maid Secret \"Changeling Magic\"", 1.12)
-			return _set_rumia_state(zombie, "clock", 0.52)
-		7:
-			var hop_rows: Array = active_rows.duplicate()
-			hop_rows.shuffle()
-			var hop_count = min(2 + phase, hop_rows.size())
-			var hop_hit := false
-			var final_row = row
-			for hop_index in range(hop_count):
-				var target_row = int(hop_rows[hop_index])
-				final_row = target_row
-				var slash_start = BOARD_ORIGIN.x + board_size.x * (0.34 + float(hop_index) * 0.06)
-				hop_hit = _damage_plants_in_row_segment(
-					target_row,
-					slash_start,
-					anchor_x,
-					float(data.get("knife_damage", 58.0)) * (0.92 + float(phase) * 0.12)
-				) or hop_hit
-				effects.append({
-					"shape": "sakuya_knife_fan",
-					"position": Vector2(anchor_x - 16.0, _row_center_y(target_row) - 10.0),
-					"length": anchor_x - slash_start + CELL_SIZE.x * 0.16,
-					"width": CELL_SIZE.y * 1.18,
-					"knife_count": 4 + phase,
-					"radius": 62.0,
-					"time": 0.28,
-					"duration": 0.28,
-					"anim_speed": 9.0,
-					"color": Color(0.84, 0.92, 1.0, 0.28 if hop_hit else 0.16),
-				})
-			if final_row != row:
-				var blink_duration = _hover_boss_move_duration("sakuya_boss") * 0.88
-				zombie["rumia_move_from_y"] = _row_center_y(row)
-				zombie["rumia_move_to_y"] = _row_center_y(final_row)
-				zombie["rumia_move_duration"] = blink_duration
-				zombie["rumia_move_timer"] = blink_duration
-				zombie["row"] = final_row
-				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), blink_duration * 0.84)
-			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.22)
-			_show_banner("Illusion Sign \"Eternal Meek\"", 1.08)
-			return _set_rumia_state(zombie, "shift", 0.58)
-		8:
-			var world_time_stop_duration = minf(2.2, float(data.get("time_stop_duration", 2.2)) * 0.78 + phase * 0.12)
-			boss_time_stop_timer = maxf(boss_time_stop_timer, world_time_stop_duration)
-			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.48)
-			zombie["sakuya_relocate_timer"] = 0.18
-			zombie["sakuya_relocate_interval"] = maxf(0.2, minf(0.38, world_time_stop_duration * 0.24))
-			zombie["sakuya_relocations_remaining"] = mini(3, 2 + phase)
-			var world_cells = _sakuya_target_cells(row, 6 + phase, 2)
-			var world_hits = _damage_plants_in_cells(world_cells, float(data.get("knife_rain_damage", 96.0)) * 0.72 + phase * 16.0, 1.18 + phase * 0.08)
-			var world_points: Array = []
-			for _i in range(mini(2, 1 + phase)):
-				_spawn_hover_boss_reinforcement("sakuya_boss", phase)
-			for cell_variant in world_cells:
-				var cell = Vector2i(cell_variant)
-				world_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "sakuya_time_grid",
-				"position": Vector2(anchor_x - 92.0, _row_center_y(int(zombie.get("row", row))) - 12.0),
-				"radius": 212.0 + phase * 18.0,
-				"width": board_size.y * 0.4,
-				"time": 0.44,
-				"duration": 0.44,
-				"anim_speed": 8.4,
-				"color": Color(0.86, 0.94, 1.0, 0.3 if world_hits > 0 else 0.16),
-			})
-			effects.append({
-				"shape": "sakuya_knife_rain",
-				"position": Vector2(anchor_x - 84.0, _row_center_y(int(zombie.get("row", row))) - 10.0),
-				"points": world_points,
-				"radius": 54.0,
-				"knife_height": 132.0 + phase * 12.0,
-				"knife_count": 3 + phase,
-				"time": 0.44,
-				"duration": 0.44,
-				"anim_speed": 8.4,
-				"color": Color(0.86, 0.94, 1.0, 0.3 if world_hits > 0 else 0.16),
-			})
-			_show_banner("Time Sign \"Sakuya's World\"", 1.22)
-			return _set_rumia_state(zombie, "time", 0.72)
-		_:
-			for _i in range(mini(3, 1 + phase)):
-				_spawn_hover_boss_reinforcement("sakuya_boss", phase)
-			var summon_start = BOARD_ORIGIN.x + board_size.x * 0.36
-			var summon_hit := false
-			for lane in active_rows:
-				summon_hit = _damage_plants_in_row_segment(
-					int(lane),
-					summon_start,
-					anchor_x,
-					float(data.get("slash_grid_damage", 42.0)) * (2.4 + phase * 0.24)
-				) or summon_hit
-			effects.append({
-				"shape": "library_books",
-				"position": Vector2(summon_start, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"length": anchor_x - summon_start,
-				"width": board_size.y * 0.86,
-				"radius": 240.0,
-				"time": 0.56,
-				"duration": 0.56,
-				"anim_speed": 7.2,
-				"color": Color(0.82, 0.9, 1.0, 0.32 if summon_hit else 0.18),
-			})
-			_show_banner("Maid Secret \"Perfect Maid\"", 1.18)
-			return _set_rumia_state(zombie, "summon", 0.58)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _remilia_target_cells(row: int, count: int, base_col: int = 3) -> Array:
@@ -15890,506 +15431,11 @@ func _heal_hover_boss(zombie: Dictionary, amount: float) -> Dictionary:
 
 
 func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["remilia_boss"]
-	var row = int(zombie.get("row", 0))
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("remilia_boss")
-	var cycle = int(zombie.get("boss_skill_cycle", 0))
-	match cycle:
-		0:
-			var start_x = BOARD_ORIGIN.x + board_size.x * 0.34
-			var lane_hit := false
-			for lane_variant in [row, _next_active_row(row, -1).get("row", row), _next_active_row(row, 1).get("row", row)]:
-				lane_hit = _damage_plants_in_row_segment(int(lane_variant), start_x, anchor_x, float(data.get("scarlet_shot_damage", 62.0)) + phase * 12.0) or lane_hit
-			effects.append({
-				"shape": "remilia_scarlet_wave",
-				"position": Vector2(start_x, _row_center_y(row) - 12.0),
-				"length": anchor_x - start_x,
-				"width": CELL_SIZE.y * 2.26,
-				"radius": 220.0,
-				"spike_count": 9 + phase * 2,
-				"time": 0.42,
-				"duration": 0.42,
-				"anim_speed": 8.0,
-				"color": Color(0.96, 0.18, 0.24, 0.34 if lane_hit else 0.18),
-			})
-			_show_banner("Scarlet Shoot", 1.14)
-			return _set_rumia_state(zombie, "scarlet", 0.46)
-		1:
-			var magic_cells = _remilia_target_cells(row, 4 + phase, 3)
-			var magic_hits = _damage_plants_in_cells(magic_cells, float(data.get("red_magic_damage", 86.0)) + phase * 15.0, 1.05 + phase * 0.08)
-			var magic_points: Array = []
-			for cell_variant in magic_cells:
-				var cell = Vector2i(cell_variant)
-				magic_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "remilia_blood_sigil",
-				"position": Vector2(anchor_x - 88.0, _row_center_y(row) - 10.0),
-				"points": magic_points,
-				"radius": 52.0,
-				"time": 0.46,
-				"duration": 0.46,
-				"anim_speed": 6.9,
-				"color": Color(0.98, 0.22, 0.32, 0.28 if magic_hits > 0 else 0.16),
-			})
-			_show_banner("Red Magic", 1.12)
-			return _set_rumia_state(zombie, "magic", 0.5)
-		2:
-			var world_hit := false
-			for lane_variant in active_rows:
-				world_hit = _damage_plants_in_row_segment(int(lane_variant), BOARD_ORIGIN.x + board_size.x * 0.18, anchor_x, float(data.get("gensokyo_damage", 48.0)) + phase * 10.0) or world_hit
-			effects.append({
-				"shape": "remilia_crimson_field",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"length": board_size.x * 0.88,
-				"width": board_size.y * 0.9,
-				"radius": board_size.x * 0.5,
-				"time": 0.54,
-				"duration": 0.54,
-				"anim_speed": 7.2,
-				"color": Color(0.92, 0.14, 0.24, 0.28 if world_hit else 0.16),
-			})
-			_show_banner("Scarlet Gensokyo", 1.16)
-			return _set_rumia_state(zombie, "scarlet", 0.56)
-		3:
-			var heart_target = _remilia_primary_target_cell(row)
-			var heart_center = _cell_center(heart_target.x, heart_target.y) + Vector2(0.0, -10.0)
-			var heart_hit = _damage_plants_in_circle(heart_center, CELL_SIZE.x * 0.82, float(data.get("heart_break_damage", 132.0)) + phase * 20.0)
-			_stagger_plants_in_circle(heart_center, CELL_SIZE.x * 0.94, 1.0 + phase * 0.08)
-			if heart_target.x != row:
-				var move_duration = _hover_boss_move_duration("remilia_boss") * 0.9
-				zombie["rumia_move_from_y"] = _row_center_y(row)
-				zombie["rumia_move_to_y"] = _row_center_y(heart_target.x)
-				zombie["rumia_move_duration"] = move_duration
-				zombie["rumia_move_timer"] = move_duration
-				zombie["row"] = heart_target.x
-				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), move_duration * 0.82)
-			effects.append({
-				"shape": "remilia_heart_break",
-				"position": Vector2(anchor_x - 80.0, _row_center_y(int(zombie.get("row", heart_target.x))) - 20.0),
-				"target": heart_center,
-				"radius": 168.0,
-				"time": 0.42,
-				"duration": 0.42,
-				"color": Color(0.96, 0.2, 0.3, 0.34 if heart_hit else 0.18),
-			})
-			_show_banner("Heart Break", 1.08)
-			return _set_rumia_state(zombie, "heart", 0.58)
-		4:
-			var gungnir_target = _remilia_primary_target_cell(int(zombie.get("row", row)))
-			var gungnir_cells: Array = [gungnir_target]
-			for lane_variant in [_next_active_row(gungnir_target.x, -1).get("row", gungnir_target.x), _next_active_row(gungnir_target.x, 1).get("row", gungnir_target.x)]:
-				var nearby_cell = Vector2i(int(lane_variant), gungnir_target.y)
-				if gungnir_cells.has(nearby_cell):
-					continue
-				gungnir_cells.append(nearby_cell)
-			var gungnir_hits = _damage_plants_in_cells(gungnir_cells, float(data.get("gungnir_damage", 168.0)) + phase * 20.0, 1.18 + phase * 0.1)
-			for cell_variant in gungnir_cells:
-				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "remilia_gungnir_lance",
-					"position": Vector2(anchor_x - 64.0, _row_center_y(int(zombie.get("row", row))) - 16.0),
-					"target": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 132.0,
-					"time": 0.3,
-					"duration": 0.3,
-					"color": Color(1.0, 0.34, 0.22, 0.34 if gungnir_hits > 0 else 0.16),
-				})
-			_show_banner("Spear the Gungnir", 1.14)
-			return _set_rumia_state(zombie, "gungnir", 0.62)
-		5:
-			var dive_rows: Array = active_rows.duplicate()
-			dive_rows.shuffle()
-			var dive_count = min(2 + phase, dive_rows.size())
-			var dive_hit := false
-			var final_row = row
-			for dive_index in range(dive_count):
-				var target_row = int(dive_rows[dive_index])
-				final_row = target_row
-				var slash_start = BOARD_ORIGIN.x + board_size.x * (0.24 + float(dive_index) * 0.08)
-				dive_hit = _damage_plants_in_row_segment(target_row, slash_start, anchor_x, float(data.get("cradle_damage", 94.0)) + phase * 13.0) or dive_hit
-				effects.append({
-					"shape": "remilia_scarlet_wave",
-					"position": Vector2(slash_start, _row_center_y(target_row) - 10.0),
-					"length": anchor_x - slash_start,
-					"width": CELL_SIZE.y * 1.18,
-					"spike_count": 6 + phase,
-					"radius": 66.0,
-					"time": 0.26,
-					"duration": 0.26,
-					"anim_speed": 8.8,
-					"color": Color(0.96, 0.2, 0.24, 0.28 if dive_hit else 0.16),
-				})
-			if final_row != row:
-				var blink_duration = _hover_boss_move_duration("remilia_boss") * 0.82
-				zombie["rumia_move_from_y"] = _row_center_y(row)
-				zombie["rumia_move_to_y"] = _row_center_y(final_row)
-				zombie["rumia_move_duration"] = blink_duration
-				zombie["rumia_move_timer"] = blink_duration
-				zombie["row"] = final_row
-				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), blink_duration * 0.82)
-			_show_banner("Demon King Cradle", 1.08)
-			return _set_rumia_state(zombie, "cradle", 0.56)
-		6:
-			var column_targets: Array = []
-			var candidate_columns: Array = []
-			for col in range(2, COLS):
-				candidate_columns.append(col)
-			candidate_columns.shuffle()
-			var chosen_column_count = min(2 + phase, candidate_columns.size())
-			for col_index in range(chosen_column_count):
-				var target_col = int(candidate_columns[col_index])
-				for lane_variant in active_rows:
-					column_targets.append(Vector2i(int(lane_variant), target_col))
-			var column_hits = _damage_plants_in_cells(column_targets, float(data.get("cradle_damage", 94.0)) * 0.78 + phase * 12.0, 0.92 + phase * 0.06)
-			var column_points: Array = []
-			for _i in range(mini(2, 1 + phase)):
-				_spawn_hover_boss_reinforcement("remilia_boss", phase)
-			for cell_variant in column_targets:
-				var cell = Vector2i(cell_variant)
-				column_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "remilia_bat_swarm",
-				"position": Vector2(anchor_x - 84.0, _row_center_y(row) - 10.0),
-				"points": column_points,
-				"radius": 38.0,
-				"time": 0.42,
-				"duration": 0.42,
-				"anim_speed": 8.4,
-				"color": Color(0.88, 0.18, 0.26, 0.28 if column_hits > 0 else 0.14),
-			})
-			_show_banner("Dracula Cradle", 1.12)
-			return _set_rumia_state(zombie, "drain", 0.58)
-		7:
-			var drained := 0
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				for col in range(COLS):
-					if _damage_plant_cell(lane_row, col, float(data.get("drain_dps", 8.4)) * (4.4 + float(phase) * 0.3), 0.5):
-						drained += 1
-			zombie = _heal_hover_boss(zombie, 120.0 + float(drained) * 16.0 + float(phase) * 40.0)
-			effects.append({
-				"shape": "remilia_blood_sigil",
-				"position": Vector2(anchor_x - 92.0, _row_center_y(int(zombie.get("row", row))) - 12.0),
-				"radius": 220.0,
-				"time": 0.48,
-				"duration": 0.48,
-				"anim_speed": 6.8,
-				"color": Color(0.92, 0.16, 0.24, 0.32 if drained > 0 else 0.16),
-			})
-			_show_banner("Vampirish Night", 1.18)
-			return _set_rumia_state(zombie, "drain", 0.6)
-		8:
-			for _i in range(mini(3, 1 + phase)):
-				_spawn_hover_boss_reinforcement("remilia_boss", phase)
-			var bat_cells = _remilia_target_cells(row, 5 + phase, 2)
-			var bat_hits = _damage_plants_in_cells(bat_cells, float(data.get("bat_damage", 44.0)) + phase * 11.0, 0.82 + phase * 0.06)
-			var bat_points: Array = []
-			for cell_variant in bat_cells:
-				var cell = Vector2i(cell_variant)
-				bat_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -12.0))
-			effects.append({
-				"shape": "remilia_bat_swarm",
-				"position": Vector2(anchor_x - 92.0, _row_center_y(row) - 10.0),
-				"points": bat_points,
-				"radius": 54.0,
-				"time": 0.22,
-				"duration": 0.22,
-				"anim_speed": 8.8,
-				"color": Color(0.94, 0.08, 0.16, 0.22 if bat_hits > 0 else 0.12),
-			})
-			_show_banner("Scarlet Devil", 1.16)
-			return _set_rumia_state(zombie, "bats", 0.58)
-		_:
-			var meister_cells = _remilia_target_cells(row, 6 + phase, 2)
-			var meister_points: Array = []
-			for cell_variant in meister_cells:
-				var meister_cell = Vector2i(cell_variant)
-				meister_points.append(_cell_center(meister_cell.x, meister_cell.y) + Vector2(0.0, -10.0))
-			var meister_hits = _damage_plants_in_cells(meister_cells, float(data.get("red_magic_damage", 86.0)) * 0.82 + phase * 17.0, 1.24 + phase * 0.08)
-			var cross_rows: Array = active_rows.duplicate()
-			cross_rows.shuffle()
-			for lane_index in range(min(3, cross_rows.size())):
-				var lane_row = int(cross_rows[lane_index])
-				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.22, anchor_x, float(data.get("scarlet_shot_damage", 62.0)) * 0.82 + phase * 8.0)
-			zombie = _heal_hover_boss(zombie, 90.0 + float(meister_hits) * 16.0)
-			effects.append({
-				"shape": "remilia_meister_barrage",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.22, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.22),
-				"width": board_size.y * 0.92,
-				"radius": board_size.x,
-				"points": meister_points,
-				"time": 0.58,
-				"duration": 0.58,
-				"anim_speed": 7.6,
-				"color": Color(1.0, 0.18, 0.24, 0.34 if meister_hits > 0 else 0.18),
-			})
-			effects.append({
-				"shape": "remilia_blood_sigil",
-				"position": Vector2(anchor_x - 88.0, _row_center_y(row) - 10.0),
-				"points": meister_points,
-				"radius": 48.0,
-				"time": 0.58,
-				"duration": 0.58,
-				"anim_speed": 7.2,
-				"color": Color(0.98, 0.22, 0.28, 0.24 if meister_hits > 0 else 0.12),
-			})
-			_show_banner("Scarlet Meister", 1.2)
-			return _set_rumia_state(zombie, "meister", 0.72)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["flandre_boss"]
-	var row = int(zombie.get("row", 0))
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("flandre_boss")
-	var center = Vector2(anchor_x - 102.0, _row_center_y(row) - 12.0)
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var burn_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var burn_hit := false
-			var beam_start = BOARD_ORIGIN.x + board_size.x * 0.22
-			for burn_row_variant in burn_rows:
-				burn_hit = _damage_plants_in_row_segment(
-					int(burn_row_variant),
-					beam_start,
-					anchor_x,
-					float(data.get("laevatein_damage", 162.0)) + phase * 16.0
-				) or burn_hit
-			effects.append({
-				"shape": "flandre_laevatein",
-				"position": Vector2(beam_start, _row_center_y(row) - 10.0),
-				"length": anchor_x - beam_start,
-				"width": CELL_SIZE.y * 1.9,
-				"radius": 260.0,
-				"time": 0.56,
-				"duration": 0.56,
-				"anim_speed": 7.0,
-				"color": Color(1.0, 0.36, 0.22, 0.34 if burn_hit else 0.18),
-			})
-			_show_banner("Taboo \"Laevatein\"", 1.2)
-			return _set_rumia_state(zombie, "laevatein", 0.62)
-		1:
-			var clone_cells = _pick_random_active_cells(4, 3, COLS - 2)
-			var clone_hit = _damage_plants_in_cells(clone_cells, float(data.get("clone_damage", 72.0)) + phase * 12.0, 1.0 + phase * 0.08)
-			var clone_points: Array = []
-			for cell_variant in clone_cells:
-				var clone_cell = Vector2i(cell_variant)
-				clone_points.append(_cell_center(clone_cell.x, clone_cell.y) + Vector2(0.0, -12.0))
-			effects.append({
-				"shape": "flandre_four_of_a_kind",
-				"position": center,
-				"points": clone_points,
-				"radius": 176.0,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 6.2,
-				"color": Color(1.0, 0.64, 0.34, 0.3 if clone_hit > 0 else 0.16),
-			})
-			_show_banner("Forbidden Barrage \"Four of a Kind\"", 1.24)
-			return _set_rumia_state(zombie, "clones", 0.58)
-		2:
-			var kagome_cells: Array = []
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				if abs(lane_row - row) > 1:
-					continue
-				for target_col in [3, 5, 7]:
-					if target_col >= COLS:
-						continue
-					kagome_cells.append(Vector2i(lane_row, target_col))
-			var kagome_hit = _damage_plants_in_cells(kagome_cells, float(data.get("kagome_damage", 84.0)) + phase * 10.0, 1.1)
-			var kagome_points: Array = []
-			for kagome_cell_variant in kagome_cells:
-				var kagome_cell = Vector2i(kagome_cell_variant)
-				kagome_points.append(_cell_center(kagome_cell.x, kagome_cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "flandre_kagome_ring",
-				"position": center,
-				"points": kagome_points,
-				"radius": 214.0,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 5.8,
-				"color": Color(1.0, 0.22, 0.34, 0.3 if kagome_hit > 0 else 0.16),
-			})
-			_show_banner("Taboo \"Kagome, Kagome\"", 1.24)
-			return _set_rumia_state(zombie, "kagome", 0.62)
-		3:
-			var star_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var star_hit := false
-			var star_start = BOARD_ORIGIN.x + board_size.x * 0.18
-			for star_row_variant in star_rows:
-				star_hit = _damage_plants_in_row_segment(
-					int(star_row_variant),
-					star_start,
-					anchor_x,
-					float(data.get("starbow_damage", 58.0)) * (1.8 + phase * 0.15)
-				) or star_hit
-			effects.append({
-				"shape": "flandre_starbow_break",
-				"position": Vector2(star_start, _row_center_y(row) - 12.0),
-				"length": anchor_x - star_start,
-				"width": board_size.y * 0.76,
-				"radius": 286.0,
-				"time": 0.58,
-				"duration": 0.58,
-				"anim_speed": 6.8,
-				"color": Color(1.0, 0.78, 0.34, 0.32 if star_hit else 0.16),
-			})
-			_show_banner("Star Sign \"Starbow Break\"", 1.2)
-			return _set_rumia_state(zombie, "starbow", 0.58)
-		4:
-			var doll_cells = _pick_random_active_cells(3 + phase, 4, COLS - 1)
-			var doll_hit = _damage_plants_in_cells(doll_cells, float(data.get("doll_damage", 80.0)) + phase * 16.0, 1.0 + phase * 0.08)
-			for _i in range(mini(3, 1 + phase)):
-				_spawn_hover_boss_reinforcement("flandre_boss", phase)
-			var doll_points: Array = []
-			for doll_cell_variant in doll_cells:
-				var doll_cell = Vector2i(doll_cell_variant)
-				doll_points.append(_cell_center(doll_cell.x, doll_cell.y) + Vector2(0.0, -8.0))
-			effects.append({
-				"shape": "flandre_doll_box",
-				"position": center,
-				"points": doll_points,
-				"radius": 190.0,
-				"time": 0.54,
-				"duration": 0.54,
-				"anim_speed": 6.0,
-				"color": Color(0.96, 0.44, 0.74, 0.28 if doll_hit > 0 else 0.16),
-			})
-			_show_banner("Forbidden Room \"Doll's Box\"", 1.22)
-			return _set_rumia_state(zombie, "dolls", 0.58)
-		5:
-			var crystal_cells = _pick_random_active_cells(5, 2, COLS - 2)
-			var crystal_hit = _damage_plants_in_cells(crystal_cells, float(data.get("crystal_damage", 84.0)) + phase * 14.0, 1.2 + phase * 0.1)
-			var crystal_points: Array = []
-			for crystal_cell_variant in crystal_cells:
-				var crystal_cell = Vector2i(crystal_cell_variant)
-				crystal_points.append(_cell_center(crystal_cell.x, crystal_cell.y) + Vector2(0.0, -12.0))
-			effects.append({
-				"shape": "flandre_crystal_spike",
-				"position": center,
-				"points": crystal_points,
-				"radius": 206.0,
-				"time": 0.56,
-				"duration": 0.56,
-				"anim_speed": 7.2,
-				"color": Color(0.48, 0.94, 1.0, 0.28 if crystal_hit > 0 else 0.16),
-			})
-			_show_banner("Crystal Sign \"Crystal Spike\"", 1.18)
-			return _set_rumia_state(zombie, "crystal", 0.56)
-		6:
-			var break_hit := false
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				if lane_row == row or rng.randf() < 0.6:
-					_damage_front_plant_in_row(lane_row, float(data.get("break_damage", 112.0)) + phase * 20.0)
-					break_hit = true
-			effects.append({
-				"shape": "flandre_break_switch",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.58, BOARD_ORIGIN.y + board_size.y * 0.5 - 8.0),
-				"length": board_size.x * 0.7,
-				"width": board_size.y * 0.88,
-				"radius": 248.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 6.6,
-				"color": Color(1.0, 0.18, 0.24, 0.28 if break_hit else 0.14),
-			})
-			_show_banner("Taboo \"Break the Hatchling\"", 1.2)
-			return _set_rumia_state(zombie, "break", 0.54)
-		7:
-			var storm_hit := false
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				storm_hit = _damage_plants_in_row_segment(
-					lane_row,
-					BOARD_ORIGIN.x + board_size.x * (0.22 + 0.08 * float(lane_row % 2)),
-					anchor_x,
-					float(data.get("storm_damage", 52.0)) * (2.0 + phase * 0.18)
-				) or storm_hit
-			effects.append({
-				"shape": "flandre_toy_storm",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.26, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.26),
-				"width": board_size.y * 0.92,
-				"radius": 320.0,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 7.0,
-				"color": Color(0.98, 0.58, 0.22, 0.32 if storm_hit else 0.16),
-			})
-			_show_banner("Toy Sign \"Toy Storm\"", 1.18)
-			return _set_rumia_state(zombie, "storm", 0.62)
-		8:
-			var secret_cells = _pick_random_active_cells(4 + phase, 4, COLS - 1)
-			var secret_hit = _damage_plants_in_cells(secret_cells, float(data.get("barrage_damage", 52.0)) + phase * 12.0, 1.1 + phase * 0.08)
-			for _i in range(mini(3, 1 + phase)):
-				_spawn_hover_boss_reinforcement("flandre_boss", phase)
-			var secret_points: Array = []
-			for secret_cell_variant in secret_cells:
-				var secret_cell = Vector2i(secret_cell_variant)
-				secret_points.append(_cell_center(secret_cell.x, secret_cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "flandre_secret_barrage",
-				"position": center,
-				"points": secret_points,
-				"radius": 220.0,
-				"time": 0.58,
-				"duration": 0.58,
-				"anim_speed": 7.4,
-				"color": Color(0.92, 0.32, 0.94, 0.28 if secret_hit > 0 else 0.16),
-			})
-			_show_banner("Secret Barrage \"And Then There Will Be None?\"", 1.28)
-			return _set_rumia_state(zombie, "secret", 0.58)
-		9:
-			var grid_cells: Array = []
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				for target_col in [2, 4, 6, 8]:
-					if target_col >= COLS:
-						continue
-					grid_cells.append(Vector2i(lane_row, target_col))
-			var grid_hit = _damage_plants_in_cells(grid_cells, float(data.get("judgement_damage", 118.0)) + phase * 10.0, 0.9 + phase * 0.06)
-			var grid_points: Array = []
-			for grid_cell_variant in grid_cells:
-				var grid_cell = Vector2i(grid_cell_variant)
-				grid_points.append(_cell_center(grid_cell.x, grid_cell.y) + Vector2(0.0, -8.0))
-			effects.append({
-				"shape": "flandre_judgement_grid",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"points": grid_points,
-				"length": board_size.x * 0.84,
-				"width": board_size.y * 0.92,
-				"radius": 340.0,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 6.4,
-				"color": Color(1.0, 0.4, 0.18, 0.28 if grid_hit > 0 else 0.16),
-			})
-			_show_banner("Taboo \"Judgement Grid\"", 1.2)
-			return _set_rumia_state(zombie, "judgement", 0.62)
-		_:
-			var trap_cells = _pick_random_active_cells(3 + phase, 3, COLS - 2)
-			var trap_hit = _damage_plants_in_cells(trap_cells, float(data.get("trap_damage", 96.0)) + phase * 14.0, 1.2 + phase * 0.1)
-			var trap_points: Array = []
-			for trap_cell_variant in trap_cells:
-				var trap_cell = Vector2i(trap_cell_variant)
-				trap_points.append(_cell_center(trap_cell.x, trap_cell.y) + Vector2(0.0, -8.0))
-			effects.append({
-				"shape": "flandre_cranberry_trap",
-				"position": center,
-				"points": trap_points,
-				"radius": 198.0,
-				"time": 0.56,
-				"duration": 0.56,
-				"anim_speed": 6.8,
-				"color": Color(0.98, 0.14, 0.22, 0.3 if trap_hit > 0 else 0.16),
-			})
-			_show_banner("Taboo \"Cranberry Trap\"", 1.18)
-			return _set_rumia_state(zombie, "cranberry", 0.56)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _yakumo_effect_points(cells: Array) -> Array:
@@ -16409,177 +15455,11 @@ func _yakumo_radial_effect_points(center: Vector2, count: int, radius: float) ->
 
 
 func _trigger_ran_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Dictionary(Defs.ZOMBIES.get("ran_boss", {}))
-	var phase = int(zombie.get("boss_phase", 0))
-	var row = int(zombie.get("row", 2))
-	var center = Vector2(float(zombie.get("x", _boss_anchor_x("ran_boss"))), _row_center_y(row) - 24.0)
-	var cells: Array = []
-	var shape := "ran_senko_meditation"
-	var state := "senko"
-	var banner := "式神「仙狐思念」"
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			_damage_plants_in_row_segment(row, BOARD_ORIGIN.x, BOARD_ORIGIN.x + board_size.x, float(data.get("senko_damage", 46.0)) + phase * 4.0)
-		1:
-			shape = "ran_twelve_generals"
-			state = "generals"
-			banner = "式神「十二神将之宴」"
-			for lane_variant in active_rows:
-				_damage_front_plant_in_row(int(lane_variant), float(data.get("twelve_generals_damage", 36.0)) + phase * 3.0)
-			for _i in range(mini(3, 1 + phase)):
-				_spawn_hover_boss_reinforcement("ran_boss", phase)
-		2:
-			shape = "ran_fox_tanuki_laser"
-			state = "laser"
-			banner = "式辉「狐狸狸猫妖怪激光」"
-			var laser_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else row
-			_damage_plants_in_row_segment(laser_row, BOARD_ORIGIN.x, BOARD_ORIGIN.x + board_size.x, float(data.get("fox_tanuki_laser_damage", 82.0)) + phase * 6.0)
-			center = Vector2(BOARD_ORIGIN.x, _row_center_y(laser_row) - 10.0)
-		3:
-			shape = "ran_princess_tenko"
-			state = "tenko"
-			banner = "式辉「天狐公主 -Illusion-」"
-			cells = _pick_random_active_cells(4 + phase, 1, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("princess_tenko_damage", 62.0)) + phase * 4.0, 0.5)
-		4:
-			shape = "ran_ultimate_buddhist"
-			state = "buddhist"
-			banner = "式弹「Ultimate Buddhist」"
-			cells = _pick_random_active_cells(5 + phase, 2, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("ultimate_buddhist_damage", 54.0)) + phase * 4.0)
-		5:
-			shape = "ran_shiki_god_chen"
-			state = "shiki"
-			banner = "式神「橙」"
-			for summon_kind in ["ninja", "nether"]:
-				_spawn_zombie_at(summon_kind, _choose_spawn_row_for_kind(summon_kind), BOARD_ORIGIN.x + board_size.x + 34.0, true)
-			cells = _pick_random_active_cells(3 + phase, 3, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("shiki_god_damage", 48.0)) + phase * 3.0)
-		6:
-			shape = "ran_unilateral_contact"
-			state = "contact"
-			banner = "式神「单向接触」"
-			var contact_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else row
-			_damage_plants_in_row_segment(contact_row, BOARD_ORIGIN.x, BOARD_ORIGIN.x + board_size.x, float(data.get("unilateral_contact_damage", 88.0)) + phase * 6.0)
-			center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, _row_center_y(contact_row) - 10.0)
-		7:
-			shape = "ran_kokkuri_contract"
-			state = "kokkuri"
-			banner = "式神「狐狗狸契约」"
-			cells = _pick_random_active_cells(5 + phase, 1, COLS - 2)
-			_damage_plants_in_cells(cells, float(data.get("kokkuri_damage", 56.0)) + phase * 4.0, 0.7)
-			_spawn_hover_boss_reinforcement("ran_boss", phase)
-		_:
-			shape = "ran_izuna_gongen"
-			state = "izuna"
-			banner = "幻神「饭纲权现降临」"
-			cells = _pick_random_active_cells(6 + phase, 0, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("izuna_gongen_damage", 40.0)) + phase * 3.0, 0.45)
-			zombie = _heal_hover_boss(zombie, 90.0 + phase * 45.0)
-	effects.append({
-		"shape": shape,
-		"position": center,
-		"target": Vector2(BOARD_ORIGIN.x + board_size.x, center.y),
-		"points": _yakumo_effect_points(cells),
-		"radius": 210.0 + phase * 16.0,
-		"length": board_size.x * 0.92,
-		"width": CELL_SIZE.y * (1.25 + phase * 0.08),
-		"time": 0.68,
-		"duration": 0.68,
-		"anim_speed": 8.0 + phase * 0.6,
-		"color": Color(1.0, 0.58, 0.2, 0.34),
-	})
-	_show_banner(banner, 1.25)
-	return _set_rumia_state(zombie, state, 0.7)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Dictionary(Defs.ZOMBIES.get("yukari_boss", {}))
-	var phase = int(zombie.get("boss_phase", 0))
-	var row = int(zombie.get("row", 2))
-	var center = Vector2(float(zombie.get("x", _boss_anchor_x("yukari_boss"))), _row_center_y(row) - 26.0)
-	var cells: Array = []
-	var shape := "yukari_boundary_wave"
-	var state := "boundary"
-	var banner := "境符「四重结界」"
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			for lane_index in range(active_rows.size()):
-				if lane_index % 2 == phase % 2:
-					_damage_front_plant_in_row(int(active_rows[lane_index]), float(data.get("boundary_wave_damage", 46.0)) + phase * 3.0)
-		1:
-			shape = "yukari_duplex_barrier"
-			state = "barrier"
-			banner = "罔两「二重黑死蝶」"
-			cells = _pick_random_active_cells(5 + phase, 1, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("duplex_barrier_damage", 54.0)) + phase * 4.0, 0.45)
-		2:
-			shape = "yukari_mesh_of_light"
-			state = "mesh"
-			banner = "式神「八云蓝」"
-			cells = _pick_random_active_cells(6 + phase, 0, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("mesh_of_light_damage", 42.0)) + phase * 3.0)
-			_spawn_hover_boss_reinforcement("yukari_boss", phase)
-		3:
-			shape = "yukari_evil_eyes"
-			state = "eyes"
-			banner = "境符「百万鬼夜行」"
-			cells = _pick_random_active_cells(4 + phase, 2, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("evil_eye_damage", 58.0)) + phase * 4.0, 0.6)
-		4:
-			shape = "yukari_flying_object"
-			state = "object"
-			banner = "罔两「直与曲的梦乡」"
-			var object_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else row
-			_damage_plants_in_row_segment(object_row, BOARD_ORIGIN.x, BOARD_ORIGIN.x + board_size.x, float(data.get("flying_object_damage", 72.0)) + phase * 5.0)
-			center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, _row_center_y(object_row) - 10.0)
-		5:
-			shape = "yukari_dream_reality"
-			state = "dream"
-			banner = "罔两「梦与现实的诅咒」"
-			cells = _pick_random_active_cells(4 + phase, 1, COLS - 2)
-			_damage_plants_in_cells(cells, float(data.get("dream_reality_damage", 54.0)) + phase * 4.0, 1.0)
-		6:
-			shape = "yukari_butterfly_dream"
-			state = "butterfly"
-			banner = "魍魉「二重黑死蝶」"
-			cells = _pick_random_active_cells(7 + phase, 0, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("butterfly_dream_damage", 44.0)) + phase * 3.0)
-		7:
-			shape = "yukari_deep_fog_labyrinth"
-			state = "labyrinth"
-			banner = "境符「色与空的境界」"
-			cells = _pick_random_active_cells(6 + phase, 1, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("deep_fog_damage", 48.0)) + phase * 3.0, 1.15)
-		8:
-			shape = "yukari_infinite_supernatural"
-			state = "infinite"
-			banner = "结界「客观结界」"
-			for lane_variant in active_rows:
-				_damage_front_plant_in_row(int(lane_variant), float(data.get("infinite_supernatural_damage", 38.0)) + phase * 2.0)
-		_:
-			shape = "yukari_necrofantasia"
-			state = "necrofantasia"
-			banner = "紫奥义「弹幕结界」"
-			cells = _pick_random_active_cells(8 + phase, 0, COLS - 1)
-			_damage_plants_in_cells(cells, float(data.get("necrofantasia_damage", 40.0)) + phase * 3.0, 0.8)
-			for _i in range(mini(3, 1 + phase)):
-				_spawn_hover_boss_reinforcement("yukari_boss", phase)
-	effects.append({
-		"shape": shape,
-		"position": center,
-		"target": Vector2(BOARD_ORIGIN.x, center.y),
-		"points": _yakumo_effect_points(cells),
-		"radius": 230.0 + phase * 18.0,
-		"length": board_size.x * 0.94,
-		"width": CELL_SIZE.y * (1.42 + phase * 0.08),
-		"time": 0.74,
-		"duration": 0.74,
-		"anim_speed": 8.6 + phase * 0.7,
-		"color": Color(0.68, 0.34, 1.0, 0.36),
-	})
-	_show_banner(banner, 1.3)
-	return _set_rumia_state(zombie, state, 0.76)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
@@ -16985,122 +15865,7 @@ func _trigger_cirno_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _trigger_letty_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["letty_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("letty_boss")
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var cold_start = BOARD_ORIGIN.x + board_size.x * 0.28
-			var cold_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var cold_hit := false
-			for cold_row_variant in cold_rows:
-				var cold_row = int(cold_row_variant)
-				cold_hit = _damage_plants_in_row_segment(
-					cold_row,
-					cold_start,
-					anchor_x,
-					float(data.get("lingering_cold_damage", 54.0)) * (1.9 + float(phase) * 0.16)
-				) or cold_hit
-				_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.58, _row_center_y(cold_row) - 8.0), 130.0 + phase * 8.0, 0.55 + phase * 0.08)
-			effects.append({
-				"shape": "letty_lingering_cold",
-				"position": Vector2(cold_start, _row_center_y(row) - 10.0),
-				"length": anchor_x - cold_start,
-				"width": CELL_SIZE.y * 2.2,
-				"radius": 240.0,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 5.6,
-				"color": Color(0.76, 0.94, 1.0, 0.32 if cold_hit else 0.18),
-			})
-			_show_banner("Cold Sign \"Lingering Cold\"", 1.16)
-			return _set_rumia_state(zombie, "lingering", 0.52)
-		1:
-			var wither_cells = _pick_random_active_cells(3 + mini(phase, 1), 2, COLS - 2)
-			var wither_hits = _damage_plants_in_cells(wither_cells, float(data.get("flower_wither_damage", 66.0)) + phase * 10.0, 1.45 + phase * 0.12)
-			for cell_variant in wither_cells:
-				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "letty_flower_wither",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 48.0,
-					"time": 0.48,
-					"duration": 0.48,
-					"anim_speed": 4.8,
-					"color": Color(0.9, 0.98, 1.0, 0.3 if wither_hits > 0 else 0.16),
-				})
-			_show_banner("Winter Sign \"Flower Wither Away\"", 1.18)
-			return _set_rumia_state(zombie, "wither", 0.5)
-		2:
-			var ray_start = BOARD_ORIGIN.x + board_size.x * 0.16
-			var ray_hit = _damage_plants_in_row_segment(
-				row,
-				ray_start,
-				anchor_x,
-				float(data.get("undulation_ray_damage", 142.0)) + phase * 20.0
-			)
-			_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, _row_center_y(row) - 8.0), 178.0 + phase * 10.0, 0.75 + phase * 0.08)
-			effects.append({
-				"shape": "letty_undulation_ray",
-				"position": Vector2(ray_start, _row_center_y(row) - 12.0),
-				"length": anchor_x - ray_start,
-				"width": CELL_SIZE.y * 0.62,
-				"radius": anchor_x - ray_start,
-				"time": 0.42,
-				"duration": 0.42,
-				"anim_speed": 7.2,
-				"color": Color(0.84, 0.98, 1.0, 0.34 if ray_hit else 0.18),
-			})
-			_show_banner("Cold Body \"Undulation Ray\"", 1.14)
-			return _set_rumia_state(zombie, "ray", 0.46)
-		3:
-			var snap_cells = _pick_random_active_cells(3 + mini(phase, 2), 3, COLS - 1)
-			var snap_hits = _damage_plants_in_cells(snap_cells, float(data.get("cold_snap_damage", 72.0)) + phase * 10.0, 1.05 + phase * 0.1)
-			for cell_variant in snap_cells:
-				var cell = Vector2i(cell_variant)
-				_create_temporary_frozen_cell(cell.x, cell.y, float(data.get("frozen_cell_duration", 8.0)) + phase * 0.8)
-				effects.append({
-					"shape": "letty_cold_snap",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 56.0,
-					"time": 0.46,
-					"duration": 0.46,
-					"anim_speed": 5.4,
-					"color": Color(0.72, 0.94, 1.0, 0.34 if snap_hits > 0 else 0.18),
-				})
-			_show_banner("Cold Snap", 1.05)
-			return _set_rumia_state(zombie, "snap", 0.5)
-		_:
-			var storm_hit := false
-			var storm_start = BOARD_ORIGIN.x + board_size.x * 0.24
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				storm_hit = _damage_plants_in_row_segment(
-					lane_row,
-					storm_start,
-					anchor_x,
-					float(data.get("table_turning_damage", 46.0)) * (1.55 + float(phase) * 0.14)
-				) or storm_hit
-			var frozen_cells = _pick_random_active_cells(2 + mini(phase, 2), 2, COLS - 2)
-			for frozen_cell_variant in frozen_cells:
-				var frozen_cell = Vector2i(frozen_cell_variant)
-				_create_temporary_frozen_cell(frozen_cell.x, frozen_cell.y, maxf(5.0, float(data.get("frozen_cell_duration", 8.0)) - 1.5))
-			for _i in range(mini(2, 1 + phase)):
-				_spawn_hover_boss_reinforcement("letty_boss", phase)
-			effects.append({
-				"shape": "letty_table_turning",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.52, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"length": board_size.x * 0.82,
-				"width": board_size.y * 0.88,
-				"radius": board_size.x * 0.46,
-				"time": 0.64,
-				"duration": 0.64,
-				"anim_speed": 5.8,
-				"color": Color(0.78, 0.94, 1.0, 0.34 if storm_hit else 0.2),
-			})
-			_show_banner("Winter Sign \"Table Turning\"", 1.2)
-			return _set_rumia_state(zombie, "table", 0.66)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_letty_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -17127,126 +15892,7 @@ func _trigger_letty_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _trigger_chen_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["chen_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("chen_boss")
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var ring_center = Vector2(anchor_x - 130.0, _row_center_y(row) - 8.0)
-			var ring_radius = 132.0 + phase * 10.0
-			var ring_damage = float(data.get("phoenix_ring_damage", 58.0)) + phase * 8.0
-			_damage_plants_in_circle(ring_center, ring_radius, ring_damage)
-			effects.append({
-				"shape": "chen_phoenix_ring",
-				"position": ring_center,
-				"radius": ring_radius,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 7.0,
-				"color": Color(1.0, 0.34, 0.18, 0.32),
-			})
-			_show_banner("仙符「凤凰卵」", 1.08)
-			return _set_rumia_state(zombie, "phoenix", 0.5)
-		1:
-			var pinch_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var pinch_start = BOARD_ORIGIN.x + board_size.x * 0.42
-			var pinch_damage = float(data.get("shikigami_pinch_damage", 76.0)) + phase * 10.0
-			var pinch_hit := false
-			for pinch_row_variant in pinch_rows:
-				var pinch_row = int(pinch_row_variant)
-				pinch_hit = _damage_plants_in_row_segment(pinch_row, pinch_start, anchor_x, pinch_damage) or pinch_hit
-			effects.append({
-				"shape": "chen_shikigami_pinch",
-				"position": Vector2(pinch_start, _row_center_y(row) - 10.0),
-				"length": anchor_x - pinch_start,
-				"width": CELL_SIZE.y * 2.35,
-				"radius": anchor_x - pinch_start,
-				"time": 0.48,
-				"duration": 0.48,
-				"anim_speed": 8.4,
-				"color": Color(1.0, 0.42, 0.16, 0.32 if pinch_hit else 0.18),
-			})
-			_show_banner("式神「前鬼后鬼」", 1.08)
-			return _set_rumia_state(zombie, "shikigami", 0.48)
-		2:
-			var dash_rows = [row]
-			var dash_target = _next_active_row(row, -1 if rng.randf() < 0.5 else 1)
-			dash_rows.append(int(dash_target.get("row", row)))
-			var dash_damage = float(data.get("kimon_dash_damage", 118.0)) + phase * 14.0
-			for dash_row_variant in dash_rows:
-				var dash_row = int(dash_row_variant)
-				_damage_plants_in_row_segment(dash_row, BOARD_ORIGIN.x + board_size.x * 0.2, anchor_x, dash_damage)
-				effects.append({
-					"shape": "chen_kimon_dash",
-					"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.2, _row_center_y(dash_row) - 8.0),
-					"length": board_size.x * 0.78,
-					"width": CELL_SIZE.y * 0.54,
-					"radius": board_size.x * 0.7,
-					"time": 0.34,
-					"duration": 0.34,
-					"anim_speed": 10.0,
-					"color": Color(1.0, 0.22, 0.14, 0.34),
-				})
-			_show_banner("方符「奇门遁甲」", 1.08)
-			return _set_rumia_state(zombie, "dash", 0.38)
-		3:
-			var clone_cells = _pick_random_active_cells(3 + mini(phase, 2), 3, COLS - 1)
-			var clone_damage = float(data.get("oni_clone_damage", 46.0)) + phase * 7.0
-			for cell_variant in clone_cells:
-				var cell = Vector2i(cell_variant)
-				_damage_plants_in_cells([cell], clone_damage, 0.55 + phase * 0.08)
-				effects.append({
-					"shape": "chen_oni_clone",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 52.0,
-					"time": 0.42,
-					"duration": 0.42,
-					"anim_speed": 7.6,
-					"color": Color(0.92, 0.16, 0.42, 0.3),
-				})
-			if phase >= 1:
-				_spawn_hover_boss_reinforcement("chen_boss", phase)
-			_show_banner("鬼符「蓝鬼赤鬼」", 1.05)
-			return _set_rumia_state(zombie, "oni", 0.46)
-		4:
-			var idaten_row = row
-			var idaten_damage = float(data.get("idaten_dash_damage", 148.0)) + phase * 18.0
-			_damage_plants_in_row_segment(idaten_row, BOARD_ORIGIN.x + board_size.x * 0.12, anchor_x, idaten_damage)
-			_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.52, _row_center_y(idaten_row) - 8.0), 160.0 + phase * 10.0, 0.55 + phase * 0.08)
-			effects.append({
-				"shape": "chen_idaten_dash",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.12, _row_center_y(idaten_row) - 8.0),
-				"length": board_size.x * 0.86,
-				"width": CELL_SIZE.y * 0.75,
-				"radius": board_size.x * 0.8,
-				"time": 0.38,
-				"duration": 0.38,
-				"anim_speed": 12.0,
-				"color": Color(1.0, 0.62, 0.2, 0.36),
-			})
-			_show_banner("童符「飞翔韦驮天」", 1.08)
-			return _set_rumia_state(zombie, "idaten", 0.4)
-		_:
-			var rampage_damage = float(data.get("rampage_damage", 54.0)) + phase * 8.0
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.32, anchor_x, rampage_damage)
-			for _i in range(mini(2, phase + 1)):
-				_spawn_hover_boss_reinforcement("chen_boss", phase)
-			effects.append({
-				"shape": "chen_mayohiga_rampage",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.56, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"length": board_size.x * 0.74,
-				"width": board_size.y * 0.84,
-				"radius": board_size.x * 0.42,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 8.2,
-				"color": Color(1.0, 0.18, 0.22, 0.32),
-			})
-			_show_banner("鬼神「护法天童乱舞」", 1.16)
-			return _set_rumia_state(zombie, "rampage", 0.62)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_chen_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -17289,165 +15935,7 @@ func _spawn_alice_doll(row: int, x: float, tint: Color = Color(0.74, 0.54, 1.0, 
 
 
 func _trigger_alice_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["alice_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("alice_boss")
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var procession_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var procession_damage = float(data.get("doll_procession_damage", 38.0)) + phase * 5.0
-			var procession_start = BOARD_ORIGIN.x + board_size.x * 0.44
-			var doll_points: Array = []
-			for lane_variant in procession_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, procession_start, anchor_x, procession_damage)
-				var doll_x = BOARD_ORIGIN.x + board_size.x + 28.0 - float(doll_points.size()) * 34.0
-				_spawn_alice_doll(lane_row, doll_x, Color(0.82, 0.66, 1.0, 0.26))
-				doll_points.append(Vector2(doll_x, _row_center_y(lane_row) - 16.0))
-			effects.append({
-				"shape": "alice_doll_procession",
-				"position": Vector2(procession_start, _row_center_y(row) - 12.0),
-				"points": doll_points,
-				"length": anchor_x - procession_start,
-				"width": CELL_SIZE.y * 2.4,
-				"radius": anchor_x - procession_start,
-				"time": 0.56,
-				"duration": 0.56,
-				"anim_speed": 7.4,
-				"color": Color(0.78, 0.58, 1.0, 0.3),
-			})
-			_show_banner("操符「少女文乐」", 1.12)
-			return _set_rumia_state(zombie, "doll_procession", 0.56)
-		1:
-			var marionette_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var marionette_start = BOARD_ORIGIN.x + board_size.x * 0.34
-			var marionette_damage = float(data.get("marionette_damage", 56.0)) + phase * 7.0
-			var thread_points: Array = []
-			for lane_variant in marionette_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, marionette_start, anchor_x, marionette_damage)
-				_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.58, _row_center_y(lane_row) - 8.0), 84.0 + phase * 8.0, 0.5 + phase * 0.06)
-				thread_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * 0.58, _row_center_y(lane_row) - 10.0))
-			effects.append({
-				"shape": "alice_marionette_web",
-				"position": Vector2(anchor_x - 96.0, _row_center_y(row) - 44.0),
-				"points": thread_points,
-				"length": anchor_x - marionette_start,
-				"width": CELL_SIZE.y * 2.8,
-				"radius": 220.0,
-				"time": 0.54,
-				"duration": 0.54,
-				"anim_speed": 8.0,
-				"color": Color(0.92, 0.82, 1.0, 0.32),
-			})
-			_show_banner("苍符「博爱的法兰西人偶」", 1.14)
-			return _set_rumia_state(zombie, "marionette", 0.54)
-		2:
-			var magic_cells = _pick_random_active_cells(5 + mini(phase, 2), 2, COLS - 1)
-			var magic_damage = float(data.get("red_blue_magic_damage", 48.0)) + phase * 6.0
-			var magic_hits = _damage_plants_in_cells(magic_cells, magic_damage, 0.42 + phase * 0.05)
-			var magic_points: Array = []
-			for cell_variant in magic_cells:
-				var cell = Vector2i(cell_variant)
-				magic_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -12.0))
-			effects.append({
-				"shape": "alice_seven_color_magic",
-				"position": Vector2(anchor_x - 104.0, _row_center_y(row) - 18.0),
-				"points": magic_points,
-				"radius": 190.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 8.8,
-				"color": Color(0.62, 0.72, 1.0, 0.32 if magic_hits > 0 else 0.18),
-			})
-			_show_banner("红符「荷兰人偶」", 1.08)
-			return _set_rumia_state(zombie, "seven_color", 0.5)
-		3:
-			var doll_cells = _pick_random_active_cells(3 + mini(phase, 1), 3, COLS - 1)
-			var shanghai_damage = float(data.get("shanghai_doll_damage", 64.0)) + phase * 7.0
-			var shanghai_points: Array = []
-			for cell_variant in doll_cells:
-				var cell = Vector2i(cell_variant)
-				_damage_plants_in_cells([cell], shanghai_damage, 0.6 + phase * 0.06)
-				var point = _cell_center(cell.x, cell.y) + Vector2(0.0, -12.0)
-				shanghai_points.append(point)
-				if rng.randf() < 0.7:
-					_spawn_alice_doll(cell.x, point.x + 64.0, Color(0.58, 0.88, 1.0, 0.25))
-			effects.append({
-				"shape": "alice_shanghai_dolls",
-				"position": Vector2(anchor_x - 92.0, _row_center_y(row) - 20.0),
-				"points": shanghai_points,
-				"radius": 178.0,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 7.8,
-				"color": Color(0.54, 0.86, 1.0, 0.3),
-			})
-			_show_banner("咒诅「魔彩光的上海人偶」", 1.16)
-			return _set_rumia_state(zombie, "shanghai", 0.54)
-		4:
-			var circle_center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.56, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0)
-			var circle_radius = 214.0 + phase * 12.0
-			_damage_plants_in_circle(circle_center, circle_radius, float(data.get("forest_circle_damage", 42.0)) + phase * 6.0)
-			_stagger_plants_in_circle(circle_center, circle_radius * 0.94, 0.78 + phase * 0.08)
-			effects.append({
-				"shape": "alice_forest_circle",
-				"position": circle_center,
-				"radius": circle_radius,
-				"width": board_size.y * 0.76,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 6.8,
-				"color": Color(0.46, 0.92, 0.76, 0.28),
-			})
-			_show_banner("森林魔法阵「七色的傀儡线」", 1.15)
-			return _set_rumia_state(zombie, "forest_circle", 0.62)
-		5:
-			var raised = _raise_random_graves(
-				int(data.get("grave_raise_count", 2)) + mini(phase, 2),
-				"alice_grave_rise",
-				Color(0.72, 0.52, 1.0, 0.34)
-			)
-			effects.append({
-				"shape": "alice_magic_grave_call",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.48, BOARD_ORIGIN.y + board_size.y * 0.5),
-				"radius": 230.0,
-				"width": board_size.y * 0.82,
-				"time": 0.64,
-				"duration": 0.64,
-				"anim_speed": 7.0,
-				"color": Color(0.68, 0.46, 1.0, 0.28),
-			})
-			if raised > 0:
-				_show_banner("魔法森林的坟墓钻出了地面！", 1.18)
-			else:
-				_show_banner("爱丽丝牵动了地下的傀儡线！", 1.08)
-			return _set_rumia_state(zombie, "grave_call", 0.64)
-		_:
-			var finale_damage = float(data.get("return_inanimateness_damage", 34.0)) + phase * 5.0
-			var finale_points: Array = []
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.24, anchor_x, finale_damage)
-				finale_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.34 + 0.1 * float(lane_row % 4)), _row_center_y(lane_row) - 16.0))
-			for _i in range(mini(3, 1 + phase)):
-				var summon_row = int(active_rows[rng.randi_range(0, active_rows.size() - 1)]) if not active_rows.is_empty() else row
-				_spawn_alice_doll(summon_row, BOARD_ORIGIN.x + board_size.x + 42.0 + float(_i) * 18.0, Color(0.96, 0.62, 0.86, 0.26))
-			effects.append({
-				"shape": "alice_return_inanimateness",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.56, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0),
-				"points": finale_points,
-				"length": board_size.x * 0.86,
-				"width": board_size.y * 0.9,
-				"radius": board_size.x * 0.46,
-				"time": 0.66,
-				"duration": 0.66,
-				"anim_speed": 7.6,
-				"color": Color(0.9, 0.66, 1.0, 0.32),
-			})
-			_show_banner("操符「回归虚无的人偶阵」", 1.2)
-			return _set_rumia_state(zombie, "return_inanimateness", 0.66)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_alice_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -17471,93 +15959,7 @@ func _trigger_alice_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _trigger_lily_white_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["lily_white_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("lily_white_boss")
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var spring_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var spring_start = BOARD_ORIGIN.x + board_size.x * 0.36
-			var spring_hit := false
-			for lane_variant in spring_rows:
-				var lane_row = int(lane_variant)
-				spring_hit = _damage_plants_in_row_segment(lane_row, spring_start, anchor_x, float(data.get("spring_herald_damage", 38.0)) + phase * 5.0) or spring_hit
-				_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.56, _row_center_y(lane_row) - 10.0), 88.0 + phase * 8.0, 0.36 + phase * 0.04)
-			effects.append({
-				"shape": "lily_spring_herald",
-				"position": Vector2(spring_start, _row_center_y(row) - 12.0),
-				"length": anchor_x - spring_start,
-				"width": CELL_SIZE.y * 2.25,
-				"radius": anchor_x - spring_start,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 6.8,
-				"color": Color(0.94, 1.0, 0.72, 0.32 if spring_hit else 0.18),
-			})
-			_show_banner("春符「春之使者」", 1.08)
-			return _set_rumia_state(zombie, "spring_herald", 0.52)
-		1:
-			var petal_cells = _pick_random_active_cells(5 + mini(phase, 2), 2, COLS - 1)
-			var petal_hits = _damage_plants_in_cells(petal_cells, float(data.get("petal_burst_damage", 48.0)) + phase * 5.0, 0.36 + phase * 0.04)
-			var petal_points: Array = []
-			for cell_variant in petal_cells:
-				var cell = Vector2i(cell_variant)
-				petal_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "lily_petal_burst",
-				"position": Vector2(anchor_x - 100.0, _row_center_y(row) - 20.0),
-				"points": petal_points,
-				"radius": 170.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 8.2,
-				"color": Color(1.0, 0.86, 0.92, 0.32 if petal_hits > 0 else 0.18),
-			})
-			_show_banner("白符「花瓣弹幕」", 1.06)
-			return _set_rumia_state(zombie, "petals", 0.5)
-		2:
-			var cloud_cells = _pick_random_active_cells(2 + mini(phase, 1), max(5, COLS - 3), COLS - 1)
-			var cloud_hits = _damage_plants_in_cells(cloud_cells, float(data.get("cloud_bloom_damage", 42.0)) + phase * 5.0, 0.52 + phase * 0.04)
-			for cell_variant in cloud_cells:
-				var cell = Vector2i(cell_variant)
-				if _is_cloud_sea_level() and _cell_terrain_kind(cell.x, cell.y) == "cloud":
-					_set_cell_terrain_kind(cell.x, cell.y, "sky_gap")
-				effects.append({
-					"shape": "lily_cloud_bloom",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -12.0),
-					"radius": 58.0,
-					"time": 0.56,
-					"duration": 0.56,
-					"anim_speed": 6.2,
-					"color": Color(0.82, 0.96, 1.0, 0.28 if cloud_hits > 0 else 0.16),
-				})
-			_drop_plants_without_cloud()
-			_show_banner("云符「春风云团」", 1.08)
-			return _set_rumia_state(zombie, "cloud_bloom", 0.56)
-		_:
-			var fairy_damage = float(data.get("white_fairy_damage", 34.0)) + phase * 4.0
-			var fairy_points: Array = []
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.28, anchor_x, fairy_damage)
-				fairy_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.42 + 0.08 * float(lane_row % 3)), _row_center_y(lane_row) - 12.0))
-			if phase >= 1:
-				_spawn_hover_boss_reinforcement("lily_white_boss", phase)
-			effects.append({
-				"shape": "lily_white_fairy_barrage",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0),
-				"points": fairy_points,
-				"length": board_size.x * 0.76,
-				"width": board_size.y * 0.84,
-				"radius": board_size.x * 0.42,
-				"time": 0.6,
-				"duration": 0.6,
-				"anim_speed": 7.4,
-				"color": Color(0.96, 1.0, 0.78, 0.3),
-			})
-			_show_banner("妖精「白色春告弹幕」", 1.14)
-			return _set_rumia_state(zombie, "fairy_barrage", 0.6)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_lily_white_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -17581,164 +15983,7 @@ func _trigger_lily_white_boss_phase_shift(zombie: Dictionary, phase: int) -> Dic
 
 
 func _trigger_prismriver_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["prismriver_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var bounds = _prismriver_boss_bounds()
-	var min_x = float(bounds.get("min_x", _boss_anchor_x("prismriver_boss") - CELL_SIZE.x * 4.0))
-	var max_x = float(bounds.get("max_x", _boss_anchor_x("prismriver_boss")))
-	zombie["x"] = clampf(float(zombie.get("x", max_x)), min_x, max_x)
-	var anchor_x = float(zombie["x"])
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var dinning_center = Vector2(anchor_x - 80.0, _row_center_y(row) - 12.0)
-			_damage_plants_in_circle(dinning_center, 138.0 + phase * 10.0, float(data.get("phantom_dinning_damage", 42.0)) + phase * 5.0)
-			if phase >= 1:
-				_spawn_hover_boss_reinforcement("prismriver_boss", phase)
-			effects.append({
-				"shape": "prismriver_phantom_dinning",
-				"position": dinning_center,
-				"radius": 150.0 + phase * 12.0,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 7.8,
-				"color": Color(0.74, 0.86, 1.0, 0.32),
-			})
-			_show_banner("骚符「Phantom Dinning」", 1.12)
-			return _set_rumia_state(zombie, "phantom_dinning", 0.52)
-		1:
-			var string_start = BOARD_ORIGIN.x + board_size.x * 0.24
-			var string_hit = _damage_plants_in_row_segment(row, string_start, anchor_x, float(data.get("lunasa_string_damage", 66.0)) + phase * 7.0)
-			effects.append({
-				"shape": "prismriver_lunasa_string",
-				"position": Vector2(string_start, _row_center_y(row) - 12.0),
-				"length": anchor_x - string_start,
-				"width": CELL_SIZE.y * 0.72,
-				"radius": anchor_x - string_start,
-				"time": 0.44,
-				"duration": 0.44,
-				"anim_speed": 10.2,
-				"color": Color(0.66, 0.72, 1.0, 0.34 if string_hit else 0.18),
-			})
-			_show_banner("弦奏「露娜萨的独奏」", 1.08)
-			return _set_rumia_state(zombie, "lunasa", 0.46)
-		2:
-			var trumpet_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var trumpet_hit := false
-			for lane_variant in trumpet_rows:
-				var lane_row = int(lane_variant)
-				trumpet_hit = _damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.34, anchor_x, float(data.get("merlin_trumpet_damage", 58.0)) + phase * 6.0) or trumpet_hit
-			effects.append({
-				"shape": "prismriver_merlin_trumpet",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.34, _row_center_y(row) - 12.0),
-				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.34),
-				"width": CELL_SIZE.y * 2.5,
-				"radius": 240.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 8.6,
-				"color": Color(1.0, 0.8, 0.42, 0.32 if trumpet_hit else 0.18),
-			})
-			_show_banner("管灵「梅露兰的号声」", 1.1)
-			return _set_rumia_state(zombie, "merlin", 0.5)
-		3:
-			var key_cells = _pick_random_active_cells(6 + mini(phase, 2), 1, COLS - 2)
-			var key_hits = _damage_plants_in_cells(key_cells, float(data.get("lyrica_keyboard_damage", 44.0)) + phase * 5.0, 0.42 + phase * 0.04)
-			var key_points: Array = []
-			for cell_variant in key_cells:
-				var cell = Vector2i(cell_variant)
-				key_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -12.0))
-			effects.append({
-				"shape": "prismriver_lyrica_keyboard",
-				"position": Vector2(anchor_x - 94.0, _row_center_y(row) - 18.0),
-				"points": key_points,
-				"radius": 190.0,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 9.4,
-				"color": Color(0.96, 0.74, 1.0, 0.32 if key_hits > 0 else 0.18),
-			})
-			_show_banner("键灵「莉莉卡的键盘阵」", 1.1)
-			return _set_rumia_state(zombie, "lyrica", 0.52)
-		4:
-			var concerto_damage = float(data.get("prism_concerto_damage", 38.0)) + phase * 5.0
-			var concerto_points: Array = []
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.3, anchor_x, concerto_damage)
-				concerto_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.38 + float(lane_row % 4) * 0.08), _row_center_y(lane_row) - 14.0))
-			effects.append({
-				"shape": "prismriver_prism_concerto",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 14.0),
-				"points": concerto_points,
-				"length": board_size.x * 0.78,
-				"width": board_size.y * 0.86,
-				"radius": board_size.x * 0.42,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 8.0,
-				"color": Color(0.72, 0.92, 1.0, 0.32),
-			})
-			_show_banner("合奏「Prism Concerto」", 1.14)
-			return _set_rumia_state(zombie, "concerto", 0.62)
-		5:
-			var river_center = Vector2(clampf(anchor_x - CELL_SIZE.x * 1.2, BOARD_ORIGIN.x + board_size.x * 0.45, max_x), _row_center_y(row) - 10.0)
-			_damage_plants_in_circle(river_center, 172.0 + phase * 12.0, float(data.get("stygian_riverside_damage", 50.0)) + phase * 6.0)
-			_stagger_plants_in_circle(river_center, 166.0 + phase * 10.0, 0.52 + phase * 0.06)
-			effects.append({
-				"shape": "prismriver_stygian_riverside",
-				"position": river_center,
-				"radius": 184.0 + phase * 12.0,
-				"width": CELL_SIZE.y * 2.3,
-				"time": 0.56,
-				"duration": 0.56,
-				"anim_speed": 7.2,
-				"color": Color(0.58, 0.78, 1.0, 0.3),
-			})
-			_show_banner("冥管「Stygian Riverside」", 1.1)
-			return _set_rumia_state(zombie, "riverside", 0.56)
-		6:
-			var wheel_rows = [row, int(_next_active_row(row, 1).get("row", row))]
-			var wheel_hit := false
-			for lane_variant in wheel_rows:
-				var lane_row = int(lane_variant)
-				wheel_hit = _damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.22, anchor_x, float(data.get("ghostly_wheel_damage", 54.0)) + phase * 6.0) or wheel_hit
-			effects.append({
-				"shape": "prismriver_ghostly_wheel",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.48, _row_center_y(row) - 10.0),
-				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.22),
-				"width": CELL_SIZE.y * 1.7,
-				"radius": 210.0,
-				"time": 0.54,
-				"duration": 0.54,
-				"anim_speed": 9.0,
-				"color": Color(0.82, 0.82, 1.0, 0.32 if wheel_hit else 0.18),
-			})
-			_show_banner("骚符「Ghostly Wheel」", 1.1)
-			return _set_rumia_state(zombie, "wheel", 0.54)
-		_:
-			var finale_damage = float(data.get("live_poltergeist_damage", 32.0)) + phase * 4.0
-			var finale_points: Array = []
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.2, anchor_x, finale_damage)
-				finale_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.28 + float(lane_row % 5) * 0.11), _row_center_y(lane_row) - 14.0))
-			for _i in range(mini(2, phase + 1)):
-				_spawn_hover_boss_reinforcement("prismriver_boss", phase)
-			effects.append({
-				"shape": "prismriver_live_poltergeist",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0),
-				"points": finale_points,
-				"length": board_size.x * 0.86,
-				"width": board_size.y * 0.92,
-				"radius": board_size.x * 0.48,
-				"time": 0.68,
-				"duration": 0.68,
-				"anim_speed": 8.8,
-				"color": Color(0.9, 0.82, 1.0, 0.34),
-			})
-			_show_banner("大合葬「Live Poltergeist」", 1.2)
-			return _set_rumia_state(zombie, "live_poltergeist", 0.68)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_prismriver_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -17765,9 +16010,10 @@ func _trigger_prismriver_boss_phase_shift(zombie: Dictionary, phase: int) -> Dic
 
 func _pick_youmu_charm_cells(count: int) -> Array:
 	var occupied: Array = []
-	for row in range(ROWS):
+	for row in active_rows:
 		for col in range(COLS):
-			if _targetable_plant_at(row, col) != null:
+			var plant = _targetable_plant_at(int(row), col)
+			if plant != null and float(plant.get("health", 0.0)) > 0.0:
 				occupied.append(Vector2i(row, col))
 	if occupied.is_empty():
 		return []
@@ -17781,7 +16027,8 @@ func _nearest_plant_cell_in_row(row: int, x: float) -> Vector2i:
 	if row < 0 or row >= ROWS:
 		return best_cell
 	for col in range(COLS):
-		if _targetable_plant_at(row, col) == null:
+		var plant = _targetable_plant_at(row, col)
+		if plant == null or float(plant.get("health", 0.0)) <= 0.0:
 			continue
 		var distance = absf(_cell_center(row, col).x - x)
 		if distance < best_distance:
@@ -17853,6 +16100,11 @@ func _spawn_youmu_wraiths_from(center: Vector2, count: int, phase: int) -> void:
 func _update_youmu_wraith(zombie: Dictionary, delta: float) -> Dictionary:
 	var row = int(zombie.get("row", 0))
 	zombie["youmu_wraith_age"] = float(zombie.get("youmu_wraith_age", 0.0)) + delta
+	if float(zombie["youmu_wraith_age"]) > 8.5:
+		zombie["health"] = 0.0
+		return zombie
+	if float(zombie.get("special_pause_timer", 0.0)) > 0.0 or float(zombie.get("rooted_timer", 0.0)) > 0.0:
+		return zombie
 	zombie["jump_offset"] = -10.0 + sin(level_time * 8.0 + float(zombie.get("anim_phase", 0.0))) * 6.0
 	var target = _nearest_plant_cell_in_row(row, float(zombie.get("x", BOARD_ORIGIN.x + board_size.x)))
 	if target.y == -1:
@@ -18004,17 +16256,15 @@ func _spawn_yuyuko_grave_spirits(count: int) -> void:
 func _trigger_yuyuko_boss_revival(zombie: Dictionary) -> Dictionary:
 	if bool(zombie.get("yuyuko_revived", false)):
 		return zombie
-	var data = Defs.ZOMBIES["yuyuko_boss"]
 	zombie["yuyuko_revived"] = true
 	zombie["boss_cast_pending"] = false
-	zombie["health"] = maxf(1.0, float(zombie.get("max_health", data.get("health", 34600.0))) * float(data.get("revival_health_ratio", 0.62)))
+	zombie["health"] = 1.0
 	zombie["boss_phase"] = maxi(int(zombie.get("boss_phase", 0)), 2)
 	zombie["boss_skill_timer"] = 1.15
 	zombie["boss_pause_timer"] = 1.8
 	zombie["special_pause_timer"] = 1.0
 	zombie = _set_rumia_state(zombie, "resurrection", 1.1)
 	var center = Vector2(float(zombie.get("x", _boss_anchor_x("yuyuko_boss"))), _row_center_y(int(zombie.get("row", 2))) - 26.0)
-	_spawn_yuyuko_grave_spirits(6)
 	effects.append({
 		"shape": "yuyuko_resurrection",
 		"position": center,
@@ -18044,13 +16294,16 @@ func _trigger_yuyuko_boss_revival(zombie: Dictionary) -> Dictionary:
 	})
 	if String(current_level.get("boss_revival_bgm", "")) != "":
 		_play_bgm(String(current_level.get("boss_revival_bgm", "")))
-	_show_banner("西行妖樱花汇聚，幽幽子复活了！", 3.0)
-	return zombie
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_ran_boss_successor(zombie: Dictionary) -> Dictionary:
+	if touhou_danmaku != null and zombie.has("touhou_owner"):
+		touhou_danmaku.clear_owner(int(zombie.touhou_owner))
 	var data = Dictionary(Defs.ZOMBIES.get("yukari_boss", {}))
 	var successor = zombie.duplicate(true)
+	for key in ["touhou_owner", "touhou_card", "touhou_invulnerable", "touhou_survival_timer", "touhou_cast_remaining", "touhou_cast_duration"]:
+		successor.erase(key)
 	var row = clampi(int(zombie.get("row", 2)), 0, ROWS - 1)
 	var center = Vector2(float(zombie.get("x", _boss_anchor_x("ran_boss"))), _row_center_y(row) - 28.0)
 	successor["kind"] = "yukari_boss"
@@ -18101,184 +16354,7 @@ func _trigger_ran_boss_successor(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_youmu_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["youmu_boss"]
-	var row = int(zombie.get("row", 0))
-	var phase = int(zombie.get("boss_phase", 0))
-	var bounds = _youmu_boss_bounds()
-	var min_x = float(bounds.get("min_x", BOARD_ORIGIN.x))
-	var max_x = float(bounds.get("max_x", BOARD_ORIGIN.x + board_size.x))
-	var center = Vector2(clampf(float(zombie.get("x", max_x)), min_x, max_x), _row_center_y(row) - 12.0)
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var slash_rows = [row, int(_next_active_row(row, -1).get("row", row))]
-			var slash_hit := false
-			for slash_row in slash_rows:
-				slash_hit = _damage_plants_in_row_segment(int(slash_row), min_x, max_x, float(data.get("slash_damage", 72.0)) + phase * 8.0) or slash_hit
-			effects.append({
-				"shape": "youmu_slash_line",
-				"position": Vector2(min_x, _row_center_y(row) - 12.0),
-				"target": Vector2(max_x, _row_center_y(row) - 12.0),
-				"length": max_x - min_x,
-				"width": CELL_SIZE.y * 1.4,
-				"radius": 210.0,
-				"time": 0.46,
-				"duration": 0.46,
-				"anim_speed": 11.0,
-				"color": Color(0.86, 0.98, 1.0, 0.34 if slash_hit else 0.18),
-			})
-			effects.append({
-				"shape": "youmu_sword_qi",
-				"position": Vector2(max_x, _row_center_y(row) - 30.0),
-				"target": Vector2(min_x, _row_center_y(row) - 4.0),
-				"length": max_x - min_x,
-				"width": CELL_SIZE.y * 0.95,
-				"radius": 230.0,
-				"time": 0.54,
-				"duration": 0.54,
-				"anim_speed": 14.0,
-				"color": Color(0.74, 0.96, 1.0, 0.38 if slash_hit else 0.22),
-			})
-			_show_banner("幽鬼剑「妖童饿鬼之断食」", 1.12)
-			return _set_rumia_state(zombie, "slash", 0.46)
-		1:
-			var dash_row = row
-			var occupied = _pick_youmu_charm_cells(1)
-			if not occupied.is_empty():
-				dash_row = int(Vector2i(occupied[0]).x)
-			zombie = _youmu_dash_to_cell(zombie, dash_row, 0, "dash")
-			var dash_y = _row_center_y(dash_row) - 12.0
-			var dash_hit = _damage_plants_in_row_segment(dash_row, min_x, max_x, float(data.get("dash_slash_damage", 128.0)) + phase * 10.0)
-			effects.append({
-				"shape": "youmu_slash_line",
-				"position": Vector2(min_x, dash_y),
-				"target": Vector2(max_x, dash_y),
-				"length": max_x - min_x,
-				"width": CELL_SIZE.y * 1.65,
-				"radius": 240.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 13.0,
-				"color": Color(0.88, 1.0, 1.0, 0.38 if dash_hit else 0.2),
-			})
-			effects.append({
-				"shape": "youmu_sword_qi",
-				"position": Vector2(min_x, dash_y - 34.0),
-				"target": Vector2(max_x, dash_y + 16.0),
-				"length": max_x - min_x,
-				"width": CELL_SIZE.y * 1.15,
-				"radius": 260.0,
-				"time": 0.58,
-				"duration": 0.58,
-				"anim_speed": 16.0,
-				"color": Color(0.9, 1.0, 1.0, 0.42 if dash_hit else 0.24),
-			})
-			_show_banner("人界剑「悟入幻想」", 1.12)
-			return zombie
-		2:
-			var cross_cells = _pick_random_active_cells(4 + mini(phase, 2), 2, COLS - 2)
-			var cross_hit = _damage_plants_in_cells(cross_cells, float(data.get("cross_slash_damage", 58.0)) + phase * 8.0, 0.42 + phase * 0.04)
-			var cross_points: Array = []
-			for cell_variant in cross_cells:
-				var cell = Vector2i(cell_variant)
-				cross_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "youmu_cross_slash",
-				"position": center,
-				"points": cross_points,
-				"radius": 168.0,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 10.0,
-				"color": Color(0.68, 0.94, 1.0, 0.32 if cross_hit > 0 else 0.18),
-			})
-			_show_banner("狱界剑「二百由旬之一闪」", 1.14)
-			return _set_rumia_state(zombie, "cross", 0.52)
-		3:
-			var target_cells = _pick_youmu_charm_cells(1)
-			var target_cell = Vector2i(row, clampi(COLS / 2, 0, COLS - 1))
-			if not target_cells.is_empty():
-				target_cell = Vector2i(target_cells[0])
-			zombie = _youmu_dash_to_cell(zombie, target_cell.x, target_cell.y, "instant")
-			var instant_center = _cell_center(target_cell.x, target_cell.y) + Vector2(0.0, -10.0)
-			_damage_plants_in_circle(instant_center, 116.0 + phase * 10.0, float(data.get("instant_step_damage", 88.0)) + phase * 8.0)
-			effects.append({
-				"shape": "youmu_instant_step",
-				"position": center,
-				"target": instant_center,
-				"radius": 138.0,
-				"time": 0.46,
-				"duration": 0.46,
-				"anim_speed": 13.0,
-				"color": Color(0.78, 1.0, 0.96, 0.34),
-			})
-			_show_banner("畜趣剑「无为无策之冥罚」", 1.14)
-			return zombie
-		4:
-			var ghost_center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.56, BOARD_ORIGIN.y + board_size.y * 0.5 - 14.0)
-			_damage_plants_in_circle(ghost_center, 220.0 + phase * 14.0, float(data.get("half_ghost_damage", 40.0)) + phase * 5.0)
-			effects.append({
-				"shape": "youmu_half_ghost",
-				"position": ghost_center,
-				"radius": 230.0 + phase * 14.0,
-				"time": 0.64,
-				"duration": 0.64,
-				"anim_speed": 8.0,
-				"color": Color(0.76, 0.9, 1.0, 0.32),
-			})
-			_show_banner("魂符「幽明的苦轮」", 1.12)
-			return _set_rumia_state(zombie, "half_ghost", 0.64)
-		5:
-			_spawn_youmu_wraiths_from(center, 2 + mini(phase, 1), phase)
-			_show_banner("魂魄「怨灵使役」", 1.16)
-			return _set_rumia_state(zombie, "wraith", 0.62)
-		6:
-			var realm_cells: Array = []
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				for target_col in [2, 5, 8]:
-					if target_col < COLS and (lane_row + target_col + phase) % 2 == 0:
-						realm_cells.append(Vector2i(lane_row, target_col))
-			var realm_hits = _damage_plants_in_cells(realm_cells, float(data.get("six_realms_damage", 46.0)) + phase * 6.0, 0.5 + phase * 0.04)
-			var realm_points: Array = []
-			for realm_cell_variant in realm_cells:
-				var realm_cell = Vector2i(realm_cell_variant)
-				realm_points.append(_cell_center(realm_cell.x, realm_cell.y) + Vector2(0.0, -10.0))
-			effects.append({
-				"shape": "youmu_six_realms",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, BOARD_ORIGIN.y + board_size.y * 0.5 - 14.0),
-				"points": realm_points,
-				"radius": 300.0,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 8.8,
-				"color": Color(0.84, 0.96, 1.0, 0.32 if realm_hits > 0 else 0.18),
-			})
-			_show_banner("天上剑「天人之五衰」", 1.16)
-			return _set_rumia_state(zombie, "six_realms", 0.62)
-		_:
-			var finale_points: Array = []
-			var finale_damage = float(data.get("finale_damage", 34.0)) + phase * 4.0
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, min_x, max_x, finale_damage)
-				finale_points.append(Vector2(min_x, _row_center_y(lane_row) - 12.0))
-				finale_points.append(Vector2(max_x, _row_center_y(lane_row) - 12.0))
-			if phase >= 1:
-				_spawn_hover_boss_reinforcement("youmu_boss", phase)
-			effects.append({
-				"shape": "youmu_finale_slash",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0),
-				"points": finale_points,
-				"length": board_size.x,
-				"width": board_size.y,
-				"radius": board_size.x * 0.5,
-				"time": 0.72,
-				"duration": 0.72,
-				"anim_speed": 12.0,
-				"color": Color(0.86, 1.0, 1.0, 0.34),
-			})
-			_show_banner("空观剑「六根清净斩」", 1.18)
-			return _set_rumia_state(zombie, "finale", 0.72)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_youmu_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -18311,164 +16387,7 @@ func _trigger_youmu_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _trigger_yuyuko_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["yuyuko_boss"]
-	var row = int(zombie.get("row", 0))
-	var phase = int(zombie.get("boss_phase", 0))
-	var revived = bool(zombie.get("yuyuko_revived", false))
-	var anchor_x = _boss_anchor_x("yuyuko_boss")
-	var center = Vector2(anchor_x, _row_center_y(row) - 28.0)
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var petal_cells = _pick_random_active_cells(4 + mini(phase, 2), 2, COLS - 1)
-			var hit_count = _damage_plants_in_cells(petal_cells, float(data.get("sakura_damage", 42.0)) + phase * 5.0, 0.35 + phase * 0.04)
-			var petal_points: Array = []
-			for cell_variant in petal_cells:
-				var cell = Vector2i(cell_variant)
-				petal_points.append(_cell_center(cell.x, cell.y) + Vector2(0.0, -12.0))
-			effects.append({
-				"shape": "yuyuko_sakura_storm",
-				"position": center,
-				"points": petal_points,
-				"radius": 210.0,
-				"time": 0.58,
-				"duration": 0.58,
-				"anim_speed": 9.0,
-				"color": Color(1.0, 0.62, 0.86, 0.34 if hit_count > 0 else 0.2),
-			})
-			_show_banner("亡舞「生者必灭之理」", 1.18)
-			return _set_rumia_state(zombie, "sakura", 0.58)
-		1:
-			var butterfly_rows = [row, int(_next_active_row(row, -1).get("row", row)), int(_next_active_row(row, 1).get("row", row))]
-			var butterfly_hit := false
-			for lane_variant in butterfly_rows:
-				var lane_row = int(lane_variant)
-				butterfly_hit = _damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.32, anchor_x, float(data.get("butterfly_damage", 56.0)) + phase * 6.0) or butterfly_hit
-			effects.append({
-				"shape": "yuyuko_butterfly_wave",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.34, _row_center_y(row) - 14.0),
-				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.34),
-				"width": CELL_SIZE.y * 2.25,
-				"radius": 240.0,
-				"time": 0.56,
-				"duration": 0.56,
-				"anim_speed": 8.4,
-				"color": Color(1.0, 0.56, 0.92, 0.34 if butterfly_hit else 0.18),
-			})
-			_show_banner("死蝶「华胥的永眠」", 1.16)
-			return _set_rumia_state(zombie, "butterfly", 0.56)
-		2:
-			var fan_rows = [row, int(_next_active_row(row, 1).get("row", row))]
-			for lane_variant in fan_rows:
-				_damage_plants_in_row_segment(int(lane_variant), BOARD_ORIGIN.x + board_size.x * 0.22, anchor_x, float(data.get("fan_damage", 48.0)) + phase * 5.0)
-			effects.append({
-				"shape": "yuyuko_fan_sweep",
-				"position": Vector2(anchor_x - 84.0, _row_center_y(row) - 20.0),
-				"length": board_size.x * 0.74,
-				"width": CELL_SIZE.y * 1.8,
-				"radius": 230.0,
-				"time": 0.52,
-				"duration": 0.52,
-				"anim_speed": 9.4,
-				"color": Color(1.0, 0.72, 0.9, 0.3),
-			})
-			_show_banner("幽曲「樱吹雪扇」", 1.08)
-			return _set_rumia_state(zombie, "fan", 0.52)
-		3:
-			var raised = _raise_random_graves(2 + mini(phase, 2), "yuyuko_grave_rise", Color(1.0, 0.56, 0.86, 0.32))
-			if raised > 0:
-				_spawn_yuyuko_grave_spirits(1 + mini(phase, 2))
-			effects.append({
-				"shape": "yuyuko_grave_bloom",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, BOARD_ORIGIN.y + board_size.y * 0.5),
-				"radius": 230.0,
-				"time": 0.68,
-				"duration": 0.68,
-				"anim_speed": 7.2,
-				"color": Color(1.0, 0.58, 0.86, 0.3),
-			})
-			_show_banner("亡乡「墓下的春眠」", 1.14)
-			return _set_rumia_state(zombie, "grave", 0.64)
-		4:
-			_spawn_yuyuko_grave_spirits(2 + mini(phase, 2))
-			effects.append({
-				"shape": "yuyuko_spirit_procession",
-				"position": center,
-				"radius": 220.0,
-				"time": 0.7,
-				"duration": 0.7,
-				"anim_speed": 8.2,
-				"color": Color(1.0, 0.68, 0.94, 0.32),
-			})
-			_show_banner("幽灵「无寿国的亡灵队列」", 1.18)
-			return _set_rumia_state(zombie, "spirit", 0.66)
-		5:
-			var tree_center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.64, BOARD_ORIGIN.y + board_size.y * 0.38)
-			_damage_plants_in_circle(tree_center, 196.0 + phase * 12.0, float(data.get("tree_damage", 58.0)) + phase * 7.0)
-			_stagger_plants_in_circle(tree_center, 210.0 + phase * 10.0, 0.7 + phase * 0.08)
-			effects.append({
-				"shape": "yuyuko_saigyou_tree",
-				"position": tree_center,
-				"radius": 270.0 + phase * 18.0,
-				"time": 0.76,
-				"duration": 0.76,
-				"anim_speed": 7.0,
-				"color": Color(1.0, 0.7, 0.9, 0.34),
-			})
-			_show_banner("桜符「完全墨染的樱花」", 1.18)
-			return _set_rumia_state(zombie, "tree", 0.76)
-		6:
-			var circle_center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5 - 10.0)
-			_damage_plants_in_circle(circle_center, 250.0 + phase * 14.0, float(data.get("full_bloom_damage", 34.0)) + phase * 4.0)
-			effects.append({
-				"shape": "yuyuko_full_bloom",
-				"position": circle_center,
-				"radius": 300.0 + phase * 18.0,
-				"time": 0.82,
-				"duration": 0.82,
-				"anim_speed": 9.6,
-				"color": Color(1.0, 0.58, 0.84, 0.32),
-			})
-			_show_banner("樱花「西行妖满开」", 1.2)
-			return _set_rumia_state(zombie, "full_bloom", 0.82)
-		7:
-			var return_points: Array = []
-			for lane_variant in active_rows:
-				var lane_row = int(lane_variant)
-				_damage_plants_in_row_segment(lane_row, BOARD_ORIGIN.x + board_size.x * 0.2, anchor_x, 30.0 + phase * 4.0 + (8.0 if revived else 0.0))
-				return_points.append(Vector2(BOARD_ORIGIN.x + board_size.x * (0.24 + float(lane_row % 5) * 0.12), _row_center_y(lane_row) - 12.0))
-			effects.append({
-				"shape": "yuyuko_death_butterfly",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.5, BOARD_ORIGIN.y + board_size.y * 0.5 - 18.0),
-				"points": return_points,
-				"length": board_size.x * 0.86,
-				"width": board_size.y * 0.9,
-				"radius": board_size.x * 0.48,
-				"time": 0.74,
-				"duration": 0.74,
-				"anim_speed": 9.0,
-				"color": Color(1.0, 0.54, 0.9, 0.34),
-			})
-			_show_banner("死蝶「反魂蝶」", 1.18)
-			return _set_rumia_state(zombie, "death_butterfly", 0.74)
-		_:
-			var finale_damage = float(data.get("full_bloom_damage", 34.0)) + phase * 4.0 + (10.0 if revived else 0.0)
-			for lane_variant in active_rows:
-				_damage_plants_in_row_segment(int(lane_variant), BOARD_ORIGIN.x + board_size.x * 0.18, anchor_x, finale_damage)
-			if revived:
-				_spawn_yuyuko_grave_spirits(2)
-			else:
-				_spawn_hover_boss_reinforcement("yuyuko_boss", phase)
-			effects.append({
-				"shape": "yuyuko_resurrection",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.58, BOARD_ORIGIN.y + board_size.y * 0.42),
-				"radius": 330.0,
-				"time": 0.86,
-				"duration": 0.86,
-				"anim_speed": 10.0,
-				"color": Color(1.0, 0.62, 0.88, 0.34),
-			})
-			_show_banner("反魂「西行妖的重开」", 1.2)
-			return _set_rumia_state(zombie, "resurrection", 0.86)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_yuyuko_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -18559,85 +16478,7 @@ func _trigger_yukari_boss_phase_shift(zombie: Dictionary, phase: int) -> Diction
 
 
 func _trigger_meiling_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["meiling_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("meiling_boss")
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			# Spinning kick — hits current lane and adjacent lanes
-			var kick_rows = [row]
-			var prev_r = _next_active_row(row, -1)
-			var next_r = _next_active_row(row, 1)
-			kick_rows.append(int(prev_r.get("row", row)))
-			kick_rows.append(int(next_r.get("row", row)))
-			var kick_hit := false
-			var kick_start = BOARD_ORIGIN.x + board_size.x * 0.5
-			for kick_row in kick_rows:
-				kick_hit = _damage_plants_in_row_segment(
-					int(kick_row),
-					kick_start,
-					anchor_x,
-					float(data.get("kick_damage", 140.0)) + phase * 22.0
-				) or kick_hit
-			effects.append({
-				"shape": "meiling_kick",
-				"position": Vector2(anchor_x - 90.0, _row_center_y(row) - 14.0),
-				"radius": 164.0 + phase * 18.0,
-				"time": 0.36,
-				"duration": 0.36,
-				"anim_speed": 6.2,
-				"color": Color(0.26, 0.82, 0.44, 0.32 if kick_hit else 0.18),
-			})
-			_show_banner("红美玲的华光一脚！", 1.2)
-			return _set_rumia_state(zombie, "kick", 0.4)
-		1:
-			# Rainbow chi orbs — scatter in 3 lanes with spread
-			var rainbow_hit := false
-			for lane in active_rows:
-				var lane_row = int(lane)
-				var lane_start = BOARD_ORIGIN.x + board_size.x * (0.38 + rng.randf() * 0.14)
-				rainbow_hit = _damage_plants_in_row_segment(
-					lane_row,
-					lane_start,
-					anchor_x,
-					float(data.get("rainbow_damage", 55.0)) + phase * 12.0
-				) or rainbow_hit
-			effects.append({
-				"shape": "rainbow_chi",
-				"position": Vector2(anchor_x - 80.0, _row_center_y(row) - 18.0),
-				"radius": 192.0 + phase * 20.0,
-				"time": 0.46,
-				"duration": 0.46,
-				"anim_speed": 5.8,
-				"color": Color(0.5, 0.98, 0.74, 0.28 if rainbow_hit else 0.16),
-			})
-			_show_banner("红美玲散开了彩虹气功弹！", 1.15)
-			return _set_rumia_state(zombie, "rainbow", 0.5)
-		_:
-			# Dragon Wave — massive green energy arc across whole board
-			var dragon_hit := false
-			var dragon_start = BOARD_ORIGIN.x + board_size.x * 0.18
-			for lane in active_rows:
-				dragon_hit = _damage_plants_in_row_segment(
-					int(lane),
-					dragon_start,
-					anchor_x,
-					float(data.get("dragon_wave_damage", 90.0)) + phase * 18.0
-				) or dragon_hit
-			var dragon_center = Vector2(BOARD_ORIGIN.x + board_size.x * 0.52, _row_center_y(row) - 8.0)
-			_stagger_plants_in_circle(dragon_center, 280.0 + phase * 22.0, 1.2 + phase * 0.15)
-			effects.append({
-				"shape": "dragon_wave",
-				"position": dragon_center,
-				"radius": 280.0 + phase * 22.0,
-				"time": 0.54,
-				"duration": 0.54,
-				"anim_speed": 4.8,
-				"color": Color(0.28, 0.88, 0.52, 0.36 if dragon_hit else 0.22),
-			})
-			_show_banner("红美玲释放了青龙波！", 1.25)
-			return _set_rumia_state(zombie, "dragon", 0.6)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_meiling_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -18660,206 +16501,11 @@ func _trigger_meiling_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 
 
 func _trigger_koakuma_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["koakuma_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("koakuma_boss")
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var cells: Array = []
-			var rows = [row, _next_active_row(row, -1).get("row", row), _next_active_row(row, 1).get("row", row)]
-			for cell_index in range(rows.size()):
-				var target_row = clampi(int(rows[cell_index]), 0, ROWS - 1)
-				var target_col = clampi(4 + cell_index + (phase % 2), 2, COLS - 1)
-				cells.append(Vector2i(target_row, target_col))
-			var hit_count = _damage_plants_in_cells(cells, float(data.get("book_damage", 62.0)) + phase * 14.0, 0.9 + phase * 0.12)
-			effects.append({
-				"shape": "library_books",
-				"position": Vector2(anchor_x - 110.0, _row_center_y(row) - 16.0),
-				"length": 220.0,
-				"width": 132.0,
-				"radius": 150.0,
-				"time": 0.48,
-				"duration": 0.48,
-				"anim_speed": 6.4,
-				"color": Color(0.96, 0.22, 0.34, 0.32 if hit_count > 0 else 0.18),
-			})
-			for cell_variant in cells:
-				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "arcane_circle",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 44.0,
-					"time": 0.44,
-					"duration": 0.44,
-					"anim_speed": 5.6,
-					"color": Color(0.94, 0.26, 0.34, 0.26),
-				})
-			_show_banner("小恶魔散开了魔导书弹幕！", 1.15)
-			return _set_rumia_state(zombie, "books", 0.48)
-		1:
-			var familiar_hit := false
-			for lane in active_rows:
-				var lane_row = int(lane)
-				if abs(lane_row - row) > 1:
-					continue
-				var lane_start = BOARD_ORIGIN.x + board_size.x * (0.46 + 0.06 * float(abs(lane_row - row)))
-				familiar_hit = _damage_plants_in_row_segment(
-					lane_row,
-					lane_start,
-					anchor_x,
-					float(data.get("familiar_damage", 36.0)) * (3.2 + phase * 0.28)
-				) or familiar_hit
-			effects.append({
-				"shape": "library_books",
-				"position": Vector2(BOARD_ORIGIN.x + board_size.x * 0.48, _row_center_y(row) - 10.0),
-				"length": anchor_x - (BOARD_ORIGIN.x + board_size.x * 0.48),
-				"width": CELL_SIZE.y * 1.6,
-				"radius": 170.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 7.0,
-				"color": Color(0.82, 0.2, 0.34, 0.3 if familiar_hit else 0.18),
-			})
-			_show_banner("小恶魔放出了馆内使魔！", 1.15)
-			return _set_rumia_state(zombie, "familiar", 0.5)
-		_:
-			for _i in range(2 + phase):
-				_spawn_hover_boss_reinforcement("koakuma_boss", phase)
-			effects.append({
-				"shape": "arcane_circle",
-				"position": Vector2(anchor_x - 90.0, _row_center_y(row) - 10.0),
-				"radius": 118.0 + phase * 14.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 4.8,
-				"color": Color(0.94, 0.18, 0.3, 0.32),
-			})
-			_show_banner("小恶魔呼来了更多馆内尸潮！", 1.2)
-			return _set_rumia_state(zombie, "summon", 0.56)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_patchouli_boss_skill(zombie: Dictionary) -> Dictionary:
-	var data = Defs.ZOMBIES["patchouli_boss"]
-	var row = int(zombie["row"])
-	var phase = int(zombie.get("boss_phase", 0))
-	var anchor_x = _boss_anchor_x("patchouli_boss")
-	match int(zombie.get("boss_skill_cycle", 0)):
-		0:
-			var fire_rows = [row, _next_active_row(row, -1).get("row", row), _next_active_row(row, 1).get("row", row)]
-			var fire_hit := false
-			var fire_start = BOARD_ORIGIN.x + board_size.x * 0.38
-			for fire_row_variant in fire_rows:
-				fire_hit = _damage_plants_in_row_segment(
-					int(fire_row_variant),
-					fire_start,
-					anchor_x,
-					float(data.get("fire_damage", 78.0)) + phase * 18.0
-				) or fire_hit
-			effects.append({
-				"shape": "patchouli_flare",
-				"position": Vector2(fire_start, _row_center_y(row) - 10.0),
-				"length": anchor_x - fire_start,
-				"width": CELL_SIZE.y * 1.7,
-				"radius": 230.0,
-				"time": 0.54,
-				"duration": 0.54,
-				"anim_speed": 6.2,
-				"color": Color(1.0, 0.42, 0.22, 0.34 if fire_hit else 0.18),
-			})
-			_show_banner("Fire Sign \"Agni Shine\"", 1.18)
-			return _set_rumia_state(zombie, "fire", 0.56)
-		1:
-			var cells: Array = []
-			for target_row in active_rows:
-				if cells.size() >= 3:
-					break
-				var row_i = int(target_row)
-				var target_col = clampi(3 + cells.size() * 2 + phase % 2, 2, COLS - 1)
-				cells.append(Vector2i(row_i, target_col))
-			var water_hits = _damage_plants_in_cells(cells, float(data.get("water_damage", 62.0)) + phase * 12.0, 1.2 + phase * 0.1)
-			for cell_variant in cells:
-				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "arcane_circle",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
-					"radius": 48.0,
-					"time": 0.5,
-					"duration": 0.5,
-					"anim_speed": 5.0,
-					"color": Color(0.38, 0.78, 1.0, 0.3 if water_hits > 0 else 0.16),
-				})
-			_show_banner("Water Sign \"Princess Undine\"", 1.18)
-			return _set_rumia_state(zombie, "water", 0.52)
-		2:
-			var wind_hit := false
-			var wind_start = BOARD_ORIGIN.x + board_size.x * 0.26
-			for lane in active_rows:
-				wind_hit = _damage_plants_in_row_segment(
-					int(lane),
-					wind_start,
-					anchor_x,
-					float(data.get("wind_damage", 44.0)) * (2.1 + phase * 0.16)
-				) or wind_hit
-			_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, BOARD_ORIGIN.y + board_size.y * 0.5), 280.0 + phase * 16.0, 1.0 + phase * 0.1)
-			effects.append({
-				"shape": "lane_spray",
-				"position": Vector2(wind_start, _row_center_y(row) - 10.0),
-				"length": anchor_x - wind_start,
-				"width": board_size.y * 0.86,
-				"radius": 280.0,
-				"time": 0.5,
-				"duration": 0.5,
-				"anim_speed": 6.0,
-				"color": Color(0.64, 0.96, 0.72, 0.28 if wind_hit else 0.14),
-			})
-			_show_banner("Wood Sign \"Sylphy Horn\"", 1.16)
-			return _set_rumia_state(zombie, "wind", 0.5)
-		3:
-			var metal_cells: Array = []
-			for lane in active_rows:
-				var lane_row = int(lane)
-				var target_col = clampi(4 + (lane_row % 3), 3, COLS - 1)
-				metal_cells.append(Vector2i(lane_row, target_col))
-			var metal_hits = _damage_plants_in_cells(metal_cells, float(data.get("metal_damage", 88.0)) + phase * 14.0, 1.35 + phase * 0.14)
-			for cell_variant in metal_cells:
-				var cell = Vector2i(cell_variant)
-				effects.append({
-					"shape": "arcane_circle",
-					"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -12.0),
-					"radius": 52.0,
-					"time": 0.52,
-					"duration": 0.52,
-					"anim_speed": 6.2,
-					"color": Color(0.92, 0.88, 1.0, 0.28 if metal_hits > 0 else 0.14),
-				})
-			_show_banner("Metal Sign \"Metal Fatigue\"", 1.18)
-			return _set_rumia_state(zombie, "metal", 0.54)
-		_:
-			var flare_hit := false
-			var flare_start = BOARD_ORIGIN.x + board_size.x * 0.16
-			for lane in active_rows:
-				flare_hit = _damage_plants_in_row_segment(
-					int(lane),
-					flare_start,
-					anchor_x,
-					float(data.get("flare_damage", 126.0)) + phase * 20.0
-				) or flare_hit
-			for _i in range(1 + phase):
-				_spawn_hover_boss_reinforcement("patchouli_boss", phase)
-			effects.append({
-				"shape": "patchouli_flare",
-				"position": Vector2(flare_start, BOARD_ORIGIN.y + board_size.y * 0.5 - 12.0),
-				"length": anchor_x - flare_start,
-				"width": board_size.y * 0.92,
-				"radius": 320.0,
-				"time": 0.62,
-				"duration": 0.62,
-				"anim_speed": 5.6,
-				"color": Color(0.96, 0.68, 0.28, 0.32 if flare_hit else 0.16),
-			})
-			_show_banner("Sun&Moon Sign \"Royal Flare\"", 1.22)
-			return _set_rumia_state(zombie, "flare", 0.62)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_koakuma_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
@@ -18994,6 +16640,14 @@ func _trigger_flandre_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 
 
 func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
+	if TouhouSpellDefs.CARDS.has(String(zombie.get("kind", ""))):
+		if touhou_danmaku != null and zombie.has("touhou_owner"):
+			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
+		zombie["touhou_invulnerable"] = false
+		zombie["touhou_cast_remaining"] = 0.0
+		zombie["touhou_survival_timer"] = 0.0
+		effects.append({"shape": "arcane_circle", "position": Vector2(float(zombie.get("x", _boss_anchor_x(String(zombie.kind)))), _row_center_y(int(zombie.get("row", 2))) - 12), "radius": 105.0 + phase * 12, "time": 0.8, "duration": 0.8, "color": _hover_boss_effect_tint(String(zombie.kind))})
+		return _set_rumia_state(zombie, "phase", 0.9)
 	if String(zombie["kind"]) == "rumia_boss":
 		return _trigger_rumia_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "daiyousei_boss":
@@ -23506,6 +21160,8 @@ func _draw_battle_scene() -> void:
 	_draw_coins()
 	_draw_plant_food_pickups()
 	_draw_effects()
+	if touhou_danmaku != null:
+		touhou_danmaku.draw()
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
 	combat_draw_offset = Vector2.ZERO
@@ -25577,8 +23233,8 @@ func _boss_health_bar_layout(_boss: Dictionary) -> Dictionary:
 		"rect": rect,
 		"rect_y": rect.position.y,
 		"segments": 5,
-		"name_rect": Rect2(rect.position + Vector2(0.0, -24.0), Vector2(bar_width * 0.4, 22.0)),
-		"status_rect": Rect2(rect.position + Vector2(bar_width * 0.4 + 8.0, -24.0), Vector2(bar_width * 0.4 - 16.0, 22.0)),
+		"name_rect": Rect2(rect.position + Vector2(0.0, -24.0), Vector2(bar_width * 0.27, 22.0)),
+		"status_rect": Rect2(rect.position + Vector2(bar_width * 0.27 + 8.0, -24.0), Vector2(bar_width * 0.53 - 16.0, 22.0)),
 		"health_rect": Rect2(rect.position + Vector2(bar_width * 0.8, -24.0), Vector2(bar_width * 0.2, 22.0)),
 		"cast_rect": Rect2(rect.position + Vector2(0.0, bar_height + 4.0), Vector2(bar_width, 3.0)),
 	}
@@ -25602,7 +23258,10 @@ func _draw_boss_health_bar() -> void:
 	draw_rect(label_band, Color(0.04, 0.055, 0.055, 0.9))
 	_draw_text_block("%s  /  阶段 %d" % [String(Defs.ZOMBIES[String(boss["kind"])]["name"]), int(boss.get("boss_phase", 0)) + 1], layout["name_rect"], 16, Color(0.96, 0.97, 0.94), 0.0, 1)
 	var status = _boss_cast_status(boss)
-	_draw_text_block(String(status["text"]), layout["status_rect"], 15, Color(status["color"]), 0.0, 1)
+	var status_size := 15
+	while status_size > 11 and ui_font.get_string_size(String(status.text), HORIZONTAL_ALIGNMENT_LEFT, -1.0, status_size).x > layout.status_rect.size.x:
+		status_size -= 1
+	_draw_text_block(String(status["text"]), layout["status_rect"], status_size, Color(status["color"]), 0.0, 1)
 	var health_rect: Rect2 = layout["health_rect"]
 	draw_string(ui_font, health_rect.position + Vector2(0.0, 17.0), "%d / %d" % [ceili(health), ceili(max_health)], HORIZONTAL_ALIGNMENT_RIGHT, health_rect.size.x, 14, Color(0.92, 0.94, 0.9))
 	ThemeLib.draw_rounded_panel(self, rect, Color(0.06, 0.07, 0.08, 0.96), tint.darkened(0.5), 4.0, 0.1, 0.04)
@@ -25637,6 +23296,15 @@ func _draw_boss_health_bar() -> void:
 
 
 func _boss_cast_status(boss: Dictionary) -> Dictionary:
+	if TouhouSpellDefs.CARDS.has(String(boss.get("kind", ""))):
+		var active = float(boss.get("touhou_cast_remaining", 0.0)) > 0.0
+		var card: Dictionary = boss.get("touhou_card", {}) if active else TouhouSpellDefs.card_for(boss, current_level)
+		var remaining_time = float(boss.get("touhou_cast_remaining", 0.0)) if active else float(boss.get("boss_skill_timer", 0.0))
+		var suffix = "耐久 %.1fs" % remaining_time if bool(boss.get("touhou_invulnerable", false)) else ("展开" if active else ("蓄力" if bool(boss.get("boss_cast_pending", false)) else "待机"))
+		var progress = remaining_time / maxf(0.01, float(boss.get("touhou_cast_duration", 1.0))) if active else 0.0
+		if not active and bool(boss.get("boss_cast_pending", false)):
+			progress = clampf(1.0 - remaining_time / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0)
+		return {"text": "%s  %s" % [String(card.get("name", "")), suffix], "progress": progress, "color": Color(1.0, 0.77, 0.3) if bool(boss.get("boss_cast_pending", false)) else Color(0.8, 0.93, 1.0)}
 	var remaining = maxf(0.0, float(boss.get("boss_skill_timer", 0.0)))
 	var cycle = int(boss.get("boss_skill_cycle", 0)) + 1
 	if bool(boss.get("boss_cast_pending", false)):
@@ -25650,6 +23318,8 @@ func _boss_cast_status(boss: Dictionary) -> Dictionary:
 
 
 func _draw_click_ultimate_indicator(draw_center: Vector2, plant: Dictionary) -> void:
+	if _plant_charm_blocks_actions(plant):
+		return
 	var kind = String(plant.get("kind", ""))
 	if not _plant_supports_click_ultimate(kind):
 		return
@@ -35749,41 +33419,41 @@ func _zombie_almanac_stats(kind: String) -> Array:
 		"rumia_boss":
 			stats.append("特性：右侧悬停、换行施法、不可魅惑")
 		"daiyousei_boss":
-			stats.append("特性：半程拦截 Boss，环形光芒与光枪连击")
+			stats.append("特性：半程拦截 Boss，无命名符卡，定向散弹")
 		"cirno_boss":
-			stats.append("特性：终章 Boss，冰柱落击、绝对零度与冰晶吹雪")
+			stats.append("特性：冰柱散落、完美冻结与钻石风暴；雪夜道中为非符")
 		"meiling_boss":
-			stats.append("特性：红魔馆守卫，气功踢击、彩虹气功弹与青龙波")
+			stats.append("特性：红魔馆门番，芳华绚烂、彩雨与极彩台风")
 		"koakuma_boss":
-			stats.append("特性：半程拦截 Boss，魔导书弹幕、使魔与尸潮召唤")
+			stats.append("特性：半程拦截 Boss，无命名符卡，红蓝环形弹幕")
 		"patchouli_boss":
 			stats.append("特性：图书馆终章 Boss，多属性魔法、法阵压场、不可魅惑")
 		"sakuya_boss":
 			stats.append("特性：红魔馆时钟厅 Boss，飞刀弹幕、瞬移换行、时停压场、不可魅惑")
 		"letty_boss":
-			stats.append("特性：雪夜终幕 Boss，寒流、花枯、白色波纹与临时冻结格压场")
+			stats.append("特性：雪夜终幕 Boss，寒符与冬符交替展开")
 		"chen_boss":
-			stats.append("特性：迷途家终幕 Boss，高速换行、式神夹击、火环与奇门冲刺压场")
+			stats.append("特性：猫又式神，凤凰卵与飞翔晴明；八云道中使用 Extra 符卡")
 		"alice_doll_zombie":
 			stats.append("特性：爱丽丝召唤的人偶单位，会配合牵线和魔法阵推进")
 		"alice_boss":
-			stats.append("特性：魔法森林终幕 Boss，七色魔法、人偶队列、牵线夹击与坟墓升起压场")
+			stats.append("特性：法兰西、荷兰、伦敦与上海人偶阵，激光预警后生效")
 		"lily_white_boss":
 			stats.append("特性：云海道中 Boss，报春花瓣、春风云团与白色妖精弹幕")
 		"prismriver_boss":
 			stats.append("特性：云海终幕 Boss，三姐妹合奏音波、右五列换位与大合葬压场")
 		"youmu_boss":
-			stats.append("特性：白玉楼终幕 Boss，常驻右侧蓄势，偶尔瞬步第一列高速斩击并释放剑气")
+			stats.append("特性：双剑与半灵弹幕；原创怨灵使役可暂时控制植物")
 		"youmu_wraith":
 			stats.append("特性：妖梦召唤的实体怨灵，可被攻击；命中植物后造成轻伤并短暂魅惑")
 		"yuyuko_spirit":
 			stats.append("特性：幽幽子召唤的实体亡灵，可被攻击；命中植物后造成轻伤并短暂魅惑")
 		"yuyuko_boss":
-			stats.append("特性：白玉楼终幕 Boss，樱花、亡灵、墓碑、西行妖与一次复活压场")
+			stats.append("特性：亡灵、死蝶与樱花弹幕，击破后进入反魂蝶耐久终幕")
 		"ran_boss":
 			stats.append("特性：九尾狐式神 Boss，以十二神将、式神阵、狐狗狸契约和妖怪激光压场")
 		"yukari_boss":
-			stats.append("特性：隙间妖怪终幕 Boss，以境界、二重黑死蝶、客观结界与弹幕结界改写战场")
+			stats.append("特性：Phantasm 十一符，二重黑死蝶、式神八云蓝与弹幕结界")
 	return stats
 
 

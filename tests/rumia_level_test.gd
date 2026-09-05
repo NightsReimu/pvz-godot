@@ -21,7 +21,7 @@ func _run() -> void:
 	failed = not _test_bosses_cannot_be_hypnotized() or failed
 	failed = not _test_rumia_hover_cadence_is_randomized_and_not_too_fast() or failed
 	failed = not _test_rumia_boss_hovers_without_advancing() or failed
-	failed = not _test_rumia_boss_summon_skill_spawns_reinforcements() or failed
+	failed = not _test_rumia_non_summoning_card_emits_bullets() or failed
 	failed = not _test_rumia_boss_keeps_spawning_right_side_pressure() or failed
 	failed = not _test_rumia_row_shift_enters_motion_state() or failed
 	failed = not _test_rumia_skill_effects_use_animated_shapes() or failed
@@ -290,7 +290,7 @@ func _test_rumia_boss_hovers_without_advancing() -> bool:
 	return passed
 
 
-func _test_rumia_boss_summon_skill_spawns_reinforcements() -> bool:
+func _test_rumia_non_summoning_card_emits_bullets() -> bool:
 	var game = _make_game()
 	game.current_level = {
 		"id": "1-17",
@@ -303,7 +303,7 @@ func _test_rumia_boss_summon_skill_spawns_reinforcements() -> bool:
 	boss["boss_skill_cycle"] = 0
 	game.zombies[0] = boss
 	game._trigger_boss_skill(boss)
-	var passed = _assert_true(game.zombies.size() > 1, "rumia summon skill should add reinforcements to the battlefield") \
+	var passed = _assert_true(game.zombies.size() == 1 and not game.touhou_danmaku.bullets.is_empty(), "Night Bird must emit bullets without inventing a summoning card") \
 		and _assert_true(not game.effects.is_empty(), "rumia summon skill should create a visible boss effect")
 	_free_game(game)
 	return passed
@@ -366,9 +366,8 @@ func _test_rumia_skill_effects_use_animated_shapes() -> bool:
 	}
 	game._spawn_zombie_at("rumia_boss", 2, game.BOARD_ORIGIN.x + game.board_size.x - 16.0)
 	var expectations = {
-		1: "rumia_beam",
-		2: "night_bird_swarm",
-		3: "dark_orbit",
+		0: "night_bird",
+		1: "demarcation",
 	}
 	var passed := true
 	for cycle in expectations.keys():
@@ -377,11 +376,7 @@ func _test_rumia_skill_effects_use_animated_shapes() -> bool:
 		boss["boss_skill_cycle"] = int(cycle)
 		game.zombies[0] = boss
 		game._trigger_boss_skill(boss)
-		var found := false
-		for effect in game.effects:
-			if String(effect.get("shape", "")) == String(expectations[cycle]) and float(effect.get("anim_speed", 0.0)) > 0.0:
-				found = true
-				break
+		var found = String(game.touhou_danmaku.casts[0].pattern) == String(expectations[cycle]) and not game.touhou_danmaku.bullets.is_empty()
 		passed = _assert_true(found, "rumia skill cycle %d should create an animated %s effect" % [int(cycle), String(expectations[cycle])]) and passed
 	_free_game(game)
 	return passed

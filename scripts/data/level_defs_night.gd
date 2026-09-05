@@ -468,7 +468,7 @@ const LEVELS = [
 			{
 				"id": "2-25",
 				"title": "夜晚 2-25",
-				"description": "红魔馆之后的雪夜支线。琪露诺在半程冻结战线，终幕则由冬之妖怪蕾蒂以寒气、花枯与白色波纹弹幕把整片庭院拖进冬天。",
+				"description": "红魔馆之后的雪夜支线。琪露诺以非符弹幕拦截道中，终幕由冬之妖怪蕾蒂施放寒符与冬符。",
 				"world": "night",
 				"terrain": "winter_forest",
 				"boss_level": true,
@@ -517,7 +517,7 @@ const LEVELS = [
 			{
 				"id": "2-26",
 				"title": "夜晚 2-26",
-				"description": "雪夜穿过迷途家。没有半程 Boss，终幕由猫又式神橙以高速冲刺、火环与奇门方位弹幕压迫整片屋前庭院。",
+				"description": "雪夜穿过迷途家。没有半程 Boss，终幕由猫又式神橙以凤凰卵、飞翔晴明、天仙鸣动与尸解永远迎战。",
 				"world": "night",
 				"terrain": "mayohiga_house",
 				"boss_level": true,
@@ -563,7 +563,7 @@ const LEVELS = [
 			{
 				"id": "2-27",
 				"title": "夜晚 2-27",
-				"description": "迷途家之后进入魔法森林。爱丽丝在终幕以七色魔法、人偶牵线、上海与蓬莱人偶队列压迫战线，并会让新的坟墓从地下钻出。",
+				"description": "迷途家之后进入魔法森林。爱丽丝以法兰西、荷兰、伦敦与上海人偶组成弹幕阵位，森林墓碑之间展开七色魔法。",
 				"world": "night",
 				"terrain": "forest_of_magic",
 				"boss_level": true,
@@ -712,7 +712,7 @@ const LEVELS = [
 			{
 				"id": "2-30",
 				"title": "夜晚 2-30",
-				"description": "白玉楼终幕的西行妖樱庭。六面道中较短，妖梦半程拦截，幽幽子会以樱花、死蝶、亡灵、墓碑与一次复活展开终幕压迫。",
+				"description": "白玉楼终幕的西行妖樱庭。妖梦以六道剑「一念无量劫」拦截道中，幽幽子展开亡灵、死蝶与樱花弹幕，击破后进入反魂蝶耐久终幕。",
 				"world": "night",
 				"terrain": "saigyouji_sakura",
 				"boss_level": true,

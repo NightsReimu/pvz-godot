@@ -189,7 +189,7 @@ func _test_alice_boss_and_doll_definition_and_almanac_copy() -> bool:
 	var doll = Dictionary(Defs.ZOMBIES.get("alice_doll_zombie", {}))
 	passed = _assert_true(bool(data.get("boss", false)), "alice_boss should be marked as a boss") and passed
 	passed = _assert_true(float(data.get("health", 0.0)) == 25200.0, "alice_boss should use the planned 25200 HP") and passed
-	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 7, "alice_boss should have a seven-spell skill cycle") and passed
+	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 4, "Alice Normal route should have four spell cards") and passed
 	passed = _assert_true(not bool(doll.get("boss", false)), "alice_doll_zombie should be a normal elite summon, not a boss") and passed
 	var game = _make_game()
 	passed = _assert_true(Array(game.ZOMBIE_ALMANAC_ORDER).has("alice_boss"), "alice_boss should be visible in the zombie almanac") and passed
@@ -262,30 +262,24 @@ func _test_alice_skills_create_doll_magic_and_grave_pressure() -> bool:
 			"health": float(Defs.ZOMBIES.get("alice_boss", {}).get("health", 25200.0)),
 			"max_health": float(Defs.ZOMBIES.get("alice_boss", {}).get("health", 25200.0)),
 		}
-		for cycle in range(7):
+		var has_doll_emitters := false
+		var has_lasers := false
+		var initial_graves = game.graves.size()
+		for cycle in range(4):
 			boss["boss_skill_cycle"] = cycle
 			boss = game.call("_trigger_alice_boss_skill", boss)
+			has_doll_emitters = has_doll_emitters or game.touhou_danmaku.casts[0].actors.size() == 5
+			has_lasers = has_lasers or not game.touhou_danmaku.beams.is_empty()
 		var damaged_plant = Dictionary(game.grid[2][5])
-		var has_doll_fx := false
 		var has_magic_fx := false
-		var has_grave_fx := false
 		for effect in game.effects:
 			var shape = String(Dictionary(effect).get("shape", ""))
-			if shape.find("doll") != -1 or shape.find("marionette") != -1:
-				has_doll_fx = true
 			if shape.find("alice") != -1 or shape.find("magic") != -1 or shape.find("seven") != -1:
 				has_magic_fx = true
-			if shape.find("grave") != -1:
-				has_grave_fx = true
-		var summoned_doll := false
-		for zombie in game.zombies:
-			if String(Dictionary(zombie).get("kind", "")) == "alice_doll_zombie":
-				summoned_doll = true
-		passed = _assert_true(has_doll_fx, "Alice skills should create visible doll or marionette effects") and passed
+		passed = _assert_true(has_doll_emitters, "Alice should deploy five visible doll emitters") and passed
 		passed = _assert_true(has_magic_fx, "Alice skills should create visible magic forest / seven-color effects") and passed
-		passed = _assert_true(has_grave_fx, "Alice grave raising should create a dedicated grave-rise animation effect") and passed
-		passed = _assert_true(summoned_doll, "Alice skills should summon alice_doll_zombie units") and passed
-		passed = _assert_true(game.graves.size() >= 1, "Alice skills should raise at least one grave") and passed
+		passed = _assert_true(has_lasers, "Shanghai dolls should emit telegraphed lasers") and passed
+		passed = _assert_true(game.graves.size() == initial_graves, "Alice's TH07 doll cards should not invent a grave-raising power") and passed
 		passed = _assert_true(float(damaged_plant.get("health", 0.0)) > 0.0, "Alice skill cycle should pressure plants without instantly deleting a 1400 HP plant") and passed
 	_free_game(game)
 	return passed

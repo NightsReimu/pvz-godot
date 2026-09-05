@@ -16,7 +16,7 @@ func _run() -> void:
 	failed = not _test_cirno_freeze_turns_left_pool_into_frozen_support_cells() or failed
 	failed = not _test_frozen_cells_slow_attack_cadence() or failed
 	failed = not _test_daiyousei_midboss_locks_progress_until_defeated() or failed
-	failed = not _test_daiyousei_spellcards_create_effects_and_damage_plants() or failed
+	failed = not _test_daiyousei_nonspell_bullets_damage_plants_on_contact() or failed
 	failed = not _test_cirno_freeze_swaps_conveyor_pool() or failed
 	failed = not _test_cirno_spellcards_create_ice_effects_and_reinforcements() or failed
 	failed = not _test_boss_frame_cleanup_removes_white_border_and_faces_left() or failed
@@ -253,18 +253,17 @@ func _test_daiyousei_midboss_locks_progress_until_defeated() -> bool:
 	return passed
 
 
-func _test_daiyousei_spellcards_create_effects_and_damage_plants() -> bool:
+func _test_daiyousei_nonspell_bullets_damage_plants_on_contact() -> bool:
 	var game = _make_game()
 	var level_index = _begin_level(game, "1-18")
-	if not _assert_true(level_index != -1, "expected 1-18 to exist before checking Daiyousei spellcards"):
+	if not _assert_true(level_index != -1, "expected 1-18 to exist before checking Daiyousei's nonspell"):
 		_free_game(game)
 		return false
 	var center_plant = game._create_plant("wallnut", 2, 4)
 	game.grid[2][4] = center_plant
 	game._spawn_zombie_at("daiyousei_boss", 2, game.BOARD_ORIGIN.x + game.board_size.x - 16.0)
 	var expectations = {
-		0: "fairy_ring",
-		1: "fairy_lance",
+		0: "fairy_aim",
 	}
 	var passed := true
 	for cycle in expectations.keys():
@@ -274,13 +273,15 @@ func _test_daiyousei_spellcards_create_effects_and_damage_plants() -> bool:
 		game.zombies[0] = boss
 		var before_health = float(game.grid[2][4]["health"])
 		game._trigger_boss_skill(boss)
-		var found := false
-		for effect in game.effects:
-			if String(effect.get("shape", "")) == String(expectations[cycle]) and float(effect.get("anim_speed", 0.0)) > 0.0:
-				found = true
-				break
+		var found = String(game.touhou_danmaku.casts[0].pattern) == String(expectations[cycle]) and not game.touhou_danmaku.bullets.is_empty()
 		passed = _assert_true(found, "Daiyousei cycle %d should create an animated %s effect" % [int(cycle), String(expectations[cycle])]) and passed
-		passed = _assert_true(float(game.grid[2][4]["health"]) < before_health, "Daiyousei cycle %d should damage plants instead of being pure decoration" % int(cycle)) and passed
+		passed = _assert_true(float(game.grid[2][4]["health"]) == before_health, "Daiyousei declaration must not deal instant damage") and passed
+		var origin = Vector2(game.touhou_danmaku.casts[0].center)
+		var target = game._cell_center(2, 4) + Vector2(0, -12)
+		var speed = Vector2(game.touhou_danmaku.bullets[4].velocity).length()
+		game.touhou_danmaku.update(origin.distance_to(target) / speed + 0.05)
+		passed = _assert_true(float(game.grid[2][4]["health"]) < before_health, "Daiyousei bullets must damage plants on contact") and passed
+	_free_game(game)
 	return passed
 
 
@@ -318,9 +319,9 @@ func _test_cirno_spellcards_create_ice_effects_and_reinforcements() -> bool:
 			game.grid[row_i][col] = plant
 	game._spawn_zombie_at("cirno_boss", 2, game.BOARD_ORIGIN.x + game.board_size.x - 16.0)
 	var expectations = {
-		0: "icicle_fall",
+		0: "icicle",
 		1: "perfect_freeze",
-		2: "diamond_blizzard",
+		2: "blizzard",
 	}
 	var passed := true
 	for cycle in expectations.keys():
@@ -328,15 +329,19 @@ func _test_cirno_spellcards_create_ice_effects_and_reinforcements() -> bool:
 		var boss = game.zombies[0]
 		boss["boss_skill_cycle"] = int(cycle)
 		game.zombies[0] = boss
-		var before_health = float(game.grid[2][5]["health"])
+		var before_health := 0.0
+		for r in game.active_rows:
+			for col in range(5, game.COLS):
+				before_health += float(game.grid[r][col].health)
 		game._trigger_boss_skill(boss)
-		var found := false
-		for effect in game.effects:
-			if String(effect.get("shape", "")) == String(expectations[cycle]) and float(effect.get("anim_speed", 0.0)) > 0.0:
-				found = true
-				break
+		var found = String(game.touhou_danmaku.casts[0].pattern) == String(expectations[cycle]) and not game.touhou_danmaku.bullets.is_empty()
 		passed = _assert_true(found, "Cirno cycle %d should create an animated %s effect" % [int(cycle), String(expectations[cycle])]) and passed
-		passed = _assert_true(float(game.grid[2][5]["health"]) < before_health, "Cirno cycle %d should threaten plants instead of only animating" % int(cycle)) and passed
+		game.touhou_danmaku.update(1.9)
+		var after_health := 0.0
+		for r in game.active_rows:
+			for col in range(5, game.COLS):
+				after_health += float(game.grid[r][col].health)
+		passed = _assert_true(after_health < before_health, "Cirno bullets must damage the front plants they physically hit") and passed
 	var cirno = game.zombies[0]
 	cirno["rumia_reinforcement_timer"] = 0.0
 	game.zombies[0] = cirno

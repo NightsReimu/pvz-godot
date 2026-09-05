@@ -27,7 +27,7 @@
 | 僵尸与 Boss 定义 | 100 |
 | 关卡定义 | 171 |
 | 主世界 | 7 |
-| 自动测试入口 | 74 |
+| 自动测试入口 | 75 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
 
@@ -118,6 +118,7 @@ The original source code is available under the MIT License. Bundled artwork, au
 - 幽幽子以墓碑、亡灵、樱花汇聚和一次复活构成双阶段战斗，复活后切换独立 BGM。
 - 八云蓝倒下后由八云紫接替终幕，使用式神、境界与隙间主题技能。
 - 东方 Boss 使用 24 帧姿势组动画管线，并带独立预热、朝向、白边清理和资源完整性测试。
+- 东方符卡出处、Normal/Extra/Phantasm 路线、原创怨灵符卡及塔防适配边界见 [东方 Boss 符卡对照](docs/touhou-spells.md)。
 
 > [!NOTE]
 > 东方角色、名称、设定和 Boss 美术属于 Touhou Project 相关二次创作内容。仓库中的东方原曲仍受原权利人保护，不能因为代码开源就视为可自由复制或再分发。
@@ -237,6 +238,7 @@ godot --headless --path . -s res://tests/game_boot_test.gd
 godot --headless --path . -s res://tests/world_navigation_test.gd
 godot --headless --path . -s res://tests/special_modes_test.gd
 godot --headless --path . -s res://tests/touhou_boss_animation_frames_test.gd
+godot --headless --path . -s res://tests/touhou_spell_contract_test.gd
 godot --headless --path . -s res://tests/yakumo_branch_test.gd
 ```
 

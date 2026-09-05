@@ -88,9 +88,9 @@ func _test_sakuya_knife_skills_use_distinct_effect_shapes() -> bool:
 	game.call("_trigger_sakuya_boss_skill", boss)
 	boss["boss_skill_cycle"] = 1
 	game.call("_trigger_sakuya_boss_skill", boss)
-	var shapes = _effect_shapes(game)
-	var passed = _assert_true(shapes.has("sakuya_knife_fan"), "Sakuya knife fan should use a dedicated fan-shaped knife effect") \
-		and _assert_true(shapes.has("sakuya_knife_rain"), "Sakuya knife rain should use a dedicated falling knife effect")
+	var passed = _assert_true(game.touhou_danmaku.bullets.size() >= 20, "Clock Corpse should place a knife ring") \
+		and _assert_true(String(game.touhou_danmaku.bullets[0].shape) == "knife", "Sakuya bullets should render as knives") \
+		and _assert_true(game.boss_time_stop_timer > 0.0, "Clock Corpse should freeze its knives during placement")
 	_free_game(game)
 	return passed
 

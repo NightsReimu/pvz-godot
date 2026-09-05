@@ -182,7 +182,7 @@ func _test_letty_boss_definition_and_almanac_copy() -> bool:
 	var data = Dictionary(Defs.ZOMBIES.get("letty_boss", {}))
 	passed = _assert_true(bool(data.get("boss", false)), "letty_boss should be marked as a boss") and passed
 	passed = _assert_true(float(data.get("health", 0.0)) == 23200.0, "letty_boss should use the planned 23200 HP") and passed
-	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 5, "letty_boss should have a five-spell skill cycle") and passed
+	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 2, "Letty Normal route should have two spell cards") and passed
 	var game = _make_game()
 	passed = _assert_true(Array(game.ZOMBIE_ALMANAC_ORDER).has("letty_boss"), "letty_boss should be visible in the zombie almanac") and passed
 	var text_lines = AlmanacText.zombie_lines("letty_boss")
@@ -237,7 +237,7 @@ func _test_letty_skills_create_bounded_winter_pressure() -> bool:
 			"health": float(Defs.ZOMBIES.get("letty_boss", {}).get("health", 23200.0)),
 			"max_health": float(Defs.ZOMBIES.get("letty_boss", {}).get("health", 23200.0)),
 		}
-		for cycle in range(5):
+		for cycle in range(2):
 			boss["boss_skill_cycle"] = cycle
 			boss = game.call("_trigger_letty_boss_skill", boss)
 		var damaged_plant = Dictionary(game.grid[2][5])
@@ -248,7 +248,7 @@ func _test_letty_skills_create_bounded_winter_pressure() -> bool:
 				has_winter_fx = true
 		passed = _assert_true(has_winter_fx, "Letty skills should create visible winter-themed effects") and passed
 		passed = _assert_true(float(damaged_plant.get("health", 0.0)) > 0.0, "Letty skill cycle should pressure plants without instantly deleting a 900 HP plant") and passed
-		passed = _assert_true(float(damaged_plant.get("shot_cooldown", 0.0)) > 0.0, "Letty skills should apply a cold cadence/cooldown penalty") and passed
+		passed = _assert_true(not game.touhou_danmaku.bullets.is_empty(), "Letty must emit cold danmaku before impact") and passed
 	_free_game(game)
 	return passed
 

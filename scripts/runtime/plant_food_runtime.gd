@@ -179,6 +179,8 @@ func activate(row: int, col: int) -> bool:
 		return false
 
 	var plant = plant_variant
+	if float(plant.get("health", 0.0)) <= 0.0 or game._plant_charm_blocks_actions(plant):
+		return false
 	plant["sleep_timer"] = 0.0
 	var center = game._cell_center(row, col)
 	var kind = String(plant["kind"])

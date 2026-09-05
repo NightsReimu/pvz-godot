@@ -197,7 +197,7 @@ func _test_youmu_definition_and_almanac_copy() -> bool:
 	var data = Dictionary(Defs.ZOMBIES.get("youmu_boss", {}))
 	passed = _assert_true(bool(data.get("boss", false)), "youmu_boss should be marked as a boss") and passed
 	passed = _assert_true(float(data.get("health", 0.0)) == 30400.0, "youmu_boss should use the planned 30400 HP") and passed
-	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 8, "youmu_boss should have an eight-spell skill cycle") and passed
+	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 6, "Youmu should retain five Normal cards plus the original wraith card") and passed
 	passed = _assert_true(float(data.get("skill_interval_min", 0.0)) >= 4.8, "youmu skill floor should preserve a reaction window") and passed
 	var game = _make_game()
 	passed = _assert_true(Array(game.ZOMBIE_ALMANAC_ORDER).has("youmu_boss"), "youmu_boss should be visible in the zombie almanac") and passed
@@ -273,28 +273,23 @@ func _test_youmu_skills_create_slash_ghost_and_charm_pressure() -> bool:
 			"health": float(Defs.ZOMBIES.get("youmu_boss", {}).get("health", 30400.0)),
 			"max_health": float(Defs.ZOMBIES.get("youmu_boss", {}).get("health", 30400.0)),
 		}
-		for cycle in range(8):
+		var has_sword_beams := false
+		for cycle in range(6):
 			boss["boss_skill_cycle"] = cycle
 			boss = game.call("_trigger_youmu_boss_skill", boss)
+			has_sword_beams = has_sword_beams or not game.touhou_danmaku.beams.is_empty()
 			passed = _assert_true(float(boss.get("x", 0.0)) >= float(bounds.get("min_x", 0.0)) and float(boss.get("x", 0.0)) <= float(bounds.get("max_x", 0.0)), "Youmu boss should stay inside the board bounds while dashing") and passed
 		var damaged_plant = Dictionary(game.grid[2][5])
-		var has_slash_fx := false
-		var has_sword_qi_fx := false
 		var has_ghost_fx := false
 		var spawned_wraiths := 0
 		for effect in game.effects:
 			var shape = String(Dictionary(effect).get("shape", ""))
-			if shape.find("youmu") != -1 and (shape.find("slash") != -1 or shape.find("sword") != -1):
-				has_slash_fx = true
-			if shape.find("youmu_sword_qi") != -1:
-				has_sword_qi_fx = true
 			if shape.find("youmu") != -1 and (shape.find("ghost") != -1 or shape.find("wraith") != -1):
 				has_ghost_fx = true
 		for z in game.zombies:
 			if String(Dictionary(z).get("kind", "")) == "youmu_wraith":
 				spawned_wraiths += 1
-		passed = _assert_true(has_slash_fx, "Youmu skills should create visible sword/slash effects") and passed
-		passed = _assert_true(has_sword_qi_fx, "Youmu slashes should emit dedicated sword-qi trails") and passed
+		passed = _assert_true(has_sword_beams, "Youmu sword cards must produce telegraphed slash paths") and passed
 		passed = _assert_true(has_ghost_fx, "Youmu skills should create visible half-phantom or wraith effects") and passed
 		passed = _assert_true(spawned_wraiths >= 2, "Youmu wraith spell should spawn attackable wraith enemies") and passed
 		passed = _assert_true(float(damaged_plant.get("health", 0.0)) > 0.0, "Youmu skill cycle should pressure plants without instantly deleting a 1400 HP plant") and passed

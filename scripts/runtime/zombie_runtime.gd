@@ -106,6 +106,9 @@ func update_boss(zombie: Dictionary, delta: float) -> Dictionary:
 	if float(zombie.get("health", 0.0)) <= 0.0:
 		return zombie
 	var kind := String(zombie["kind"])
+	if float(zombie.get("touhou_cast_remaining", 0.0)) > 0.0:
+		zombie = game._update_boss_reinforcements(zombie, delta)
+		return tick_hover_pose(zombie, delta)
 	var phase: int = game._boss_phase_from_ratio(float(zombie["health"]) / maxf(float(zombie["max_health"]), 1.0))
 	if phase > int(zombie.get("boss_phase", 0)):
 		zombie["boss_phase"] = phase

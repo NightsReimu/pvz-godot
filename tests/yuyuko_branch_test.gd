@@ -197,7 +197,7 @@ func _test_yuyuko_definition_and_almanac_copy() -> bool:
 	var data = Dictionary(Defs.ZOMBIES.get("yuyuko_boss", {}))
 	passed = _assert_true(bool(data.get("boss", false)), "yuyuko_boss should be marked as a boss") and passed
 	passed = _assert_true(float(data.get("health", 0.0)) >= 32000.0, "yuyuko_boss should be tougher than Youmu before revival pressure") and passed
-	passed = _assert_true(int(data.get("skill_cycle_length", 0)) >= 9, "yuyuko_boss should have a broad Stage 6 spell cycle") and passed
+	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 5, "Yuyuko Normal should have five regular spells before Resurrection Butterfly") and passed
 	passed = _assert_true(bool(data.get("revive_once", false)), "yuyuko_boss should revive once") and passed
 	passed = _assert_true(float(data.get("skill_interval_min", 0.0)) >= 4.6, "Yuyuko skill floor should preserve a reaction window") and passed
 	var game = _make_game()
@@ -259,22 +259,18 @@ func _test_yuyuko_graves_spirits_and_sakura_skill_fx() -> bool:
 			"health": float(Defs.ZOMBIES.get("yuyuko_boss", {}).get("health", 33000.0)),
 			"max_health": float(Defs.ZOMBIES.get("yuyuko_boss", {}).get("health", 33000.0)),
 		}
-		for cycle in range(9):
+		var has_sakura_bullets := false
+		var has_butterfly_bullets := false
+		for cycle in range(5):
 			boss["boss_skill_cycle"] = cycle
 			boss = game.call("_trigger_yuyuko_boss_skill", boss)
+			for bullet in game.touhou_danmaku.bullets:
+				has_sakura_bullets = has_sakura_bullets or bullet.shape == "petal"
+				has_butterfly_bullets = has_butterfly_bullets or bullet.shape == "butterfly"
 		game.call("_spawn_yuyuko_grave_spirits", 2)
-		var has_sakura_fx := false
-		var has_butterfly_fx := false
-		var has_tree_fx := false
 		var has_grave_fx := false
 		for effect in game.effects:
 			var shape = String(Dictionary(effect).get("shape", ""))
-			if shape.find("yuyuko_sakura") != -1 or shape.find("yuyuko_full_bloom") != -1:
-				has_sakura_fx = true
-			if shape.find("yuyuko_butterfly") != -1:
-				has_butterfly_fx = true
-			if shape.find("yuyuko_saigyou_tree") != -1 or shape.find("yuyuko_resurrection") != -1:
-				has_tree_fx = true
 			if shape.find("yuyuko_grave") != -1 or shape.find("yuyuko_spirit") != -1:
 				has_grave_fx = true
 		var spirit_count := 0
@@ -282,9 +278,8 @@ func _test_yuyuko_graves_spirits_and_sakura_skill_fx() -> bool:
 			if String(Dictionary(z).get("kind", "")) == "yuyuko_spirit":
 				spirit_count += 1
 		var damaged_plant = Dictionary(game.grid[2][5])
-		passed = _assert_true(has_sakura_fx, "Yuyuko skills should create dedicated sakura effects") and passed
-		passed = _assert_true(has_butterfly_fx, "Yuyuko skills should create dedicated butterfly effects") and passed
-		passed = _assert_true(has_tree_fx, "Yuyuko skills should show Saigyou Ayakashi or resurrection tree effects") and passed
+		passed = _assert_true(has_sakura_bullets, "Yuyuko's Sumizome card must emit sakura petals") and passed
+		passed = _assert_true(has_butterfly_bullets, "Yuyuko must emit actual butterfly bullets") and passed
 		passed = _assert_true(has_grave_fx, "Yuyuko skills and grave growth should create grave/spirit effects") and passed
 		passed = _assert_true(spirit_count > 0, "Yuyuko grave death/revival pressure should spawn physical spirit enemies") and passed
 		passed = _assert_true(float(damaged_plant.get("health", 0.0)) > 0.0, "Yuyuko skill cycle should pressure plants without instantly deleting a 1400 HP plant") and passed

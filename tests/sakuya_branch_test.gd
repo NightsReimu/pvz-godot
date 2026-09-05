@@ -17,7 +17,7 @@ func _run() -> void:
 	failed = not _test_sakuya_bgm_streams_loop() or failed
 	failed = not _test_sakuya_health_is_high() or failed
 	failed = not _test_sakuya_time_stop_starts_and_freezes_other_units() or failed
-	failed = not _test_sakuya_time_stop_can_relocate_plants() or failed
+	failed = not _test_sakuya_time_stop_keeps_plants_in_place() or failed
 	failed = not _test_sakuya_time_stop_balance_caps_stay_reactive() or failed
 	failed = not _test_mower_killing_sakuya_avoids_generic_boss_banner() or failed
 	failed = not _test_sakuya_uses_prebaked_left_facing_frames() or failed
@@ -220,7 +220,7 @@ func _test_sakuya_time_stop_starts_and_freezes_other_units() -> bool:
 		_free_game(game)
 		return false
 	var boss = game.zombies[boss_index]
-	boss["boss_skill_cycle"] = 4
+	boss["boss_skill_cycle"] = 2
 	game.zombies[boss_index] = boss
 	boss = game.call("_trigger_sakuya_boss_skill", boss)
 	game.zombies[boss_index] = boss
@@ -245,7 +245,7 @@ func _occupied_grid_cells(game: Control) -> Array:
 	return cells
 
 
-func _test_sakuya_time_stop_can_relocate_plants() -> bool:
+func _test_sakuya_time_stop_keeps_plants_in_place() -> bool:
 	var game = _make_game()
 	var level_index = _begin_level(game, "1-21")
 	if not _assert_true(level_index != -1, "expected 1-21 to exist before checking Sakuya relocation"):
@@ -266,7 +266,7 @@ func _test_sakuya_time_stop_can_relocate_plants() -> bool:
 		return false
 	var before_cells = _occupied_grid_cells(game)
 	var boss = game.zombies[boss_index]
-	boss["boss_skill_cycle"] = 4
+	boss["boss_skill_cycle"] = 2
 	game.zombies[boss_index] = boss
 	boss = game.call("_trigger_sakuya_boss_skill", boss)
 	game.zombies[boss_index] = boss
@@ -274,7 +274,7 @@ func _test_sakuya_time_stop_can_relocate_plants() -> bool:
 		game._update_zombies(0.18)
 	var after_cells = _occupied_grid_cells(game)
 	var passed = _assert_true(before_cells.size() == after_cells.size(), "Sakuya relocation should move plants instead of deleting them") \
-		and _assert_true(not before_cells.hash() == after_cells.hash(), "Sakuya should be able to reposition plants while time stop is active")
+		and _assert_true(before_cells == after_cells, "Luna Clock must place knives without teleporting plants")
 	_free_game(game)
 	return passed
 
@@ -286,7 +286,7 @@ func _test_sakuya_time_stop_balance_caps_stay_reactive() -> bool:
 		"row": 2,
 		"x": game.BOARD_ORIGIN.x + game.board_size.x - 18.0,
 		"boss_phase": 3,
-		"boss_skill_cycle": 4,
+		"boss_skill_cycle": 2,
 		"max_health": float(Defs.ZOMBIES["sakuya_boss"]["health"]),
 		"health": float(Defs.ZOMBIES["sakuya_boss"]["health"]),
 	}

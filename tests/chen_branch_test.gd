@@ -179,7 +179,7 @@ func _test_chen_boss_definition_and_almanac_copy() -> bool:
 	var data = Dictionary(Defs.ZOMBIES.get("chen_boss", {}))
 	passed = _assert_true(bool(data.get("boss", false)), "chen_boss should be marked as a boss") and passed
 	passed = _assert_true(float(data.get("health", 0.0)) == 23800.0, "chen_boss should use the planned 23800 HP") and passed
-	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 6, "chen_boss should have a six-spell skill cycle") and passed
+	passed = _assert_true(int(data.get("skill_cycle_length", 0)) == 4, "Chen Normal route should have four spell cards") and passed
 	var game = _make_game()
 	passed = _assert_true(Array(game.ZOMBIE_ALMANAC_ORDER).has("chen_boss"), "chen_boss should be visible in the zombie almanac") and passed
 	var text_lines = AlmanacText.zombie_lines("chen_boss")
@@ -234,7 +234,7 @@ func _test_chen_skills_create_bounded_mayohiga_pressure() -> bool:
 			"health": float(Defs.ZOMBIES.get("chen_boss", {}).get("health", 23800.0)),
 			"max_health": float(Defs.ZOMBIES.get("chen_boss", {}).get("health", 23800.0)),
 		}
-		for cycle in range(6):
+		for cycle in range(4):
 			boss["boss_skill_cycle"] = cycle
 			boss = game.call("_trigger_chen_boss_skill", boss)
 		var damaged_plant = Dictionary(game.grid[2][5])
@@ -245,6 +245,6 @@ func _test_chen_skills_create_bounded_mayohiga_pressure() -> bool:
 				has_chen_fx = true
 		passed = _assert_true(has_chen_fx, "Chen skills should create visible Mayohiga/cat/shikigami effects") and passed
 		passed = _assert_true(float(damaged_plant.get("health", 0.0)) > 0.0, "Chen skill cycle should pressure plants without instantly deleting a 900 HP plant") and passed
-		passed = _assert_true(game.zombies.size() >= 1, "Chen skills should create or retain field pressure without crashing") and passed
+		passed = _assert_true(not game.touhou_danmaku.bullets.is_empty(), "Chen must create real danmaku pressure") and passed
 	_free_game(game)
 	return passed

@@ -14,7 +14,7 @@ func _run() -> void:
 	failed = not _test_touhou_boss_skill_and_reinforcement_cadence_is_capped() or failed
 	failed = not _test_sakuya_time_stop_stays_reactive() or failed
 	failed = not _test_remilia_crimson_drain_is_pressure_not_a_wipe() or failed
-	failed = not _test_flandre_spell_cards_use_configured_damage_keys() or failed
+	failed = not _test_flandre_spell_declarations_do_not_instantly_damage_plants() or failed
 	quit(1 if failed else 0)
 
 
@@ -126,7 +126,7 @@ func _test_touhou_boss_skill_and_reinforcement_cadence_is_capped() -> bool:
 		and _assert_true(game.has_method("_boss_skill_interval"), "expected boss skill interval helper") \
 		and _assert_true(game.has_method("_boss_reinforcement_interval"), "expected boss reinforcement interval helper")
 	if passed:
-		passed = _assert_true(int(game.call("_boss_skill_cycle_length", "flandre_boss")) == 11, "Flandre should keep the full 11-card spell cycle") and passed
+		passed = _assert_true(int(game.call("_boss_skill_cycle_length", "flandre_boss")) == 10, "Flandre should use the original ten-card Extra sequence") and passed
 		passed = _assert_true(float(game.call("_boss_skill_interval", "flandre_boss", 3)) >= 4.9, "Flandre late-phase skills should not fire faster than the readable cap") and passed
 		passed = _assert_true(float(game.call("_boss_skill_interval", "sakuya_boss", 3)) >= 5.3, "Sakuya late-phase skills should keep time-stop readable") and passed
 		passed = _assert_true(float(game.call("_boss_skill_interval", "rumia_boss", 3)) >= 5.2, "Rumia should pressure through darkness, not high-frequency spam") and passed
@@ -144,7 +144,7 @@ func _test_sakuya_time_stop_stays_reactive() -> bool:
 		"row": 2,
 		"x": game.BOARD_ORIGIN.x + game.board_size.x - 18.0,
 		"boss_phase": 3,
-		"boss_skill_cycle": 4,
+		"boss_skill_cycle": 2,
 		"max_health": float(Defs.ZOMBIES["sakuya_boss"]["health"]),
 		"health": float(Defs.ZOMBIES["sakuya_boss"]["health"]),
 	}
@@ -177,12 +177,11 @@ func _test_remilia_crimson_drain_is_pressure_not_a_wipe() -> bool:
 	return passed
 
 
-func _test_flandre_spell_cards_use_configured_damage_keys() -> bool:
-	var data = Dictionary(Defs.ZOMBIES["flandre_boss"])
-	var laevatein = _plant_health_after_flandre_cycle(0, 2, 3)
-	var kagome = _plant_health_after_flandre_cycle(2, 2, 3)
-	var judgement = _plant_health_after_flandre_cycle(9, 2, 2)
-	var passed = _assert_near(float(laevatein["before"]) - float(laevatein["after"]), float(data["laevatein_damage"]), 0.01, "Laevatein should use laevatein_damage") \
-		and _assert_near(float(kagome["before"]) - float(kagome["after"]), float(data["kagome_damage"]), 0.01, "Kagome should use kagome_damage") \
-		and _assert_near(float(judgement["before"]) - float(judgement["after"]), float(data["judgement_damage"]), 0.01, "Judgement Grid should use judgement_damage")
+func _test_flandre_spell_declarations_do_not_instantly_damage_plants() -> bool:
+	var laevatein = _plant_health_after_flandre_cycle(1, 2, 3)
+	var kagome = _plant_health_after_flandre_cycle(3, 2, 3)
+	var qed = _plant_health_after_flandre_cycle(9, 2, 2)
+	var passed = _assert_near(float(laevatein["before"]) - float(laevatein["after"]), 0.0, 0.01, "Laevatein declaration must telegraph its slash before damage") \
+		and _assert_near(float(kagome["before"]) - float(kagome["after"]), 0.0, 0.01, "Kagome declaration must emit bullets before damage") \
+		and _assert_near(float(qed["before"]) - float(qed["after"]), 0.0, 0.01, "QED declaration must emit its expanding rings before damage")
 	return passed

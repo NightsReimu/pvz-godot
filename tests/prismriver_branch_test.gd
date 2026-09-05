@@ -217,10 +217,10 @@ func _test_lily_and_prismriver_definitions_and_almanac_copy() -> bool:
 	var prismriver = Dictionary(Defs.ZOMBIES.get("prismriver_boss", {}))
 	passed = _assert_true(bool(lily.get("boss", false)), "lily_white_boss should be marked as a boss") and passed
 	passed = _assert_true(float(lily.get("health", 0.0)) == 16200.0, "lily_white_boss should use the planned 16200 HP") and passed
-	passed = _assert_true(int(lily.get("skill_cycle_length", 0)) == 4, "lily_white_boss should have a four-spell skill cycle") and passed
+	passed = _assert_true(int(lily.get("skill_cycle_length", 0)) == 1, "Lily White should use a nonspell pattern") and passed
 	passed = _assert_true(bool(prismriver.get("boss", false)), "prismriver_boss should be marked as a boss") and passed
 	passed = _assert_true(float(prismriver.get("health", 0.0)) == 28600.0, "prismriver_boss should use the planned 28600 HP") and passed
-	passed = _assert_true(int(prismriver.get("skill_cycle_length", 0)) == 8, "prismriver_boss should have an eight-spell skill cycle") and passed
+	passed = _assert_true(int(prismriver.get("skill_cycle_length", 0)) == 4, "Prismriver Normal route should have four spell cards") and passed
 	var game = _make_game()
 	passed = _assert_true(Array(game.ZOMBIE_ALMANAC_ORDER).has("lily_white_boss"), "lily_white_boss should be visible in the zombie almanac") and passed
 	passed = _assert_true(Array(game.ZOMBIE_ALMANAC_ORDER).has("prismriver_boss"), "prismriver_boss should be visible in the zombie almanac") and passed
@@ -348,9 +348,7 @@ func _test_lily_and_prismriver_skills_create_bounded_stage_four_pressure() -> bo
 			"health": float(Defs.ZOMBIES.get("lily_white_boss", {}).get("health", 16200.0)),
 			"max_health": float(Defs.ZOMBIES.get("lily_white_boss", {}).get("health", 16200.0)),
 		}
-		for cycle in range(4):
-			lily["boss_skill_cycle"] = cycle
-			lily = game.call("_trigger_lily_white_boss_skill", lily)
+		lily = game.call("_trigger_lily_white_boss_skill", lily)
 		var lily_damaged_plant = Dictionary(game.grid[2][5])
 		var has_lily_fx := false
 		for effect in game.effects:
@@ -373,7 +371,7 @@ func _test_lily_and_prismriver_skills_create_bounded_stage_four_pressure() -> bo
 			"health": float(Defs.ZOMBIES.get("prismriver_boss", {}).get("health", 28600.0)),
 			"max_health": float(Defs.ZOMBIES.get("prismriver_boss", {}).get("health", 28600.0)),
 		}
-		for cycle in range(8):
+		for cycle in range(4):
 			prismriver["boss_skill_cycle"] = cycle
 			prismriver = game.call("_trigger_prismriver_boss_skill", prismriver)
 			passed = _assert_true(float(prismriver.get("x", 0.0)) >= float(bounds.get("min_x", 0.0)) and float(prismriver.get("x", 0.0)) <= float(bounds.get("max_x", 0.0)), "Prismriver boss should stay within the right five columns") and passed

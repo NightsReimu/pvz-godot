@@ -36,6 +36,8 @@ func update_plants(delta: float) -> void:
 				continue
 
 			var plant = plant_variant
+			if float(plant.get("health", 0.0)) <= 0.0:
+				continue
 			plant["flash"] = maxf(0.0, float(plant["flash"]) - delta)
 			plant["action_timer"] = maxf(0.0, float(plant.get("action_timer", 0.0)) - delta)
 			plant["sleep_timer"] = maxf(0.0, float(plant.get("sleep_timer", 0.0)) - delta)
@@ -70,6 +72,9 @@ func update_plants(delta: float) -> void:
 				continue
 			if float(plant["sleep_timer"]) > 0.0 and String(plant["plant_food_mode"]) == "":
 				game.grid[row][col] = plant
+				continue
+
+			if game._plant_charm_blocks_actions(plant):
 				continue
 
 			match String(plant["kind"]):
@@ -402,11 +407,15 @@ func update_plants(delta: float) -> void:
 			if support_variant == null:
 				continue
 			var support = support_variant
+			if float(support.get("health", 0.0)) <= 0.0:
+				continue
 			support["flash"] = maxf(0.0, float(support.get("flash", 0.0)) - delta)
 			support["action_timer"] = maxf(0.0, float(support.get("action_timer", 0.0)) - delta)
 			support["push_timer"] = maxf(0.0, float(support.get("push_timer", 0.0)) - delta)
 			if float(support.get("push_timer", 0.0)) <= 0.0:
 				support["push_offset_x"] = 0.0
+			if game._plant_charm_blocks_actions(support):
+				continue
 			match String(support.get("kind", "")):
 				"holy_flower":
 					update_holy_flower(support, delta, row, col)
