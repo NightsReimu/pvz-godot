@@ -10,7 +10,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed := false
-	failed = not _test_glow_layer_loads_and_draws() or failed
+	failed = not await _test_glow_layer_loads_and_draws() or failed
 	failed = not _test_game_exposes_glow_state() or failed
 	failed = not _test_impact_feedback_populates_particles() or failed
 	quit(1 if failed else 0)
@@ -41,7 +41,11 @@ func _test_glow_layer_loads_and_draws() -> bool:
 	game.glow_primitives.append({"type": "circle", "pos": Vector2(10.0, 10.0), "radius": 6.0, "color": Color(1.0, 1.0, 1.0, 0.5)})
 	game.glow_primitives.append({"type": "line", "from": Vector2.ZERO, "to": Vector2(10.0, 0.0), "color": Color(1.0, 1.0, 1.0, 0.5), "width": 2.0})
 	game.glow_draw_offset = Vector2(2.0, 3.0)
-	layer._draw()
+	# Exercise Godot's draw notification instead of drawing outside a canvas pass.
+	root.add_child(layer)
+	layer.queue_redraw()
+	await process_frame
+	await process_frame
 	layer.free()
 	game.free()
 	return passed

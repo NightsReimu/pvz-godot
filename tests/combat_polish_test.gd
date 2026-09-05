@@ -126,7 +126,7 @@ func _test_basic_projectile_hit_emits_feedback() -> bool:
 	game._update_projectiles(0.12)
 	var passed = _assert_true(_effect_log_contains_shape(game, "projectile_impact"), "basic pea hit should emit the shared projectile_impact effect") \
 		and _assert_true(game.vfx_particles.size() >= 4, "basic pea hit should emit visible impact particles") \
-		and _assert_true(float(game.screen_shake_amount) > 0.0, "basic pea hit should add a small screen shake impulse")
+		and _assert_true(float(game.screen_shake_amount) == 0.0, "basic pea hit should stay local so sustained fire does not shake the HUD")
 	_free_game(game)
 	return passed
 

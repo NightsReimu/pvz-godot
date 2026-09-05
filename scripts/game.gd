@@ -833,6 +833,8 @@ var grave_wave_triggered := false
 var level_time := 0.0
 var screen_shake_amount := 0.0
 var screen_shake_decay := 8.0
+const MAX_COMBAT_PARTICLES := 360
+var combat_draw_offset := Vector2.ZERO
 var vfx_particles: Array = []
 # Additive glow layer: each frame the game pushes glow primitives here (cleared at
 # the top of _draw), and EffectGlowLayer redraws them with blend_mode=ADD on top.
@@ -1270,7 +1272,9 @@ func _refresh_battle_layout() -> void:
 	var hud_left = safe_rect.position.x + (16.0 if is_mobile else BASE_SEED_BANK_RECT.position.x)
 	var hud_bottom = hud_top + BASE_SEED_BANK_RECT.size.y + 16.0
 	var top_margin = maxf(hud_bottom, clampf(safe_rect.size.y * (0.16 if is_mobile else 0.18), 108.0 if is_mobile else 120.0, 176.0 if is_mobile else 182.0) + safe_rect.position.y)
-	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 36.0 if is_mobile else 54.0, 82.0 if is_mobile else 112.0)
+	if not Dictionary(current_level.get("objective", {})).is_empty():
+		top_margin += 32.0
+	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 64.0, 82.0 if is_mobile else 112.0)
 	var available_w = maxf(640.0, viewport.x - left_margin - right_margin)
 	var available_h = maxf(420.0, viewport.y - top_margin - bottom_margin)
 	var width_fit_scale = available_w / (float(COLS) * BASE_CELL_SIZE.x)
@@ -1282,8 +1286,9 @@ func _refresh_battle_layout() -> void:
 	var width_scale = clampf(width_fit_scale, maxf(min_scale, base_fit_scale * 0.94), max_width_scale)
 	var height_scale = clampf(height_fit_scale, maxf(min_scale, base_fit_scale * 0.92), max_height_scale)
 	var cell_width = BASE_CELL_SIZE.x * width_scale
-	var cell_height = BASE_CELL_SIZE.y * height_scale
-	CELL_SIZE = Vector2(round(cell_width), round(cell_height))
+	# Six-row boards must fit above the boss footer even below the usual minimum scale.
+	var cell_height = BASE_CELL_SIZE.y * minf(height_scale, height_fit_scale)
+	CELL_SIZE = Vector2(round(cell_width), floor(cell_height))
 	var next_board_size = Vector2(COLS * CELL_SIZE.x, board_rows * CELL_SIZE.y)
 	var horizontal_slack = maxf(0.0, available_w - next_board_size.x)
 	var vertical_slack = maxf(0.0, available_h - next_board_size.y)
@@ -1292,22 +1297,18 @@ func _refresh_battle_layout() -> void:
 	BOARD_ORIGIN = Vector2(origin_x, origin_y)
 	board_size = next_board_size
 
-	var seed_width = minf(maxf(BASE_SEED_BANK_RECT.size.x, safe_rect.size.x - (360.0 if is_mobile else 520.0)), minf(1080.0, safe_rect.size.x - 180.0))
+	var seed_width = minf(maxf(BASE_SEED_BANK_RECT.size.x + 16.0, safe_rect.size.x - (360.0 if is_mobile else 520.0)), minf(1080.0, safe_rect.size.x - 180.0))
+	var rail_right = safe_rect.end.x - 20.0
+	var rail_left = rail_right - 360.0
+	seed_width = minf(seed_width, rail_left - hud_left - 20.0)
 	SEED_BANK_RECT = Rect2(hud_left, hud_top, seed_width, BASE_SEED_BANK_RECT.size.y)
 	SUN_METER_RECT = Rect2(hud_left + 8.0, hud_top + 6.0, BASE_SUN_METER_RECT.size.x, BASE_SUN_METER_RECT.size.y)
-	var wave_width = clampf(viewport.x * 0.23, BASE_WAVE_BAR_RECT.size.x, 420.0)
-	var wave_x = maxf(SEED_BANK_RECT.position.x + SEED_BANK_RECT.size.x + 20.0, safe_rect.end.x - wave_width - (220.0 if is_mobile else 332.0))
-	WAVE_BAR_RECT = Rect2(wave_x, hud_top, wave_width, BASE_WAVE_BAR_RECT.size.y)
-	PLANT_FOOD_RECT = Rect2(WAVE_BAR_RECT.position.x, hud_top + (BASE_PLANT_FOOD_RECT.position.y - BASE_WAVE_BAR_RECT.position.y), 96.0, BASE_PLANT_FOOD_RECT.size.y)
-	var button_row_y = hud_top
-	BACK_BUTTON_RECT = Rect2(safe_rect.end.x - BASE_BACK_BUTTON_RECT.size.x - (20.0 if is_mobile else 44.0), button_row_y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
+	PLANT_FOOD_RECT = Rect2(rail_left, hud_top, 96.0, BASE_PLANT_FOOD_RECT.size.y)
+	WAVE_BAR_RECT = Rect2(PLANT_FOOD_RECT.end.x + 14.0, hud_top + 10.0, 250.0, BASE_WAVE_BAR_RECT.size.y)
+	var button_row_y = hud_top + 58.0
+	BACK_BUTTON_RECT = Rect2(rail_right - BASE_BACK_BUTTON_RECT.size.x, button_row_y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
 	PAUSE_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_PAUSE_BUTTON_RECT.size.x - 14.0, button_row_y, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
 	COIN_METER_RECT = Rect2(PAUSE_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, button_row_y + (BASE_COIN_METER_RECT.position.y - BASE_PAUSE_BUTTON_RECT.position.y), BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
-	if not is_mobile and (WAVE_BAR_RECT.intersects(COIN_METER_RECT) or WAVE_BAR_RECT.intersects(PAUSE_BUTTON_RECT) or WAVE_BAR_RECT.intersects(BACK_BUTTON_RECT)):
-		button_row_y = PLANT_FOOD_RECT.position.y
-		BACK_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x, button_row_y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
-		PAUSE_BUTTON_RECT = Rect2(PAUSE_BUTTON_RECT.position.x, button_row_y, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
-		COIN_METER_RECT = Rect2(COIN_METER_RECT.position.x, button_row_y + (BASE_COIN_METER_RECT.position.y - BASE_PAUSE_BUTTON_RECT.position.y), BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
 
 
 func _reset_touch_navigation() -> void:
@@ -1905,19 +1906,8 @@ func _process(delta: float) -> void:
 	_update_firing_sfx_throttle(delta)
 	if glow_layer != null:
 		glow_layer.queue_redraw()
-	# Screen shake decay
-	if screen_shake_amount > 0.01:
-		screen_shake_amount *= exp(-screen_shake_decay * delta)
-	else:
-		screen_shake_amount = 0.0
-	# VFX particle update
-	for i in range(vfx_particles.size() - 1, -1, -1):
-		vfx_particles[i]["life"] -= delta
-		if vfx_particles[i]["life"] <= 0.0:
-			vfx_particles.remove_at(i)
-		else:
-			vfx_particles[i]["pos"] += vfx_particles[i]["vel"] * delta
-			vfx_particles[i]["vel"].y += 200.0 * delta
+	if mode == MODE_BATTLE and not battle_paused and not page_transition_active and not endless_bonus_pending and battle_state == BATTLE_PLAYING:
+		_update_combat_particles(delta)
 	_update_overlay_timers(delta)
 	_update_autosave(delta)
 	_update_page_transition(delta)
@@ -2039,8 +2029,24 @@ func _process(delta: float) -> void:
 	_update_effects(delta)
 	_remove_dead_plants()
 	_cleanup_dead_zombies()
+	for i in range(zombies.size()):
+		if _is_boss_zombie(zombies[i]):
+			zombies[i] = ZombieRuntime.update_boss_health_display(zombies[i], delta)
 	_check_end_state()
 	queue_redraw()
+
+
+func _update_combat_particles(delta: float) -> void:
+	screen_shake_amount = screen_shake_amount * exp(-screen_shake_decay * delta) if screen_shake_amount > 0.01 else 0.0
+	for i in range(vfx_particles.size() - 1, -1, -1):
+		vfx_particles[i]["life"] -= delta
+		if vfx_particles[i]["life"] <= 0.0:
+			vfx_particles.remove_at(i)
+		else:
+			vfx_particles[i]["pos"] += vfx_particles[i]["vel"] * delta
+			vfx_particles[i]["vel"].y += 200.0 * delta
+	if vfx_particles.size() > MAX_COMBAT_PARTICLES:
+		vfx_particles = vfx_particles.slice(vfx_particles.size() - MAX_COMBAT_PARTICLES)
 
 
 func _apply_display_mode() -> void:
@@ -6805,6 +6811,9 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	cell_terrain_mask = []
 	effects = []
 	card_cooldowns.clear()
+	vfx_particles.clear()
+	screen_shake_amount = 0.0
+	combat_draw_offset = Vector2.ZERO
 	frozen_branch_midboss_spawned = false
 	frozen_branch_midboss_cleared = false
 	frozen_branch_progress_locked = false
@@ -10848,10 +10857,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			effects.append({"position": spos, "radius": 100.0, "time": 0.5, "duration": 0.5, "color": Color(0.6, 0.9, 0.3, 0.7)})
 		"honey_blossom":
 			var hpos = center
-			for _i in range(5):
-				var sx = float(randi() % int(size.x))
-				var sy = float(randi() % int(size.y))
-				_spawn_sun(Vector2(sx, sy - 80.0), sy, "plant")
+			_spawn_ultimate_suns(5)
 			for z in zombies:
 				if int(z["row"]) == row:
 					z["slow_timer"] = max(float(z.get("slow_timer", 0.0)), 6.0)
@@ -11171,10 +11177,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			_trigger_screen_shake(9.0)
 		"solar_emperor":
 			var sepos = center
-			for _i in range(15):
-				var sx = float(randi() % int(size.x))
-				var sy = float(randi() % int(size.y))
-				_spawn_sun(Vector2(sx, sy - 100.0), sy, "plant")
+			_spawn_ultimate_suns(15)
 			for z in zombies:
 				if int(z["row"]) == row:
 					z["health"] = float(z["health"]) - 300.0
@@ -11219,9 +11222,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 						for z in zombies:
 							z["frozen_timer"] = max(float(z.get("frozen_timer", 0.0)), 3.5)
 					2:
-						for _j in range(8):
-							var sx = float(randi() % int(size.x))
-							_spawn_sun(Vector2(sx, 60.0), 120.0, "plant")
+						_spawn_ultimate_suns(8)
 					3:
 						for row_idx in range(grid.size()):
 							for col_idx in range(grid[row_idx].size()):
@@ -11489,6 +11490,13 @@ func _spawn_amber_projectile(row: int, spawn_position: Vector2, damage: float, s
 	_ensure_projectile_runtime().spawn_amber_projectile(row, spawn_position, damage, speed, radius, source_kind)
 
 
+func _spawn_ultimate_suns(count: int) -> void:
+	for _i in range(count):
+		var sx = rng.randf_range(BOARD_ORIGIN.x + 28.0, BOARD_ORIGIN.x + board_size.x - 28.0)
+		var sy = _random_active_target_y()
+		_spawn_sun(Vector2(sx, sy - 80.0), sy, "plant")
+
+
 func _spawn_amber_ultimate_projectile(row: int, spawn_position: Vector2, damage: float, speed: float = 560.0, radius: float = 10.5, velocity_y: float = 0.0, free_aim: bool = false, source_kind: String = "amber_shooter") -> void:
 	_ensure_projectile_runtime().spawn_amber_ultimate_projectile(row, spawn_position, damage, speed, radius, velocity_y, free_aim, source_kind)
 
@@ -11720,6 +11728,8 @@ func _update_squash_zombie_attack(zombie: Dictionary, delta: float) -> Dictionar
 func _update_zombies(delta: float) -> void:
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
+		if float(zombie.get("health", 0.0)) <= 0.0:
+			continue
 		if boss_time_stop_timer > 0.0 and String(zombie.get("kind", "")) != "sakuya_boss":
 			zombies[i] = zombie
 			continue
@@ -12163,23 +12173,7 @@ func _update_zombies(delta: float) -> void:
 			zombie["special_pause_timer"] = 0.0
 
 		if _is_boss_zombie(zombie):
-			var new_phase = _boss_phase_from_ratio(float(zombie["health"]) / maxf(float(zombie["max_health"]), 1.0))
-			if new_phase > int(zombie["boss_phase"]):
-				zombie["boss_phase"] = new_phase
-				zombie = _trigger_boss_phase_shift(zombie, new_phase)
-				zombie["boss_skill_timer"] = 1.2
-				zombie["boss_pause_timer"] = 1.5
-			if _is_hovering_boss_kind(String(zombie["kind"])):
-				zombie = _update_hovering_boss(zombie, delta)
-			zombie = _update_boss_reinforcements(zombie, delta)
-			zombie["boss_skill_timer"] = maxf(0.0, float(zombie["boss_skill_timer"]) - delta)
-			zombie["boss_pause_timer"] = maxf(0.0, float(zombie["boss_pause_timer"]) - delta)
-			if float(zombie["boss_skill_timer"]) <= 0.0:
-				zombie = _trigger_boss_skill(zombie)
-				var cycle_length = _boss_skill_cycle_length(String(zombie["kind"]))
-				zombie["boss_skill_cycle"] = (int(zombie["boss_skill_cycle"]) + 1) % cycle_length
-				zombie["boss_skill_timer"] = _boss_skill_interval(String(zombie["kind"]), int(zombie["boss_phase"]))
-				zombie["boss_pause_timer"] = 1.3
+			zombie = _ensure_zombie_runtime().update_boss(zombie, delta)
 
 		if String(zombie["kind"]) == "dancing":
 			zombie["summon_cooldown"] = maxf(0.0, float(zombie.get("summon_cooldown", 0.0)) - delta)
@@ -13182,7 +13176,7 @@ func game_audio_ready() -> bool:
 
 
 func _trigger_screen_shake(amount: float) -> void:
-	screen_shake_amount = maxf(screen_shake_amount, amount)
+	screen_shake_amount = minf(12.0, maxf(screen_shake_amount, amount))
 
 
 func _impact_sfx_path(projectile: Dictionary = {}, heavy_hit: bool = false) -> String:
@@ -13319,7 +13313,8 @@ func _emit_projectile_impact_feedback(position: Vector2, projectile: Dictionary 
 			"color": Color(base_color.r, base_color.g, base_color.b, 0.78),
 			"size": rng.randf_range(2.2, 4.8 if heavy_hit else 4.0),
 		})
-	_trigger_screen_shake(2.8 if heavy_hit else 1.7)
+	if heavy_hit:
+		_trigger_screen_shake(2.2)
 	var impact_sfx_path := _impact_sfx_path(projectile, heavy_hit)
 	_play_sfx(impact_sfx_path, _impact_sfx_volume_db(impact_sfx_path, heavy_hit), rng.randf_range(0.94, 1.08))
 
@@ -14735,11 +14730,9 @@ func _update_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary:
 		return _update_yuyuko_hovering_boss(zombie, delta)
 	var hover_interval = _roll_hover_shift_interval(kind, int(zombie.get("boss_phase", 0)))
 	zombie["x"] = _boss_anchor_x(kind)
-	zombie["rumia_state_timer"] = maxf(0.0, float(zombie.get("rumia_state_timer", 0.0)) - delta)
-	var move_timer = maxf(0.0, float(zombie.get("rumia_move_timer", 0.0)) - delta)
-	zombie["rumia_move_timer"] = move_timer
-	if move_timer <= 0.0 and String(zombie.get("rumia_state", "idle")) == "shift" and float(zombie.get("rumia_state_timer", 0.0)) <= 0.0:
-		zombie["rumia_state"] = "idle"
+	zombie = ZombieRuntime.tick_hover_pose(zombie, delta)
+	if ZombieRuntime.hover_action_locked(zombie):
+		return zombie
 	zombie["hover_shift_timer"] = float(zombie.get("hover_shift_timer", hover_interval)) - delta
 	if float(zombie["hover_shift_timer"]) > 0.0:
 		return zombie
@@ -14772,11 +14765,9 @@ func _update_prismriver_hovering_boss(zombie: Dictionary, delta: float) -> Dicti
 	var min_x = float(bounds.get("min_x", _boss_anchor_x(kind) - CELL_SIZE.x * 4.0))
 	var max_x = float(bounds.get("max_x", _boss_anchor_x(kind)))
 	zombie["x"] = clampf(float(zombie.get("x", max_x)), min_x, max_x)
-	zombie["rumia_state_timer"] = maxf(0.0, float(zombie.get("rumia_state_timer", 0.0)) - delta)
-	var move_timer = maxf(0.0, float(zombie.get("rumia_move_timer", 0.0)) - delta)
-	zombie["rumia_move_timer"] = move_timer
-	if move_timer <= 0.0 and String(zombie.get("rumia_state", "idle")) == "shift" and float(zombie.get("rumia_state_timer", 0.0)) <= 0.0:
-		zombie["rumia_state"] = "idle"
+	zombie = ZombieRuntime.tick_hover_pose(zombie, delta)
+	if ZombieRuntime.hover_action_locked(zombie):
+		return zombie
 	zombie["hover_shift_timer"] = float(zombie.get("hover_shift_timer", _roll_hover_shift_interval(kind, phase))) - delta
 	if float(zombie["hover_shift_timer"]) > 0.0:
 		return zombie
@@ -14845,12 +14836,10 @@ func _update_youmu_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary
 	var phase = int(zombie.get("boss_phase", 0))
 	var bounds = _youmu_boss_bounds()
 	var idle_min_x = _youmu_idle_min_x()
+	zombie = ZombieRuntime.tick_hover_pose(zombie, delta)
+	if ZombieRuntime.hover_action_locked(zombie):
+		return zombie
 	zombie["x"] = clampf(float(zombie.get("x", bounds.get("max_x", _boss_anchor_x(kind)))), idle_min_x, float(bounds.get("max_x", _boss_anchor_x(kind))))
-	zombie["rumia_state_timer"] = maxf(0.0, float(zombie.get("rumia_state_timer", 0.0)) - delta)
-	var move_timer = maxf(0.0, float(zombie.get("rumia_move_timer", 0.0)) - delta)
-	zombie["rumia_move_timer"] = move_timer
-	if move_timer <= 0.0 and String(zombie.get("rumia_state", "idle")) == "shift" and float(zombie.get("rumia_state_timer", 0.0)) <= 0.0:
-		zombie["rumia_state"] = "idle"
 	zombie["hover_shift_timer"] = float(zombie.get("hover_shift_timer", _roll_hover_shift_interval(kind, phase))) - delta
 	if float(zombie["hover_shift_timer"]) > 0.0:
 		return zombie
@@ -14888,11 +14877,9 @@ func _update_yuyuko_hovering_boss(zombie: Dictionary, delta: float) -> Dictionar
 	var kind = "yuyuko_boss"
 	var phase = int(zombie.get("boss_phase", 0))
 	zombie["x"] = _boss_anchor_x(kind)
-	zombie["rumia_state_timer"] = maxf(0.0, float(zombie.get("rumia_state_timer", 0.0)) - delta)
-	var move_timer = maxf(0.0, float(zombie.get("rumia_move_timer", 0.0)) - delta)
-	zombie["rumia_move_timer"] = move_timer
-	if move_timer <= 0.0 and String(zombie.get("rumia_state", "idle")) == "shift" and float(zombie.get("rumia_state_timer", 0.0)) <= 0.0:
-		zombie["rumia_state"] = "idle"
+	zombie = ZombieRuntime.tick_hover_pose(zombie, delta)
+	if ZombieRuntime.hover_action_locked(zombie):
+		return zombie
 	zombie["hover_shift_timer"] = float(zombie.get("hover_shift_timer", _roll_hover_shift_interval(kind, phase))) - delta
 	if float(zombie["hover_shift_timer"]) > 0.0:
 		return zombie
@@ -18019,6 +18006,7 @@ func _trigger_yuyuko_boss_revival(zombie: Dictionary) -> Dictionary:
 		return zombie
 	var data = Defs.ZOMBIES["yuyuko_boss"]
 	zombie["yuyuko_revived"] = true
+	zombie["boss_cast_pending"] = false
 	zombie["health"] = maxf(1.0, float(zombie.get("max_health", data.get("health", 34600.0))) * float(data.get("revival_health_ratio", 0.62)))
 	zombie["boss_phase"] = maxi(int(zombie.get("boss_phase", 0)), 2)
 	zombie["boss_skill_timer"] = 1.15
@@ -18074,6 +18062,12 @@ func _trigger_ran_boss_successor(zombie: Dictionary) -> Dictionary:
 	successor["attack_dps"] = 0.0
 	successor["boss_phase"] = 0
 	successor["boss_skill_cycle"] = 0
+	successor["boss_cast_pending"] = false
+	successor["boss_pause_timer"] = 1.5
+	for key in ["boss_last_skill_cycle", "boss_hud_health", "boss_hud_trail", "boss_hud_hold"]:
+		successor.erase(key)
+	for key in ["slow_timer", "rooted_timer", "corrode_timer", "corrode_dps", "sleep_timer", "weed_pause_timer", "reflect_timer", "bite_timer"]:
+		successor[key] = 0.0
 	successor["boss_skill_timer"] = _boss_skill_interval("yukari_boss", 0) + 0.8
 	successor["rumia_reinforcement_timer"] = _boss_reinforcement_interval("yukari_boss", 0) + 0.8
 	successor["hover_shift_timer"] = _roll_hover_shift_interval("yukari_boss", 0)
@@ -21248,9 +21242,6 @@ func _draw_menu_backdrop_fill(draw_mode: String) -> void:
 
 
 func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
-	var shake_offset = Vector2.ZERO
-	if draw_mode == MODE_BATTLE and screen_shake_amount > 0.5:
-		shake_offset = Vector2(sin(ui_time * 67.3) * screen_shake_amount, cos(ui_time * 53.7) * screen_shake_amount * 0.6)
 	if _is_ui_scaled_mode(draw_mode):
 		# Fill widescreen margins behind the centered, uniformly-scaled content.
 		_draw_menu_backdrop_fill(draw_mode)
@@ -21260,7 +21251,7 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 		glow_draw_offset = scaled_offset
 		glow_draw_scale = scaled_scale
 	else:
-		var battle_offset = offset + shake_offset
+		var battle_offset = offset
 		draw_set_transform(battle_offset, 0.0, Vector2.ONE)
 		glow_draw_offset = battle_offset
 		glow_draw_scale = Vector2.ONE
@@ -23497,11 +23488,10 @@ func _draw_ambient_grade() -> void:
 
 func _draw_battle_scene() -> void:
 	_draw_battle_background()
+	combat_draw_offset = _battle_shake_offset()
+	glow_draw_offset = combat_draw_offset
+	_set_combat_transform()
 	_draw_battle_board()
-	_draw_seed_bank()
-	_draw_wave_bar()
-	_draw_objective_chip()
-	_draw_fancy_button(PAUSE_BUTTON_RECT, "暂停", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 	_draw_hover()
 	_draw_mowers()
 	_draw_lane_obstacles()
@@ -23518,8 +23508,14 @@ func _draw_battle_scene() -> void:
 	_draw_effects()
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
-	_draw_boss_health_bar()
+	combat_draw_offset = Vector2.ZERO
+	_set_combat_transform()
 	_draw_ambient_grade()
+	_draw_seed_bank()
+	_draw_wave_bar()
+	_draw_objective_chip()
+	_draw_fancy_button(PAUSE_BUTTON_RECT, "暂停", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
+	_draw_boss_health_bar()
 
 	if battle_state != BATTLE_PLAYING:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.28), true)
@@ -23527,6 +23523,16 @@ func _draw_battle_scene() -> void:
 		_draw_battle_pause_overlay()
 	elif endless_bonus_pending:
 		_draw_endless_bonus_overlay()
+
+
+func _battle_shake_offset() -> Vector2:
+	if battle_paused or endless_bonus_pending or battle_state != BATTLE_PLAYING or screen_shake_amount <= 0.5:
+		return Vector2.ZERO
+	return Vector2(sin(level_time * 67.3), cos(level_time * 53.7) * 0.6) * screen_shake_amount
+
+
+func _set_combat_transform(origin: Vector2 = Vector2.ZERO, rotation: float = 0.0, item_scale: Vector2 = Vector2.ONE) -> void:
+	draw_set_transform(combat_draw_offset + origin, rotation, item_scale)
 
 
 func _draw_battle_pause_overlay() -> void:
@@ -25050,26 +25056,18 @@ func _draw_seed_bank() -> void:
 		for belt_index in range(12):
 			var belt_x = SEED_BANK_RECT.position.x - 40.0 + fmod(ui_time * 120.0 + float(belt_index) * 82.0, SEED_BANK_RECT.size.x + 90.0)
 			draw_line(Vector2(belt_x, SEED_BANK_RECT.position.y + 18.0), Vector2(belt_x + 34.0, SEED_BANK_RECT.position.y + SEED_BANK_RECT.size.y - 18.0), Color(0.18, 0.34, 0.12, 0.16), 3.0)
-	else:
-		_draw_text(String(current_level["id"]), SEED_BANK_RECT.position + Vector2(SEED_BANK_RECT.size.x - 86.0, 18.0), 16, Color(0.34, 0.22, 0.08))
-		_draw_text("防线状态", SEED_BANK_RECT.position + Vector2(SEED_BANK_RECT.size.x - 152.0, 40.0), 12, Color(0.4, 0.3, 0.14))
-
 	_draw_panel_shell(SUN_METER_RECT, Color(1.0, 0.92, 0.54), Color(0.55, 0.41, 0.08), 0.08, 0.05)
 	var sun_pulse = 0.72 + 0.28 * sin(ui_time * 4.2)
 	# Sun icon glow
 	ThemeLib.draw_glow_circle(self, SUN_METER_RECT.get_center() + Vector2(0.0, -14.0), 12.0, Color(1.0, 0.92, 0.36, 0.3 * sun_pulse), 2)
 	draw_circle(SUN_METER_RECT.get_center(), 18.0 + sun_pulse * 3.0, Color(1.0, 0.9, 0.34, 0.08), false, 2.0)
-	if _is_whack_level():
-		_draw_text("木槌", Vector2(44.0, 48.0), 18, Color(0.33, 0.21, 0.04))
-		_draw_text(str(sun_points), Vector2(55.0, 87.0), 28, Color(0.0, 0.0, 0.0, 0.15))
-		_draw_text(str(sun_points), Vector2(54.0, 86.0), 28, Color(0.33, 0.21, 0.04))
-	elif _is_conveyor_level():
-		_draw_text("传送带", Vector2(38.0, 48.0), 18, Color(0.33, 0.21, 0.04))
-		_draw_text("自动供卡", Vector2(34.0, 84.0), 22, Color(0.33, 0.21, 0.04))
-	else:
-		_draw_text("阳光", Vector2(46.0, 48.0), 18, Color(0.33, 0.21, 0.04))
-		_draw_text(str(sun_points), Vector2(55.0, 87.0), 28, Color(0.0, 0.0, 0.0, 0.15))
-		_draw_text(str(sun_points), Vector2(54.0, 86.0), 28, Color(0.33, 0.21, 0.04))
+	var meter_label = "木槌" if _is_whack_level() else ("传送带" if _is_conveyor_level() else "阳光")
+	var meter_value = "自动供卡" if _is_conveyor_level() else str(sun_points)
+	var value_font_size = 20 if _is_conveyor_level() else 28
+	while value_font_size > 12 and ui_font.get_string_size(meter_value, HORIZONTAL_ALIGNMENT_LEFT, -1.0, value_font_size).x > SUN_METER_RECT.size.x - 12.0:
+		value_font_size -= 1
+	draw_string(ui_font, SUN_METER_RECT.position + Vector2(6.0, 24.0), meter_label, HORIZONTAL_ALIGNMENT_CENTER, SUN_METER_RECT.size.x - 12.0, 18, Color(0.33, 0.21, 0.04))
+	draw_string(ui_font, SUN_METER_RECT.position + Vector2(6.0, 62.0), meter_value, HORIZONTAL_ALIGNMENT_CENTER, SUN_METER_RECT.size.x - 12.0, value_font_size, Color(0.33, 0.21, 0.04))
 
 	var mouse_pos = get_local_mouse_position()
 	for index in range(active_cards.size()):
@@ -25139,11 +25137,10 @@ func _draw_seed_bank() -> void:
 				draw_circle(draw_rect_local.position + Vector2(draw_rect_local.size.x - 10.0 - float(star_i) * 10.0, 12.0), 4.0, Color(1.0, 0.86, 0.2, 0.9))
 
 	if _is_whack_level():
-		var hammer_rect = Rect2(WAVE_BAR_RECT.position.x, SEED_BANK_RECT.position.y + 2.0, 120.0, 80.0)
+		var hammer_rect = _shovel_rect()
 		_draw_panel_shell(hammer_rect, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.08, 0.05)
-		_draw_mallet_icon(hammer_rect.position + Vector2(34.0, 38.0))
-		_draw_text("默认挥锤", hammer_rect.position + Vector2(52.0, 28.0), 16, Color(0.26, 0.19, 0.08))
-		_draw_text("点卡再种植", hammer_rect.position + Vector2(50.0, 52.0), 14, Color(0.26, 0.19, 0.08))
+		_draw_mallet_icon(hammer_rect.position + Vector2(36.0, 36.0))
+		_draw_text("木槌", hammer_rect.position + Vector2(24.0, 82.0), 18, Color(0.26, 0.19, 0.08))
 		return
 
 	var shovel_rect = _shovel_rect()
@@ -25468,6 +25465,10 @@ func _update_city_blizzard_weather(delta: float) -> void:
 	city_blizzard_timer = rng.randf_range(3.6, 6.2)
 
 
+func _objective_chip_rect() -> Rect2:
+	return Rect2(BOARD_ORIGIN.x, SEED_BANK_RECT.end.y + 8.0, board_size.x, 24.0)
+
+
 func _draw_objective_chip() -> void:
 	if not _objective_active():
 		return
@@ -25477,13 +25478,12 @@ func _draw_objective_chip() -> void:
 		return
 	var progress := String(status.get("progress", ""))
 	var danger := bool(status.get("danger", false))
-	# Sit just under the wave bar, left-aligned to it.
-	var chip_rect = Rect2(WAVE_BAR_RECT.position + Vector2(0.0, WAVE_BAR_RECT.size.y + 30.0), Vector2(maxf(WAVE_BAR_RECT.size.x, 176.0), 38.0))
+	var chip_rect = _objective_chip_rect()
 	var fill = Color(0.46, 0.12, 0.12, 0.92) if danger else Color(0.14, 0.18, 0.12, 0.9)
 	var border = Color(0.98, 0.5, 0.42) if danger else Color(0.86, 0.78, 0.5)
 	_draw_panel_shell(chip_rect, fill, border, 0.12, 0.08)
 	var text_color = Color(1.0, 0.86, 0.82) if danger else Color(0.96, 0.92, 0.74)
-	_draw_text("🎯 " + label, chip_rect.position + Vector2(12.0, 16.0), 16, text_color)
+	_draw_text_block(label, Rect2(chip_rect.position + Vector2(12.0, 1.0), Vector2(chip_rect.size.x * 0.7 - 24.0, 22.0)), 16, text_color, 0.0, 1)
 	if progress != "":
 		var pw = ui_font.get_string_size(progress, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16).x
 		_draw_text(progress, chip_rect.position + Vector2(chip_rect.size.x - pw - 14.0, 16.0), 16, text_color)
@@ -25497,7 +25497,6 @@ func _draw_wave_bar() -> void:	# Endless mode: show wave counter instead of prog
 		_draw_text(wave_text, WAVE_BAR_RECT.position + Vector2(10.0, 16.0), 14, Color(1.0, 0.92, 0.86))
 		_draw_text("最高: %d" % endless_best_wave, WAVE_BAR_RECT.position + Vector2(WAVE_BAR_RECT.size.x - 80.0, 17.0), 14, Color(0.0, 0.0, 0.0, 0.3))
 		_draw_text("最高: %d" % endless_best_wave, WAVE_BAR_RECT.position + Vector2(WAVE_BAR_RECT.size.x - 81.0, 16.0), 14, Color(1.0, 0.86, 0.72))
-		_draw_text("无尽", WAVE_BAR_RECT.position + Vector2(-54.0, 20.0), 18, Color(0.82, 0.18, 0.18))
 		# Difficulty indicator
 		var diff_text = "难度 x%.1f" % endless_difficulty_mult
 		_draw_text(diff_text, WAVE_BAR_RECT.position + Vector2(WAVE_BAR_RECT.size.x * 0.5 - 40.0, 17.0), 12, Color(1.0, 0.72, 0.52))
@@ -25505,14 +25504,12 @@ func _draw_wave_bar() -> void:	# Endless mode: show wave counter instead of prog
 	# Daily mode: show modifiers
 	if _is_daily_level():
 		ThemeLib.draw_rounded_panel(self, WAVE_BAR_RECT, Color(0.18, 0.36, 0.52), Color(0.12, 0.24, 0.36), 8.0, 0.14, 0.06)
-		_draw_text(String(current_level.get("daily_stage_name", "每日")), WAVE_BAR_RECT.position + Vector2(-86.0, 20.0), 16, Color(0.28, 0.56, 0.82))
-		var mod_text = ""
+		var mod_text = String(current_level.get("daily_stage_name", "每日"))
 		for mod in daily_modifiers:
 			if mod_text != "":
 				mod_text += " | "
 			mod_text += String(Dictionary(mod).get("name", "修饰"))
-		_draw_text(mod_text, WAVE_BAR_RECT.position + Vector2(11.0, 17.0), 14, Color(0.0, 0.0, 0.0, 0.3))
-		_draw_text(mod_text, WAVE_BAR_RECT.position + Vector2(10.0, 16.0), 14, Color(0.92, 0.96, 1.0))
+		_draw_text_block(mod_text, Rect2(WAVE_BAR_RECT.position + Vector2(10.0, 2.0), Vector2(WAVE_BAR_RECT.size.x - 62.0, 20.0)), 14, Color(0.92, 0.96, 1.0), 0.0, 1)
 		var progress_ratio = _battle_progress_ratio()
 		_draw_text("%d%%" % int(round(progress_ratio * 100.0)), WAVE_BAR_RECT.position + Vector2(WAVE_BAR_RECT.size.x - 40.0, 16.0), 14, Color(0.92, 0.96, 1.0))
 		return
@@ -25554,12 +25551,12 @@ func _draw_wave_bar() -> void:	# Endless mode: show wave counter instead of prog
 		)
 
 	var wave_status = "最终推进" if progress_ratio >= 0.96 else ("尸潮逼近" if progress_ratio >= 0.72 else "防线稳定")
+	wave_status = "%s  %s" % [String(current_level["id"]), wave_status]
 	# Text with shadow
 	_draw_text(wave_status, WAVE_BAR_RECT.position + Vector2(11.0, 17.0), 14, Color(0.0, 0.0, 0.0, 0.3))
 	_draw_text(wave_status, WAVE_BAR_RECT.position + Vector2(10.0, 16.0), 14, Color(0.96, 0.9, 0.8))
 	_draw_text("%d%%" % int(round(progress_ratio * 100.0)), WAVE_BAR_RECT.position + Vector2(WAVE_BAR_RECT.size.x - 39.0, 17.0), 14, Color(0.0, 0.0, 0.0, 0.3))
 	_draw_text("%d%%" % int(round(progress_ratio * 100.0)), WAVE_BAR_RECT.position + Vector2(WAVE_BAR_RECT.size.x - 40.0, 16.0), 14, Color(0.96, 0.9, 0.8))
-	_draw_text(String(current_level["id"]), WAVE_BAR_RECT.position + Vector2(-54.0, 20.0), 18, Color(0.18, 0.18, 0.18))
 
 
 func _current_active_boss() -> Dictionary:
@@ -25570,18 +25567,20 @@ func _current_active_boss() -> Dictionary:
 
 
 func _boss_health_bar_layout(_boss: Dictionary) -> Dictionary:
-	var bar_width = clampf(board_size.x + 42.0, 780.0, 920.0)
-	var bar_height = 26.0
-	var scene_width = size.x if size.x > 0.0 else BOARD_ORIGIN.x * 2.0 + board_size.x + 120.0
+	var safe_rect = _viewport_safe_rect()
+	var bar_width = minf(clampf(board_size.x + 42.0, 780.0, 1080.0), safe_rect.size.x - 48.0)
+	var bar_height = 20.0
 	var board_bottom = BOARD_ORIGIN.y + board_size.y
-	var rect_x = maxf(28.0, (scene_width - bar_width) * 0.5)
-	var baseline_y = board_bottom + 20.0
-	var bottom_locked_y = (size.y if size.y > 0.0 else board_bottom + 84.0) - bar_height - 10.0
-	var rect = Rect2(rect_x, maxf(baseline_y, bottom_locked_y), bar_width, bar_height)
+	var rect_x = safe_rect.position.x + (safe_rect.size.x - bar_width) * 0.5
+	var rect = Rect2(rect_x, minf(board_bottom + 30.0, safe_rect.end.y - 30.0), bar_width, bar_height)
 	return {
 		"rect": rect,
 		"rect_y": rect.position.y,
 		"segments": 5,
+		"name_rect": Rect2(rect.position + Vector2(0.0, -24.0), Vector2(bar_width * 0.4, 22.0)),
+		"status_rect": Rect2(rect.position + Vector2(bar_width * 0.4 + 8.0, -24.0), Vector2(bar_width * 0.4 - 16.0, 22.0)),
+		"health_rect": Rect2(rect.position + Vector2(bar_width * 0.8, -24.0), Vector2(bar_width * 0.2, 22.0)),
+		"cast_rect": Rect2(rect.position + Vector2(0.0, bar_height + 4.0), Vector2(bar_width, 3.0)),
 	}
 
 
@@ -25594,17 +25593,19 @@ func _draw_boss_health_bar() -> void:
 	var segments = int(layout.get("segments", 5))
 	var health = maxf(0.0, float(boss.get("health", 0.0)))
 	var max_health = maxf(1.0, float(boss.get("max_health", 1.0)))
+	var trail_health = maxf(health, float(boss.get("boss_hud_trail", health / max_health)) * max_health)
+	var tint = _hover_boss_effect_tint(String(boss["kind"]))
+	tint.a = 1.0
 	var segment_gap = 6.0
 	var segment_width = (rect.size.x - segment_gap * float(segments - 1)) / float(max(segments, 1))
-	# Boss name label
-	var label_rect = Rect2(rect.position.x - 126.0, rect.position.y - 2.0, 114.0, 28.0)
-	ThemeLib.draw_rounded_panel(self, label_rect, Color(0.2, 0.04, 0.06, 0.94), Color(0.58, 0.14, 0.16), 6.0, 0.1, 0.06)
-	_draw_text(String(Defs.ZOMBIES[String(boss["kind"])]["name"]), label_rect.position + Vector2(19.0, 21.0), 18, Color(0.0, 0.0, 0.0, 0.3))
-	_draw_text(String(Defs.ZOMBIES[String(boss["kind"])]["name"]), label_rect.position + Vector2(18.0, 20.0), 18, Color(1.0, 0.92, 0.94))
-	# Outer glow
-	draw_rect(rect.grow(8.0), Color(0.86, 0.08, 0.12, 0.06), true)
-	draw_rect(rect.grow(6.0), Color(0.16, 0.0, 0.02, 0.32), true)
-	ThemeLib.draw_rounded_panel(self, rect, Color(0.12, 0.02, 0.04, 0.96), Color(0.48, 0.1, 0.12), 6.0, 0.1, 0.04)
+	var label_band = Rect2(rect.position + Vector2(-8.0, -26.0), Vector2(rect.size.x + 16.0, 26.0))
+	draw_rect(label_band, Color(0.04, 0.055, 0.055, 0.9))
+	_draw_text_block("%s  /  阶段 %d" % [String(Defs.ZOMBIES[String(boss["kind"])]["name"]), int(boss.get("boss_phase", 0)) + 1], layout["name_rect"], 16, Color(0.96, 0.97, 0.94), 0.0, 1)
+	var status = _boss_cast_status(boss)
+	_draw_text_block(String(status["text"]), layout["status_rect"], 15, Color(status["color"]), 0.0, 1)
+	var health_rect: Rect2 = layout["health_rect"]
+	draw_string(ui_font, health_rect.position + Vector2(0.0, 17.0), "%d / %d" % [ceili(health), ceili(max_health)], HORIZONTAL_ALIGNMENT_RIGHT, health_rect.size.x, 14, Color(0.92, 0.94, 0.9))
+	ThemeLib.draw_rounded_panel(self, rect, Color(0.06, 0.07, 0.08, 0.96), tint.darkened(0.5), 4.0, 0.1, 0.04)
 	for segment_index in range(segments):
 		var x = rect.position.x + float(segment_index) * (segment_width + segment_gap)
 		var segment_rect = Rect2(x, rect.position.y + 4.0, segment_width, rect.size.y - 8.0)
@@ -25612,10 +25613,13 @@ func _draw_boss_health_bar() -> void:
 		var segment_start = max_health * float(segment_index) / float(segments)
 		var segment_end = max_health * float(segment_index + 1) / float(segments)
 		var segment_ratio = clampf((health - segment_start) / maxf(segment_end - segment_start, 1.0), 0.0, 1.0)
+		var trail_ratio = clampf((trail_health - segment_start) / maxf(segment_end - segment_start, 1.0), 0.0, 1.0)
+		if trail_ratio > segment_ratio:
+			draw_rect(Rect2(segment_rect.position, Vector2(segment_rect.size.x * trail_ratio, segment_rect.size.y)), Color(1.0, 0.79, 0.44, 0.78))
 		if segment_ratio > 0.0:
 			var fill_rect = Rect2(segment_rect.position, Vector2(segment_rect.size.x * segment_ratio, segment_rect.size.y))
 			# Gradient fill
-			ThemeLib.draw_gradient_rect_v(self, fill_rect, Color(0.94, 0.16, 0.2), Color(0.76, 0.06, 0.1))
+			ThemeLib.draw_gradient_rect_v(self, fill_rect, tint.lightened(0.12), tint.darkened(0.32))
 			# Inner glow
 			draw_rect(Rect2(fill_rect.position, Vector2(fill_rect.size.x, fill_rect.size.y * 0.36)), Color(1.0, 0.44, 0.48, 0.3), true)
 			# Pulsing glow at fill edge
@@ -25623,7 +25627,26 @@ func _draw_boss_health_bar() -> void:
 				var edge_x = fill_rect.position.x + fill_rect.size.x
 				var pulse_alpha = 0.12 + 0.08 * sin(level_time * 4.0)
 				draw_line(Vector2(edge_x, segment_rect.position.y), Vector2(edge_x, segment_rect.position.y + segment_rect.size.y), Color(1.0, 0.6, 0.5, pulse_alpha), 3.0)
-		draw_rect(segment_rect, Color(0.56, 0.16, 0.16), false, 2.0)
+		draw_rect(segment_rect, tint.darkened(0.45), false, 1.0)
+	for threshold in [0.2, 0.45, 0.72]:
+		var marker_x = rect.position.x + threshold * (rect.size.x - segment_gap * (segments - 1)) + floorf(threshold * segments) * segment_gap
+		draw_line(Vector2(marker_x, rect.position.y - 2.0), Vector2(marker_x, rect.end.y + 1.0), Color(1.0, 0.96, 0.82, 0.8), 1.5)
+	var cast_rect: Rect2 = layout["cast_rect"]
+	draw_rect(cast_rect, Color(0.04, 0.055, 0.055, 0.88))
+	draw_rect(Rect2(cast_rect.position, Vector2(cast_rect.size.x * float(status["progress"]), cast_rect.size.y)), Color(status["color"]))
+
+
+func _boss_cast_status(boss: Dictionary) -> Dictionary:
+	var remaining = maxf(0.0, float(boss.get("boss_skill_timer", 0.0)))
+	var cycle = int(boss.get("boss_skill_cycle", 0)) + 1
+	if bool(boss.get("boss_cast_pending", false)):
+		return {"text": "符卡 %02d  蓄力 %.1fs" % [cycle, remaining], "progress": clampf(1.0 - remaining / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0), "color": Color(1.0, 0.77, 0.3)}
+	var state = String(boss.get("rumia_state", "idle"))
+	if state in ["phase", "arrival", "resurrection"] and float(boss.get("rumia_state_timer", 0.0)) > 0.0:
+		return {"text": "境界展开" if state == "arrival" else ("复活" if state == "resurrection" else "阶段转换"), "progress": 0.0, "color": Color(0.72, 0.91, 1.0)}
+	if float(boss.get("boss_pause_timer", 0.0)) > 0.0:
+		return {"text": "符卡 %02d  收招" % (int(boss.get("boss_last_skill_cycle", cycle - 1)) + 1), "progress": 0.0, "color": Color(0.7, 0.84, 0.78)}
+	return {"text": "符卡 %02d  %.1fs" % [cycle, remaining], "progress": 0.0, "color": Color(0.8, 0.85, 0.84)}
 
 
 func _draw_click_ultimate_indicator(draw_center: Vector2, plant: Dictionary) -> void:
@@ -25636,11 +25659,19 @@ func _draw_click_ultimate_indicator(draw_center: Vector2, plant: Dictionary) -> 
 		var pulse = 0.6 + 0.4 * sin(level_time * 8.0)
 		draw_circle(draw_center, 38.0 + pulse * 6.0, Color(1.0, 0.86, 0.2, 0.2 * pulse))
 		draw_circle(draw_center, 34.0, Color(1.0, 0.86, 0.2, 0.12), false, 3.0)
+		var duration = maxf(0.01, float(_ultimate_profile_for_kind(kind).get("ultimate_duration", 1.0)))
+		var remaining = clampf(float(plant.get("ultimate_timer", 0.0)) / duration, 0.0, 1.0)
+		draw_arc(draw_center, 34.0, -PI * 0.5, -PI * 0.5 + TAU * remaining, 40, Color(1.0, 0.93, 0.52, 0.88), 2.5, true)
 	elif ult_charge >= 1.0:
 		var pulse = 0.5 + 0.5 * sin(level_time * 4.0)
 		draw_circle(draw_center, 36.0 + pulse * 4.0, Color(1.0, 0.92, 0.36, 0.15 * pulse))
 		draw_circle(draw_center, 32.0, Color(1.0, 0.92, 0.36, 0.3 + pulse * 0.15), false, 2.5)
-		_draw_text("大招", draw_center + Vector2(-14.0, -42.0), 12, Color(1.0, 0.86, 0.2))
+		var badge_center = draw_center + Vector2(28.0, -26.0)
+		draw_circle(badge_center, 10.0, Color(0.08, 0.17, 0.1, 0.94))
+		var bolt := PackedVector2Array()
+		for point in [Vector2(-1, -7), Vector2(4, -7), Vector2(1, -1), Vector2(5, -1), Vector2(-4, 7), Vector2(-1, 1), Vector2(-5, 1)]:
+			bolt.append(badge_center + point)
+		draw_colored_polygon(bolt, Color(1.0, 0.93, 0.52))
 	elif ult_charge > 0.0:
 		draw_arc(draw_center, 32.0, -PI * 0.5, -PI * 0.5 + TAU * ult_charge, 24, Color(0.72, 0.82, 0.36, 0.3), 2.0)
 
@@ -25690,7 +25721,7 @@ func _draw_plants() -> void:
 			var support_center = _cell_center(row, col) + Vector2(0.0, 16.0)
 			var support_motion = _plant_draw_motion(support, support_center)
 			var support_draw_center = Vector2(support_motion["center"])
-			draw_set_transform(support_draw_center, float(support_motion["rotation"]), Vector2(support_motion["scale"]))
+			_set_combat_transform(support_draw_center, float(support_motion["rotation"]), Vector2(support_motion["scale"]))
 			var support_kind := String(support["kind"])
 			var support_drawn_with_image2 := _try_draw_image2_plant(support_kind, Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
 			match "__image2_drawn__" if support_drawn_with_image2 else support_kind:
@@ -25702,7 +25733,7 @@ func _draw_plants() -> void:
 					_draw_cork_plug(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
 				"holy_flower":
 					_draw_holy_flower(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			_set_combat_transform()
 			if grid[row][col] == null:
 				_draw_click_ultimate_indicator(support_draw_center, support)
 				_draw_health_bar(
@@ -25731,7 +25762,7 @@ func _draw_plants() -> void:
 				draw_circle(draw_center + Vector2(0.0, -10.0), 34.0 + charm_pulse * 5.0, Color(0.56, 0.84, 1.0, 0.14))
 				draw_arc(draw_center + Vector2(0.0, -10.0), 30.0 + charm_pulse * 4.0, level_time * 2.2, level_time * 2.2 + PI * 1.4, 24, Color(0.86, 1.0, 1.0, 0.35), 1.8)
 
-			draw_set_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
+			_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
 			var plant_kind := String(plant["kind"])
 			var plant_drawn_with_image2 := _try_draw_image2_plant(plant_kind, Vector2.ZERO, 1.0, flash)
 			match "__image2_drawn__" if plant_drawn_with_image2 else plant_kind:
@@ -26010,7 +26041,7 @@ func _draw_plants() -> void:
 					_draw_gator_cannon(Vector2.ZERO, 1.0, flash)
 			if String(plant.get("shell_kind", "")) == "pumpkin" and String(plant["kind"]) != "pumpkin":
 				_draw_pumpkin(Vector2.ZERO, 1.0, flash, clampf(float(plant.get("armor_health", 0.0)) / maxf(float(plant.get("max_armor_health", 1.0)), 1.0), 0.0, 1.0), 0.92)
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			_set_combat_transform()
 
 			# Enhancement aura
 			_draw_enhancement_aura(draw_center, String(plant["kind"]))
@@ -26338,6 +26369,7 @@ func _draw_projectiles() -> void:
 
 
 func _draw_zombies() -> void:
+	var hud_boss = _current_active_boss()
 	for zombie in zombies:
 		if _is_fog_level() and _is_enemy_zombie(zombie):
 			var fog_position = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
@@ -26346,13 +26378,17 @@ func _draw_zombies() -> void:
 		var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + float(zombie["jump_offset"]))
 		var motion = _zombie_draw_motion(zombie, center)
 		var draw_center = Vector2(motion["center"])
-		draw_set_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
+		if _is_boss_zombie(zombie):
+			_draw_boss_cast_cue(draw_center, zombie)
+		_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
 		_draw_zombie(Vector2.ZERO, zombie)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		_set_combat_transform()
 		if _is_whack_level():
 			var hit_count = max(0, int(zombie.get("whack_hits_left", 0)))
 			for pip_index in range(hit_count):
 				draw_circle(draw_center + Vector2(-8.0 + pip_index * 12.0, -58.0), 4.0, Color(1.0, 0.88, 0.28))
+			continue
+		if zombie == hud_boss:
 			continue
 		if float(zombie.get("shield_health", 0.0)) > 0.0 and float(zombie.get("max_shield_health", 0.0)) > 0.0:
 			_draw_health_bar(
@@ -26367,6 +26403,22 @@ func _draw_zombies() -> void:
 			clampf(float(zombie["health"]) / float(zombie["max_health"]), 0.0, 1.0),
 			Color(0.92, 0.28, 0.22)
 		)
+
+
+func _draw_boss_cast_cue(center: Vector2, boss: Dictionary) -> void:
+	if not bool(boss.get("boss_cast_pending", false)) or float(boss.get("health", 0.0)) <= 0.0:
+		return
+	var progress = clampf(1.0 - float(boss.get("boss_skill_timer", 0.0)) / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0)
+	var tint = _hover_boss_effect_tint(String(boss["kind"]))
+	var anchor = center + Vector2(0.0, -20.0)
+	var radius = lerpf(82.0, 58.0, progress)
+	draw_arc(anchor, 58.0, 0.0, TAU, 48, Color(tint.r, tint.g, tint.b, 0.28), 1.5, true)
+	draw_arc(anchor, radius, -PI * 0.5, -PI * 0.5 + TAU * maxf(0.01, progress), 56, Color(1.0, 0.83, 0.38, 0.85), 3.0, true)
+	for i in range(4):
+		var direction = Vector2.from_angle(float(i) * PI * 0.5 + level_time * 0.7)
+		var point = anchor + direction * radius
+		draw_line(point + direction * 10.0, point, Color(tint.r, tint.g, tint.b, 0.85), 2.5, true)
+		glow_primitives.append({"pos": point, "radius": 3.0, "color": Color(tint.r, tint.g, tint.b, 0.35)})
 
 
 func _draw_suns() -> void:
@@ -27687,10 +27739,10 @@ func _draw_effects() -> void:
 				var card_ratio = float(card_index) / 9.0
 				var card_center = barrage_origin + Vector2(barrage_length * card_ratio, sin(level_time * anim_speed + card_ratio * 8.0) * barrage_width * 0.22)
 				var angle = sin(level_time * anim_speed * 0.6 + card_ratio * 5.0) * 0.3
-				draw_set_transform(card_center, angle, Vector2.ONE)
+				_set_combat_transform(card_center, angle, Vector2.ONE)
 				draw_rect(Rect2(Vector2(-8.0, -12.0), Vector2(16.0, 24.0)), Color(0.96, 0.88, 0.76, effect_color.a * (0.34 + (1.0 - card_ratio) * 0.16)), true)
 				draw_rect(Rect2(Vector2(-5.0, -8.0), Vector2(10.0, 16.0)), Color(1.0, 0.72, 0.32, effect_color.a * 0.28), false, 1.6)
-				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				_set_combat_transform()
 			for star_index in range(8):
 				var star_ratio = float(star_index + 1) / 8.0
 				var star_center = barrage_origin + Vector2(barrage_length * star_ratio, sin(level_time * anim_speed * 1.3 + star_ratio * 7.0) * barrage_width * 0.32)
@@ -28287,11 +28339,11 @@ func _draw_effects() -> void:
 			for gap_index in range(2):
 				var gap_center = yukari_center if gap_index == 0 else yukari_target
 				var gap_radius = yukari_radius * (0.22 + float(gap_index) * 0.03)
-				draw_set_transform(gap_center, level_time * (0.18 if gap_index == 0 else -0.15), Vector2(1.0, 0.42))
+				_set_combat_transform(gap_center, level_time * (0.18 if gap_index == 0 else -0.15), Vector2(1.0, 0.42))
 				draw_circle(Vector2.ZERO, gap_radius, Color(0.025, 0.01, 0.06, effect_color.a * 0.72))
 				draw_arc(Vector2.ZERO, gap_radius, 0.0, TAU, 42, Color(0.82, 0.56, 1.0, effect_color.a * 0.72), 4.0)
 				draw_arc(Vector2.ZERO, gap_radius * 0.8, 0.0, TAU, 36, Color(1.0, 0.78, 0.24, effect_color.a * 0.5), 2.0)
-				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				_set_combat_transform()
 				var eye_width = gap_radius * 0.44
 				draw_line(gap_center + Vector2(-eye_width, 0.0), gap_center + Vector2(eye_width, 0.0), Color(1.0, 0.86, 0.96, effect_color.a * 0.52), 2.0)
 				draw_circle(gap_center, 4.0 + yukari_born * 3.0, Color(0.95, 0.3, 0.62, effect_color.a * 0.8))
@@ -32232,8 +32284,10 @@ func _boss_pose_frame(pose_index: int, speed: float, phase: float) -> int:
 func _boss_pose_cycle_frame(frames: Array, speed: float, phase: float) -> int:
 	if frames.is_empty():
 		return _boss_pose_frame(0, speed, phase)
-	var pose_index = int(frames[int(floor(level_time * speed + phase)) % frames.size()])
-	return _boss_pose_frame(pose_index, maxf(speed * 1.35, 1.0), phase)
+	# Finish each three-frame pose before advancing to the next pose group.
+	var tick = maxi(0, int(floor(level_time * speed + phase * TOUHOU_BOSS_POSE_FRAME_COUNT * 3.0)))
+	var pose_index = int(frames[(tick / TOUHOU_BOSS_POSE_FRAME_COUNT) % frames.size()])
+	return clampi(pose_index, 0, TOUHOU_BOSS_POSE_COUNT - 1) * TOUHOU_BOSS_POSE_FRAME_COUNT + tick % TOUHOU_BOSS_POSE_FRAME_COUNT
 
 
 func _boss_absolute_frame_cycle(frames: Array, speed: float, phase: float) -> int:
