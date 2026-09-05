@@ -844,6 +844,7 @@ var level_time := 0.0
 var screen_shake_amount := 0.0
 var screen_shake_decay := 8.0
 const MAX_COMBAT_PARTICLES := 360
+const UNIFIED_COMBAT_VISUALS := true
 var combat_draw_offset := Vector2.ZERO
 var vfx_particles: Array = []
 # Additive glow layer: each frame the game pushes glow primitives here (cleared at
@@ -21363,6 +21364,154 @@ func _draw_ground_shadow(center: Vector2, radius: float, alpha_scale: float = 1.
 	draw_circle(anchor, radius * 0.78, Color(st.r, st.g, st.b, base * 0.85))
 
 
+func _visual_theme_tint(kind: String, fallback: Color = Color(0.55, 0.82, 0.62)) -> Color:
+	var hash_value := 0
+	for character in kind:
+		hash_value = (hash_value * 31 + character.unicode_at(0)) % 997
+	var hue := fmod(float(hash_value) / 997.0 + (0.08 if _is_volcano_level() else 0.0), 1.0)
+	return Color.from_hsv(hue, 0.38, 0.92).lerp(fallback, 0.36)
+
+
+func _draw_style_backdrop(center: Vector2, radius: float, tint: Color, alpha: float = 1.0) -> void:
+	var pulse := 0.82 + 0.18 * sin(ui_time * 4.0 + center.x * 0.01)
+	var outer := Color(tint.r, tint.g, tint.b, clampf(alpha * 0.12 * pulse, 0.0, 0.24))
+	var edge := Color(tint.r, tint.g, tint.b, clampf(alpha * 0.52, 0.0, 0.7))
+	draw_circle(center, radius * 1.12, outer)
+	draw_arc(center, radius, -PI * 0.72 + ui_time * 0.18, PI * 0.72 + ui_time * 0.18, 28, edge, maxf(1.0, radius * 0.055), true)
+	draw_arc(center, radius * 0.78, PI * 0.25 - ui_time * 0.22, PI * 1.15 - ui_time * 0.22, 20, Color(1.0, 1.0, 1.0, alpha * 0.22), maxf(0.8, radius * 0.035), true)
+
+
+func _draw_plant_style_overlay(plant: Dictionary, scale: float = 1.0, alpha: float = 1.0) -> void:
+	var kind := String(plant.get("kind", "plant"))
+	var tint := _visual_theme_tint(kind, Color(0.34, 0.82, 0.48))
+	var center := Vector2(0.0, -8.0 * scale)
+	_draw_style_backdrop(center, 31.0 * scale, tint, alpha)
+	var flash := clampf(float(plant.get("flash", 0.0)) * 1.7, 0.0, 0.45)
+	if flash > 0.0:
+		draw_circle(center, 26.0 * scale, Color(1.0, 1.0, 1.0, flash * alpha))
+	if float(plant.get("sleep_timer", 0.0)) > 0.0:
+		var sleep_color := Color(0.52, 0.76, 1.0, 0.58 * alpha)
+		draw_arc(center, 35.0 * scale, ui_time * 0.7, ui_time * 0.7 + PI * 1.35, 24, sleep_color, 2.0 * scale, true)
+	if _plant_has_food_power(plant):
+		draw_arc(center, 38.0 * scale, -ui_time * 1.1, -ui_time * 1.1 + PI * 1.65, 28, Color(0.45, 1.0, 0.46, 0.64 * alpha), 2.4 * scale, true)
+
+
+func _draw_zombie_style_overlay(zombie: Dictionary, scale: float = 1.0, alpha: float = 1.0) -> void:
+	var kind := String(zombie.get("kind", "zombie"))
+	var tint := _visual_theme_tint(kind, Color(0.76, 0.54, 0.34))
+	var center := Vector2(0.0, -10.0 * scale)
+	_draw_style_backdrop(center, 34.0 * scale, tint, alpha)
+	var flash := clampf(float(zombie.get("flash", 0.0)) * 1.7, 0.0, 0.45)
+	if flash > 0.0:
+		draw_circle(center, 29.0 * scale, Color(1.0, 1.0, 1.0, flash * alpha))
+	if float(zombie.get("slow_timer", 0.0)) > 0.0:
+		draw_arc(center, 40.0 * scale, ui_time * 0.8, ui_time * 0.8 + PI * 1.5, 28, Color(0.55, 0.86, 1.0, 0.68 * alpha), 2.4 * scale, true)
+	if bool(zombie.get("hypnotized", false)):
+		for ring in range(2):
+			draw_arc(center, (25.0 + ring * 7.0) * scale, -ui_time * (1.0 + ring * 0.2), -ui_time * (1.0 + ring * 0.2) + PI * 1.2, 22, Color(0.86, 0.5, 1.0, (0.58 - ring * 0.16) * alpha), 2.0 * scale, true)
+	if float(zombie.get("shield_health", 0.0)) > 0.0:
+		draw_arc(center, 44.0 * scale, -PI * 0.5, -PI * 0.5 + TAU * 0.72, 30, Color(0.48, 0.9, 0.94, 0.72 * alpha), 2.6 * scale, true)
+
+
+func _unified_color(kind: String, plant: bool = true) -> Color:
+	var hash_value := 17 if plant else 71
+	for character in kind:
+		hash_value = (hash_value * 33 + character.unicode_at(0)) % 997
+	var hue := fmod(float(hash_value) / 997.0 + (0.04 if plant else 0.52), 1.0)
+	return Color.from_hsv(hue, 0.56 if plant else 0.42, 0.88)
+
+
+func _draw_unified_rect(rect: Rect2, fill: Color, border: Color, width: float) -> void:
+	draw_rect(rect, fill, true)
+	draw_rect(rect, border, false, width, true)
+
+
+func _draw_unified_plant(center: Vector2, kind: String, plant: Dictionary = {}, size_scale: float = 1.0, alpha: float = 1.0, flash: float = 0.0) -> void:
+	var base := _unified_color(kind, true)
+	var ink := Color(0.08, 0.16, 0.15, alpha)
+	var light := base.lightened(0.2)
+	var dark := base.darkened(0.38)
+	var bob := sin(ui_time * 2.8 + float(plant.get("anim_phase", 0.0))) * 1.5 * size_scale
+	var p := center + Vector2(0.0, bob)
+	_draw_ground_shadow(p, 28.0 * size_scale, alpha, 34.0 * size_scale)
+	_draw_style_backdrop(p + Vector2(0.0, -8.0 * size_scale), 30.0 * size_scale, base, alpha)
+	var lower := kind.contains("nut") or kind.contains("wall") or kind.contains("guard") or kind.contains("armor")
+	var shroom := kind.contains("shroom") or kind.contains("mush")
+	var flower := kind.contains("flower") or kind.contains("lotus") or kind.contains("orchid") or kind.contains("sunflower") or kind.contains("bloom")
+	var launcher := kind.contains("pult") or kind.contains("cannon") or kind.contains("mortar") or kind.contains("shooter") or kind.contains("pea")
+	if lower:
+		_draw_style_backdrop(p + Vector2(0.0, -5.0 * size_scale), 34.0 * size_scale, base, alpha)
+		_draw_unified_rect(Rect2(p + Vector2(-25.0, -32.0) * size_scale, Vector2(50.0, 62.0) * size_scale), dark, ink, 5.0 * size_scale)
+		for spot in [Vector2(-14, -14), Vector2(12, -22), Vector2(-10, 12), Vector2(16, 20)]:
+			draw_circle(p + spot * size_scale, 3.0 * size_scale, light)
+	elif shroom:
+		_draw_unified_rect(Rect2(p + Vector2(-10.0, -3.0) * size_scale, Vector2(20.0, 34.0) * size_scale), light, ink, 4.0 * size_scale)
+		draw_arc(p + Vector2(0.0, -18.0) * size_scale, 26.0 * size_scale, PI, TAU, 24, ink, 6.0 * size_scale, true)
+		draw_arc(p + Vector2(0.0, -18.0) * size_scale, 22.0 * size_scale, PI, TAU, 24, base, 13.0 * size_scale, true)
+		for i in range(5):
+			draw_circle(p + Vector2(-15.0 + i * 7.5, -18.0 - (i % 2) * 5.0) * size_scale, 2.8 * size_scale, light)
+	elif flower:
+		draw_line(p + Vector2(0.0, 22.0) * size_scale, p + Vector2(0.0, -6.0) * size_scale, dark, 8.0 * size_scale)
+		for i in range(8):
+			var angle := -PI * 0.5 + float(i) * TAU / 8.0 + sin(ui_time * 0.7) * 0.03
+			var petal := p + Vector2.from_angle(angle) * 20.0 * size_scale
+			draw_circle(petal, 10.0 * size_scale, ink)
+			draw_circle(petal, 7.5 * size_scale, light)
+		draw_circle(p + Vector2(0.0, -6.0) * size_scale, 14.0 * size_scale, ink)
+		draw_circle(p + Vector2(0.0, -7.0) * size_scale, 11.0 * size_scale, base)
+	else:
+		draw_line(p + Vector2(0.0, 22.0) * size_scale, p + Vector2(0.0, -8.0) * size_scale, dark, 8.0 * size_scale)
+		draw_circle(p + Vector2(0.0, -14.0) * size_scale, 23.0 * size_scale, ink)
+		draw_circle(p + Vector2(0.0, -15.0) * size_scale, 19.0 * size_scale, base)
+		if launcher:
+			draw_circle(p + Vector2(18.0, -16.0) * size_scale, 12.0 * size_scale, ink)
+			draw_circle(p + Vector2(20.0, -16.0) * size_scale, 8.0 * size_scale, light)
+	var face := p + Vector2(0.0, -14.0 if not lower else -8.0) * size_scale
+	if not kind.contains("mine"):
+		for side in [-1, 1]:
+			draw_circle(face + Vector2(float(side) * 6.0, -2.0) * size_scale, 4.5 * size_scale, Color(1.0, 1.0, 0.9, alpha))
+			draw_circle(face + Vector2(float(side) * 6.0, -2.0) * size_scale, 2.0 * size_scale, ink)
+		draw_arc(face + Vector2(0.0, 6.0) * size_scale, 6.0 * size_scale, 0.15, PI - 0.15, 14, ink, 1.8 * size_scale, true)
+	if flash > 0.0:
+		draw_circle(face, 25.0 * size_scale, Color(1.0, 1.0, 1.0, clampf(flash * 1.6, 0.0, 0.42) * alpha))
+	if float(plant.get("sleep_timer", 0.0)) > 0.0:
+		draw_arc(face, 32.0 * size_scale, ui_time, ui_time + PI * 1.4, 24, Color(0.56, 0.82, 1.0, 0.7 * alpha), 2.2 * size_scale, true)
+
+
+func _draw_unified_zombie(center: Vector2, zombie: Dictionary, size_scale: float = 1.0, alpha: float = 1.0) -> void:
+	var kind := String(zombie.get("kind", "zombie"))
+	var skin := Color(0.48, 0.62, 0.49, alpha)
+	var accent := _unified_color(kind, false)
+	var ink := Color(0.08, 0.12, 0.12, alpha)
+	var step := sin(ui_time * 5.8 + float(zombie.get("anim_phase", 0.0))) * 4.0 * size_scale
+	var p := center
+	_draw_ground_shadow(p, 28.0 * size_scale, alpha, 40.0 * size_scale)
+	_draw_style_backdrop(p + Vector2(0.0, -14.0) * size_scale, 34.0 * size_scale, accent, alpha)
+	for side in [-1, 1]:
+		draw_line(p + Vector2(float(side) * 8.0, 18.0) * size_scale, p + Vector2(float(side) * 12.0 + step * float(side), 42.0) * size_scale, ink, 9.0 * size_scale)
+		draw_circle(p + Vector2(float(side) * 12.0 + step * float(side), 42.0) * size_scale, 6.0 * size_scale, ink)
+	_draw_unified_rect(Rect2(p + Vector2(-19.0, -8.0) * size_scale, Vector2(38.0, 38.0) * size_scale), accent.darkened(0.25), ink, 5.0 * size_scale)
+	draw_line(p + Vector2(-8.0, -2.0) * size_scale, p + Vector2(-22.0, 13.0) * size_scale, skin, 8.0 * size_scale)
+	draw_line(p + Vector2(8.0, -2.0) * size_scale, p + Vector2(22.0, 12.0) * size_scale, skin, 8.0 * size_scale)
+	draw_circle(p + Vector2(0.0, -28.0) * size_scale, 22.0 * size_scale, ink)
+	draw_circle(p + Vector2(-1.0, -29.0) * size_scale, 18.0 * size_scale, skin)
+	for side in [-1, 1]:
+		draw_circle(p + Vector2(float(side) * 7.0, -32.0) * size_scale, 5.5 * size_scale, Color(1.0, 0.98, 0.82, alpha))
+		draw_circle(p + Vector2(float(side) * 7.0, -32.0) * size_scale, 2.5 * size_scale, ink)
+	draw_line(p + Vector2(-13.0, -19.0) * size_scale, p + Vector2(8.0, -18.0) * size_scale, ink, 3.0 * size_scale)
+	if kind.contains("gargantuar") or kind.contains("mech") or kind.contains("boss"):
+		draw_arc(p + Vector2(0.0, -10.0) * size_scale, 38.0 * size_scale, PI, TAU, 20, accent.lightened(0.18), 5.0 * size_scale, true)
+	if bool(zombie.get("hypnotized", false)):
+		draw_arc(p + Vector2(0.0, -28.0) * size_scale, 27.0 * size_scale, -ui_time, -ui_time + PI * 1.4, 24, Color(0.86, 0.5, 1.0, 0.8 * alpha), 2.4 * size_scale, true)
+	if float(zombie.get("slow_timer", 0.0)) > 0.0:
+		draw_arc(p + Vector2(0.0, -12.0) * size_scale, 45.0 * size_scale, ui_time, ui_time + PI * 1.5, 28, Color(0.55, 0.86, 1.0, 0.72 * alpha), 2.2 * size_scale, true)
+	if float(zombie.get("shield_health", 0.0)) > 0.0:
+		draw_arc(p + Vector2(0.0, -12.0) * size_scale, 48.0 * size_scale, -PI * 0.5, PI * 0.9, 30, Color(0.48, 0.9, 0.94, 0.82 * alpha), 3.0 * size_scale, true)
+	var flash := clampf(float(zombie.get("flash", 0.0)) * 1.6, 0.0, 0.42)
+	if flash > 0.0:
+		draw_circle(p + Vector2(0.0, -28.0) * size_scale, 24.0 * size_scale, Color(1.0, 1.0, 1.0, flash * alpha))
+
+
 func _draw_ambient_grade() -> void:
 	# One coherent ambient pass over the whole battle scene: a faint world-tint
 	# wash plus a soft vignette for depth. Single knob: _ambient_light_for_level.
@@ -23643,6 +23792,14 @@ func _draw_plants() -> void:
 			var support_draw_center = Vector2(support_motion["center"])
 			_set_combat_transform(support_draw_center, float(support_motion["rotation"]), Vector2(support_motion["scale"]))
 			var support_kind := String(support["kind"])
+			if UNIFIED_COMBAT_VISUALS:
+				_draw_unified_plant(Vector2.ZERO, support_kind, support, 0.9, 1.0, float(support.get("flash", 0.0)))
+				_set_combat_transform()
+				if grid[row][col] == null:
+					_draw_click_ultimate_indicator(support_draw_center, support)
+					_draw_health_bar(support_draw_center + Vector2(0.0, -26.0), 48.0, clampf(float(support["health"]) / float(support["max_health"]), 0.0, 1.0), Color(0.24, 0.82, 0.28))
+				continue
+			_draw_ground_shadow(Vector2.ZERO, 24.0, 0.8, 30.0)
 			var support_drawn_with_image2 := _try_draw_image2_plant(support_kind, Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
 			match "__image2_drawn__" if support_drawn_with_image2 else support_kind:
 				"lily_pad":
@@ -23653,6 +23810,7 @@ func _draw_plants() -> void:
 					_draw_cork_plug(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
 				"holy_flower":
 					_draw_holy_flower(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
+			_draw_plant_style_overlay(support, 0.82)
 			_set_combat_transform()
 			if grid[row][col] == null:
 				_draw_click_ultimate_indicator(support_draw_center, support)
@@ -23684,6 +23842,15 @@ func _draw_plants() -> void:
 
 			_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
 			var plant_kind := String(plant["kind"])
+			if UNIFIED_COMBAT_VISUALS:
+				_draw_unified_plant(Vector2.ZERO, plant_kind, plant, 1.0, 1.0, flash)
+				_set_combat_transform()
+				_draw_enhancement_aura(draw_center, plant_kind)
+				_draw_click_ultimate_indicator(draw_center, plant)
+				if plant_kind != "cherry_bomb" and plant_kind != "jalapeno":
+					_draw_health_bar(draw_center + Vector2(0.0, -42.0), 58.0, clampf(float(plant["health"]) / float(plant["max_health"]), 0.0, 1.0), Color(0.32, 0.86, 0.24))
+				continue
+			_draw_ground_shadow(Vector2.ZERO, 29.0, 1.0, 34.0)
 			var plant_drawn_with_image2 := _try_draw_image2_plant(plant_kind, Vector2.ZERO, 1.0, flash)
 			if bool(Defs.PLANTS.get(plant_kind, {}).get("volcano_expansion", false)):
 				_ensure_volcano_expansion().draw_plant(plant_kind, Vector2.ZERO, 1.0, flash, 1.0, plant)
@@ -23964,6 +24131,7 @@ func _draw_plants() -> void:
 					_draw_gator_cannon(Vector2.ZERO, 1.0, flash)
 			if String(plant.get("shell_kind", "")) == "pumpkin" and String(plant["kind"]) != "pumpkin":
 				_draw_pumpkin(Vector2.ZERO, 1.0, flash, clampf(float(plant.get("armor_health", 0.0)) / maxf(float(plant.get("max_armor_health", 1.0)), 1.0), 0.0, 1.0), 0.92)
+			_draw_plant_style_overlay(plant)
 			_set_combat_transform()
 
 			# Enhancement aura
@@ -23997,6 +24165,10 @@ func _draw_projectiles() -> void:
 		var pulse = 1.0 + 0.12 * sin(level_time * 14.0 + projectile_pos.x * 0.04)
 		var projectile_radius = float(projectile.get("radius", 8.0)) * pulse
 		var trail_dir = 1.0 if float(projectile.get("speed", 0.0)) >= 0.0 else -1.0
+		# Shared procedural shell: every projectile gets the same readable core and
+		# halo before its shape-specific geometry is drawn.
+		draw_circle(projectile_pos, projectile_radius * 1.55, Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.10))
+		draw_arc(projectile_pos, projectile_radius * 1.34, level_time * 2.0, level_time * 2.0 + PI * 1.35, 18, Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.42), 1.2, true)
 		if _try_draw_polished_projectile(projectile_kind, projectile_pos, projectile_radius, trail_dir, projectile_color):
 			continue
 		if projectile_kind == "origami_plane":
@@ -24634,6 +24806,12 @@ func _draw_effects() -> void:
 			_ensure_volcano_expansion().draw_effect(effect)
 			continue
 		var anim_speed = float(effect.get("anim_speed", 4.0))
+		var effect_center := Vector2(effect.get("position", Vector2.ZERO))
+		var effect_radius := maxf(_effect_visual_radius(effect, ratio), 18.0)
+		# Shared effect language: a restrained pulse ring anchors every custom
+		# effect, including image2 and Touhou spell-card visuals.
+		draw_circle(effect_center, effect_radius * 1.08, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.08))
+		draw_arc(effect_center, effect_radius, level_time * 0.8, level_time * 0.8 + PI * 1.4, 28, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.42), 1.5, true)
 		if _try_draw_image2_effect(shape, effect, ratio, effect_color):
 			continue
 		if shape == "projectile_impact":
@@ -26671,6 +26849,9 @@ func _draw_mowers() -> void:
 
 
 func _draw_card_icon(kind: String, center: Vector2) -> void:
+	if UNIFIED_COMBAT_VISUALS:
+		_draw_unified_plant(center + Vector2(0.0, 6.0), kind, {}, 0.52, 1.0, 0.0)
+		return
 	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
 		_ensure_volcano_expansion().draw_plant(kind, center + Vector2(0.0, 6.0), 0.58)
 		return
@@ -26952,6 +27133,9 @@ func _draw_card_icon(kind: String, center: Vector2) -> void:
 
 
 func _draw_plant_preview(kind: String, center: Vector2) -> void:
+	if UNIFIED_COMBAT_VISUALS:
+		_draw_unified_plant(center, kind, {}, 0.82, 0.42, 0.0)
+		return
 	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
 		_ensure_volcano_expansion().draw_plant(kind, center, 1.0, 0.0, 0.42)
 		return
@@ -31995,6 +32179,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie["flash"])
 	var slow_tint = 0.55 if float(zombie["slow_timer"]) > 0.0 else 0.0
 	var kind = String(zombie["kind"])
+	if UNIFIED_COMBAT_VISUALS:
+		_draw_unified_zombie(center, zombie)
+		return
 	if bool(Defs.ZOMBIES.get(kind, {}).get("volcano_expansion", false)):
 		_ensure_volcano_expansion().draw_zombie(center, zombie)
 		return
