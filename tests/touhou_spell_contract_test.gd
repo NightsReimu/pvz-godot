@@ -51,6 +51,8 @@ func _run() -> void:
 	_test_collision_and_reflection()
 	_test_bullets_outlive_emission()
 	_test_clones_and_successor_cleanup()
+	_test_continuous_emitters()
+	_test_youmu_sword_mechanics()
 	_test_final_survival()
 	_test_charm_blocks_all_normal_actions()
 	_test_charm_layers_and_expiry()
@@ -222,6 +224,84 @@ func _test_final_survival() -> void:
 	game.touhou_danmaku.casts[0].next_wave = 25.0
 	game.touhou_danmaku.update(0.1)
 	check(float(boss.health) == 0 and not bool(boss.touhou_invulnerable), "surviving the timer must end the finale")
+	release(game)
+
+
+func _test_continuous_emitters() -> void:
+	for spec in [["alice_boss", 0], ["ran_boss", 7], ["yukari_boss", 7]]:
+		var game = make_game(spec[0], spec[1])
+		game.zombies[0] = game._trigger_boss_skill(game.zombies[0])
+		var runtime = game.touhou_danmaku
+		var session: Dictionary = runtime.casts[0]
+		var actor: Dictionary = session.actors[0]
+		var before = Vector2(actor.position)
+		runtime.update(0.2)
+		check(Vector2(actor.position).distance_to(before) > 1.0, "%s emitters must move between firing waves" % spec[0])
+		check(Vector2(actor.position).distance_to(before) < 90.0, "emitter movement must remain continuous")
+		before = actor.position
+		game.boss_time_stop_timer = 1.0
+		runtime.update(0.2)
+		check(Vector2(actor.position) == before, "time stop must freeze emitter motion")
+		game.boss_time_stop_timer = 0.0
+		runtime.bullets.clear()
+		runtime._emit_wave(session)
+		check(Vector2(runtime.bullets[0].position).is_equal_approx(actor.position), "bullets must launch from the visible emitter position")
+		game.zombies[0].health = 0.0
+		runtime.update(0.1)
+		check(runtime.casts.is_empty(), "defeat must clear moving emitters")
+		release(game)
+	var game = make_game("alice_boss", 3)
+	game.zombies[0] = game._trigger_boss_skill(game.zombies[0])
+	game.touhou_danmaku.update(0.4)
+	var runtime = game.touhou_danmaku
+	check(Vector2(runtime.beams[0].from).is_equal_approx(runtime.casts[0].actors[0].position), "Shanghai laser telegraphs must stay attached to moving dolls")
+	game.touhou_danmaku.update(0.5)
+	check(Vector2(runtime.beams[0].from).is_equal_approx(runtime.casts[0].actors[0].position), "active Shanghai lasers must stay attached to moving dolls")
+	runtime.update(2.6)
+	check(not runtime.casts.is_empty() and not runtime.beams.is_empty(), "dolls must remain until their final telegraphed laser ends")
+	check(float(game.zombies[0].touhou_cast_remaining) == 0.0, "finishing existing lasers must not extend the boss cast lock")
+	runtime.update(1.0)
+	check(runtime.casts.is_empty() and runtime.beams.is_empty(), "completed laser formations must finish without restarting emission")
+	release(game)
+
+
+func _test_youmu_sword_mechanics() -> void:
+	var game = make_game("youmu_boss", 1)
+	game.zombies[0] = game._trigger_boss_skill(game.zombies[0])
+	var runtime = game.touhou_danmaku
+	var large_orbs: Array = runtime.bullets.filter(func(b): return float(b.radius) >= 10.0)
+	check(not large_orbs.is_empty(), "Two Hundred Yojana must begin with large spirit bullets")
+	if not large_orbs.is_empty():
+		var orb: Dictionary = large_orbs[0]
+		var before = Vector2(orb.position)
+		runtime.update(0.2)
+		var travel = Vector2(orb.position).distance_to(before)
+		check(travel > 0.0 and travel < Vector2(orb.velocity).length() * 0.1, "Youmu's focus must slow moving bullets without stopping time")
+		check(game.boss_time_stop_timer == 0.0, "Youmu's focus must not activate Sakuya's world stop")
+		runtime.update(0.65)
+		check(runtime.bullets.filter(func(b): return bool(b.get("sword_fragment", false))).size() >= 10, "the sword must cut existing spirit bullets into rice bullets")
+		check(not runtime.bullets.has(orb), "a cut spirit bullet must be replaced, not deal double damage")
+		var fragments = runtime.bullets.size()
+		runtime.update(0.2)
+		check(runtime.bullets.size() == fragments, "a sword slash must split bullets only once")
+		check(runtime.bullets.all(func(b): return not bool(b.get("slowed", false))), "focus must end automatically after the slash")
+		var foreign_orb = {"owner": 999, "position": Vector2(runtime.casts[0].center), "cuttable": true}
+		runtime.bullets.append(foreign_orb)
+		runtime._cut_spirit_bullets({"owner": game.zombies[0].touhou_owner, "from": runtime.casts[0].center})
+		check(runtime.bullets.has(foreign_orb), "Youmu must not transform another boss's bullets")
+		game.zombies[0].health = 0.0
+		runtime.update(0.1)
+		check(runtime.bullets.is_empty() and runtime.beams.is_empty() and runtime.casts.is_empty(), "defeat during a sword card must leave no delayed cuts or focus")
+	release(game)
+	game = make_game("youmu_boss", 3)
+	game.zombies[0] = game._trigger_boss_skill(game.zombies[0])
+	var rising: Array = game.touhou_danmaku.bullets.filter(func(b): return String(b.shape) == "rice" and float(b.velocity.y) < 0.0 and float(b.position.y) > game.BOARD_ORIGIN.y + game.board_size.y * 0.9)
+	check(rising.size() >= 9, "Human Realm must send rice bullets upward from below the field")
+	release(game)
+	game = make_game("youmu_boss", 4)
+	game.zombies[0] = game._trigger_boss_skill(game.zombies[0])
+	check(game.touhou_danmaku.bullets.size() >= 30 and game.touhou_danmaku.beams.is_empty(), "Five Signs must use straight bullet volleys")
+	check(game.touhou_danmaku.bullets.all(func(b): return not b.has("freeze_at") and not b.has("angular_speed")), "Five Signs must not inherit freezing or curved knives")
 	release(game)
 
 

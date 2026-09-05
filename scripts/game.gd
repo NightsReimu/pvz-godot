@@ -29362,17 +29362,25 @@ func _draw_alice_doll_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
 	var slow_tint = 0.5 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
 	var moving = float(zombie.get("special_pause_timer", 0.0)) <= 0.0
-	var cycle = level_time * (3.0 + float(zombie.get("base_speed", 20.0)) * 0.06) + float(zombie.get("anim_phase", 0.0))
+	var cycle = float(zombie.get("animation_time", level_time)) * (3.0 + float(zombie.get("base_speed", 20.0)) * 0.06) + float(zombie.get("anim_phase", 0.0))
 	var step = sin(cycle) if moving else 0.0
 	var body = center + Vector2(0.0, -absf(step) * 2.0)
 	var dress = Color(0.34, 0.42, 0.76).lerp(Color(1.0, 1.0, 1.0), flash * 1.4).lerp(Color(0.64, 0.84, 1.0), slow_tint)
 	var skin = Color(0.92, 0.84, 0.76).lerp(Color(1.0, 1.0, 1.0), flash * 1.7).lerp(Color(0.7, 0.9, 1.0), slow_tint)
+	var hair = Color(0.94, 0.78, 0.34).lerp(Color.WHITE, flash)
+	var apron = Color(0.93, 0.95, 1.0).lerp(Color(0.7, 0.9, 1.0), slow_tint)
 	var thread_color = Color(0.88, 0.78, 1.0, 0.54)
+	draw_circle(body + Vector2(-12.0, -22.0), 11.0, hair.darkened(0.12))
+	draw_circle(body + Vector2(12.0, -22.0), 11.0, hair.darkened(0.12))
 	draw_line(body + Vector2(-11.0, -58.0), body + Vector2(-7.0, -18.0), thread_color, 1.2)
 	draw_line(body + Vector2(11.0, -58.0), body + Vector2(7.0, -18.0), thread_color, 1.2)
 	draw_line(body + Vector2(0.0, -62.0), body + Vector2(0.0, -28.0), Color(0.98, 0.94, 1.0, 0.42), 1.0)
 	draw_line(body + Vector2(-7.0, 22.0), body + Vector2(-12.0 - step * 3.0, 40.0), Color(0.18, 0.16, 0.22), 3.2)
 	draw_line(body + Vector2(7.0, 22.0), body + Vector2(12.0 + step * 3.0, 40.0), Color(0.18, 0.16, 0.22), 3.2)
+	for side in [-1.0, 1.0]:
+		var hand = body + Vector2(side * 26.0, 9.0 + side * step * 4.0)
+		draw_line(body + Vector2(side * 11.0, -4.0), hand, dress.darkened(0.08), 8.0, true)
+		draw_circle(hand, 4.5, skin)
 	draw_rect(Rect2(body + Vector2(-14.0, -8.0), Vector2(28.0, 34.0)), dress, true)
 	draw_polygon(PackedVector2Array([
 		body + Vector2(-19.0, 20.0),
@@ -29380,8 +29388,13 @@ func _draw_alice_doll_zombie(center: Vector2, zombie: Dictionary) -> void:
 		body + Vector2(12.0, 38.0),
 		body + Vector2(-12.0, 38.0),
 	]), PackedColorArray([dress.darkened(0.06), dress, dress.darkened(0.14), dress.darkened(0.18)]))
+	draw_rect(Rect2(body + Vector2(-7.0, -6.0), Vector2(14.0, 21.0)), apron)
+	draw_colored_polygon(PackedVector2Array([body + Vector2(-7.0, 13.0), body + Vector2(7.0, 13.0), body + Vector2(12.0, 31.0), body + Vector2(-12.0, 31.0)]), apron)
 	draw_circle(body + Vector2(0.0, -25.0), 14.0, skin)
-	draw_rect(Rect2(body + Vector2(-16.0, -38.0), Vector2(32.0, 10.0)), Color(0.86, 0.82, 0.52).lerp(Color(1.0, 1.0, 1.0), flash), true)
+	draw_colored_polygon(PackedVector2Array([body + Vector2(-16.0, -28.0), body + Vector2(-14.0, -39.0), body + Vector2(10.0, -41.0), body + Vector2(16.0, -29.0), body + Vector2(6.0, -34.0), body + Vector2(0.0, -27.0), body + Vector2(-4.0, -33.0)]), hair)
+	for side in [-1.0, 1.0]:
+		draw_colored_polygon(PackedVector2Array([body + Vector2(0.0, -40.0), body + Vector2(side * 12.0, -47.0), body + Vector2(side * 11.0, -34.0)]), Color(0.84, 0.19, 0.3))
+	draw_circle(body + Vector2(0.0, -40.0), 3.0, Color(0.98, 0.42, 0.46))
 	draw_circle(body + Vector2(-5.0, -27.0), 1.8, Color(0.06, 0.05, 0.08))
 	draw_circle(body + Vector2(5.0, -27.0), 1.8, Color(0.06, 0.05, 0.08))
 	draw_arc(body + Vector2(0.0, -20.0), 4.8, 0.2, PI - 0.2, 10, Color(0.12, 0.08, 0.1), 1.4)
@@ -29392,13 +29405,14 @@ func _draw_youmu_wraith(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
 	var slow_tint = 0.45 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
 	var age = float(zombie.get("youmu_wraith_age", 0.0))
-	var phase = level_time * 6.8 + float(zombie.get("anim_phase", 0.0))
+	var animation_time = float(zombie.get("animation_time", level_time))
+	var phase = animation_time * 6.8 + float(zombie.get("anim_phase", 0.0))
 	var body = center + Vector2(sin(phase * 0.6) * 3.0, -12.0 + sin(phase) * 4.0)
 	var core = Color(0.72, 0.96, 1.0, 0.62).lerp(Color(1.0, 1.0, 1.0, 0.84), flash * 1.6).lerp(Color(0.54, 0.72, 1.0, 0.72), slow_tint)
 	var aura = Color(0.42, 0.72, 1.0, 0.18)
 	draw_circle(body, 36.0 + sin(phase * 1.4) * 4.0, aura)
-	draw_arc(body, 30.0, -level_time * 2.0, -level_time * 2.0 + PI * 1.35, 28, Color(0.82, 1.0, 1.0, 0.44), 2.0)
-	draw_arc(body, 21.0, level_time * 2.8, level_time * 2.8 + PI * 1.45, 24, Color(0.58, 0.84, 1.0, 0.36), 1.6)
+	draw_arc(body, 30.0, -animation_time * 2.0, -animation_time * 2.0 + PI * 1.35, 28, Color(0.82, 1.0, 1.0, 0.44), 2.0)
+	draw_arc(body, 21.0, animation_time * 2.8, animation_time * 2.8 + PI * 1.45, 24, Color(0.58, 0.84, 1.0, 0.36), 1.6)
 	draw_circle(body + Vector2(-7.0, -7.0), 10.0, core)
 	draw_circle(body + Vector2(4.0, -5.0), 13.0, Color(core.r, core.g, core.b, core.a * 0.82))
 	draw_polygon(PackedVector2Array([

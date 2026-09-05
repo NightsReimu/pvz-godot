@@ -14,6 +14,8 @@ func _run() -> void:
 		["cirno_boss", 1], ["sakuya_boss", 2], ["flandre_boss", 2],
 		["flandre_boss", 6], ["yukari_boss", 10], ["youmu_boss", 5], ["yuyuko_boss", 0],
 		["patchouli_boss", 0, true], ["patchouli_boss", 1, true], ["patchouli_boss", 2, true], ["cirno_boss", 0, true],
+		["youmu_boss", 1], ["youmu_boss", 3], ["youmu_boss", 4], ["youmu_boss", 0, true],
+		["alice_boss", 3], ["ran_boss", 7], ["yukari_boss", 7], ["flandre_boss", 5],
 	]
 	for kind in GameScript.TouhouSpellDefs.CARDS:
 		if not ["cirno_boss", "sakuya_boss", "flandre_boss", "yukari_boss", "youmu_boss", "yuyuko_boss"].has(kind):
@@ -22,7 +24,7 @@ func _run() -> void:
 		root.size = viewport
 		root.content_scale_size = viewport
 		for spec in cases:
-			if viewport.x != 1600 and not String(spec[0]) in ["flandre_boss", "yukari_boss", "youmu_boss"]:
+			if viewport.x != 1600 and not String(spec[0]) in ["flandre_boss", "yukari_boss", "youmu_boss", "alice_boss", "ran_boss", "prismriver_boss"]:
 				continue
 			root.mode = Window.MODE_WINDOWED
 			root.size = viewport
@@ -61,10 +63,13 @@ func _run() -> void:
 				game._update_zombies(1.0 / 60.0)
 				game.touhou_danmaku.update(1.0 / 60.0)
 				game._update_effects(1.0 / 60.0)
+				if frame == 23 and String(spec[0]) == "youmu_boss" and int(spec[1]) == 1:
+					game.banner_label.visible = false
+					await _capture(game, "touhou-%dx%d-youmu-focus" % [viewport.x, viewport.y])
 			game.banner_label.visible = false
 			var suffix = "-midboss" if spec.size() > 2 else ""
 			await _capture(game, "touhou-%dx%d-%s-%d%s" % [viewport.x, viewport.y, spec[0], spec[1], suffix])
-			if String(spec[0]) == "youmu_boss":
+			if String(spec[0]) == "youmu_boss" and int(spec[1]) == 5:
 				game._charm_plant_at_cell(2, 2, 4.4)
 				game._update_plants(0.2)
 				await _capture(game, "touhou-%dx%d-youmu-charm" % [viewport.x, viewport.y])

@@ -69,6 +69,7 @@ func cast(boss: Dictionary) -> Dictionary:
 		game.boss_time_stop_timer = 2.2
 		game.boss_time_stop_flash_timer = 0.5
 		boss["sakuya_relocations_remaining"] = 0
+	_update_actors(session)
 	_emit_wave(session)
 	session.wave = 1
 	session.next_wave = maxf(float(session.next_wave), 0.62)
@@ -85,6 +86,7 @@ func update(delta: float) -> void:
 
 func _tick(delta: float) -> void:
 	var owners := {}
+	var focused_owners := {}
 	for boss in game.zombies:
 		var surviving = bool(boss.get("touhou_invulnerable", false)) and float(boss.get("touhou_survival_timer", 0.0)) > 0.0
 		if boss.has("touhou_owner") and (float(boss.get("health", 0.0)) > 0.0 or surviving):
@@ -99,6 +101,7 @@ func _tick(delta: float) -> void:
 		if game.boss_time_stop_timer > 0.0 and String(boss.kind) != "sakuya_boss":
 			continue
 		session.age += delta
+		_update_actors(session)
 		boss["touhou_cast_remaining"] = maxf(0.0, float(session.duration) - float(session.age))
 		if bool(boss.get("touhou_invulnerable", false)):
 			boss["touhou_survival_timer"] = boss.touhou_cast_remaining
@@ -108,8 +111,8 @@ func _tick(delta: float) -> void:
 				boss["health"] = 0.0
 			if String(session.pattern) in ["and_then_none", "resurrection_butterfly"]:
 				clear_owner(owner)
-			else:
-				# Emission can finish while slower bullets are still crossing the lawn.
+			elif not beams.any(func(b): return int(b.owner) == owner and b.has("actor_index")):
+				# Keep laser emitters visible until their final telegraph and beam end.
 				casts.remove_at(index)
 			continue
 		if float(session.age) >= float(session.next_wave):
@@ -119,7 +122,9 @@ func _tick(delta: float) -> void:
 			if String(session.pattern) in ["qed", "izuna"]:
 				interval = lerpf(0.68, 0.24, float(session.age) / float(session.duration))
 			session.next_wave += interval
-	_tick_bullets(delta, owners)
+		if float(session.get("focus_until", 0.0)) > float(session.age):
+			focused_owners[owner] = true
+	_tick_bullets(delta, owners, focused_owners)
 	_tick_beams(delta, owners)
 
 
@@ -160,13 +165,38 @@ func _ring(c: Dictionary, origin: Vector2, count: int, rotation: float, speed: f
 		_bullet(c, origin, rotation + TAU * i / count, speed, color, shape, extra)
 
 
-func _beam(c: Dictionary, from: Vector2, to: Vector2, color: Color, delay: float = 0.7, width: float = 12.0) -> void:
+func _beam(c: Dictionary, from: Vector2, to: Vector2, color: Color, delay: float = 0.7, width: float = 12.0, extra: Dictionary = {}) -> void:
 	if beams.size() < MAX_BEAMS:
-		beams.append({"owner": int(c.owner), "kind": String(c.kind), "from": from, "to": to, "color": color, "age": 0.0, "delay": delay, "duration": 0.3, "width": width, "damage": 42.0 + float(c.phase) * 5.0, "hits": []})
+		var beam := {"owner": int(c.owner), "kind": String(c.kind), "from": from, "to": to, "color": color, "age": 0.0, "delay": delay, "duration": 0.3, "width": width, "damage": 42.0 + float(c.phase) * 5.0, "hits": []}
+		beam.merge(extra, true)
+		beams.append(beam)
 
 
-func _actor(c: Dictionary, kind: String, position: Vector2) -> void:
-	c.actors.append({"kind": kind, "position": position})
+func _actor(c: Dictionary, index: int, kind: String, position: Vector2, pose: String = "shift") -> void:
+	if index >= c.actors.size():
+		c.actors.append({"kind": kind})
+	var actor: Dictionary = c.actors[index]
+	actor["position"] = position
+	actor["animation_time"] = float(c.age)
+	actor["youmu_wraith_age"] = float(c.age)
+	actor["rumia_state"] = pose
+	actor["frame"] = game._boss_frame_index_for_kind(actor)
+
+
+func _update_actors(c: Dictionary) -> void:
+	var turn = float(c.age) * 0.25 / 0.62
+	match String(c.pattern):
+		"france", "holland", "london", "shanghai":
+			for i in range(5):
+				_actor(c, i, "alice_doll_zombie", _point(0.72 + 0.12 * sin(i + turn), 0.12 + i * 0.19))
+		"shikigami_chen", "shikigami_ran":
+			var familiar = _point(0.62 + 0.2 * cos(turn * 3), 0.5 + 0.34 * sin(turn * 3))
+			_actor(c, 0, "chen_boss" if String(c.pattern) == "shikigami_chen" else "ran_boss", familiar)
+		"four_of_a_kind":
+			for i in range(3):
+				_actor(c, i, "flandre_boss", _point(0.76 + 0.05 * ((i + 1) % 2), 0.18 + i * 0.32) + Vector2(0, sin(float(c.age) * 2.0 + i) * 5), "clones")
+		"two_hundred_yojana":
+			_actor(c, 0, "youmu_half_ghost", Vector2(c.center) + Vector2(-36, -48 + sin(float(c.age) * 2.0) * 6))
 
 
 func _emit_wave(c: Dictionary) -> void:
@@ -180,7 +210,6 @@ func _emit_wave(c: Dictionary) -> void:
 	var gold = COLORS[2]
 	var green = COLORS[3]
 	var violet = COLORS[4]
-	c.actors = []
 	match p:
 		"night_bird":
 			_ring(c, origin, 28, turn, 120, red)
@@ -268,9 +297,7 @@ func _emit_wave(c: Dictionary) -> void:
 				_beam(c, origin, origin + Vector2.from_angle(angle + PI) * game.board_size.x, blue, 0.7, 16)
 		"four_of_a_kind":
 			for i in range(4):
-				var clone = origin if i == 0 else _point(0.76 + 0.05 * (i % 2), 0.18 + (i - 1) * 0.32)
-				if i > 0:
-					_actor(c, "flandre_boss", clone)
+				var clone = origin if i == 0 else Vector2(c.actors[i - 1].position)
 				_fan(c, clone, 11, (_target(clone) - clone).angle(), 1.45, 165, COLORS[i])
 		"kagome", "maze", "starbow":
 			var count := 40
@@ -304,10 +331,9 @@ func _emit_wave(c: Dictionary) -> void:
 				_ring(c, _point(0.8, 0.5) - (path - _point(0.8, 0.5)), 18, -turn, 170, blue)
 		"france", "holland", "london", "shanghai":
 			for i in range(5):
-				var doll = _point(0.72 + 0.12 * sin(i + turn), 0.12 + i * 0.19)
-				_actor(c, "alice_doll_zombie", doll)
+				var doll = Vector2(c.actors[i].position)
 				if p == "shanghai":
-					_beam(c, doll, _point(0.05, 0.12 + i * 0.19), violet, 0.85, 10)
+					_beam(c, doll, _point(0.05, 0.12 + i * 0.19), violet, 0.85, 10, {"actor_index": i})
 				elif p == "holland":
 					_ring(c, doll, 12, -turn, 115, red)
 				elif p == "london":
@@ -318,14 +344,35 @@ func _emit_wave(c: Dictionary) -> void:
 			for i in range(1 if p == "guarneri" else 3):
 				var instrument = _point(0.82, 0.25 + i * 0.25)
 				_fan(c, instrument, 13 if p == "concerto_grosso" else 9, PI + sin(turn + i) * 0.4, 1.6, 135 + i * 30, COLORS[i], "note", {"angular_speed": 0.12 * (i - 1)})
-		"gaki", "two_hundred_yojana", "animal_realm", "human_realm", "five_signs", "immeasurable_kalpas":
+		"two_hundred_yojana":
+			if wave % 2 == 0:
+				var ghost = Vector2(c.actors[0].position)
+				_fan(c, ghost, 7, aimed, 2.1, 300, blue, "orb", {"radius": 12.0, "cuttable": true})
+				c["focus_until"] = float(c.age) + 0.8
+				_beam(c, origin, _target(origin), blue, 0.8, 18, {"sword_cut": true, "phase": c.phase})
+		"human_realm":
+			c["focus_until"] = float(c.age) + 0.3
+			for i in range(17):
+				var below = _point(0.06 + i * 0.055, 0.97)
+				_bullet(c, below, -PI * 0.5 + sin(i * 0.8 + turn) * 0.12, 105 + (i % 3) * 12, red, "rice")
+			_fan(c, origin, 17, aimed, 1.5, 190, blue, "rice")
+		"five_signs":
+			c["focus_until"] = float(c.age) + 0.24
+			for i in range(5):
+				_fan(c, origin, 11, aimed + (i - 2) * 0.035, 1.7, 130 + i * 24, blue if i % 2 == 0 else gold, "rice")
+		"immeasurable_kalpas":
+			c["focus_until"] = float(c.age) + 0.16
+			for i in range(3):
+				_ring(c, origin, 24, turn + i * 0.08, 155 + i * 28, blue if i % 2 == 0 else green, "rice")
+			game.effects.append({"shape": "youmu_cross_slash", "position": origin, "radius": 150.0, "time": 0.3, "duration": 0.3, "color": Color(0.7, 0.95, 1, 0.6)})
+		"gaki", "animal_realm":
 			var target = _target(origin)
 			if wave % 2 == 0:
 				var slash_target = _point(0.03, clampf((target.y - game.BOARD_ORIGIN.y) / game.board_size.y, 0.05, 0.95))
-				_beam(c, origin, slash_target, blue, 0.8, 18 if p == "two_hundred_yojana" else 9)
+				_beam(c, origin, slash_target, blue, 0.8, 9)
 				game.effects.append({"shape": "youmu_half_ghost", "position": origin + Vector2(18, -48), "radius": 42.0, "time": 0.55, "duration": 0.55, "color": Color(0.7, 0.95, 1, 0.24)})
 			else:
-				var waves = 5 if p == "five_signs" else 2
+				var waves = 2
 				for i in range(waves):
 					_fan(c, origin + Vector2(-i * 22, (i - waves / 2.0) * 35), 12, aimed, 1.8, 145 + i * 18, blue, "knife", {"freeze_at": 0.3, "thaw_at": 0.7, "thaw_angle": 0.0})
 		"wraith_charm":
@@ -356,8 +403,7 @@ func _emit_wave(c: Dictionary) -> void:
 				var emit = center + Vector2.from_angle(angle) * (200 if p != "danmaku_barrier" else 240)
 				_fan(c, emit, 9, angle + PI, 1.2, 100 if p == "danmaku_barrier" else 145, gold if p == "charming_siege" else violet, "ofuda", {"freeze_at": 0.15, "thaw_at": 0.85, "thaw_angle": 0.0} if p == "danmaku_barrier" else {})
 		"shikigami_chen", "shikigami_ran":
-			var familiar = _point(0.62 + 0.2 * cos(turn * 3), 0.5 + 0.34 * sin(turn * 3))
-			_actor(c, "chen_boss" if p == "shikigami_chen" else "ran_boss", familiar)
+			var familiar = Vector2(c.actors[0].position)
 			_ring(c, familiar, 26, turn, 155, gold, "ofuda")
 			_fan(c, origin, 9, aimed, 1.3, 180, violet)
 		"motion_stillness":
@@ -368,7 +414,7 @@ func _emit_wave(c: Dictionary) -> void:
 			_fan(c, origin, 18, PI - 0.7, 1.9, 165, red, "orb", {"angular_speed": 0.55})
 		"spiriting_away":
 			var gap = _point(0.7, 0.15 + fmod(wave * 0.23, 0.7))
-			_actor(c, "yukari_boss", gap)
+			_actor(c, 0, "yukari_boss", gap, "gap")
 			_ring(c, gap, 34, turn, 150, violet, "ofuda")
 		"zen_butterfly", "double_butterfly":
 			for side in [-1, 1]:
@@ -378,7 +424,7 @@ func _emit_wave(c: Dictionary) -> void:
 				_beam(c, origin, origin + Vector2.from_angle(PI + turn * 0.6) * game.board_size.x, red, 0.85)
 
 
-func _tick_bullets(delta: float, owners: Dictionary) -> void:
+func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary = {}) -> void:
 	var board: Rect2 = Rect2(game.BOARD_ORIGIN, game.board_size)
 	for index in range(bullets.size() - 1, -1, -1):
 		var b = bullets[index]
@@ -388,6 +434,8 @@ func _tick_bullets(delta: float, owners: Dictionary) -> void:
 		if game.boss_time_stop_timer > 0.0:
 			continue
 		var before = Vector2(b.position)
+		b["slowed"] = focused_owners.has(int(b.owner))
+		var motion_delta = delta * (0.35 if bool(b.slowed) else 1.0)
 		b.age += delta
 		var age = float(b.age)
 		var frozen = b.has("freeze_at") and age >= float(b.freeze_at) and age < float(b.thaw_at)
@@ -398,8 +446,8 @@ func _tick_bullets(delta: float, owners: Dictionary) -> void:
 			if float(b.get("redirect_at", 0.0)) > 0.0 and age >= float(b.redirect_at) and not bool(b.get("redirected", false)):
 				b.velocity = (Vector2(b.aim_point) - before).normalized() * Vector2(b.velocity).length()
 				b["redirected"] = true
-			b.velocity = Vector2(b.velocity).rotated(float(b.get("angular_speed", 0.0)) * delta)
-			b.position = before + Vector2(b.velocity) * delta
+			b.velocity = Vector2(b.velocity).rotated(float(b.get("angular_speed", 0.0)) * motion_delta)
+			b.position = before + Vector2(b.velocity) * motion_delta
 		b["frozen"] = frozen
 		var point = Vector2(b.position)
 		if int(b.get("bounces", 0)) > 0 and (point.y < board.position.y + 5 or point.y > board.end.y - 5):
@@ -419,11 +467,32 @@ func _tick_beams(delta: float, owners: Dictionary) -> void:
 			continue
 		if game.boss_time_stop_timer > 0.0:
 			continue
+		if beam.has("actor_index"):
+			for c in casts:
+				if int(c.owner) == int(beam.owner) and int(beam.actor_index) < c.actors.size():
+					beam.from = c.actors[int(beam.actor_index)].position
+					break
 		beam.age += delta
 		if float(beam.age) >= float(beam.delay):
+			if bool(beam.get("sword_cut", false)) and not bool(beam.get("cut_done", false)):
+				_cut_spirit_bullets(beam)
+				beam["cut_done"] = true
 			_hit_plant_segment(beam.from, beam.to, float(beam.width) * 0.5, float(beam.damage), beam.hits, false)
 		if float(beam.age) >= float(beam.delay) + float(beam.duration):
 			beams.remove_at(index)
+
+
+func _cut_spirit_bullets(slash: Dictionary) -> void:
+	# Only the half-ghost's existing large bullets belong to this sword pattern.
+	var cut: Array[Dictionary] = []
+	for index in range(bullets.size() - 1, -1, -1):
+		var b = bullets[index]
+		if int(b.owner) == int(slash.owner) and bool(b.get("cuttable", false)) and Vector2(b.position).distance_to(slash.from) <= 200.0:
+			cut.append(b)
+			bullets.remove_at(index)
+	for b in cut:
+		_ring(slash, b.position, 10, Vector2(b.velocity).angle(), 160, Color(b.color), "rice", {"sword_fragment": true})
+		game.effects.append({"shape": "youmu_cross_slash", "position": b.position, "radius": 65.0, "time": 0.28, "duration": 0.28, "color": Color(0.8, 1, 1, 0.65)})
 
 
 func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float, hit_cells: Array, stop_at_first: bool = true) -> bool:
@@ -457,8 +526,22 @@ func draw() -> void:
 	var board: Rect2 = Rect2(game.BOARD_ORIGIN, game.board_size)
 	var outline = PackedVector2Array([board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)])
 	for c in casts:
+		if float(c.get("focus_until", 0.0)) > float(c.age):
+			var center = Vector2(c.center)
+			for i in range(8):
+				var angle = TAU * i / 8.0 + float(c.age) * 1.4
+				var petal = center + Vector2.from_angle(angle) * 68.0
+				game.draw_circle(petal, 3.5, Color(1, 0.72, 0.85, 0.75))
+				game.draw_line(petal, petal - Vector2.from_angle(angle + 0.5) * 10, Color(1, 0.8, 0.9, 0.4), 2, true)
+			game.draw_arc(center, 56, float(c.age) * -2, float(c.age) * -2 + PI * 1.5, 40, Color(0.7, 0.95, 1, 0.55), 1.5, true)
 		for actor in c.actors:
-			var texture: Texture2D = game._try_get_boss_frame_texture(String(actor.kind), int(c.wave) % 3)
+			if String(actor.kind) == "alice_doll_zombie":
+				game._draw_alice_doll_zombie(actor.position, actor)
+				continue
+			if String(actor.kind) == "youmu_half_ghost":
+				game._draw_youmu_wraith(Vector2(actor.position) + Vector2(0, 12), actor)
+				continue
+			var texture: Texture2D = game._try_get_boss_frame_texture(String(actor.kind), int(actor.frame))
 			if texture != null:
 				var dimensions = texture.get_size() * (156.0 / maxf(texture.get_height(), 1.0))
 				game.draw_texture_rect(texture, Rect2(Vector2(actor.position) - dimensions * 0.5, dimensions), false, Color(1, 1, 1, 0.86))
@@ -473,24 +556,65 @@ func draw() -> void:
 		var active = float(beam.age) >= float(beam.delay)
 		var color = Color(beam.color)
 		color.a = 0.75 if active else 0.45
+		if active and bool(beam.get("sword_cut", false)):
+			game._draw_effect_blade(to, from, float(beam.width) * 0.65, color, Color(0.95, 1, 1, 0.95))
+			continue
 		game.draw_line(from, to, Color(0.08, 0.05, 0.13, 0.65), float(beam.width) + 3 if active else 4, true)
 		game.draw_line(from, to, color, float(beam.width) if active else 1.5, true)
 		if active:
 			game.draw_line(from, to, Color(1, 0.96, 0.9, 0.9), 3.0, true)
+		else:
+			var progress = clampf(float(beam.age) / float(beam.delay), 0.0, 1.0)
+			game.draw_arc(from, 10, -PI * 0.5, -PI * 0.5 + TAU * progress, 24, color, 2, true)
+			game.draw_circle(to, float(beam.width) * 0.5 + 4, color, false, 1.5, true)
 	for b in bullets:
 		var point = Vector2(b.position)
 		var color = Color(b.color)
 		var radius = float(b.radius)
 		if not board.grow(-radius * 2).has_point(point):
 			continue
-		game.draw_circle(point, radius + 1.7, Color(0.08, 0.05, 0.13, 0.86))
+		if String(b.shape) in ["orb", "butterfly", "petal", "note"]:
+			game.draw_circle(point, radius + 1.7, Color(0.08, 0.05, 0.13, 0.86))
+		var axis = Vector2(b.velocity).normalized()
+		if axis.is_zero_approx():
+			axis = Vector2.LEFT
+		var normal = axis.orthogonal()
 		match String(b.shape):
-			"knife", "ice", "ofuda":
-				var axis = Vector2(b.velocity).normalized()
-				var normal = axis.orthogonal()
+			"knife":
 				var polygon = PackedVector2Array([point + axis * radius * 2, point + normal * radius * 0.65, point - axis * radius * 1.5, point - normal * radius * 0.65])
-				game.draw_colored_polygon(polygon, color)
+				_draw_bullet_polygon(polygon, color)
 				game.draw_line(point - axis * radius, point + axis * radius, Color.WHITE, 1, true)
+			"ice":
+				var polygon = PackedVector2Array([point + axis * radius * 1.6, point + axis * radius * 0.3 + normal * radius * 0.8, point - axis * radius * 1.2 + normal * radius * 0.55, point - axis * radius * 1.2 - normal * radius * 0.55, point + axis * radius * 0.3 - normal * radius * 0.8])
+				_draw_bullet_polygon(polygon, color)
+				game.draw_line(point - axis * radius, point + axis * radius * 1.2, Color(1, 1, 1, 0.8), 1, true)
+			"ofuda":
+				var polygon = PackedVector2Array([point + axis * radius * 1.45 + normal * radius * 0.7, point - axis * radius * 1.45 + normal * radius * 0.7, point - axis * radius * 1.45 - normal * radius * 0.7, point + axis * radius * 1.45 - normal * radius * 0.7])
+				_draw_bullet_polygon(polygon, Color(1, 0.97, 0.88))
+				for offset in [-0.6, 0.0, 0.6]:
+					var mark = point + axis * radius * offset
+					game.draw_line(mark - normal * radius * 0.45, mark + normal * radius * 0.45, color.darkened(0.2), 1.7, true)
+			"rice":
+				var polygon := PackedVector2Array()
+				for i in range(12):
+					var angle = TAU * i / 12.0
+					polygon.append(point + axis * cos(angle) * radius * 1.5 + normal * sin(angle) * radius * 0.6)
+				_draw_bullet_polygon(polygon, color)
+				game.draw_line(point - axis * radius * 0.65, point + axis * radius * 0.65, Color(1, 1, 1, 0.9), 1.2, true)
+			"star":
+				var polygon := PackedVector2Array()
+				for i in range(10):
+					var angle = -PI * 0.5 + TAU * i / 10.0
+					polygon.append(point + Vector2.from_angle(angle) * radius * (1.7 if i % 2 == 0 else 0.75))
+				_draw_bullet_polygon(polygon, color)
+				game.draw_circle(point, radius * 0.4, Color.WHITE)
+			"note":
+				var stem = point + Vector2(radius * 0.7, -radius * 1.9)
+				game.draw_line(point + Vector2(radius * 0.6, 0), stem, Color(0.08, 0.05, 0.13), 4.5, true)
+				game.draw_line(point + Vector2(radius * 0.6, 0), stem, color, 2.5, true)
+				game.draw_line(stem, stem + Vector2(radius * 0.8, radius * 0.5), color, 2.5, true)
+				game.draw_circle(point, radius, color)
+				game.draw_circle(point + Vector2(-1, -1), radius * 0.3, Color.WHITE)
 			"butterfly", "petal":
 				var wing = Vector2(b.velocity).normalized().orthogonal() * radius * 0.65
 				game.draw_circle(point + wing, radius * 0.85, color)
@@ -501,3 +625,9 @@ func draw() -> void:
 				game.draw_circle(point + Vector2(-1, -1), radius * 0.43, Color(1, 1, 1, 0.85))
 		if bool(b.get("frozen", false)) or game.boss_time_stop_timer > 0.0:
 			game.draw_arc(point, radius + 3, 0, TAU, 12, Color(0.85, 0.98, 1, 0.65), 1, true)
+
+
+func _draw_bullet_polygon(polygon: PackedVector2Array, color: Color) -> void:
+	game.draw_colored_polygon(polygon, color)
+	polygon.append(polygon[0])
+	game.draw_polyline(polygon, Color(0.08, 0.05, 0.13, 0.85), 1.2, true)
