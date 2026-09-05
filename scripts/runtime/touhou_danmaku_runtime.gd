@@ -5,6 +5,9 @@ const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const MAX_BULLETS := 640
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
+const DANMAKU_BASE_DAMAGE := 22.0
+const DANMAKU_PHASE_DAMAGE := 4.0
+const DANMAKU_BASE_RADIUS := 6.0
 const COLORS := [Color("ef5474"), Color("58ccec"), Color("f6d66c"), Color("9ada74"), Color("c28bed"), Color("f99b62")]
 
 var game: Control
@@ -150,7 +153,8 @@ func _target(origin: Vector2) -> Vector2:
 func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
 	if bullets.size() >= MAX_BULLETS:
 		return
-	var b := {"owner": int(c.owner), "kind": String(c.kind), "position": origin, "velocity": Vector2.from_angle(angle) * speed, "age": 0.0, "life": 7.0, "radius": 5.0, "damage": 13.0 + float(c.phase) * 2.0, "color": color, "shape": shape}
+	var intensity = 1.0 + minf(0.3, float(c.get("wave", 0)) * 0.018) + float(c.get("phase", 0)) * 0.05
+	var b := {"owner": int(c.owner), "kind": String(c.kind), "position": origin, "velocity": Vector2.from_angle(angle) * speed * intensity, "age": 0.0, "life": 7.0, "radius": DANMAKU_BASE_RADIUS, "damage": DANMAKU_BASE_DAMAGE + float(c.get("phase", 0)) * DANMAKU_PHASE_DAMAGE, "color": color, "shape": shape}
 	b.merge(extra, true)
 	bullets.append(b)
 
@@ -167,7 +171,7 @@ func _ring(c: Dictionary, origin: Vector2, count: int, rotation: float, speed: f
 
 func _beam(c: Dictionary, from: Vector2, to: Vector2, color: Color, delay: float = 0.7, width: float = 12.0, extra: Dictionary = {}) -> void:
 	if beams.size() < MAX_BEAMS:
-		var beam := {"owner": int(c.owner), "kind": String(c.kind), "from": from, "to": to, "color": color, "age": 0.0, "delay": delay, "duration": 0.3, "width": width, "damage": 42.0 + float(c.phase) * 5.0, "hits": []}
+		var beam := {"owner": int(c.owner), "kind": String(c.kind), "from": from, "to": to, "color": color, "age": 0.0, "delay": delay, "duration": 0.38, "width": width, "damage": 68.0 + float(c.phase) * 8.0, "hits": []}
 		beam.merge(extra, true)
 		beams.append(beam)
 
@@ -526,6 +530,15 @@ func draw() -> void:
 	var board: Rect2 = Rect2(game.BOARD_ORIGIN, game.board_size)
 	var outline = PackedVector2Array([board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)])
 	for c in casts:
+		var cast_age = float(c.age)
+		var pulse_window = clampf(1.0 - (float(c.next_wave) - cast_age) / 0.38, 0.0, 1.0)
+		var pulse_center = Vector2(c.center) + Vector2(0, 34)
+		var pulse_radius = 42.0 + pulse_window * 34.0
+		var pulse_alpha = 0.08 + pulse_window * 0.18
+		game.draw_circle(pulse_center, pulse_radius, Color(1.0, 0.16, 0.18, pulse_alpha), false, 2.0, true)
+		if pulse_window > 0.65:
+			var warning_angle = (cast_age * 2.7) - PI * 0.5
+			game.draw_arc(pulse_center, pulse_radius + 10.0, warning_angle, warning_angle + PI * 0.54, 22, Color(1.0, 0.72, 0.28, 0.78), 3.0, true)
 		if float(c.get("focus_until", 0.0)) > float(c.age):
 			var center = Vector2(c.center)
 			for i in range(8):

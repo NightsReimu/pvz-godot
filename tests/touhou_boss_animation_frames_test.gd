@@ -191,8 +191,8 @@ func _test_prismriver_render_scale_stays_readable() -> bool:
 	if game.has_method("_prismriver_draw_scale"):
 		var opening_height := max_alpha_height * float(game.call("_prismriver_draw_scale", 0))
 		var late_height := max_alpha_height * float(game.call("_prismriver_draw_scale", 3))
-		passed = _assert_true(opening_height <= 172.0, "Prismriver opening render should not balloon after image2 split cleanup (%.1fpx)" % opening_height) and passed
-		passed = _assert_true(late_height <= 182.0, "Prismriver late-phase render should remain readable without becoming oversized (%.1fpx)" % late_height) and passed
+		passed = _assert_true(opening_height <= 196.0, "Prismriver opening render should stay inside the normalized boss height band (%.1fpx)" % opening_height) and passed
+		passed = _assert_true(late_height <= 204.0, "Prismriver late-phase render should stay inside the normalized boss height band (%.1fpx)" % late_height) and passed
 	_free_game(game)
 	return passed
 

@@ -29886,75 +29886,75 @@ func _ensure_flandre_frames_loaded() -> void:
 
 
 func _rumia_draw_scale(phase: int) -> float:
-	return 0.28 + float(phase) * 0.012
+	return 0.58 + float(phase) * 0.010
 
 
 func _daiyousei_draw_scale(phase: int) -> float:
-	return 0.58 + float(phase) * 0.014
+	return 0.66 + float(phase) * 0.010
 
 
 func _cirno_draw_scale(phase: int) -> float:
-	return 0.58 + float(phase) * 0.016
+	return 0.62 + float(phase) * 0.010
 
 
 func _meiling_draw_scale(phase: int) -> float:
-	return 0.62 + float(phase) * 0.018
+	return 0.60 + float(phase) * 0.010
 
 
 func _koakuma_draw_scale(phase: int) -> float:
-	return 0.55 + float(phase) * 0.014
+	return 0.64 + float(phase) * 0.010
 
 
 func _patchouli_draw_scale(phase: int) -> float:
-	return 0.62 + float(phase) * 0.015
+	return 0.67 + float(phase) * 0.010
 
 
 func _sakuya_draw_scale(phase: int) -> float:
-	return 0.66 + float(phase) * 0.016
+	return 0.53 + float(phase) * 0.010
 
 
 func _remilia_draw_scale(phase: int) -> float:
-	return 0.72 + float(phase) * 0.018
+	return 0.67 + float(phase) * 0.010
 
 
 func _letty_draw_scale(phase: int) -> float:
-	return 0.66 + float(phase) * 0.016
+	return 0.77 + float(phase) * 0.010
 
 
 func _chen_draw_scale(phase: int) -> float:
-	return 0.7 + float(phase) * 0.018
+	return 0.60 + float(phase) * 0.010
 
 
 func _alice_draw_scale(phase: int) -> float:
-	return 0.66 + float(phase) * 0.016
+	return 0.61 + float(phase) * 0.010
 
 
 func _lily_white_draw_scale(phase: int) -> float:
-	return 0.66 + float(phase) * 0.016
+	return 0.64 + float(phase) * 0.010
 
 
 func _prismriver_draw_scale(phase: int) -> float:
-	return 0.74 + float(phase) * 0.014
+	return 0.82 + float(phase) * 0.010
 
 
 func _youmu_draw_scale(phase: int) -> float:
-	return 0.6 + float(phase) * 0.012
+	return 0.63 + float(phase) * 0.010
 
 
 func _yuyuko_draw_scale(phase: int) -> float:
-	return 0.42 + float(phase) * 0.01
+	return 0.66 + float(phase) * 0.010
 
 
 func _ran_draw_scale(phase: int) -> float:
-	return 0.58 + float(phase) * 0.018
+	return 0.67 + float(phase) * 0.010
 
 
 func _yukari_draw_scale(phase: int) -> float:
-	return 0.52 + float(phase) * 0.02
+	return 0.63 + float(phase) * 0.010
 
 
 func _flandre_draw_scale(phase: int) -> float:
-	return 0.72 + float(phase) * 0.018
+	return 0.66 + float(phase) * 0.010
 
 
 func _boss_pose_frame(pose_index: int, speed: float, phase: float) -> int:

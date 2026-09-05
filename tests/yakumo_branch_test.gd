@@ -265,8 +265,8 @@ func _test_yakumo_phase_pressure_and_render_scale() -> bool:
 			has_yukari_phase_fx = has_yukari_phase_fx or shape.begins_with("yukari_")
 		passed = _assert_true(has_ran_phase_fx, "Ran phase shifts should produce dedicated fox-shikigami FX") and passed
 		passed = _assert_true(has_yukari_phase_fx, "Yukari phase shifts should produce dedicated boundary FX") and passed
-		passed = _assert_true(float(game.call("_ran_draw_scale", 3)) <= 0.66, "Ran render scale should remain compact") and passed
-		passed = _assert_true(float(game.call("_yukari_draw_scale", 3)) <= 0.62, "Yukari render scale should remain compact") and passed
+		passed = _assert_true(float(game.call("_ran_draw_scale", 3)) <= 0.72, "Ran render scale should remain inside the normalized boss height band") and passed
+		passed = _assert_true(float(game.call("_yukari_draw_scale", 3)) <= 0.69, "Yukari render scale should remain inside the normalized boss height band") and passed
 	_free_game(game)
 	return passed
 
