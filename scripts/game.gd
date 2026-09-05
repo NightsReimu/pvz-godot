@@ -12800,7 +12800,9 @@ func _update_effects(delta: float) -> void:
 		var effect = effects[i]
 		effect["time"] -= delta
 		if float(effect["time"]) <= 0.0:
-			if String(effect.get("shape", "")) == "snow_patch":
+			if String(effect.get("shape", "")) == "remilia_blood_drain":
+				_resolve_remilia_blood_drain(effect)
+			elif String(effect.get("shape", "")) == "snow_patch":
 				var effect_row = int(effect.get("row", -1))
 				var effect_col = int(effect.get("col", -1))
 				if _cell_terrain_kind(effect_row, effect_col) == "snowfield":
@@ -15337,14 +15339,17 @@ func _stagger_plants_in_circle(center: Vector2, radius: float, extra_cooldown: f
 
 
 func _trigger_daiyousei_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_cirno_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_rumia_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -15370,6 +15375,7 @@ func _sakuya_target_cells(row: int, count: int, base_col: int = 4) -> Array:
 
 
 func _trigger_sakuya_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -15430,11 +15436,174 @@ func _heal_hover_boss(zombie: Dictionary, amount: float) -> Dictionary:
 	return zombie
 
 
+func _freeze_plant_cells(cells: Array, duration: float) -> int:
+	var frozen := 0
+	for cell_variant in cells:
+		var cell = Vector2i(cell_variant)
+		if cell.x < 0 or cell.x >= ROWS or cell.y < 0 or cell.y >= COLS:
+			continue
+		var plant_variant = _targetable_plant_at(cell.x, cell.y)
+		if plant_variant == null or float(plant_variant.get("health", 0.0)) <= 0.0:
+			continue
+		if float(plant_variant.get("holy_invincible_timer", 0.0)) > 0.0:
+			plant_variant["flash"] = maxf(float(plant_variant.get("flash", 0.0)), 0.12)
+			_set_targetable_plant(cell.x, cell.y, plant_variant)
+			continue
+		var plant = plant_variant
+		plant["sleep_timer"] = maxf(float(plant.get("sleep_timer", 0.0)), duration)
+		plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.2)
+		_set_targetable_plant(cell.x, cell.y, plant)
+		effects.append({
+			"shape": "perfect_freeze",
+			"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
+			"radius": 54.0,
+			"time": 0.42,
+			"duration": 0.42,
+			"anim_speed": 7.4,
+			"color": Color(0.72, 0.94, 1.0, 0.34),
+		})
+		frozen += 1
+	return frozen
+
+
+func _damage_cell_and_drain_boss(zombie: Dictionary, cell: Vector2i, damage: float) -> Dictionary:
+	var plant_variant = _targetable_plant_at(cell.x, cell.y)
+	if plant_variant == null:
+		return zombie
+	effects.append({
+		"shape": "remilia_blood_drain",
+		"position": Vector2(float(zombie.get("x", _boss_anchor_x("remilia_boss"))), _row_center_y(int(zombie.get("row", 0))) - 28.0),
+		"target": _cell_center(cell.x, cell.y) + Vector2(0.0, -10.0),
+		"row": cell.x,
+		"col": cell.y,
+		"boss_uid": int(zombie.get("uid", -1)),
+		"damage": damage,
+		"radius": 92.0,
+		"time": 0.46,
+		"duration": 0.46,
+		"anim_speed": 8.0,
+		"color": Color(1.0, 0.18, 0.28, 0.38),
+	})
+	return zombie
+
+
+func _resolve_remilia_blood_drain(effect: Dictionary) -> void:
+	var row = int(effect.get("row", -1))
+	var col = int(effect.get("col", -1))
+	if row < 0 or col < 0 or row >= ROWS or col >= COLS:
+		return
+	var plant_variant = _targetable_plant_at(row, col)
+	if plant_variant == null:
+		return
+	var before_health = float(plant_variant.get("health", 0.0))
+	var before_armor = float(plant_variant.get("armor_health", 0.0))
+	var invincible = float(plant_variant.get("holy_invincible_timer", 0.0)) > 0.0
+	_damage_plant_cell(row, col, float(effect.get("damage", 0.0)), 1.0)
+	var after_variant = _targetable_plant_at(row, col)
+	var after_health = before_health
+	var after_armor = before_armor
+	if after_variant != null:
+		after_health = float(after_variant.get("health", 0.0))
+		after_armor = float(after_variant.get("armor_health", 0.0))
+	var dealt = maxf(0.0, (before_health - after_health) + (before_armor - after_armor))
+	if invincible or dealt <= 0.0:
+		return
+	var boss_uid = int(effect.get("boss_uid", -1))
+	for i in range(zombies.size()):
+		var boss = zombies[i]
+		if String(boss.get("kind", "")) != "remilia_boss" or int(boss.get("uid", -2)) != boss_uid:
+			continue
+		zombies[i] = _heal_hover_boss(boss, dealt * 0.72)
+		break
+
+
+func _apply_touhou_boss_battlefield_skill(zombie: Dictionary) -> Dictionary:
+	var kind = String(zombie.get("kind", ""))
+	var phase = int(zombie.get("boss_phase", 0))
+	var row = int(zombie.get("row", 0))
+	var center = Vector2(float(zombie.get("x", _boss_anchor_x(kind))), _row_center_y(row) - 12.0)
+	match kind:
+		"rumia_boss":
+			_sleep_plants_in_radius(center, 118.0 + phase * 16.0, 1.8 + phase * 0.35)
+			effects.append({"shape": "dark_orbit", "position": center, "radius": 156.0 + phase * 18.0, "time": 0.54, "duration": 0.54, "color": Color(0.3, 0.0, 0.08, 0.42)})
+		"daiyousei_boss":
+			zombie = _heal_hover_boss(zombie, 180.0 + phase * 90.0)
+			for _i in range(1 + phase):
+				_spawn_hover_boss_reinforcement(kind, phase)
+		"cirno_boss":
+			var ice_cells = _pick_random_active_cells(2 + phase, 1, COLS - 1)
+			_freeze_plant_cells(ice_cells, 2.4 + phase * 0.55)
+			for cell_variant in ice_cells:
+				var ice_cell = Vector2i(cell_variant)
+				_create_temporary_frozen_cell(ice_cell.x, ice_cell.y, 5.0 + phase * 0.8)
+		"meiling_boss":
+			_stagger_plants_in_circle(center, 168.0 + phase * 18.0, 0.8 + phase * 0.12)
+		"koakuma_boss":
+			_freeze_plant_cells(_pick_random_active_cells(1 + phase, 2, COLS - 1), 1.7 + phase * 0.3)
+			for _i in range(1 + phase):
+				_spawn_hover_boss_reinforcement(kind, phase)
+		"patchouli_boss":
+			_spawn_blood_library_hazard()
+		"sakuya_boss":
+			var stop_duration = 1.05 + phase * 0.2
+			boss_time_stop_timer = maxf(boss_time_stop_timer, stop_duration)
+			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.48)
+			zombie["sakuya_relocations_remaining"] = maxi(int(zombie.get("sakuya_relocations_remaining", 0)), 2 + phase)
+			zombie["sakuya_relocate_interval"] = 0.28 - minf(0.08, phase * 0.02)
+			zombie["sakuya_relocate_timer"] = 0.08
+			effects.append({"shape": "sakuya_time_grid", "position": center, "radius": 220.0 + phase * 24.0, "width": board_size.y * 0.44, "time": stop_duration, "duration": stop_duration, "anim_speed": 8.6, "color": Color(0.82, 0.9, 1.0, 0.3)})
+		"remilia_boss":
+			var cells = _remilia_target_cells(row, 3 + phase, 2)
+			for cell_variant in cells:
+				zombie = _damage_cell_and_drain_boss(zombie, Vector2i(cell_variant), 118.0 + phase * 28.0)
+				var strike_cell = Vector2i(cell_variant)
+				effects.append({"shape": "remilia_gungnir_lance", "position": center, "target": _cell_center(strike_cell.x, strike_cell.y) + Vector2(0.0, -10.0), "radius": 174.0, "time": 0.46, "duration": 0.46, "color": Color(1.0, 0.2, 0.22, 0.34)})
+		"letty_boss":
+			var cold_cells = _pick_random_active_cells(2 + phase, 1, COLS - 1)
+			for cell_variant in cold_cells:
+				var cold_cell = Vector2i(cell_variant)
+				_create_temporary_frozen_cell(cold_cell.x, cold_cell.y, 7.0 + phase)
+			_freeze_plant_cells(cold_cells, 2.8 + phase * 0.4)
+		"chen_boss":
+			_stagger_plants_in_circle(center, 152.0 + phase * 16.0, 0.7 + phase * 0.12)
+		"alice_boss":
+			for _i in range(2 + phase):
+				_spawn_alice_doll(row, BOARD_ORIGIN.x + board_size.x + 28.0 + float(_i) * 18.0)
+		"lily_white_boss":
+			for lane in active_rows:
+				_stagger_plants_in_circle(Vector2(BOARD_ORIGIN.x + board_size.x * 0.54, _row_center_y(int(lane))), 92.0, 0.65)
+		"prismriver_boss":
+			_stagger_plants_in_circle(center, 192.0 + phase * 20.0, 0.9 + phase * 0.12)
+		"youmu_boss":
+			var charm_cells = _pick_youmu_charm_cells(1 + phase)
+			for cell_variant in charm_cells:
+				var charm_cell = Vector2i(cell_variant)
+				_charm_plant_at_cell(charm_cell.x, charm_cell.y, 3.2 + phase * 0.55)
+			var dash_cells = _pick_random_active_cells(1, max(2, COLS - 3), COLS - 1)
+			if not dash_cells.is_empty():
+				var dash_cell = Vector2i(dash_cells[0])
+				zombie = _youmu_dash_to_cell(zombie, dash_cell.x, dash_cell.y, "instant_step")
+		"yuyuko_boss":
+			_raise_random_graves(mini(3, 1 + phase), "yuyuko_grave_rise", Color(1.0, 0.56, 0.84, 0.34))
+			_spawn_yuyuko_grave_spirits(3 + phase * 2)
+		"ran_boss":
+			for _i in range(2 + phase):
+				_spawn_hover_boss_reinforcement(kind, phase)
+		"yukari_boss":
+			for _i in range(1 + phase):
+				_spawn_hover_boss_reinforcement(kind, phase)
+		"flandre_boss":
+			_stagger_plants_in_circle(center, 208.0 + phase * 20.0, 1.1 + phase * 0.16)
+	return zombie
+
+
 func _trigger_remilia_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_flandre_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -15455,10 +15624,12 @@ func _yakumo_radial_effect_points(center: Vector2, count: int, radius: float) ->
 
 
 func _trigger_ran_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -15865,6 +16036,7 @@ func _trigger_cirno_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _trigger_letty_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -15892,6 +16064,7 @@ func _trigger_letty_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _trigger_chen_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -15935,6 +16108,7 @@ func _spawn_alice_doll(row: int, x: float, tint: Color = Color(0.74, 0.54, 1.0, 
 
 
 func _trigger_alice_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -15959,6 +16133,7 @@ func _trigger_alice_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _trigger_lily_white_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -15983,6 +16158,7 @@ func _trigger_lily_white_boss_phase_shift(zombie: Dictionary, phase: int) -> Dic
 
 
 func _trigger_prismriver_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -16354,6 +16530,7 @@ func _trigger_ran_boss_successor(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_youmu_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -16387,6 +16564,7 @@ func _trigger_youmu_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _trigger_yuyuko_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -16478,6 +16656,7 @@ func _trigger_yukari_boss_phase_shift(zombie: Dictionary, phase: int) -> Diction
 
 
 func _trigger_meiling_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -16501,10 +16680,12 @@ func _trigger_meiling_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 
 
 func _trigger_koakuma_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_patchouli_boss_skill(zombie: Dictionary) -> Dictionary:
+	zombie = _apply_touhou_boss_battlefield_skill(zombie)
 	return _ensure_touhou_danmaku().cast(zombie)
 
 
@@ -24731,6 +24912,18 @@ func _draw_effects() -> void:
 					draw_line(start, target, Color(0.98, 0.38, 0.34, effect_color.a * 0.54), 1.6)
 				draw_line(sigil_center + Vector2(-sigil_radius * 0.42, 0.0), sigil_center + Vector2(sigil_radius * 0.42, 0.0), Color(1.0, 0.68, 0.54, effect_color.a * 0.42), 1.4)
 				draw_line(sigil_center + Vector2(0.0, -sigil_radius * 0.42), sigil_center + Vector2(0.0, sigil_radius * 0.42), Color(0.66, 0.04, 0.12, effect_color.a * 0.32), 1.2)
+			continue
+		if shape == "remilia_blood_drain":
+			var drain_origin = Vector2(effect["position"])
+			var drain_target = Vector2(effect.get("target", drain_origin))
+			var drain_direction = drain_target - drain_origin
+			var drain_length = maxf(drain_direction.length(), 1.0)
+			var drain_forward = drain_direction / drain_length
+			var drain_normal = Vector2(-drain_forward.y, drain_forward.x)
+			for strand_index in range(3):
+				var strand_offset = drain_normal * sin(level_time * anim_speed + float(strand_index) * 2.1) * (4.0 + float(strand_index) * 2.0)
+				draw_line(drain_origin + strand_offset, drain_target + strand_offset, Color(1.0, 0.12, 0.22, effect_color.a * (0.32 + float(strand_index) * 0.12)), 2.6 - float(strand_index) * 0.45)
+			draw_circle(drain_target, 12.0 + sin(level_time * anim_speed) * 2.0, Color(1.0, 0.22, 0.28, effect_color.a * 0.28))
 			continue
 		if shape == "remilia_heart_break":
 			var heart_origin = Vector2(effect["position"])
