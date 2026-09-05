@@ -6,6 +6,7 @@ const WindowModeLib = preload("res://scripts/system/window_mode.gd")
 const UpdateManagerLib = preload("res://scripts/system/update_manager.gd")
 const WorldDataLib = preload("res://scripts/data/world_data.gd")
 const AlmanacTextLib = preload("res://scripts/data/almanac_text.gd")
+const VolcanoExpansionRuntime = preload("res://scripts/runtime/volcano_expansion_runtime.gd")
 const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
@@ -605,6 +606,13 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"crabling",
 	"camel_zombie",
 	"volcano_boss",
+	"basalt_guard",
+	"cinder_runner",
+	"kiln_mason",
+	"ash_bell",
+	"sulfur_carrier",
+	"geode_zombie",
+	"vent_tunneler",
 ]
 
 var rng = RandomNumberGenerator.new()
@@ -945,6 +953,7 @@ var sfx_player_index := 0
 var firing_sfx_throttle := {}
 # Per-lava-cell eruption cooldowns. Key = "row,col", value = seconds until next eruption.
 var lava_eruption_timers := {}
+var volcano_expansion: VolcanoExpansionRuntime
 var polished_texture_cache := {}
 var image2_texture_cache := {}
 var image2_flipped_zombie_cache := {}
@@ -2023,6 +2032,8 @@ func _process(delta: float) -> void:
 	_update_zombies(delta)
 	if touhou_danmaku != null:
 		touhou_danmaku.update(delta)
+	if volcano_expansion != null or _is_volcano_level():
+		_ensure_volcano_expansion().update_world(delta)
 	_update_lava_cells(delta)
 	_update_cloud_sea(delta)
 	_grow_yuyuko_graves(delta)
@@ -6772,6 +6783,9 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	plant_food_count = 0
 	total_kills = 0
 	level_time = 0.0
+	lava_eruption_timers.clear()
+	if volcano_expansion != null:
+		volcano_expansion.reset()
 	next_event_index = 0
 	base_events_spawned = 0
 	total_spawned_units = 0
@@ -7994,8 +8008,9 @@ func _seal_lava_cell(row: int, col: int) -> void:
 # Volcano lava cells intermittently erupt fire onto the 8 surrounding cells,
 # damaging plants and zombies alike. Sealed cells (cork_plug) don't erupt.
 func _update_lava_cells(delta: float) -> void:
-	if not _is_volcano_level():
+	if not _is_volcano_level() or boss_time_stop_timer > 0.0:
 		return
+	var volcano = _ensure_volcano_expansion()
 	for cell_variant in current_level.get("lava_cells", []):
 		var cell = Vector2i(cell_variant)
 		var r = int(cell.x)
@@ -8005,16 +8020,24 @@ func _update_lava_cells(delta: float) -> void:
 		if String(_cell_terrain_kind(r, c)) != "lava":
 			continue  # sealed by cork_plug
 		var key = "%d,%d" % [r, c]
+		if volcano.is_cooled(cell):
+			lava_eruption_timers[key] = maxf(float(lava_eruption_timers.get(key, 0.0)), 2.0)
+			continue
 		var remaining = float(lava_eruption_timers.get(key, rng.randf_range(4.0, 9.0)))
 		remaining -= delta
 		if remaining > 0.0:
 			lava_eruption_timers[key] = remaining
+			if remaining <= float(current_level.get("lava_warning", 1.5)):
+				volcano.warn_vent(cell, remaining)
 			continue
 		lava_eruption_timers[key] = rng.randf_range(7.0, 12.0)
 		_erupt_lava_cell(r, c)
 
 
 func _erupt_lava_cell(row: int, col: int) -> void:
+	if not _ensure_volcano_expansion().active_vent(Vector2i(row, col)):
+		return
+	volcano_expansion.on_eruption(row, col)
 	var center = _cell_center(row, col)
 	var damage = 60.0
 	for dr in range(-1, 2):
@@ -9028,6 +9051,12 @@ func _ensure_plant_runtime() -> PlantRuntime:
 	return plant_runtime
 
 
+func _ensure_volcano_expansion() -> VolcanoExpansionRuntime:
+	if volcano_expansion == null:
+		volcano_expansion = VolcanoExpansionRuntime.new(self)
+	return volcano_expansion
+
+
 func _ensure_projectile_runtime() -> ProjectileRuntime:
 	if projectile_runtime == null:
 		projectile_runtime = ProjectileRuntime.new(self)
@@ -9894,6 +9923,11 @@ func _execute_volcano_corn_cannon_ultimate() -> void:
 
 
 func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, profile: Dictionary) -> void:
+	if float(plant.get("health", 0.0)) > 0.0:
+		plant["health"] = float(plant["max_health"])
+	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
+		_ensure_volcano_expansion().ultimate(plant, row, col)
+		return
 	var center = _cell_center(row, col)
 	if String(profile.get("style", "")) != "explicit":
 		_execute_generic_ultimate(plant, kind, row, col, profile)
@@ -11776,6 +11810,8 @@ func _update_zombies(delta: float) -> void:
 		else:
 			zombie["wolf_escape_offset"] = 28.0 * clampf(float(zombie["wolf_escape_timer"]) / 0.42, 0.0, 1.0)
 		zombie["jump_offset"] = 0.0
+		if volcano_expansion != null or bool(Defs.ZOMBIES.get(String(zombie["kind"]), {}).get("volcano_expansion", false)):
+			_ensure_volcano_expansion().update_zombie(zombie, delta)
 		if _zombie_in_bog(zombie):
 			zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), 0.45)
 		if float(zombie.get("corrode_timer", 0.0)) > 0.0 and float(zombie.get("corrode_dps", 0.0)) > 0.0:
@@ -12798,9 +12834,20 @@ func _update_effects(delta: float) -> void:
 		porcelain_shards[i] = shard
 	for i in range(effects.size() - 1, -1, -1):
 		var effect = effects[i]
+		var volcano_shape = String(effect.get("shape", ""))
+		if volcano_shape in ["volcano_warning", "volcano_steam", "volcano_pulse"]:
+			if boss_time_stop_timer > 0.0:
+				continue
+			if volcano_shape == "volcano_warning" and not _ensure_volcano_expansion().warning_active(effect):
+				effects.remove_at(i)
+				continue
+			if volcano_shape == "volcano_steam":
+				_ensure_volcano_expansion().pulse(Vector2(effect["position"]), float(effect["radius"]), float(effect["dps"]) * minf(delta, float(effect["time"])), 0.6)
 		effect["time"] -= delta
 		if float(effect["time"]) <= 0.0:
-			if String(effect.get("shape", "")) == "remilia_blood_drain":
+			if volcano_shape == "volcano_warning":
+				_ensure_volcano_expansion().resolve(effect)
+			elif String(effect.get("shape", "")) == "remilia_blood_drain":
 				_resolve_remilia_blood_drain(effect)
 			elif String(effect.get("shape", "")) == "snow_patch":
 				var effect_row = int(effect.get("row", -1))
@@ -13377,6 +13424,7 @@ func _win_level() -> void:
 
 	battle_state = BATTLE_WON
 	var custom_level = bool(current_level.get("custom_level", false)) or selected_level_index < 0
+	var first_clear = not custom_level and selected_level_index >= 0 and selected_level_index < completed_levels.size() and not bool(completed_levels[selected_level_index])
 	if not custom_level and selected_level_index >= 0 and selected_level_index < completed_levels.size():
 		completed_levels[selected_level_index] = true
 	if not current_level.is_empty():
@@ -13424,10 +13472,8 @@ func _win_level() -> void:
 		_show_message("%s完成!\n修饰: %s\n已消灭 %d 只僵尸\n%s" % [String(current_level.get("daily_stage_name", "每日关卡")), mod_names, total_kills, reward_line], "daily", "返回每日")
 		return
 
-	var unlocked_new = false
 	if not custom_level and selected_level_index + 1 >= unlocked_levels and selected_level_index < Defs.LEVELS.size() - 1:
 		unlocked_levels = selected_level_index + 2
-		unlocked_new = true
 
 	coins_total += 50
 
@@ -13446,7 +13492,7 @@ func _win_level() -> void:
 	var message = "%s 通关\n已消灭 %d 只僵尸\n奖励金币 +50" % [current_level["title"], total_kills]
 	if not material_reward.is_empty():
 		message += "\n强化材料 +%d %s" % [int(material_reward.get("amount", 0)), String(material_reward.get("name", "强化材料"))]
-	if unlocked_new and String(current_level.get("unlock_plant", "")) != "":
+	if first_clear and String(current_level.get("unlock_plant", "")) != "":
 		message += "\n解锁植物：%s" % Defs.PLANTS[String(current_level["unlock_plant"])]["name"]
 
 	_show_message(message, "map", "返回地图")
@@ -14428,6 +14474,10 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 		return zombie
 
 	var remaining_damage = damage
+	if float(zombie.get("sulfur_brittle_until", 0.0)) > level_time:
+		remaining_damage *= 1.2
+	if float(zombie.get("basalt_brace_until", 0.0)) > level_time and slow_duration <= 0.0 and not _ensure_volcano_expansion().controlled(zombie):
+		remaining_damage *= 0.65
 	if _is_enemy_zombie(zombie):
 		var router_count = _count_alive_enemy_zombies_by_kind("router_zombie")
 		if router_count > 0:
@@ -14468,6 +14518,8 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 		else:
 			zombie["shield_health"] = shield_health - shield_damage
 			remaining_damage = 0.0
+		if zombie.has("kiln_armor_remaining"):
+			zombie["kiln_armor_remaining"] = maxf(0.0, float(zombie["kiln_armor_remaining"]) - minf(shield_health, shield_damage))
 
 	if remaining_damage > 0.0:
 		zombie["health"] -= remaining_damage
@@ -15634,6 +15686,8 @@ func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
+	if String(zombie["kind"]) == "volcano_boss":
+		return _ensure_volcano_expansion().boss_skill(zombie)
 	if String(zombie["kind"]) == "rumia_boss":
 		return _trigger_rumia_boss_skill(zombie)
 	if String(zombie["kind"]) == "daiyousei_boss":
@@ -17121,6 +17175,10 @@ func _damage_front_plant_in_row(row: int, damage: float) -> void:
 
 func _current_zombie_speed(zombie: Dictionary) -> float:
 	var speed = float(zombie["base_speed"])
+	if String(zombie.get("kind", "")) == "cinder_runner" and _ensure_volcano_expansion().runner_is_hot(zombie):
+		speed *= 1.8
+	if float(zombie.get("basalt_brace_until", 0.0)) > level_time and not _ensure_volcano_expansion().controlled(zombie):
+		return 0.0
 	var terrain = _cell_terrain_kind(int(zombie["row"]), _zombie_cell_col(float(zombie["x"])))
 	if terrain == "snowfield":
 		speed *= 0.42
@@ -22644,6 +22702,8 @@ func _draw_battle_board() -> void:
 				tint = Color(0.88, 0.98, 1.0, 0.05) if (row + col) % 2 == 0 else Color(0.0, 0.2, 0.32, 0.05)
 				border_color = Color(0.68, 0.94, 1.0, 0.16)
 			draw_rect(tile, tint, true)
+			if _cell_terrain_kind(row, col) == "lava":
+				_ensure_volcano_expansion().draw_vent(Vector2i(row, col))
 			if _is_scarlet_clocktower_level():
 				var tile_inset = float(clock_floor_style.get("tile_inset", 9.0))
 				var tile_center = tile.position + tile.size * 0.5
@@ -23477,6 +23537,13 @@ func _draw_boss_health_bar() -> void:
 
 
 func _boss_cast_status(boss: Dictionary) -> Dictionary:
+	if String(boss.get("kind", "")) == "volcano_boss":
+		var remaining = maxf(0.0, float(boss.get("boss_skill_timer", 0.0)))
+		var casting = bool(boss.get("boss_cast_pending", false))
+		var recovering = float(boss.get("boss_pause_timer", 0.0)) > 0.0
+		var cycle = int(boss.get("boss_last_skill_cycle", 0)) if recovering else int(boss.get("boss_skill_cycle", 0))
+		var label: String = ["熔炉落石", "火口共鸣", "炉卫集结"][cycle % 3]
+		return {"text": "%s  %s" % [label, "收招" if recovering else ("蓄力 %.1fs" % remaining if casting else "%.1fs" % remaining)], "progress": clampf(1.0 - remaining / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0) if casting else 0.0, "color": Color("#ffce76") if casting else Color("#d2e5dc")}
 	if TouhouSpellDefs.CARDS.has(String(boss.get("kind", ""))):
 		var active = float(boss.get("touhou_cast_remaining", 0.0)) > 0.0
 		var card: Dictionary = boss.get("touhou_card", {}) if active else TouhouSpellDefs.card_for(boss, current_level)
@@ -23569,6 +23636,8 @@ func _draw_plants() -> void:
 			if support_variant == null:
 				continue
 			var support = support_variant
+			if _cell_terrain_kind(row, col) == "lava":
+				continue
 			var support_center = _cell_center(row, col) + Vector2(0.0, 16.0)
 			var support_motion = _plant_draw_motion(support, support_center)
 			var support_draw_center = Vector2(support_motion["center"])
@@ -23616,6 +23685,9 @@ func _draw_plants() -> void:
 			_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
 			var plant_kind := String(plant["kind"])
 			var plant_drawn_with_image2 := _try_draw_image2_plant(plant_kind, Vector2.ZERO, 1.0, flash)
+			if bool(Defs.PLANTS.get(plant_kind, {}).get("volcano_expansion", false)):
+				_ensure_volcano_expansion().draw_plant(plant_kind, Vector2.ZERO, 1.0, flash, 1.0, plant)
+				plant_drawn_with_image2 = true
 			match "__image2_drawn__" if plant_drawn_with_image2 else plant_kind:
 				"sunflower":
 					_draw_sunflower(Vector2.ZERO, 1.0, flash)
@@ -24551,11 +24623,16 @@ func _draw_effect_bat(center: Vector2, scale: float, color: Color, flutter: floa
 
 
 func _draw_effects() -> void:
+	if volcano_expansion != null:
+		volcano_expansion.draw_cooling()
 	for effect in effects:
 		var ratio = float(effect["time"]) / float(effect["duration"])
 		var effect_color = Color(effect["color"])
 		effect_color.a *= ratio
 		var shape = String(effect.get("shape", "circle"))
+		if shape in ["volcano_warning", "volcano_steam", "volcano_pulse"]:
+			_ensure_volcano_expansion().draw_effect(effect)
+			continue
 		var anim_speed = float(effect.get("anim_speed", 4.0))
 		if _try_draw_image2_effect(shape, effect, ratio, effect_color):
 			continue
@@ -26594,6 +26671,9 @@ func _draw_mowers() -> void:
 
 
 func _draw_card_icon(kind: String, center: Vector2) -> void:
+	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
+		_ensure_volcano_expansion().draw_plant(kind, center + Vector2(0.0, 6.0), 0.58)
+		return
 	if _try_draw_image2_plant(kind, center + Vector2(0.0, 8.0), 0.54, 0.0):
 		return
 	match kind:
@@ -26872,6 +26952,9 @@ func _draw_card_icon(kind: String, center: Vector2) -> void:
 
 
 func _draw_plant_preview(kind: String, center: Vector2) -> void:
+	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
+		_ensure_volcano_expansion().draw_plant(kind, center, 1.0, 0.0, 0.42)
+		return
 	if _try_draw_image2_plant(kind, center, 1.0, 0.0, 0.42):
 		return
 	match kind:
@@ -31912,6 +31995,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie["flash"])
 	var slow_tint = 0.55 if float(zombie["slow_timer"]) > 0.0 else 0.0
 	var kind = String(zombie["kind"])
+	if bool(Defs.ZOMBIES.get(kind, {}).get("volcano_expansion", false)):
+		_ensure_volcano_expansion().draw_zombie(center, zombie)
+		return
 	if _try_draw_image2_zombie(kind, center, zombie):
 		return
 	if kind == "bungee_zombie":

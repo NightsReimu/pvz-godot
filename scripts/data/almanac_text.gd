@@ -2,9 +2,12 @@ extends RefCounted
 class_name AlmanacText
 
 const PlantDefs = preload("res://scripts/data/plant_defs.gd")
+const ZombieDefs = preload("res://scripts/data/zombie_defs.gd")
 
 
 static func plant_lines(kind: String) -> Array:
+	if PlantDefs.PLANTS.get(kind, {}).has("almanac"):
+		return PlantDefs.PLANTS[kind]["almanac"]
 	match kind:
 		"peashooter":
 			return ["基础直线输出，看到前方威胁就会持续开火。", "能量豆后进入豌豆风暴，短时间高速连射。"]
@@ -280,6 +283,8 @@ static func _rarity_label(rarity: String) -> String:
 
 
 static func zombie_lines(kind: String) -> Array:
+	if ZombieDefs.ZOMBIES.get(kind, {}).has("almanac"):
+		return ZombieDefs.ZOMBIES[kind]["almanac"]
 	match kind:
 		"normal":
 			return ["最基础的僵尸，没有额外能力。", "任何防线的默认压力来源。"]

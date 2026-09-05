@@ -77,6 +77,10 @@ func update_plants(delta: float) -> void:
 			if game._plant_charm_blocks_actions(plant):
 				continue
 
+			if bool(Defs.PLANTS.get(String(plant["kind"]), {}).get("volcano_expansion", false)):
+				game._ensure_volcano_expansion().update_plant(plant, delta, row, col)
+				continue
+
 			match String(plant["kind"]):
 				"sunflower":
 					plant["sun_timer"] -= delta

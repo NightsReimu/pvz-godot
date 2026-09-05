@@ -2,6 +2,41 @@ extends RefCounted
 class_name ZombieDefs
 
 const ZOMBIES: Dictionary = {
+	"basalt_guard": {
+		"name": "玄武岩卫士", "health": 520.0, "speed": 13.0, "attack_dps": 26.0,
+		"reward": 36, "shield_health": 460.0, "volcano_expansion": true,
+		"almanac": ["每六秒驻足架盾两秒，架盾期间伤害降低 35%；减速或控制可打断。"],
+	},
+	"cinder_runner": {
+		"name": "余烬快脚", "health": 320.0, "speed": 23.0, "attack_dps": 22.0,
+		"reward": 28, "shield_health": 0.0, "volcano_expansion": true,
+		"almanac": ["邻近活跃火口或喷发热浪时冲刺；减速、蒸汽冷却能使它恢复步速。"],
+	},
+	"kiln_mason": {
+		"name": "窑炉砌砖工", "health": 660.0, "speed": 14.0, "attack_dps": 24.0,
+		"reward": 42, "shield_health": 0.0, "volcano_expansion": true,
+		"almanac": ["每五秒给附近一名同阵营僵尸砌上最多 180 临时护甲，不会无限叠甲。"],
+	},
+	"ash_bell": {
+		"name": "灰铃僵尸", "health": 480.0, "speed": 16.0, "attack_dps": 22.0,
+		"reward": 36, "shield_health": 0.0, "volcano_expansion": true,
+		"almanac": ["蓄力摇铃后使邻近两株植物停工两秒；控制能打断，圣光保护可抵挡。"],
+	},
+	"sulfur_carrier": {
+		"name": "硫罐搬运工", "health": 620.0, "speed": 15.0, "attack_dps": 24.0,
+		"reward": 42, "shield_health": 0.0, "volcano_expansion": true,
+		"almanac": ["半血后点燃硫罐，预警后伤害周围植物；减速能熄火，罐子只使用一次。"],
+	},
+	"geode_zombie": {
+		"name": "晶洞僵尸", "health": 480.0, "speed": 17.0, "attack_dps": 24.0,
+		"reward": 38, "shield_health": 500.0, "volcano_expansion": true,
+		"almanac": ["晶壳破裂后朝前方两格发射有预警的晶片；破壳后移速提高。"],
+	},
+	"vent_tunneler": {
+		"name": "地脉钻工", "health": 560.0, "speed": 18.0, "attack_dps": 26.0,
+		"reward": 40, "shield_health": 0.0, "volcano_expansion": true,
+		"almanac": ["在右半场蓄力钻向另一处未冷却火口，每只仅一次；冷却落点或控制可阻止穿行。"],
+	},
 	"normal": {
 		"name": "普通僵尸",
 		"health": 200.0,

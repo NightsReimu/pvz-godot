@@ -158,7 +158,7 @@ func _test_volcano_world_metadata_exists() -> bool:
 func _test_7x_levels_route_to_volcano_world() -> bool:
 	var game = _make_game()
 	var passed := true
-	for level_id in ["7-1", "7-3", "7-5", "7-8", "7-9", "7-10"]:
+	for level_id in ["7-1", "7-3", "7-5", "7-8", "7-9", "7-10", "7-11", "7-20"]:
 		passed = _assert_true(String(game.call("_world_key_for_level", {"id": level_id})) == "volcano", "%s should route to volcano world" % level_id) and passed
 	_free_game(game)
 	return passed
@@ -192,10 +192,20 @@ func _test_volcano_level_data_matches_unlock_rhythm() -> bool:
 		"7-7": "holy_flower",
 		"7-8": "ice_cream",
 		"7-9": "corn_cannon",
-		"7-10": "",
+		"7-10": "gator_cannon",
+		"7-11": "thermal_sunflower",
+		"7-12": "obsidian_artichoke",
+		"7-13": "steam_clover",
+		"7-14": "pumice_wall",
+		"7-15": "sulfur_pod",
+		"7-16": "resonance_beet",
+		"7-17": "pressure_bamboo",
+		"7-18": "fumarole_melon",
+		"7-19": "magnet_orchid",
+		"7-20": "caldera_lotus",
 	}
 	var passed := true
-	for level_number in range(1, 11):
+	for level_number in range(1, 21):
 		var level_id = "7-%d" % level_number
 		var level_index = _find_level_index(level_id)
 		passed = _assert_true(level_index != -1, "expected %s to exist in volcano progression" % level_id) and passed

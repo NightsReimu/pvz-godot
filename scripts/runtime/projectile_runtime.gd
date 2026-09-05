@@ -370,6 +370,9 @@ func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
 
 
 func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: Vector2) -> void:
+	if projectile.has("volcano_seed"):
+		game._ensure_volcano_expansion().impact(projectile, impact_position)
+		return
 	var projectile_kind = String(projectile.get("kind", ""))
 	var damage = float(projectile.get("damage", 0.0))
 	match projectile_kind:

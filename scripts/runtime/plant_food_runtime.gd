@@ -3,6 +3,16 @@ class_name PlantFoodRuntime
 
 const Defs = preload("res://scripts/game_defs.gd")
 const SUPPORTED_KINDS = [
+	"thermal_sunflower",
+	"obsidian_artichoke",
+	"steam_clover",
+	"pumice_wall",
+	"sulfur_pod",
+	"resonance_beet",
+	"pressure_bamboo",
+	"fumarole_melon",
+	"magnet_orchid",
+	"caldera_lotus",
 	"peashooter",
 	"sunflower",
 	"cherry_bomb",
@@ -1454,6 +1464,9 @@ func activate(row: int, col: int) -> bool:
 func _finish_activation(plant_variant, kind: String, row: int, col: int, center: Vector2) -> bool:
 	if plant_variant != null:
 		var plant: Dictionary = plant_variant
+		# Consumed instant plants must not be resurrected by the shared heal.
+		if float(plant.get("health", 0.0)) > 0.0:
+			plant["health"] = float(plant["max_health"])
 		plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.22)
 		game._set_targetable_plant(row, col, plant)
 	game.effects.append({
