@@ -3,9 +3,52 @@ class_name AlmanacText
 
 const PlantDefs = preload("res://scripts/data/plant_defs.gd")
 const ZombieDefs = preload("res://scripts/data/zombie_defs.gd")
+const GACHA_DETAILS := {
+	"shadow_pea": ["常态：每 {shoot_interval} 秒向本行前方发射暗影豌豆，每发 {damage} 伤害，可穿透 {pierce_count} 个敌人。", "大招「{ultimate_name}」：向各行前方各射出 4 发暗影弹，每发 28 伤害。"],
+	"ice_queen": ["常态：每 {pulse_interval} 秒冰击周围最近 4 个敌人，各受 24 伤害、冻结 {freeze_duration} 秒，并留下 4 秒减速。", "大招「{ultimate_name}」：冻结全场敌人 5 秒。"],
+	"vine_emperor": ["常态：每 {attack_interval} 秒鞭打周围最近 {max_targets} 个敌人，各受 {damage} 伤害、定身 1.9 秒，并向藤蔓拉近。", "大招「{ultimate_name}」：扩大缠绕范围，定身范围内敌人 8 秒。"],
+	"soul_flower": ["常态：种下 {first_sun_delay} 秒首次产出 {sun_amount} 阳光，此后每 {sun_interval} 秒产出一次。", "被动：存活且清醒时，每个敌人死亡额外掉落 {kill_sun_bonus} 阳光，多株不叠加。", "大招「{ultimate_name}」：10 秒内每次死亡奖励提高到 50 阳光。"],
+	"plasma_shooter": ["常态：每 {shoot_interval} 秒电击本行前方目标，首击 {damage} 伤害，再向邻近敌人传导 {chain_damage} 伤害，共至多 {max_targets} 个目标。", "大招「{ultimate_name}」：本行敌人各受 {ultimate_damage} 伤害。"],
+	"crystal_nut": ["常态：每 1.15 秒震击周围最近 4 敌，各受 48 伤害、减速 1.6 秒，同时将自身护甲补至至少最大生命的 60%；无近敌时回复 35 生命。", "被动：反弹啃咬伤害的 30%。", "大招「{ultimate_name}」：立即恢复自身全部生命。"],
+	"dragon_fruit": ["常态：每 {attack_interval} 秒喷灼前方近距离的本行及相邻两行，造成 {damage} 伤害，并灼烧 {burn_duration} 秒，每秒 {burn_damage} 伤害。", "大招「{ultimate_name}」：扩大三行火焰射程，范围内敌人各受 200 伤害。"],
+	"time_rose": ["常态：每 2 秒影响周围最近 6 敌，各受 18 伤害、50% 减速 4.2 秒，并短暂停顿 0.25 秒。", "大招「{ultimate_name}」：冻结全场敌人 6 秒。"],
+	"galaxy_sunflower": ["常态：种下 {first_sun_delay} 秒首次产出 2 份 {sun_amount} 阳光，此后每 {sun_interval} 秒重复；产出时治疗周围 3×3 格植物 55 生命。", "被动：清醒时为周围 3×3 格植物提供 20% 伤害增益，多株光环不叠加。", "大招「{ultimate_name}」：立即获得 {ultimate_sun} 阳光。"],
+	"void_shroom": ["常态：每 {pull_interval} 秒拉近周围最近 8 个敌人，各受 {damage} 伤害并停顿 0.12 秒，适合配合近战植物。", "大招「{ultimate_name}」：全场敌人各受 {ultimate_damage} 伤害。"],
+	"phoenix_tree": ["常态：每 {shoot_interval} 秒向全场最靠近房屋的敌人所在行发射火焰，基础伤害 {damage}。", "被动：每次种植有 {revive_count} 次原地满血复活，并获得 0.75 秒保护。", "大招「{ultimate_name}」：对周围敌人造成 {ultimate_damage} 伤害；不会重置被动复活次数。"],
+	"thunder_god": ["常态：每 {attack_interval} 秒锁定全场最前方目标落雷，首击 {damage} 伤害，再以 {chain_damage} 伤害连锁邻近敌人，共至多 {max_targets} 个。", "大招「{ultimate_name}」：全场敌人各受 {ultimate_damage} 伤害。"],
+	"prism_pea": ["常态：每 {shoot_interval} 秒发射 {damage} 伤害棱镜弹，飞行中分裂为 {split_count} 枚碎片，每枚 {fragment_damage} 伤害。", "大招「{ultimate_name}」：向前方扇形发射 5 枚光弹，每枚 120 伤害。"],
+	"magnet_daisy": ["常态：每 {pulse_interval} 秒牵引周围最近 8 个敌人靠近自己，并减速 30%，持续 {slow_duration} 秒；牵引本身不造成伤害。", "大招「{ultimate_name}」：大范围敌人向左位移，并冻结 2.5 秒。"],
+	"thorn_cactus": ["常态：每 {shoot_interval} 秒刺击本行前方贴身敌人，各受 {damage} 伤害。", "被动：正在啃咬它的敌人每秒受到 {thorns} 反刺伤害。", "大招「{ultimate_name}」：向四周发射 18 枚尖刺，每枚 60 伤害。"],
+	"bubble_lotus": ["常态：每 {support_interval} 秒给周围 3×3 格的一株植物补至 {shield_hp} 护盾，优先低生命、少护盾队友；满血也能获得护盾，无队友时保护自己。", "大招「{ultimate_name}」：为全场植物各增加 {ultimate_shield} 护盾。"],
+	"spiral_bamboo": ["常态：每 {shoot_interval} 秒向本行前方投出回旋刃，去程 {damage} 伤害，回程 {return_damage} 伤害，最多穿过 {max_hits} 个敌人。", "大招「{ultimate_name}」：向本行及上下各两行投刃，去程 110、回程 55 伤害，最多穿过 6 敌。"],
+	"honey_blossom": ["常态：种下 {first_sun_delay} 秒首次产出 {sun_amount} 阳光，此后每 {sun_interval} 秒重复；每 {honey_refresh} 秒用蜜糖使本行近敌减速 40%，持续 {slow_duration} 秒。", "大招「{ultimate_name}」：产出 250 阳光，并让本行敌人减速 6 秒。"],
+	"echo_fern": ["常态：每 {pulse_interval} 秒震击周围最近 6 敌，基础 {damage} 伤害；同一敌人每次被震击后，后续回声伤害增加 10%，最多叠 {max_stacks} 层。", "大招「{ultimate_name}」：大范围敌人各受 180 伤害并冻结 2 秒。"],
+	"glow_ivy": ["常态：每 {attack_interval} 秒扫过本行所有敌人，各受 {damage} 伤害并显形 3 秒，也能照顾身后敌人。", "大招「{ultimate_name}」：本行敌人各受 80 伤害并定身 4 秒。"],
+	"laser_lily": ["常态：本行前方出现敌人时充能 {charge_time} 秒，随后以激光贯穿本行，合计 165 伤害；光束持续 {beam_duration} 秒，再休整 0.4 秒进入下一次充能。", "大招「{ultimate_name}」：本行及相邻两行敌人各受 400 伤害。"],
+	"rock_armor_fruit": ["常态：每秒回复 {regen} 生命；每损失 {layer_hp} 生命破碎一层岩铠，向近敌造成 {shockwave_damage} 伤害，共 {armor_layers} 层。破层记录不会随治疗重置。", "大招「{ultimate_name}」：获得最大生命 80% 的护盾；周围敌人各受 300 伤害并冻结 1.5 秒。"],
+	"aurora_orchid": ["常态：每 {support_interval} 秒治疗周围 3×3 格植物 {heal_per_pulse} 生命，并提升其伤害 25%，持续 {buff_duration} 秒。同类增益取较强值。", "大招「{ultimate_name}」：全场植物回复 {ultimate_heal} 生命，伤害提高 70%，持续 12 秒。"],
+	"blast_pomegranate": ["常态：每 {attack_interval} 秒轰炸本行最前方目标，爆炸 {damage} 伤害，再溅出 {cluster_count} 枚小炸弹，每枚 {cluster_damage} 范围伤害。", "大招「{ultimate_name}」：在前方三行依次投下 3 处爆炸，每处 220 范围伤害。"],
+	"frost_cypress": ["常态：持续使周围敌人减速 50%；敌人在同一株寒霜柏范围内累计停留 {accumulate_time} 秒后，冻结 {freeze_duration} 秒。离开范围重置累计，多株分别计时。", "大招「{ultimate_name}」：冻结全场敌人 4 秒。"],
+	"mirror_shroom": ["常态：每 {shoot_interval} 秒以镜光贯穿本行前方，至少 {damage} 伤害。每 {copy_interval} 秒读取周围 3×3 格常规攻击植物，取其单次伤害 60% 强化镜光，记忆保留 {clone_duration} 秒。", "大招「{ultimate_name}」：本行其他植物各映出一道 200 伤害镜光，攻击其前方敌人。"],
+	"chain_lotus": ["常态：每 {attack_interval} 秒斩击本行前方近敌，首击 {damage} 伤害，再弹射附近至多 {max_chains} 个敌人，每跳伤害降低 20%。", "大招「{ultimate_name}」：连斩全场至多 8 个不同目标，首击 280 伤害，每跳降低 15%，最低 60。"],
+	"plasma_shroom": ["常态：每 {attack_interval} 秒刷新自身周围的电浆区，持续 {zone_duration} 秒，区内敌人每秒受到 {zone_damage} 伤害。同株区域刷新不叠加，离开区域停止受伤。", "大招「{ultimate_name}」：本行及相邻两行敌人各受 350 伤害。"],
+	"meteor_flower": ["常态：每 {shoot_interval} 秒向全场生命最高的敌人投下陨星，造成 {damage} 范围伤害，并灼烧 {burn_duration} 秒，每秒 {burn_damage} 伤害；无需本行存在敌人。", "大招「{ultimate_name}」：随机降下 12 颗陨星，每颗 200 范围伤害。"],
+	"destiny_tree": ["常态：每 {support_interval} 秒随机给予全场植物一种祝福：伤害 +50%、攻速 +50%（均持续 {buff_duration} 秒），或至少 500 护盾。", "被动：友军死亡时有 50% 概率以 50% 生命复活，每株仅判定一次，多棵树不重复判定。", "大招「{ultimate_name}」：全场恢复生命，伤害变为 2.25 倍、攻速变为 1.5 倍，持续 12 秒。"],
+	"abyss_tentacle": ["常态：每 {attack_interval} 秒抓住周围最近敌人，生命不高于 {execute_threshold} 时处决；否则造成 180 伤害并定身 {hold_duration} 秒。东方 BOSS 仍遵守阶段锁血。", "大招「{ultimate_name}」：抓取范围内至多 5 敌，各受 450 伤害并定身 3 秒。"],
+	"solar_emperor": ["常态：种下 {first_sun_delay} 秒首次产出 {sun_amount} 阳光，此后每 {sun_interval} 秒重复；每 {shoot_interval} 秒以 {damage} 伤害光线贯穿本行前方。", "被动：每次收取阳光，周围 3×3 格植物伤害提高 10%，持续 {collect_buff_duration} 秒，多株不叠加。", "大招「{ultimate_name}」：产出 750 阳光，本行敌人各受 300 伤害。"],
+	"shadow_assassin": ["常态：每 {attack_interval} 秒袭击全场生命最高的敌人，造成 {damage} 伤害；目标位于右侧第 6 列及以右时，背刺伤害翻倍。", "大招「{ultimate_name}」：袭击全场生命最高的至多 5 敌，各造成 600 伤害。"],
+	"core_blossom": ["常态：持续以周围熔岩造成每秒 {lava_dps} 伤害。充能 {charge_time} 秒后爆发，对更大范围造成 {damage} 伤害；休整 {recharge_time} 秒后再次充能，期间熔岩仍有效。", "大招「{ultimate_name}」：进一步扩大爆炸范围，造成 {ultimate_damage} 伤害。"],
+	"holy_lotus": ["常态：每 {heal_interval} 秒治疗周围 3×3 格植物 {heal_amount} 生命。", "被动：邻居濒死时消耗自身 {save_hp_cost} 生命，将其救至 35% 生命并保护 0.75 秒；需自身生命高于消耗，救援冷却 {save_cooldown} 秒。", "大招「{ultimate_name}」：全场植物回满生命并无敌 3 秒。"],
+	"chaos_shroom": ["常态：每 {effect_interval} 秒随机触发一种当前有效的效果：100 单体伤害、100 阳光、冻结近处 3 敌 2 秒、周围 3×3 格治疗 150，或发射 5 枚 40 伤害孢子。", "大招「{ultimate_name}」：连续随机触发 5 次全场效果：300 伤害、冻结 3.5 秒、400 阳光、治疗 150 或定身 4 秒。"],
+}
 
 
 static func plant_lines(kind: String) -> Array:
+	if GACHA_DETAILS.has(kind):
+		var lines: Array = []
+		for template in GACHA_DETAILS[kind]:
+			lines.append(String(template).format(PlantDefs.PLANTS[kind]))
+		return lines
 	if PlantDefs.PLANTS.get(kind, {}).has("almanac"):
 		return PlantDefs.PLANTS[kind]["almanac"]
 	match kind:

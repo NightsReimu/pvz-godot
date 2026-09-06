@@ -176,10 +176,10 @@ func _scenario_changed(kind: String, before: Dictionary, after: Dictionary) -> b
 		"soul_flower", "galaxy_sunflower", "honey_blossom", "solar_emperor":
 			return int(after["suns"]) > int(before["suns"])
 		"crystal_nut", "dragon_fruit", "time_rose", "void_shroom", "magnet_daisy", "echo_fern", "plasma_shroom":
-			return float(after["zombie_health_sum"]) < float(before["zombie_health_sum"]) or int(after["effects"]) > int(before["effects"]) or float(after["slow_total"]) > float(before["slow_total"])
+			return float(after["zombie_health_sum"]) < float(before["zombie_health_sum"]) or float(after["slow_total"]) > float(before["slow_total"])
 		"chaos_shroom":
 			return int(after["suns"]) > int(before["suns"]) \
-				or int(after["effects"]) > int(before["effects"]) \
+				or int(after["projectiles"]) > int(before["projectiles"]) \
 				or float(after["zombie_health_sum"]) < float(before["zombie_health_sum"]) \
 				or float(after["slow_total"]) > float(before["slow_total"]) \
 				or float(after["frozen_total"]) > float(before["frozen_total"]) \
@@ -188,16 +188,14 @@ func _scenario_changed(kind: String, before: Dictionary, after: Dictionary) -> b
 			return float(after["plant_health_sum"]) > float(before["plant_health_sum"]) \
 				or float(after["plant_armor_sum"]) > float(before["plant_armor_sum"]) \
 				or float(after["aurora_total"]) > float(before["aurora_total"]) \
-				or float(after["destiny_total"]) > float(before["destiny_total"]) \
-				or int(after["effects"]) > int(before["effects"])
+				or float(after["destiny_total"]) > float(before["destiny_total"])
 		"glow_ivy":
 			return float(after["zombie_health_sum"]) < float(before["zombie_health_sum"]) or float(after["revealed_total"]) > float(before["revealed_total"])
 		"mirror_shroom":
-			return float(after["zombie_health_sum"]) < float(before["zombie_health_sum"]) or int(after["effects"]) > int(before["effects"])
+			return float(after["zombie_health_sum"]) < float(before["zombie_health_sum"])
 		_:
 			return int(after["projectiles"]) > int(before["projectiles"]) \
 				or int(after["suns"]) > int(before["suns"]) \
-				or int(after["effects"]) > int(before["effects"]) \
 				or float(after["zombie_health_sum"]) < float(before["zombie_health_sum"]) \
 				or float(after["rooted_total"]) > float(before["rooted_total"]) \
 				or float(after["slow_total"]) > float(before["slow_total"]) \
@@ -260,6 +258,8 @@ func _drive_gacha_runtime(game: Control, kind: String) -> void:
 			game.call("_update_plants", 6.5)
 		"galaxy_sunflower":
 			game.call("_update_plants", 5.5)
+		"honey_blossom", "solar_emperor":
+			game.call("_update_plants", 7.5)
 		"ice_queen", "void_shroom":
 			game.call("_update_plants", 3.8)
 		"dragon_fruit", "thunder_god", "blast_pomegranate":
@@ -283,6 +283,7 @@ func _drive_gacha_runtime(game: Control, kind: String) -> void:
 		_:
 			game.call("_update_plants", 1.9)
 	game.call("_update_projectiles", 1.2)
+	game.call("_update_effects", 0.5)
 
 
 func _test_every_gacha_plant_can_activate_plant_food() -> bool:
@@ -312,7 +313,7 @@ func _test_every_gacha_plant_has_a_live_base_behavior() -> bool:
 		var before = _gacha_runtime_snapshot(game)
 		_drive_gacha_runtime(game, kind)
 		var after = _gacha_runtime_snapshot(game)
-		passed = _assert_true(_scenario_changed(kind, before, after), "%s should produce a visible base behavior during normal plant updates" % kind) and passed
+		passed = _assert_true(_scenario_changed(kind, before, after), "%s must change combat or resources without an ultimate" % kind) and passed
 		_free_game(game)
 	return passed
 

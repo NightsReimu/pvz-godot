@@ -6326,6 +6326,9 @@ func _plant_enhance_multiplier_at_cell(row: int, col: int) -> float:
 		base *= (1.0 + float(plant.get("aurora_buff_ratio", 0.0)))
 	if float(plant.get("destiny_dmg_timer", 0.0)) > 0.0:
 		base *= 1.5
+	if float(plant.get("solar_buff_timer", 0.0)) > 0.0:
+		base *= 1.0 + float(plant.get("solar_buff_ratio", 0.0))
+	base *= 1.0 + _ensure_plant_runtime().galaxy_damage_bonus(row, col)
 	return base
 
 
@@ -8852,7 +8855,7 @@ func _create_plant(kind: String, row: int, col: int) -> Dictionary:
 		"copy_timer": 0.0,
 		"effect_timer": 0.0,
 		"save_cooldown": 0.0,
-		"armor_layer": 0,
+		"armor_layer": int(data.get("armor_layers", 0)),
 		"laser_state": "",
 		"core_state": "",
 		"special_state": "",
@@ -8943,6 +8946,8 @@ func _create_plant(kind: String, row: int, col: int) -> Dictionary:
 		"vine_emperor":
 			plant["attack_timer"] = 0.42
 		"soul_flower":
+			plant["sun_timer"] = float(stats.get("first_sun_delay", data["first_sun_delay"]))
+		"honey_blossom", "solar_emperor":
 			plant["sun_timer"] = float(stats.get("first_sun_delay", data["first_sun_delay"]))
 		"plasma_shooter":
 			plant["attack_timer"] = 0.55
@@ -10891,7 +10896,8 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				for col_idx in range(grid[row_idx].size()):
 					var cell = grid[row_idx][col_idx]
 					if cell != null and cell.get("kind", "") != "":
-						cell["armor"] = float(cell.get("armor", 0.0)) + 600.0
+						cell["armor_health"] = float(cell.get("armor_health", 0.0)) + float(Defs.PLANTS[kind]["ultimate_shield"])
+						cell["max_armor_health"] = maxf(float(cell.get("max_armor_health", 0.0)), float(cell["armor_health"]))
 			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 700.0, "time": 1.5, "duration": 1.5, "color": Color(0.2, 0.8, 1.0, 0.35)})
 		"spiral_bamboo":
 			var spos = center
@@ -10946,7 +10952,8 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 		"rock_armor_fruit":
 			var rpos = center
 			plant["health"] = float(plant.get("max_health", 500.0))
-			plant["armor"] = float(plant.get("max_health", 500.0)) * 0.8
+			plant["armor_health"] = maxf(float(plant.get("armor_health", 0.0)), float(plant["max_health"]) * 0.8)
+			plant["max_armor_health"] = maxf(float(plant.get("max_armor_health", 0.0)), float(plant["armor_health"]))
 			for z in zombies:
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 				if rpos.distance_to(zpos) < 350.0:
@@ -11156,23 +11163,24 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			var hit_ids: Array = []
 			var dmg = 280.0
 			for _chain in range(8):
-				var best_z = null
-				var best_dist = 9999.0
-				for z in zombies:
-					if z.get("id", -1) in hit_ids:
+				var best_index := -1
+				var best_dist := INF
+				for index in range(zombies.size()):
+					var z = zombies[index]
+					if index in hit_ids or not _is_enemy_zombie(z):
 						continue
 					var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 					var d = clpos.distance_to(zpos)
 					if d < best_dist:
 						best_dist = d
-						best_z = z
-					if best_z == null:
-						break
-					best_z["health"] = float(best_z["health"]) - dmg
-					best_z["flash"] = 0.4
-					hit_ids.append(best_z.get("id", -1))
-					clpos = Vector2(float(best_z["x"]), _row_center_y(int(best_z["row"])))
-					dmg = max(dmg * 0.85, 60.0)
+						best_index = index
+				if best_index < 0:
+					break
+				var best_z = zombies[best_index]
+				zombies[best_index] = _apply_zombie_damage(best_z, dmg, 0.4)
+				hit_ids.append(best_index)
+				clpos = Vector2(float(best_z["x"]), _row_center_y(int(best_z["row"])))
+				dmg = maxf(dmg * 0.85, 60.0)
 			effects.append({"position": center, "radius": 200.0, "time": 0.8, "duration": 0.8, "color": Color(0.2, 0.9, 0.8, 0.6)})
 		"plasma_shroom":
 			var pspos = center
@@ -12592,6 +12600,10 @@ func _update_zombies(delta: float) -> void:
 				plant["health"] -= bite_damage
 			if String(plant["kind"]) == "cactus_guard":
 				zombie = _apply_zombie_damage(zombie, float(Defs.PLANTS["cactus_guard"]["thorns"]) * delta, 0.08)
+			elif String(plant["kind"]) == "thorn_cactus":
+				zombie = _apply_zombie_damage(zombie, float(Defs.PLANTS["thorn_cactus"]["thorns"]) * delta * _plant_enhance_multiplier_at_cell(target.x, target.y), 0.08)
+			elif String(plant["kind"]) == "crystal_nut" and float(plant.get("holy_invincible_timer", 0.0)) <= 0.0:
+				zombie = _apply_zombie_damage(zombie, bite_damage * float(Defs.PLANTS["crystal_nut"]["reflect_ratio"]) * _plant_enhance_multiplier_at_cell(target.x, target.y), 0.08)
 			if String(plant["kind"]) == "garlic":
 				var redirected_row = _choose_adjacent_valid_row_for_kind(String(zombie["kind"]), int(zombie["row"]))
 				if redirected_row != int(zombie["row"]):
@@ -12702,6 +12714,7 @@ func _update_suns(delta: float) -> void:
 			var distance = to_target.length()
 			if distance <= SUN_COLLECT_SPEED * delta:
 				sun_points += int(sun["value"])
+				_ensure_plant_runtime().on_sun_collected()
 				suns.remove_at(i)
 				continue
 			sun_pos += to_target.normalized() * SUN_COLLECT_SPEED * delta
@@ -12833,6 +12846,10 @@ func _update_effects(delta: float) -> void:
 	for i in range(effects.size() - 1, -1, -1):
 		var effect = effects[i]
 		var volcano_shape = String(effect.get("shape", ""))
+		if volcano_shape in ["plasma_zone", "core_lava"]:
+			if boss_time_stop_timer > 0.0:
+				continue
+			_damage_zombies_in_circle(Vector2(effect["position"]), float(effect["radius"]), float(effect.get("dps", 0.0)) * minf(maxf(delta, 0.0), maxf(float(effect["time"]), 0.0)))
 		if volcano_shape in ["volcano_warning", "volcano_steam", "volcano_pulse"]:
 			if boss_time_stop_timer > 0.0:
 				continue
@@ -12943,6 +12960,8 @@ func _remove_dead_plants() -> void:
 			if plant_variant == null:
 				continue
 			if float(plant_variant["health"]) <= 0.0:
+				if _ensure_plant_runtime().try_passive_revival(plant_variant, row, col):
+					continue
 				if track:
 					objective_runtime.notify_plant_removed(plant_variant)
 				grid[row][col] = null
@@ -12952,6 +12971,8 @@ func _remove_dead_plants() -> void:
 			if support_variant == null:
 				continue
 			if float(support_variant["health"]) <= 0.0:
+				if _ensure_plant_runtime().try_passive_revival(support_variant, row, col):
+					continue
 				if track:
 					objective_runtime.notify_plant_removed(support_variant)
 				support_grid[row][col] = null
@@ -13066,9 +13087,10 @@ func _cleanup_dead_zombies() -> void:
 					continue
 				if String(plant_variant.get("kind", "")) != "soul_flower":
 					continue
-				if not bool(plant_variant.get("ultimate_active", false)):
+				if not _ensure_plant_runtime().passive_source_ready(plant_variant):
 					continue
-				soul_bonus = max(soul_bonus, int(Defs.PLANTS["soul_flower"].get("kill_sun_bonus", 25)) * 2)
+				var soul_multiplier = 2 if bool(plant_variant.get("ultimate_active", false)) else 1
+				soul_bonus = max(soul_bonus, int(Defs.PLANTS["soul_flower"].get("kill_sun_bonus", 25)) * soul_multiplier)
 		if soul_bonus > 0:
 			_spawn_sun(
 				Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 18.0),
