@@ -245,7 +245,7 @@ const PLANTS: Dictionary = {
 		"cooldown": 30.0,
 		"health": 999.0,
 		"fuse": 0.75,
-		"radius": 155.0,
+		"radius": 155.0, "blast_cells": 3,
 		"damage": 1600.0,
 	},
 	"wallnut": {
@@ -422,7 +422,7 @@ const PLANTS: Dictionary = {
 		"cost": 125,
 		"cooldown": 50.0,
 		"health": 999.0,
-		"radius": 220.0,
+		"radius": 220.0, "blast_cells": 5,
 		"crater_time": 30.0,
 	},
 	"moon_lotus": {

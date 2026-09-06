@@ -57,7 +57,7 @@ static func plant_lines(kind: String) -> Array:
 		"sunflower":
 			return ["稳定生产 50 阳光，是白天关卡的经济核心。", "能量豆会立刻喷出一串阳光。"]
 		"cherry_bomb":
-			return ["短暂引信后爆炸，清掉一大片敌人和障碍。", "能量豆会扩大爆炸范围。"]
+			return ["短暂引信后爆炸，摧毁中心周围 3×3 格内的敌人和障碍。", "能量豆会在更大范围内引爆。"]
 		"wallnut":
 			return ["高耐久肉盾，负责拖住前排。", "能量豆提供额外护甲。"]
 		"potato_mine":
@@ -99,7 +99,7 @@ static func plant_lines(kind: String) -> Array:
 		"ice_shroom":
 			return ["引爆后冻结整场僵尸，并留下较长减速。", "能量豆会延长冻结和减速时间。"]
 		"doom_shroom":
-			return ["超大范围爆炸蘑菇，适合清理夜晚重压。", "能量豆会把范围和伤害再抬一档。"]
+			return ["超大范围爆炸蘑菇，摧毁中心周围 5×5 格内的敌人和障碍。", "能量豆会把范围和伤害再抬一档。"]
 		"moon_lotus":
 			return ["夜晚经济植物，会稳定产出 50 阳光。", "能量豆会喷出月华并叫醒全场植物。"]
 		"prism_grass":

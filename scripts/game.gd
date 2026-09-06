@@ -17411,10 +17411,10 @@ func _dragon_boat_visual_state(center: Vector2, zombie: Dictionary) -> Dictionar
 
 func _explode_cherry(row: int, col: int, mega: bool = false) -> void:
 	var center = _cell_center(row, col)
-	var radius = float(Defs.PLANTS["cherry_bomb"]["radius"])
+	var blast_cells := 5 if mega else int(Defs.PLANTS["cherry_bomb"].get("blast_cells", 3))
+	var radius = _blast_radius_for_cells(blast_cells)
 	var damage = float(Defs.PLANTS["cherry_bomb"]["damage"])
 	if mega:
-		radius += 72.0
 		damage *= 1.35
 	effects.append({
 			"position": center,
@@ -17429,8 +17429,7 @@ func _explode_cherry(row: int, col: int, mega: bool = false) -> void:
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
-		if zombie_pos.distance_to(center) <= radius:
+		if _blast_affects_cell(row, col, int(zombie["row"]), _zombie_cell_col(float(zombie["x"])), blast_cells):
 			zombie["health"] -= damage
 			zombie["flash"] = 0.24
 			zombies[i] = zombie
@@ -17518,10 +17517,10 @@ func _trigger_ice_shroom(row: int, col: int, boosted: bool = false) -> void:
 
 func _trigger_doom_shroom(row: int, col: int, boosted: bool = false) -> void:
 	var center = _cell_center(row, col)
-	var radius = float(Defs.PLANTS["doom_shroom"]["radius"])
+	var blast_cells := 7 if boosted else int(Defs.PLANTS["doom_shroom"].get("blast_cells", 5))
+	var radius = _blast_radius_for_cells(blast_cells)
 	var damage = 1800.0
 	if boosted:
-		radius += 80.0
 		damage = 2600.0
 	effects.append({
 		"position": center,
@@ -17532,9 +17531,26 @@ func _trigger_doom_shroom(row: int, col: int, boosted: bool = false) -> void:
 	})
 	_trigger_screen_shake(12.0 if boosted else 8.0)
 	_spawn_death_poof(center, Color(0.5, 0.1, 0.3))
-	_damage_zombies_in_circle(center, radius, damage)
+	for i in range(zombies.size()):
+		var zombie = zombies[i]
+		if not _is_enemy_zombie(zombie):
+			continue
+		if _blast_affects_cell(row, col, int(zombie["row"]), _zombie_cell_col(float(zombie["x"])), blast_cells):
+			zombie["health"] -= damage
+			zombie["flash"] = 0.28
+			zombies[i] = zombie
 	_apply_ash_hits_in_circle(center, radius, 1)
 	_damage_obstacles_in_circle(center, radius, damage)
+
+
+func _blast_radius_for_cells(cell_span: int) -> float:
+	var half_span := maxi(1, cell_span) / 2.0
+	return CELL_SIZE.length() * half_span
+
+
+func _blast_affects_cell(center_row: int, center_col: int, target_row: int, target_col: int, cell_span: int) -> bool:
+	var half_span := maxi(1, cell_span) / 2
+	return abs(target_row - center_row) <= half_span and abs(target_col - center_col) <= half_span
 
 
 func _find_projectile_target(projectile: Dictionary) -> int:

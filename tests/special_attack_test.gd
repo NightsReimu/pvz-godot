@@ -13,6 +13,7 @@ func _run() -> void:
 	failed = not _test_squash_slam_hits_multiple_zombies() or failed
 	failed = not _test_chomper_does_not_instantly_defeat_bosses() or failed
 	failed = not _test_fume_effect_is_directional() or failed
+	failed = not _test_cherry_and_doom_use_grid_blast_sizes() or failed
 	quit(1 if failed else 0)
 
 
@@ -102,5 +103,27 @@ func _test_fume_effect_is_directional() -> bool:
 		game.free()
 		return false
 	var passed = _assert_true(String(game.effects[game.effects.size() - 1].get("shape", "")) == "fume_cloud", "fume_shroom effect should use its dedicated forward fume cloud")
+	game.free()
+	return passed
+
+
+func _test_cherry_and_doom_use_grid_blast_sizes() -> bool:
+	var game = _make_game()
+	var center = game._cell_center(2, 2)
+	game._spawn_zombie_at("normal", 2, game._cell_center(2, 3).x)
+	game._spawn_zombie_at("normal", 2, game._cell_center(2, 4).x)
+	var cherry_near = float(game.zombies[0]["health"])
+	var cherry_far = float(game.zombies[1]["health"])
+	game._explode_cherry(2, 2)
+	var passed = _assert_true(float(game.zombies[0]["health"]) < cherry_near, "cherry bomb should hit the adjacent cell in its 3x3 area") \
+		and _assert_true(is_equal_approx(float(game.zombies[1]["health"]), cherry_far), "cherry bomb should not hit two cells away")
+	game.zombies.clear()
+	game._spawn_zombie_at("normal", 0, game._cell_center(0, 0).x)
+	game._spawn_zombie_at("normal", 2, game._cell_center(2, 8).x)
+	var doom_near = float(game.zombies[0]["health"])
+	var doom_far = float(game.zombies[1]["health"])
+	game._trigger_doom_shroom(2, 2)
+	passed = _assert_true(float(game.zombies[0]["health"]) < doom_near, "doom shroom should hit the corner of its 5x5 area") and passed
+	passed = _assert_true(is_equal_approx(float(game.zombies[1]["health"]), doom_far), "doom shroom should not hit three cells away") and passed
 	game.free()
 	return passed
