@@ -2,6 +2,7 @@ extends SceneTree
 
 const GameScript = preload("res://scripts/game.gd")
 const Defs = preload("res://scripts/game_defs.gd")
+const PlantDefs = preload("res://scripts/data/plant_defs.gd")
 const AlmanacText = preload("res://scripts/data/almanac_text.gd")
 
 
@@ -20,6 +21,7 @@ func _run() -> void:
 	failed = not _test_cloud_sea_cells_drift_and_drop_unsupported_plants() or failed
 	failed = not _test_prismriver_finale_bgm_starts_only_for_prismriver() or failed
 	failed = not _test_lily_and_prismriver_skills_create_bounded_stage_four_pressure() or failed
+	failed = not _test_cotton_candy_cloud_plant_and_passive_support() or failed
 	quit(1 if failed else 0)
 
 
@@ -382,5 +384,37 @@ func _test_lily_and_prismriver_skills_create_bounded_stage_four_pressure() -> bo
 				has_prism_fx = true
 		passed = _assert_true(has_prism_fx, "Prismriver skills should create visible music/prism effects") and passed
 		passed = _assert_true(float(prism_damaged_plant.get("health", 0.0)) > 0.0, "Prismriver skill cycle should pressure plants without instantly deleting a 1400 HP plant") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_cotton_candy_cloud_plant_and_passive_support() -> bool:
+	var game = _make_game()
+	game.current_level = {"id": "cloud-test", "terrain": "cloud_sea", "events": [], "row_count": 5}
+	game.call("_setup_cell_terrain_mask")
+	game.call("_initialize_cloud_sea_mask")
+	var cotton = Dictionary(Defs.PLANTS.get("cotton_candy", {}))
+	var level = Defs.LEVELS[_find_level_index("2-28")]
+	var passed = _assert_true(PlantDefs.ORDER.has("cotton_candy"), "cotton_candy should be in the plant order") \
+		and _assert_true(not cotton.is_empty(), "cotton_candy should have a plant definition") \
+		and _assert_true(Array(level.get("available_plants", [])).has("cotton_candy"), "2-28 should offer cotton_candy") \
+		and _assert_true(Array(level.get("conveyor_plants", [])).has("cotton_candy"), "2-28 conveyor should include cotton_candy") \
+		and _assert_true(String(game.call("_placement_error", "cotton_candy", 2, 3)) == "", "cotton_candy should be placeable on a cloud")
+	game.call("_set_cell_terrain_kind", 2, 0, "sky_gap")
+	passed = _assert_true(String(game.call("_placement_error", "cotton_candy", 2, 0)) == "", "cotton_candy should be placeable on an empty sky gap") and passed
+	game.call("_set_cell_terrain_kind", 2, 0, "land")
+	passed = _assert_true(String(game.call("_placement_error", "cotton_candy", 2, 0)).find("云朵") != -1, "cotton_candy should reject ordinary land") and passed
+	if passed:
+		var ally = game.call("_create_plant", "sunflower", 2, 2)
+		ally["health"] = 40.0
+		game.grid[2][2] = ally
+		cotton = game.call("_create_plant", "cotton_candy", 2, 3)
+		cotton["support_timer"] = 0.0
+		game.grid[2][3] = cotton
+		game.zombies.append({"kind": "basic", "row": 2, "x": game._cell_center(2, 3).x, "base_speed": 40.0, "slow_timer": 0.0, "slow_ratio": 0.0, "health": 100.0, "max_health": 100.0})
+		game.call("_ensure_plant_runtime").update_plants(0.1)
+		passed = _assert_true(float(game.grid[2][2]["health"]) > 40.0, "cotton_candy passive should heal a nearby plant") and passed
+		passed = _assert_true(float(game.zombies[0].get("slow_timer", 0.0)) >= 2.6, "cotton_candy passive should slow nearby zombies") and passed
+		passed = _assert_true(not game.effects.is_empty(), "cotton_candy passive should create a visible sugar cloud effect") and passed
 	_free_game(game)
 	return passed

@@ -8440,6 +8440,12 @@ func _placement_error(kind: String, row: int, col: int) -> String:
 		if top_plant != null or support_plant != null:
 			return "这个格子已经被占用了"
 		return ""
+	if kind == "cotton_candy":
+		if terrain != "cloud" and terrain != "sky_gap":
+			return "棉花糖只能放在云朵或天空空缺上"
+		if top_plant != null or support_plant != null:
+			return "这个格子已经被占用了"
+		return ""
 	if kind == "tangle_kelp":
 		if terrain != "water":
 			return "缠绕海草只能种在水里"
@@ -8727,6 +8733,9 @@ func _handle_board_click(cell: Vector2i) -> void:
 		_detonate_one_shot_plant(selected_tool, cell.x, cell.y)
 	else:
 		grid[cell.x][cell.y] = _create_plant(selected_tool, cell.x, cell.y)
+	if selected_tool == "cotton_candy" and _cell_terrain_kind(cell.x, cell.y) == "sky_gap":
+		# Cotton candy fills a vacant sky slot and turns it into a stable cloud tile.
+		_set_cell_terrain_kind(cell.x, cell.y, "cloud")
 	if _is_conveyor_level():
 		_consume_conveyor_card(selected_tool)
 	selected_tool = ""
@@ -8911,6 +8920,8 @@ func _create_plant(kind: String, row: int, col: int) -> Dictionary:
 			plant["support_timer"] = float(stats.get("regen_interval", data["regen_interval"]))
 		"healing_gourd":
 			plant["support_timer"] = 0.8
+		"cotton_candy":
+			plant["support_timer"] = float(stats.get("support_interval", data.get("support_interval", 2.8)))
 		"mango_bowling":
 			plant["attack_timer"] = 0.8
 		"snow_bloom":
@@ -10499,6 +10510,18 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					grid[rr][cc] = hp
 			_damage_zombies_in_circle(center, 200.0, 100.0)
 			effects.append({"position": center, "radius": 400.0, "time": 0.42, "duration": 0.42, "color": Color(0.56, 0.98, 0.42, 0.28)})
+			_trigger_screen_shake(4.0)
+		"cotton_candy":
+			for rr in range(maxi(0, row - 1), mini(ROWS, row + 2)):
+				for cc in range(maxi(0, col - 1), mini(COLS, col + 2)):
+					var cp = _targetable_plant_at(rr, cc)
+					if cp == null:
+						continue
+					cp["health"] = minf(float(cp.get("max_health", 120.0)), float(cp.get("health", 0.0)) + float(Defs.PLANTS[kind].get("ultimate_heal", 180.0)))
+					cp["flash"] = maxf(float(cp.get("flash", 0.0)), 0.24)
+					_set_targetable_plant(rr, cc, cp)
+			var cotton_radius := CELL_SIZE.length() * 1.5
+			effects.append({"shape": "glow_burst", "position": center, "radius": cotton_radius, "time": 0.5, "duration": 0.5, "color": Color(1.0, 0.76, 0.94, 0.46)})
 			_trigger_screen_shake(4.0)
 
 		# === CAMPAIGN CORE: WATER PLANTS ===
@@ -26581,6 +26604,33 @@ func _draw_sunflower(center: Vector2, size_scale: float, flash: float, alpha: fl
 	draw_arc(core_center + Vector2(0.0, 2.0 * size_scale), 6.0 * size_scale, 0.1, PI - 0.1, 12, Color(0.06, 0.06, 0.06, alpha), 2.0 * size_scale)
 
 
+func _draw_cotton_candy(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
+	var pulse := 0.5 + 0.5 * sin(ui_time * 3.2)
+	var candy := Color(1.0, 0.72, 0.9, alpha).lerp(Color.WHITE, flash * 1.8)
+	var mint := Color(0.52, 0.92, 0.8, alpha)
+	_draw_ground_shadow(center, 15.0 * size_scale, alpha, 34.0 * size_scale)
+	# Sweet-striped stalk and a three-lobed cotton cloud keep the silhouette readable in cards.
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), mint, 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, 16.0 * size_scale), center + Vector2(3.0 * size_scale, 31.0 * size_scale), Color(0.8, 1.0, 0.9, alpha), 2.0 * size_scale)
+	for leaf_offset in [Vector2(-14.0, 20.0), Vector2(14.0, 20.0)]:
+		_draw_ink_disc(center + leaf_offset * size_scale, 9.0 * size_scale, mint)
+		draw_circle(center + leaf_offset * size_scale + Vector2(0.0, -1.5) * size_scale, 6.0 * size_scale, Color(0.68, 0.98, 0.86, alpha))
+	var cloud_center := center + Vector2(0.0, -9.0 * size_scale)
+	var halo_alpha := alpha * (0.12 + pulse * 0.08)
+	draw_arc(cloud_center, 28.0 * size_scale, -pulse * 0.8, TAU - pulse * 0.8, 22, Color(1.0, 0.82, 0.96, halo_alpha), 2.2 * size_scale)
+	for puff in [Vector2(-14.0, 1.0), Vector2(0.0, -9.0), Vector2(15.0, 1.0)]:
+		_draw_ink_disc(cloud_center + puff * size_scale, 16.0 * size_scale, candy)
+		draw_circle(cloud_center + (puff + Vector2(-4.0, -4.0)) * size_scale, 7.0 * size_scale, Color(1.0, 0.9, 0.98, alpha * 0.72))
+	# Candy-stick face and a tiny sugar sparkle communicate the support role at a glance.
+	draw_circle(cloud_center + Vector2(-6.0, -2.0) * size_scale, 2.4 * size_scale, Color(0.18, 0.12, 0.2, alpha))
+	draw_circle(cloud_center + Vector2(6.0, -2.0) * size_scale, 2.4 * size_scale, Color(0.18, 0.12, 0.2, alpha))
+	draw_arc(cloud_center + Vector2(0.0, 4.0) * size_scale, 5.0 * size_scale, 0.2, PI - 0.2, 12, Color(0.28, 0.14, 0.24, alpha), 1.8 * size_scale)
+	for sparkle in [Vector2(-27.0, -23.0), Vector2(28.0, -19.0)]:
+		var s := (3.0 + pulse * 1.8) * size_scale
+		draw_line(cloud_center + sparkle * size_scale - Vector2(s, 0.0), cloud_center + sparkle * size_scale + Vector2(s, 0.0), Color(1.0, 0.94, 0.99, alpha * 0.76), 1.8 * size_scale)
+		draw_line(cloud_center + sparkle * size_scale - Vector2(0.0, s), cloud_center + sparkle * size_scale + Vector2(0.0, s), Color(1.0, 0.94, 0.99, alpha * 0.76), 1.8 * size_scale)
+
+
 func _draw_peashooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	if _try_draw_polished_plant("peashooter", center, size_scale, flash, alpha):
 		return
@@ -32967,6 +33017,8 @@ func _plant_almanac_stats(kind: String) -> Array:
 			stats.append("定位：会自我回复的全息厚墙")
 		"healing_gourd":
 			stats.append("效果：脉冲治疗周围植物")
+		"cotton_candy":
+			stats.append("效果：云格专用，3×3 糖云治疗并减速")
 		"mango_bowling":
 			stats.append("攻击：滚动芒果撞击并溅射相邻行")
 		"snow_bloom":

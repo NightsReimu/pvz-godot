@@ -78,6 +78,7 @@ const ORDER: Array = [
 	"leyline",
 	"holo_nut",
 	"healing_gourd",
+	"cotton_candy",
 	"mango_bowling",
 	"snow_bloom",
 	"cluster_boomerang",
@@ -213,6 +214,14 @@ const PLANTS: Dictionary = {
 		"shoot_interval": 4, "damage": 90.0, "volcano_expansion": true,
 		"ultimate_name": "地脉共鸣", "ultimate_charge_time": 55.0, "ultimate_duration": 0.8,
 		"almanac": ["跨行抛射熔核；邻近未封堵岩浆时威力提高，喷发还能储存三层热量。", "引导全场岩浆安全共鸣，仅打击敌人，并暂时冷却火口。"],
+	},
+	"cotton_candy": {
+		"name": "棉花糖", "cost": 125, "cooldown": 9.0, "health": 145.0,
+		"shoot_interval": 2.8, "damage": 0.0, "cloud_only": true,
+		"support_interval": 2.8, "heal_amount": 28.0, "slow_ratio": 0.35, "slow_duration": 2.6,
+		"ultimate_name": "棉花糖庆典", "ultimate_charge_time": 58.0, "ultimate_duration": 0.8,
+		"ultimate_heal": 180.0,
+		"almanac": ["只能种在云格。每 2.8 秒释放糖云，治疗周围 3×3 植物 28 点，并使范围内僵尸减速 35% 持续 2.6 秒。", "棉花糖庆典：立即治疗周围 3×3 植物 180 点，并绽放糖云高光。"],
 	},
 	"peashooter": {
 		"name": "豌豆射手",

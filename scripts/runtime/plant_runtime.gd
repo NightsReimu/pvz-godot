@@ -129,6 +129,8 @@ func update_plants(delta: float) -> void:
 					update_holo_nut(plant, delta, row, col)
 				"healing_gourd":
 					update_healing_gourd(plant, delta, row, col)
+				"cotton_candy":
+					update_cotton_candy(plant, delta, row, col)
 				"mango_bowling":
 					update_mango_bowling(plant, delta, row, col)
 				"snow_bloom":
@@ -1499,6 +1501,39 @@ func update_healing_gourd(plant: Dictionary, delta: float, row: int, col: int) -
 		})
 		plant["flash"] = maxf(float(plant["flash"]), 0.14)
 		game._trigger_plant_action(plant, 0.18)
+
+
+func update_cotton_candy(plant: Dictionary, delta: float, row: int, col: int) -> void:
+	if float(plant.get("support_timer", 0.0)) > 0.0:
+		return
+	var data: Dictionary = Defs.PLANTS["cotton_candy"]
+	var heal_amount := float(data.get("heal_amount", 28.0))
+	var slow_ratio := float(data.get("slow_ratio", 0.35))
+	var slow_duration := float(data.get("slow_duration", 2.6))
+	var pulse_radius: float = game.CELL_SIZE.length() * 1.5
+	var center: Vector2 = game._cell_center(row, col)
+	var healed := false
+	var affected_zombies := 0
+	for other_row in range(maxi(0, row - 1), mini(game.ROWS, row + 2)):
+		for other_col in range(maxi(0, col - 1), mini(game.COLS, col + 2)):
+			healed = _heal_targetable_plant(other_row, other_col, heal_amount, 0.1) or healed
+	for zombie_index in range(game.zombies.size()):
+		var zombie: Dictionary = game.zombies[zombie_index]
+		if not game._is_enemy_zombie(zombie) or bool(zombie.get("jumping", false)):
+			continue
+		var zombie_row := int(zombie.get("row", -1))
+		var zombie_col: int = game._zombie_cell_col(float(zombie.get("x", 0.0)))
+		if abs(zombie_row - row) > 1 or abs(zombie_col - col) > 1:
+			continue
+		zombie = game._apply_zombie_slow(zombie, slow_ratio, slow_duration)
+		game.zombies[zombie_index] = zombie
+		affected_zombies += 1
+		game.effects.append({"shape": "cotton_spark", "position": Vector2(float(zombie["x"]), game._row_center_y(zombie_row) - 14.0), "radius": 13.0, "time": 0.28, "duration": 0.28, "color": Color(1.0, 0.78, 0.94, 0.62)})
+	if healed or affected_zombies > 0:
+		game.effects.append({"shape": "glow_burst", "position": center, "radius": pulse_radius, "time": 0.3, "duration": 0.3, "color": Color(1.0, 0.78, 0.94, 0.3)})
+		plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.18)
+		game._trigger_plant_action(plant, 0.2)
+	plant["support_timer"] = float(data.get("support_interval", 2.8))
 
 
 func update_mango_bowling(plant: Dictionary, delta: float, row: int, col: int) -> void:
