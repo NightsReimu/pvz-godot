@@ -72,6 +72,21 @@ func difference(a: Image, b: Image, silhouette: bool) -> float:
 
 
 func _run() -> void:
+	var identity_game := GameScript.new()
+	check(identity_game.has_method("_gacha_identity_profile"), "gacha plants should expose an identity profile")
+	if identity_game.has_method("_gacha_identity_profile"):
+		var seen_shapes := {}
+		for kind_variant in Defs.PLANTS.keys():
+			var kind := String(kind_variant)
+			if not bool(Defs.PLANTS[kind].get("gacha_only", false)):
+				continue
+			var profile: Dictionary = identity_game.call("_gacha_identity_profile", kind)
+			check(not profile.is_empty(), "gacha identity profile should exist: %s" % kind)
+			var shape := String(profile.get("shape", ""))
+			check(not shape.is_empty(), "gacha identity profile should name a shape: %s" % kind)
+			seen_shapes[shape] = true
+		check(seen_shapes.size() >= 8, "gacha plants should keep several distinct silhouette families")
+	identity_game.free()
 	if DisplayServer.get_name() == "headless":
 		print("SKIP: pixel comparison requires a display renderer")
 		quit()

@@ -26568,6 +26568,124 @@ func _draw_plant_body(kind: String, center: Vector2, size_scale: float = 1.0, fl
 			call(renderer, center, size_scale, flash, wilt_ratio, alpha)
 		_:
 			call(renderer, center, size_scale, flash, alpha)
+	if bool(definition.get("gacha_only", false)):
+		_draw_gacha_identity_layer(kind, center, size_scale, flash, alpha)
+
+
+func _gacha_identity_profile(kind: String) -> Dictionary:
+	var profiles := {
+		"shadow_pea": {"shape": "crescent", "color": Color(0.72, 0.34, 1.0)},
+		"ice_queen": {"shape": "ice_crown", "color": Color(0.62, 0.9, 1.0)},
+		"vine_emperor": {"shape": "thorn_vine", "color": Color(0.34, 0.86, 0.3)},
+		"soul_flower": {"shape": "soul_ring", "color": Color(0.86, 0.56, 1.0)},
+		"plasma_shooter": {"shape": "plasma_barrel", "color": Color(0.42, 0.9, 1.0)},
+		"crystal_nut": {"shape": "crystal_spire", "color": Color(0.62, 0.84, 1.0)},
+		"dragon_fruit": {"shape": "dragon_horn", "color": Color(1.0, 0.46, 0.18)},
+		"time_rose": {"shape": "clock_face", "color": Color(0.92, 0.66, 1.0)},
+		"galaxy_sunflower": {"shape": "orbit_ring", "color": Color(0.86, 0.7, 1.0)},
+		"void_shroom": {"shape": "singularity", "color": Color(0.7, 0.34, 1.0)},
+		"phoenix_tree": {"shape": "fire_wing", "color": Color(1.0, 0.5, 0.16)},
+		"thunder_god": {"shape": "lightning_crown", "color": Color(1.0, 0.92, 0.34)},
+		"prism_pea": {"shape": "prism_fan", "color": Color(0.46, 0.9, 1.0)},
+		"magnet_daisy": {"shape": "magnet_poles", "color": Color(1.0, 0.28, 0.72)},
+		"thorn_cactus": {"shape": "thorn_arms", "color": Color(0.54, 0.9, 0.28)},
+		"bubble_lotus": {"shape": "bubble_lotus", "color": Color(0.5, 0.9, 1.0)},
+		"spiral_bamboo": {"shape": "spiral_leaf", "color": Color(0.68, 1.0, 0.36)},
+		"honey_blossom": {"shape": "honeycomb", "color": Color(1.0, 0.78, 0.2)},
+		"echo_fern": {"shape": "echo_fronds", "color": Color(0.42, 1.0, 0.76)},
+		"glow_ivy": {"shape": "glow_vine", "color": Color(0.46, 1.0, 0.74)},
+		"laser_lily": {"shape": "laser_petals", "color": Color(1.0, 0.3, 0.56)},
+		"rock_armor_fruit": {"shape": "rock_plate", "color": Color(0.72, 0.64, 0.5)},
+		"aurora_orchid": {"shape": "aurora_ribbon", "color": Color(0.46, 0.9, 1.0)},
+		"blast_pomegranate": {"shape": "blast_crown", "color": Color(1.0, 0.34, 0.2)},
+		"frost_cypress": {"shape": "frost_bough", "color": Color(0.52, 0.84, 1.0)},
+		"mirror_shroom": {"shape": "mirror_shard", "color": Color(0.78, 0.88, 1.0)},
+		"chain_lotus": {"shape": "chain_ring", "color": Color(1.0, 0.62, 0.28)},
+		"plasma_shroom": {"shape": "plasma_spores", "color": Color(0.42, 0.84, 1.0)},
+		"meteor_flower": {"shape": "meteor_tail", "color": Color(1.0, 0.42, 0.2)},
+		"destiny_tree": {"shape": "destiny_branches", "color": Color(0.94, 0.78, 0.32)},
+		"abyss_tentacle": {"shape": "tentacle_eye", "color": Color(0.72, 0.3, 0.94)},
+		"solar_emperor": {"shape": "solar_disc", "color": Color(1.0, 0.84, 0.28)},
+		"shadow_assassin": {"shape": "assassin_blade", "color": Color(0.56, 0.3, 0.9)},
+		"core_blossom": {"shape": "core_fissure", "color": Color(1.0, 0.42, 0.16)},
+		"holy_lotus": {"shape": "holy_rays", "color": Color(1.0, 0.94, 0.56)},
+		"chaos_shroom": {"shape": "chaos_spiral", "color": Color(1.0, 0.34, 0.76)},
+	}
+	if profiles.has(kind):
+		return profiles[kind]
+	var fallback_shape := "gacha_%s" % kind
+	return {"shape": fallback_shape, "color": Color(0.72, 0.82, 0.9)}
+
+
+func _draw_gacha_identity_layer(kind: String, center: Vector2, size_scale: float, flash: float, alpha: float) -> void:
+	var profile := _gacha_identity_profile(kind)
+	var shape := String(profile.get("shape", ""))
+	var accent: Color = profile.get("color", Color(0.72, 0.82, 0.9))
+	accent.a *= alpha
+	var glow := Color(accent.r, accent.g, accent.b, 0.12 * alpha)
+	var pulse := 1.0 + 0.08 * sin(level_time * 3.0 + float(kind.hash() & 15))
+	if flash > 0.0:
+		accent = accent.lerp(Color.WHITE, minf(1.0, flash * 1.8))
+	match shape:
+		"crescent":
+			draw_arc(center + Vector2(-3.0, -18.0) * size_scale, 26.0 * size_scale, -2.4, 0.9, 24, accent, 4.0 * size_scale, true)
+			draw_arc(center + Vector2(-3.0, -18.0) * size_scale, 19.0 * size_scale, -2.25, 0.35, 20, glow, 7.0 * size_scale, true)
+		"ice_crown", "lightning_crown":
+			for i in range(3):
+				var x := float(i - 1) * 13.0 * size_scale
+				var tip := center + Vector2(x + (4.0 if shape == "lightning_crown" else 0.0), -46.0 - float(i % 2) * 8.0) * size_scale
+				_draw_ink_line(center + Vector2(x, -23.0) * size_scale, tip, accent, 3.0 * size_scale)
+		"thorn_vine", "glow_vine":
+			for side in [-1.0, 1.0]:
+				var end := center + Vector2(side * 38.0, -2.0) * size_scale
+				_draw_ink_line(center + Vector2(side * 8.0, 4.0) * size_scale, end, accent, 3.0 * size_scale)
+				draw_circle(end, 4.0 * size_scale, accent)
+		"soul_ring", "orbit_ring", "chain_ring":
+			draw_arc(center + Vector2(0.0, -9.0) * size_scale, (31.0 if shape != "chain_ring" else 27.0) * size_scale, level_time * 0.6, level_time * 0.6 + PI * 1.35, 32, accent, 3.0 * size_scale, true)
+			draw_arc(center + Vector2(0.0, -9.0) * size_scale, 37.0 * size_scale, level_time * 0.6 + PI, level_time * 0.6 + PI * 1.8, 24, glow, 5.0 * size_scale, true)
+		"plasma_barrel", "laser_petals":
+			var barrel_end := center + Vector2(34.0, -9.0) * size_scale
+			_draw_ink_line(center + Vector2(12.0, -9.0) * size_scale, barrel_end, accent, 5.0 * size_scale)
+			draw_circle(barrel_end, 6.0 * size_scale * pulse, accent)
+		"crystal_spire", "mirror_shard", "rock_plate":
+			var points := PackedVector2Array([
+				center + Vector2(-14.0, -24.0) * size_scale,
+				center + Vector2(0.0, -48.0) * size_scale,
+				center + Vector2(14.0, -24.0) * size_scale,
+				center + Vector2(0.0, -10.0) * size_scale,
+			])
+			draw_colored_polygon(points, Color(accent.r, accent.g, accent.b, 0.5 * alpha))
+			draw_polyline(points, accent, 2.5 * size_scale, true)
+		"dragon_horn", "assassin_blade":
+			_draw_ink_line(center + Vector2(-12.0, -18.0) * size_scale, center + Vector2(-23.0, -42.0) * size_scale, accent, 4.0 * size_scale)
+			_draw_ink_line(center + Vector2(12.0, -18.0) * size_scale, center + Vector2(23.0, -42.0) * size_scale, accent, 4.0 * size_scale)
+		"clock_face":
+			draw_arc(center + Vector2(0.0, -9.0) * size_scale, 25.0 * size_scale, 0.0, TAU, 32, accent, 2.5 * size_scale, true)
+			_draw_ink_line(center + Vector2(0.0, -9.0) * size_scale, center + Vector2(0.0, -22.0) * size_scale, accent, 2.0 * size_scale)
+			_draw_ink_line(center + Vector2(0.0, -9.0) * size_scale, center + Vector2(11.0, -3.0) * size_scale, accent, 2.0 * size_scale)
+		"fire_wing", "aurora_ribbon":
+			for side in [-1.0, 1.0]:
+				var wing := PackedVector2Array([
+					center + Vector2(0.0, -8.0) * size_scale,
+					center + Vector2(side * 34.0, -26.0) * size_scale,
+					center + Vector2(side * 24.0, 0.0) * size_scale,
+				])
+				draw_polyline(wing, accent, 4.0 * size_scale, true)
+		"tentacle_eye", "bubble_lotus":
+			for i in range(4):
+				var angle := TAU * float(i) / 4.0 + level_time * 0.4
+				var tip := center + Vector2(cos(angle), sin(angle)) * 31.0 * size_scale
+				_draw_ink_line(center, tip, accent, 2.5 * size_scale)
+				draw_circle(tip, 3.5 * size_scale, accent)
+		"solar_disc", "blast_crown", "honeycomb":
+			draw_arc(center + Vector2(0.0, -8.0) * size_scale, 33.0 * size_scale * pulse, 0.0, TAU, 24, accent, 3.0 * size_scale, true)
+		"singularity", "chaos_spiral":
+			draw_arc(center + Vector2(0.0, -8.0) * size_scale, 29.0 * size_scale, level_time, level_time + PI * 1.7, 36, accent, 3.0 * size_scale, true)
+		"prism_fan", "holy_rays", "echo_fronds", "frost_bough", "destiny_branches", "core_fissure", "meteor_tail", "spiral_leaf", "magnet_poles", "thorn_arms", "plasma_spores":
+			for i in range(5):
+				var angle := TAU * float(i) / 5.0 + level_time * 0.25
+				var end := center + Vector2(cos(angle), sin(angle)) * 34.0 * size_scale
+				_draw_ink_line(center + Vector2(0.0, -8.0) * size_scale, end, Color(accent.r, accent.g, accent.b, 0.75 * alpha), 2.5 * size_scale)
 
 
 func _draw_card_icon(kind: String, center: Vector2, portrait_scale: float = 1.0) -> void:
