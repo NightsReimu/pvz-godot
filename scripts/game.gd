@@ -669,6 +669,11 @@ var enhance_materials: Dictionary = {}
 var enhance_scroll := 0.0
 const MODE_ENHANCE := "enhance"
 const ENHANCE_MAX_LEVEL := 15
+const ENHANCE_RESONANCE_DEFS := {
+	"spark": {"level": 5, "name": "初鸣", "damage": 0.025, "health": 0.025, "speed": 0.02, "effect": 0.04, "desc": "专属能力开始共鸣"},
+	"surge": {"level": 10, "name": "涌动", "damage": 0.055, "health": 0.055, "speed": 0.045, "effect": 0.09, "desc": "专属能力获得强化"},
+	"apex": {"level": 15, "name": "完全共鸣", "damage": 0.1, "health": 0.1, "speed": 0.08, "effect": 0.16, "desc": "专属能力达到完全体"},
+}
 const ENHANCE_ARCHETYPE_DEFS := {
 	"assault": {
 		"name": "强攻",
@@ -6252,18 +6257,72 @@ func _plant_enhance_bonus(kind: String) -> Dictionary:
 	var level = int(plant_enhance_levels.get(kind, 0))
 	var raw_boost = _enhance_level_boost(level)
 	var profile = _plant_enhance_profile(kind)
+	var resonance := _plant_enhance_resonance(kind, level)
+	var resonance_damage := float(resonance.get("damage_mult", 1.0))
+	var resonance_health := float(resonance.get("health_mult", 1.0))
+	var resonance_speed := float(resonance.get("speed_mult", 1.0))
+	var resonance_effect := float(resonance.get("effect_mult", 1.0))
 	var effect_boost = raw_boost * float(profile.get("effect_scale", 0.0))
 	var interval_boost = raw_boost * float(profile.get("speed_scale", 0.0)) * 0.72
 	return {
 		"level": level,
 		"raw_boost": raw_boost,
-		"damage_mult": 1.0 + raw_boost * float(profile.get("damage_scale", 0.0)),
-		"health_mult": 1.0 + raw_boost * float(profile.get("health_scale", 0.0)),
-		"attack_speed_mult": 1.0 + raw_boost * float(profile.get("speed_scale", 0.0)) * 0.9,
+		"damage_mult": (1.0 + raw_boost * float(profile.get("damage_scale", 0.0))) * resonance_damage,
+		"health_mult": (1.0 + raw_boost * float(profile.get("health_scale", 0.0))) * resonance_health,
+		"attack_speed_mult": (1.0 + raw_boost * float(profile.get("speed_scale", 0.0)) * 0.9) * resonance_speed,
 		"interval_mult": 1.0 / maxf(0.2, 1.0 + interval_boost),
-		"effect_mult": 1.0 + effect_boost,
+		"effect_mult": (1.0 + effect_boost) * resonance_effect,
 		"cost_mult": maxf(0.82, 1.0 - raw_boost * 0.06),
 	}
+
+
+func _plant_enhance_resonance(kind: String, level: int = -1) -> Dictionary:
+	var current_level := int(plant_enhance_levels.get(kind, 0)) if level < 0 else level
+	var stage := ""
+	if current_level >= 15:
+		stage = "apex"
+	elif current_level >= 10:
+		stage = "surge"
+	elif current_level >= 5:
+		stage = "spark"
+	if stage.is_empty():
+		return {}
+	var definition: Dictionary = ENHANCE_RESONANCE_DEFS[stage]
+	var archetype := _plant_enhance_archetype(kind)
+	var passive_names := {
+		"assault": "锋芒", "artillery": "爆裂半径", "defender": "坚壁", "producer": "丰收脉冲", "control": "节律锁定", "support": "支援场",
+	}
+	return {
+		"stage": stage,
+		"level": int(definition.get("level", 0)),
+		"name": String(definition.get("name", stage)),
+		"passive": String(passive_names.get(archetype, "专属能力")),
+		"desc": String(definition.get("desc", "")),
+		"damage_mult": 1.0 + float(definition.get("damage", 0.0)),
+		"health_mult": 1.0 + float(definition.get("health", 0.0)),
+		"speed_mult": 1.0 + float(definition.get("speed", 0.0)),
+		"effect_mult": 1.0 + float(definition.get("effect", 0.0)),
+	}
+
+
+func _plant_enhance_next_preview(kind: String) -> Dictionary:
+	var level := int(plant_enhance_levels.get(kind, 0))
+	var next_level := mini(ENHANCE_MAX_LEVEL, level + 1)
+	var current_bonus := _plant_enhance_bonus(kind)
+	plant_enhance_levels[kind] = next_level
+	var next_bonus := _plant_enhance_bonus(kind)
+	plant_enhance_levels[kind] = level
+	return {
+		"level": level,
+		"next_level": next_level,
+		"current": current_bonus,
+		"next": next_bonus,
+		"resonance": _plant_enhance_resonance(kind, next_level),
+	}
+
+
+func _enhance_failure_floor(level: int) -> int:
+	return 10 if level >= 10 else 0
 
 
 func _get_enhance_multiplier(kind: String) -> float:
@@ -6418,8 +6477,13 @@ func _try_enhance_plant(kind: String) -> void:
 	else:
 		var penalty = int(table["penalty"])
 		if penalty > 0 and level > 0:
-			plant_enhance_levels[kind] = maxi(0, level - penalty)
-			_show_toast("强化失败! 降级至 +%d" % maxi(0, level - penalty))
+			var downgrade_floor := _enhance_failure_floor(level)
+			var next_level := maxi(downgrade_floor, level - penalty)
+			plant_enhance_levels[kind] = next_level
+			if next_level == level:
+				_show_toast("强化失败! 高阶共鸣保护生效")
+			else:
+				_show_toast("强化失败! 降级至 +%d" % next_level)
 		else:
 			_show_toast("强化失败!")
 	_mark_save_dirty(true)
@@ -6518,7 +6582,9 @@ func _draw_enhance_terminal_detail_panel(kind: String, panel_rect: Rect2) -> voi
 	draw_rect(Rect2(header_rect.position, Vector2(5.0, header_rect.size.y)), role_color, true)
 	draw_rect(header_rect, Color(role_color.r, role_color.g, role_color.b, 0.44), false, 1.5)
 	_draw_text("强化模块", header_rect.position + Vector2(22.0, 31.0), 24, Color(0.94, 0.98, 1.0))
-	_draw_text("%s / %s" % [String(data.get("name", kind)), String(material_def.get("name", "强化材料"))], header_rect.position + Vector2(22.0, 58.0), 14, role_color.lightened(0.2))
+	var current_resonance := _plant_enhance_resonance(kind, level)
+	var resonance_text := "未共鸣" if current_resonance.is_empty() else String(current_resonance.get("name", "共鸣"))
+	_draw_text("%s / %s · %s" % [String(data.get("name", kind)), String(material_def.get("name", "强化材料")), resonance_text], header_rect.position + Vector2(22.0, 58.0), 14, role_color.lightened(0.2))
 	var tab_rect = Rect2(panel_rect.position + Vector2(26.0, 100.0), Vector2(panel_rect.size.x - 52.0, 42.0))
 	draw_rect(tab_rect, Color(0.02, 0.035, 0.046, 0.72), true)
 	draw_rect(Rect2(tab_rect.position, Vector2(tab_rect.size.x / 3.0, tab_rect.size.y)), Color(role_color.r, role_color.g, role_color.b, 0.28), true)
@@ -6551,7 +6617,10 @@ func _draw_enhance_terminal_detail_panel(kind: String, panel_rect: Rect2) -> voi
 		var material_cost = _enhance_material_cost_for_level(level)
 		var owned_materials = int(enhance_materials.get(material, 0))
 		var can_afford_material = owned_materials >= material_cost
-		_draw_text("下一等级 +%d" % (level + 1), cost_rect.position + Vector2(18.0, 24.0), 14, Color(0.76, 0.86, 0.92))
+		var next_preview := _plant_enhance_next_preview(kind)
+		var next_resonance: Dictionary = next_preview.get("resonance", {})
+		var next_resonance_name := "" if next_resonance.is_empty() else " · %s" % String(next_resonance.get("name", "共鸣"))
+		_draw_text("下一等级 +%d%s" % [level + 1, next_resonance_name], cost_rect.position + Vector2(18.0, 24.0), 14, Color(0.76, 0.86, 0.92))
 		var cost_items = [
 			{"label": "金币", "value": str(int(table["cost"])), "color": Color(0.96, 0.82, 0.34)},
 			{"label": String(material_def.get("short", "材料")), "value": "%d/%d" % [owned_materials, material_cost], "color": Color(0.74, 0.94, 0.72) if can_afford_material else Color(1.0, 0.46, 0.36)},

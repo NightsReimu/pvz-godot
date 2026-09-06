@@ -13,6 +13,7 @@ func _run() -> void:
 	failed = not _test_every_plant_has_an_enhance_profile_and_material() or failed
 	failed = not _test_enhance_bonuses_are_distinct_by_plant_role() or failed
 	failed = not _test_mid_level_enhance_bonuses_feel_impactful() or failed
+	failed = not _test_resonance_milestones_and_preview() or failed
 	failed = not _test_enhancement_consumes_matching_material() or failed
 	failed = not _test_enhance_terminal_layout_uses_distinct_operator_panels() or failed
 	failed = not _test_enhance_terminal_actions_do_not_overlap() or failed
@@ -137,6 +138,29 @@ func _test_enhancement_consumes_matching_material() -> bool:
 	game.call("_try_enhance_plant", "peashooter")
 	var passed := _assert_true(int(game.plant_enhance_levels.get("peashooter", 0)) == 1, "peashooter should enhance when its role material is available") \
 		and _assert_true(int(game.enhance_materials.get(material, 0)) == 1, "enhancing should consume the matching role material")
+	_free_game(game)
+	return passed
+
+
+func _test_resonance_milestones_and_preview() -> bool:
+	var game := _make_game()
+	var passed := _assert_true(game.has_method("_plant_enhance_resonance"), "enhance should expose resonance milestones") \
+		and _assert_true(game.has_method("_plant_enhance_next_preview"), "enhance should expose next level preview") \
+		and _assert_true(game.has_method("_enhance_failure_floor"), "enhance should expose failure protection floor")
+	if passed:
+		game.plant_enhance_levels = {"shadow_pea": 4}
+		var locked: Dictionary = game.call("_plant_enhance_resonance", "shadow_pea", 4)
+		var first: Dictionary = game.call("_plant_enhance_resonance", "shadow_pea", 5)
+		var second: Dictionary = game.call("_plant_enhance_resonance", "shadow_pea", 10)
+		var maxed: Dictionary = game.call("_plant_enhance_resonance", "shadow_pea", 15)
+		var preview: Dictionary = game.call("_plant_enhance_next_preview", "shadow_pea")
+		passed = _assert_true(locked.is_empty(), "resonance should stay locked before level 5") and passed
+		passed = _assert_true(String(first.get("stage", "")) == "spark", "level 5 should unlock spark resonance") and passed
+		passed = _assert_true(String(second.get("stage", "")) == "surge", "level 10 should unlock surge resonance") and passed
+		passed = _assert_true(String(maxed.get("stage", "")) == "apex", "level 15 should unlock apex resonance") and passed
+		passed = _assert_true(int(preview.get("next_level", -1)) == 5, "preview should target the next resonance level") and passed
+		passed = _assert_true(int(game.call("_enhance_failure_floor", 9)) == 0, "low level failures should retain legacy floor") and passed
+		passed = _assert_true(int(game.call("_enhance_failure_floor", 10)) == 10, "level 10 failures should not downgrade") and passed
 	_free_game(game)
 	return passed
 
