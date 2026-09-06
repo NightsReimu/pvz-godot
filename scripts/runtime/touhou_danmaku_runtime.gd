@@ -434,6 +434,19 @@ func _emit_wave(c: Dictionary) -> void:
 				_fan(c, butterfly_origin, 24, PI + side * turn, 2.4, 145, violet if side < 0 else blue, "butterfly", {"angular_speed": side * 0.24})
 			if p == "zen_butterfly":
 				_beam(c, origin, origin + Vector2.from_angle(PI + turn * 0.6) * game.board_size.x, red, 0.85)
+		"wriggle_firefly", "wriggle_comet":
+			_ring(c, origin, 28 + wave * 2, turn, 112 + wave * 4, COLORS[2], "orb", {"angular_speed": 0.18})
+			_fan(c, origin, 7 + wave % 3, aimed, 0.7, 185, COLORS[3], "butterfly")
+		"wriggle_swarm", "wriggle_night_swarm":
+			for i in range(5 + int(c.phase)):
+				var emit = origin + Vector2(-50.0 + float(i) * 22.0, sin(turn + i) * 110.0)
+				_fan(c, emit, 8 + wave % 4, aimed + sin(i + turn) * 0.45, 1.5, 150 + wave * 3, COLORS[4], "butterfly")
+		"wriggle_storm", "wriggle_little_bug":
+			_ring(c, origin, 42 + wave * 3, -turn, 148 + wave * 5, COLORS[4], "butterfly", {"angular_speed": -0.32})
+			_fan(c, origin, 11, aimed, 1.8, 205, COLORS[0], "orb")
+		"wriggle_final":
+			_ring(c, origin, 56 + wave * 4, turn, 168 + wave * 6, COLORS[2], "butterfly", {"angular_speed": 0.42})
+			_fan(c, origin, 15, aimed, 2.2, 230, COLORS[0], "orb")
 
 
 func _emit_nonspell(c: Dictionary) -> void:
@@ -499,6 +512,9 @@ func _emit_nonspell(c: Dictionary) -> void:
 				_fan(c, emit, 12 + extra, (_target(emit) - emit).angle(), 1.4, 160, COLORS[4], "ofuda", {"angular_speed": side * 0.22})
 			if stage >= 4 and wave % 2 == 0:
 				_beam(c, origin, _target(origin), COLORS[0], 0.9, 9)
+		"nonspell_wriggle_night_swarm":
+			_ring(c, origin, 24 + extra * 3, turn, 118 + stage * 16, COLORS[3], "butterfly", {"angular_speed": 0.24})
+			_fan(c, origin, 8 + extra, aim, 1.4, 170 + stage * 12, COLORS[4], "orb")
 
 
 func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary = {}) -> void:

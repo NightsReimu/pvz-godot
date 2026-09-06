@@ -453,6 +453,7 @@ const YUYUKO_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const RAN_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const YUKARI_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const FLANDRE_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
+const WRIGGLE_FRAME_COUNT := 24
 
 static var shared_audio_stream_cache := {}
 static var shared_sfx_stream_cache := {}
@@ -577,6 +578,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"day_boss",
 	"night_boss",
 	"pool_boss",
+	"wriggle_boss",
 	"fog_boss",
 	"roof_boss",
 	"city_boss",
@@ -3117,6 +3119,8 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 			return YUKARI_FRAME_COUNT
 		"flandre_boss":
 			return FLANDRE_FRAME_COUNT
+		"wriggle_boss":
+			return WRIGGLE_FRAME_COUNT
 		_:
 			return 0
 
@@ -3159,6 +3163,8 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 			return "res://art/yukari"
 		"flandre_boss":
 			return "res://art/flandre"
+		"wriggle_boss":
+			return "res://art/wriggle"
 		_:
 			return ""
 
@@ -6607,6 +6613,60 @@ func _draw_enhancement_aura(center: Vector2, kind: String) -> void:
 	else:
 		# MAX level golden aura
 		ThemeLib.draw_glow_circle(self, center, 38.0 + pulse * 14.0, Color(1.0, 0.86, 0.2, 0.12 + pulse * 0.05), 3)
+
+
+func _plant_enhance_badge_style(level: int) -> Dictionary:
+	var clamped_level := maxi(1, level)
+	if clamped_level >= 16:
+		return {"fill": Color(0.82, 0.94, 1.0), "edge": Color(1.0, 0.98, 0.84), "accent": Color(0.68, 0.9, 1.0), "radius": 15.0, "rings": 3, "particles": 10}
+	if clamped_level >= 12:
+		return {"fill": Color(0.94, 0.38, 0.16), "edge": Color(1.0, 0.82, 0.28), "accent": Color(1.0, 0.48, 0.2), "radius": 14.0, "rings": 2, "particles": 8}
+	if clamped_level >= 8:
+		return {"fill": Color(0.9, 0.66, 0.16), "edge": Color(1.0, 0.92, 0.48), "accent": Color(1.0, 0.78, 0.22), "radius": 13.0, "rings": 2, "particles": 6}
+	if clamped_level >= 4:
+		return {"fill": Color(0.34, 0.42, 0.9), "edge": Color(0.7, 0.78, 1.0), "accent": Color(0.5, 0.72, 1.0), "radius": 12.0, "rings": 1, "particles": 4}
+	return {"fill": Color(0.16, 0.62, 0.58), "edge": Color(0.58, 1.0, 0.82), "accent": Color(0.34, 0.9, 0.74), "radius": 11.0, "rings": 1, "particles": 2}
+
+
+func _draw_enhance_level_badge(center: Vector2, level: int, scale: float = 1.0, compact: bool = false) -> void:
+	if level <= 0 or scale <= 0.0:
+		return
+	var style := _plant_enhance_badge_style(level)
+	var radius := float(style["radius"]) * scale * (0.86 if compact else 1.0)
+	var fill: Color = style["fill"]
+	var edge: Color = style["edge"]
+	var accent: Color = style["accent"]
+	var pulse := 0.88 + 0.12 * sin(ui_time * (4.8 if level >= 12 else 3.4) + float(level))
+	var glow_alpha := (0.1 if compact else 0.14) * pulse
+	if level >= 16:
+		var rainbow := Color.from_hsv(fmod(ui_time * 0.08 + float(level) * 0.03, 1.0), 0.42, 1.0, 0.2)
+		ThemeLib.draw_glow_circle(self, center, radius * 1.7, rainbow, 2)
+	else:
+		ThemeLib.draw_glow_circle(self, center, radius * 1.45, Color(accent.r, accent.g, accent.b, glow_alpha), 1)
+	draw_circle(center, radius, Color(fill.r * 0.42, fill.g * 0.42, fill.b * 0.42, 0.96))
+	draw_circle(center, radius * 0.82, Color(fill.r, fill.g, fill.b, 0.96))
+	draw_circle(center + Vector2(-radius * 0.22, -radius * 0.24), radius * 0.34, Color(1.0, 1.0, 1.0, 0.16))
+	for ring_index in range(int(style["rings"])):
+		var ring_radius := radius * (1.08 + float(ring_index) * 0.17)
+		var ring_start := ui_time * (1.2 + float(ring_index) * 0.35) + float(level) * 0.16 + float(ring_index)
+		draw_arc(center, ring_radius, ring_start, ring_start + PI * (1.25 if level >= 8 else 1.65), 22, Color(edge.r, edge.g, edge.b, 0.84), maxf(1.0, 1.5 * scale), true)
+	if level >= 12:
+		var facet := PackedVector2Array([
+			center + Vector2(0.0, -radius * 0.72),
+			center + Vector2(radius * 0.42, -radius * 0.1),
+			center + Vector2(0.0, radius * 0.56),
+			center + Vector2(-radius * 0.42, -radius * 0.1),
+		])
+		draw_polyline(facet, Color(edge.r, edge.g, edge.b, 0.7), maxf(1.0, 1.3 * scale), true)
+	var particle_count := int(style["particles"])
+	for particle_index in range(particle_count):
+		var angle := ui_time * (0.7 + float(particle_index % 3) * 0.16) + TAU * float(particle_index) / float(maxi(1, particle_count))
+		var distance := radius * (1.3 + 0.08 * sin(ui_time * 3.0 + float(particle_index)))
+		var particle_center := center + Vector2(cos(angle), sin(angle)) * distance
+		draw_circle(particle_center, maxf(0.8, (1.0 + float(level >= 12)) * scale), Color(accent.r, accent.g, accent.b, 0.62))
+	var label_size := int(round((12.0 if compact else 15.0) * scale * (1.1 if level >= 12 else 1.0)))
+	var label_rect := Rect2(center - Vector2(radius, radius * 0.72), Vector2(radius * 2.0, radius * 1.45))
+	ThemeLib.draw_label(self, ui_font, label_rect, str(level), label_size, Color(1.0, 1.0, 1.0, 0.98), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _enhance_stat_chip_labels(kind: String) -> Array:
@@ -15931,6 +15991,8 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		return _trigger_yukari_boss_skill(zombie)
 	if String(zombie["kind"]) == "flandre_boss":
 		return _trigger_flandre_boss_skill(zombie)
+	if String(zombie["kind"]) == "wriggle_boss":
+		return _trigger_wriggle_boss_skill(zombie)
 	if String(zombie["kind"]) == "night_boss":
 		return _trigger_night_boss_skill(zombie)
 	if String(zombie["kind"]) == "pool_boss":
@@ -17302,6 +17364,21 @@ func _raise_random_graves(count: int, fx_shape: String = "grave_rise", fx_color:
 		})
 		raised += 1
 	return raised
+
+
+func _trigger_wriggle_boss_skill(zombie: Dictionary) -> Dictionary:
+	var phase = int(zombie.get("boss_phase", 0))
+	var cycle = int(zombie.get("boss_skill_cycle", 0))
+	var center = Vector2(float(zombie.get("x", _boss_anchor_x("wriggle_boss"))), _row_center_y(int(zombie.get("row", 2))) - 18.0)
+	zombie["rumia_state"] = ["firefly", "firefly", "swarm", "storm", "swarm", "final"][cycle % 6]
+	effects.append({"position": center, "radius": 150.0 + phase * 18.0, "time": 0.48, "duration": 0.48, "color": Color(0.46, 1.0, 0.3, 0.36)})
+	if cycle % 6 == 2 or cycle % 6 == 3 or cycle % 6 == 5:
+		for i in range(2 + phase):
+			_spawn_zombie("bee_minion", clampi(int(zombie.get("row", 2)) + (i % 3) - 1, 0, ROWS - 1), true)
+		if cycle % 6 == 3 or cycle % 6 == 5:
+			_spawn_zombie("hive_zombie", _choose_spawn_row_for_kind("hive_zombie"), true)
+	_show_banner("莉格露展开了第 %d 张夜虫符卡！" % (cycle + 1), 1.35)
+	return _ensure_touhou_danmaku().cast(zombie)
 
 
 func _trigger_night_boss_skill(zombie: Dictionary) -> Dictionary:
@@ -18771,7 +18848,7 @@ func _is_mayohiga_house_level() -> bool:
 
 
 func _is_forest_of_magic_level() -> bool:
-	return String(current_level.get("terrain", "")) == "forest_of_magic"
+	return String(current_level.get("terrain", "")) == "forest_of_magic" or String(current_level.get("terrain", "")) == "eternal_night_forest"
 
 
 func _is_cloud_sea_level() -> bool:
@@ -20778,6 +20855,15 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 			lane_alt = Color(0.18, 0.32, 0.26)
 			accent = Color(0.72, 0.52, 1.0)
 			water = Color(0.38, 0.74, 0.88)
+		"eternal_night_forest":
+			label = "永夜虫鸣林间"
+			sky_top = Color(0.005, 0.008, 0.025)
+			sky_bottom = Color(0.025, 0.06, 0.07)
+			ground = Color(0.035, 0.11, 0.09)
+			lane = Color(0.05, 0.16, 0.12)
+			lane_alt = Color(0.07, 0.2, 0.15)
+			accent = Color(0.62, 1.0, 0.28)
+			water = Color(0.08, 0.28, 0.3)
 		"cloud_sea":
 			label = "云海舞台"
 			sky_top = Color(0.36, 0.68, 1.0)
@@ -23261,7 +23347,11 @@ func _draw_seed_bank() -> void:
 		var plant_name = String(data["name"])
 		# Name backing strip for readability
 		draw_rect(Rect2(draw_rect_local.position + Vector2(0.0, 2.0), Vector2(draw_rect_local.size.x, 18.0)), Color(card_color.r, card_color.g, card_color.b, 0.88), true)
-		ThemeLib.draw_label(self, ui_font, Rect2(draw_rect_local.position + Vector2(4, 2), Vector2(draw_rect_local.size.x - 8, 18)), plant_name, 12, Color(0.29, 0.17, 0.05), HORIZONTAL_ALIGNMENT_CENTER, 8)
+		var enhance_level := int(plant_enhance_levels.get(kind, 0))
+		var name_width: float = draw_rect_local.size.x - (34.0 if enhance_level > 0 else 8.0)
+		ThemeLib.draw_label(self, ui_font, Rect2(draw_rect_local.position + Vector2(4, 2), Vector2(name_width, 18)), plant_name, 12, Color(0.29, 0.17, 0.05), HORIZONTAL_ALIGNMENT_CENTER, 8)
+		if enhance_level > 0:
+			_draw_enhance_level_badge(draw_rect_local.position + Vector2(draw_rect_local.size.x - 15.0, 15.0), enhance_level, 0.78, true)
 		if not _is_conveyor_level():
 			# Cost backing strip
 			draw_rect(Rect2(draw_rect_local.position + Vector2(0.0, draw_rect_local.size.y - 20.0), Vector2(draw_rect_local.size.x, 20.0)), Color(card_color.r, card_color.g, card_color.b, 0.82), true)
@@ -23946,6 +24036,9 @@ func _draw_plants() -> void:
 
 			# Enhancement aura
 			_draw_enhancement_aura(draw_center, String(plant["kind"]))
+			var plant_enhance_level := int(plant_enhance_levels.get(String(plant["kind"]), 0))
+			if plant_enhance_level >= 4:
+				_draw_enhance_level_badge(draw_center + Vector2(34.0, 30.0) * unit_scale, plant_enhance_level, 0.9 * unit_scale)
 			_draw_click_ultimate_indicator(draw_center, plant)
 
 			if String(plant["kind"]) != "cherry_bomb" and String(plant["kind"]) != "jalapeno":
@@ -30060,8 +30153,25 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _yukari_frame_index(zombie)
 		"flandre_boss":
 			return _flandre_frame_index(zombie)
+		"wriggle_boss":
+			return _wriggle_frame_index(zombie)
 		_:
 			return 0
+
+
+func _wriggle_frame_index(zombie: Dictionary) -> int:
+	var phase = float(zombie.get("anim_phase", 0.0))
+	var state = String(zombie.get("rumia_state", "idle"))
+	var offset = 0
+	match state:
+		"firefly": offset = 6
+		"swarm": offset = 12
+		"storm": offset = 15
+		"final": offset = 18
+		"phase": offset = 21
+		"shift": offset = 3
+	var frame = int(floor(level_time * (8.0 + float(zombie.get("boss_phase", 0)) * 0.7) + phase * 5.0)) % 6
+	return clampi(offset + frame, 0, WRIGGLE_FRAME_COUNT - 1)
 
 
 func _rumia_frame_index(zombie: Dictionary) -> int:
@@ -30499,6 +30609,38 @@ func _flandre_frame_index(zombie: Dictionary) -> int:
 				return _boss_pose_cycle_frame([1, 0, 1], 5.2, phase * 0.22)
 			return _boss_pose_frame(0, 3.0, phase)
 	return _boss_pose_frame(0, 3.0, phase)
+
+
+func _ensure_wriggle_frames_loaded() -> void:
+	var frames = _instance_boss_frames_for_kind("wriggle_boss")
+	if _boss_frame_array_is_complete(frames, WRIGGLE_FRAME_COUNT):
+		return
+	frames = _load_boss_frame_set("wriggle_boss", false)
+	_set_shared_boss_frames_for_kind("wriggle_boss", frames, true, false)
+	_set_instance_boss_frames_for_kind("wriggle_boss", frames, true, false)
+
+
+func _draw_wriggle_boss(center: Vector2, zombie: Dictionary) -> void:
+	_ensure_wriggle_frames_loaded()
+	var frame_index = _wriggle_frame_index(zombie)
+	if float(zombie.get("impact_timer", 0.0)) > 0.0:
+		frame_index = 21 + (int(floor(level_time * 10.0)) % 3)
+	var texture := _try_get_boss_frame_texture("wriggle_boss", frame_index)
+	var phase = int(zombie.get("boss_phase", 0))
+	var bob = sin(level_time * 2.7 + float(zombie.get("anim_phase", 0.0))) * 5.0
+	var aura = Color(0.48, 0.98, 0.42, 0.08 + phase * 0.025)
+	draw_circle(center + Vector2(0.0, 48.0), 42.0 + phase * 5.0, Color(0.02, 0.04, 0.03, 0.26))
+	draw_circle(center + Vector2(0.0, -24.0 + bob), 58.0 + phase * 8.0, aura)
+	if texture != null:
+		var texture_size = texture.get_size() * (0.72 + phase * 0.035)
+		draw_texture_rect(texture, Rect2(center + Vector2(-texture_size.x * 0.5, -texture_size.y * 0.82 + bob), texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+	else:
+		draw_circle(center + Vector2(0.0, -34.0), 28.0, Color(0.2, 0.7, 0.28))
+	for i in range(8 + phase * 2):
+		var angle = level_time * (1.1 + phase * 0.1) + float(i) * TAU / float(8 + phase * 2)
+		var mote = center + Vector2(cos(angle) * (54.0 + phase * 6.0), -26.0 + sin(angle * 1.7) * 30.0)
+		draw_circle(mote, 3.0 + float(i % 2), Color(0.72, 1.0, 0.34, 0.85))
+		draw_circle(mote, 8.0, Color(0.4, 1.0, 0.26, 0.16))
 
 
 # --- 火山世界 zombie drawing ---
@@ -31966,6 +32108,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "city_boss":
 		_draw_city_boss(center + Vector2(0.0, -6.0), zombie)
+		return
+	if kind == "wriggle_boss":
+		_draw_wriggle_boss(center + Vector2(0.0, -10.0), zombie)
 		return
 	var base_speed = float(zombie.get("base_speed", Defs.ZOMBIES[kind].get("speed", 18.0)))
 	if float(zombie.get("slow_timer", 0.0)) > 0.0:

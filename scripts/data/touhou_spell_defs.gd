@@ -116,6 +116,14 @@ const CARDS := {
 		["th07-140", "结界「生与死的界线」", "life_death", "barrier"],
 		["th07-141", "紫奥义「弹幕结界」", "danmaku_barrier", "infinite"],
 	],
+	"wriggle_boss": [
+		["th08-01", "灯符「Firefly Phenomenon」", "wriggle_firefly", "firefly"],
+		["th08-02", "蛍符「地上の彗星」", "wriggle_comet", "firefly"],
+		["th08-03", "灯符「ファイヤフライフェノメノン」", "wriggle_swarm", "swarm"],
+		["th08-04", "蠢符「ナイトバグストーム」", "wriggle_storm", "swarm"],
+		["th08-05", "蠢符「リトルバグ」", "wriggle_little_bug", "swarm"],
+		["th08-06", "終符「永夜蟄居」", "wriggle_final", "final"],
+	],
 }
 
 const PATCHOULI_EXTRA := [
@@ -149,6 +157,7 @@ const NONSPELLS := {
 	"yuyuko_boss": ["西行寺幽幽子", "butterfly_fan", "butterfly"],
 	"ran_boss": ["八云蓝", "fox_spiral", "senko"],
 	"yukari_boss": ["八云紫", "gap_crossfire", "boundary"],
+	"wriggle_boss": ["莉格露·奈特巴格", "wriggle_night_swarm", "firefly"],
 }
 
 
