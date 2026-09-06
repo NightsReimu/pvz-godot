@@ -845,7 +845,6 @@ var level_time := 0.0
 var screen_shake_amount := 0.0
 var screen_shake_decay := 8.0
 const MAX_COMBAT_PARTICLES := 360
-const UNIFIED_COMBAT_VISUALS := true
 var combat_draw_offset := Vector2.ZERO
 var vfx_particles: Array = []
 # Additive glow layer: each frame the game pushes glow primitives here (cleared at
@@ -1272,7 +1271,7 @@ func _refresh_battle_layout() -> void:
 		top_margin += 32.0
 	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 64.0, 82.0 if is_mobile else 112.0)
 	if safe_rect.size.y < 600.0:
-		bottom_margin = 42.0
+		bottom_margin = 58.0
 	var available_w = maxf(1.0, viewport.x - left_margin - right_margin)
 	var available_h = maxf(1.0, safe_rect.end.y - top_margin - bottom_margin)
 	var width_fit_scale = available_w / (float(COLS) * BASE_CELL_SIZE.x)
@@ -6486,7 +6485,7 @@ func _draw_enhance_portrait_panel(kind: String, panel_rect: Rect2) -> void:
 		var radius = 104.0 + float(ring) * 46.0
 		draw_arc(circle_center, radius, 0.0, TAU, 96, Color(role_color.r, role_color.g, role_color.b, 0.16 - float(ring) * 0.028), 2.0)
 	draw_circle(circle_center + Vector2(0.0, 122.0), 122.0, Color(0.0, 0.0, 0.0, 0.22))
-	_draw_unified_plant(circle_center + Vector2(0.0, 24.0), kind, {}, 3.4)
+	_draw_plant_body(kind, circle_center + Vector2(0.0, 24.0), 3.4)
 	var level_rect = Rect2(panel_rect.position + Vector2(52.0, 564.0), Vector2(panel_rect.size.x - 104.0, 76.0))
 	_draw_panel_shell(level_rect, Color(0.02, 0.032, 0.04, 0.86), role_color.darkened(0.12), 0.08, 0.04)
 	_draw_text("强化等级", level_rect.position + Vector2(22.0, 30.0), 16, Color(0.64, 0.76, 0.82))
@@ -19109,7 +19108,7 @@ func _draw_startup_loading_scene() -> void:
 	var safe_rect := _viewport_safe_rect().grow(-24)
 	var content_size := Vector2(minf(560, safe_rect.size.x), minf(260, safe_rect.size.y))
 	var content := Rect2(safe_rect.get_center() - content_size * 0.5, content_size)
-	_draw_unified_plant(content.get_center() + Vector2(0, -74), "sunflower", {}, 1.2)
+	_draw_plant_body("sunflower", content.get_center() + Vector2(0, -74), 1.2)
 	ThemeLib.draw_label(self, ui_font, Rect2(content.position + Vector2(0, 100), Vector2(content.size.x, 48)), "正在加载庭院", 32, Color(0.94, 0.98, 0.9), HORIZONTAL_ALIGNMENT_CENTER)
 	var progress = 1.0
 	if startup_loading_total_tasks > 0:
@@ -21377,154 +21376,6 @@ func _draw_ground_shadow(center: Vector2, radius: float, alpha_scale: float = 1.
 	draw_circle(anchor, radius * 0.78, Color(st.r, st.g, st.b, base * 0.85))
 
 
-func _visual_theme_tint(kind: String, fallback: Color = Color(0.55, 0.82, 0.62)) -> Color:
-	var hash_value := 0
-	for character in kind:
-		hash_value = (hash_value * 31 + character.unicode_at(0)) % 997
-	var hue := fmod(float(hash_value) / 997.0 + (0.08 if _is_volcano_level() else 0.0), 1.0)
-	return Color.from_hsv(hue, 0.38, 0.92).lerp(fallback, 0.36)
-
-
-func _draw_style_backdrop(center: Vector2, radius: float, tint: Color, alpha: float = 1.0) -> void:
-	var pulse := 0.82 + 0.18 * sin(ui_time * 4.0 + center.x * 0.01)
-	var outer := Color(tint.r, tint.g, tint.b, clampf(alpha * 0.12 * pulse, 0.0, 0.24))
-	var edge := Color(tint.r, tint.g, tint.b, clampf(alpha * 0.52, 0.0, 0.7))
-	draw_circle(center, radius * 1.12, outer)
-	draw_arc(center, radius, -PI * 0.72 + ui_time * 0.18, PI * 0.72 + ui_time * 0.18, 28, edge, maxf(1.0, radius * 0.055), true)
-	draw_arc(center, radius * 0.78, PI * 0.25 - ui_time * 0.22, PI * 1.15 - ui_time * 0.22, 20, Color(1.0, 1.0, 1.0, alpha * 0.22), maxf(0.8, radius * 0.035), true)
-
-
-func _draw_plant_style_overlay(plant: Dictionary, scale: float = 1.0, alpha: float = 1.0) -> void:
-	var kind := String(plant.get("kind", "plant"))
-	var tint := _visual_theme_tint(kind, Color(0.34, 0.82, 0.48))
-	var center := Vector2(0.0, -8.0 * scale)
-	_draw_style_backdrop(center, 31.0 * scale, tint, alpha)
-	var flash := clampf(float(plant.get("flash", 0.0)) * 1.7, 0.0, 0.45)
-	if flash > 0.0:
-		draw_circle(center, 26.0 * scale, Color(1.0, 1.0, 1.0, flash * alpha))
-	if float(plant.get("sleep_timer", 0.0)) > 0.0:
-		var sleep_color := Color(0.52, 0.76, 1.0, 0.58 * alpha)
-		draw_arc(center, 35.0 * scale, ui_time * 0.7, ui_time * 0.7 + PI * 1.35, 24, sleep_color, 2.0 * scale, true)
-	if _plant_has_food_power(plant):
-		draw_arc(center, 38.0 * scale, -ui_time * 1.1, -ui_time * 1.1 + PI * 1.65, 28, Color(0.45, 1.0, 0.46, 0.64 * alpha), 2.4 * scale, true)
-
-
-func _draw_zombie_style_overlay(zombie: Dictionary, scale: float = 1.0, alpha: float = 1.0) -> void:
-	var kind := String(zombie.get("kind", "zombie"))
-	var tint := _visual_theme_tint(kind, Color(0.76, 0.54, 0.34))
-	var center := Vector2(0.0, -10.0 * scale)
-	_draw_style_backdrop(center, 34.0 * scale, tint, alpha)
-	var flash := clampf(float(zombie.get("flash", 0.0)) * 1.7, 0.0, 0.45)
-	if flash > 0.0:
-		draw_circle(center, 29.0 * scale, Color(1.0, 1.0, 1.0, flash * alpha))
-	if float(zombie.get("slow_timer", 0.0)) > 0.0:
-		draw_arc(center, 40.0 * scale, ui_time * 0.8, ui_time * 0.8 + PI * 1.5, 28, Color(0.55, 0.86, 1.0, 0.68 * alpha), 2.4 * scale, true)
-	if bool(zombie.get("hypnotized", false)):
-		for ring in range(2):
-			draw_arc(center, (25.0 + ring * 7.0) * scale, -ui_time * (1.0 + ring * 0.2), -ui_time * (1.0 + ring * 0.2) + PI * 1.2, 22, Color(0.86, 0.5, 1.0, (0.58 - ring * 0.16) * alpha), 2.0 * scale, true)
-	if float(zombie.get("shield_health", 0.0)) > 0.0:
-		draw_arc(center, 44.0 * scale, -PI * 0.5, -PI * 0.5 + TAU * 0.72, 30, Color(0.48, 0.9, 0.94, 0.72 * alpha), 2.6 * scale, true)
-
-
-func _unified_color(kind: String, plant: bool = true) -> Color:
-	var hash_value := 17 if plant else 71
-	for character in kind:
-		hash_value = (hash_value * 33 + character.unicode_at(0)) % 997
-	var hue := fmod(float(hash_value) / 997.0 + (0.04 if plant else 0.52), 1.0)
-	return Color.from_hsv(hue, 0.56 if plant else 0.42, 0.88)
-
-
-func _draw_unified_rect(rect: Rect2, fill: Color, border: Color, width: float) -> void:
-	draw_rect(rect, fill, true)
-	draw_rect(rect, border, false, width, true)
-
-
-func _draw_unified_plant(center: Vector2, kind: String, plant: Dictionary = {}, size_scale: float = 1.0, alpha: float = 1.0, flash: float = 0.0) -> void:
-	var base := _unified_color(kind, true)
-	var ink := Color(0.08, 0.16, 0.15, alpha)
-	var light := base.lightened(0.2)
-	var dark := base.darkened(0.38)
-	var bob := sin(ui_time * 2.8 + float(plant.get("anim_phase", 0.0))) * 1.5 * size_scale
-	var p := center + Vector2(0.0, bob)
-	_draw_ground_shadow(p, 28.0 * size_scale, alpha, 34.0 * size_scale)
-	_draw_style_backdrop(p + Vector2(0.0, -8.0 * size_scale), 30.0 * size_scale, base, alpha)
-	var lower := kind.contains("nut") or kind.contains("wall") or kind.contains("guard") or kind.contains("armor")
-	var shroom := kind.contains("shroom") or kind.contains("mush")
-	var flower := kind.contains("flower") or kind.contains("lotus") or kind.contains("orchid") or kind.contains("sunflower") or kind.contains("bloom")
-	var launcher := kind.contains("pult") or kind.contains("cannon") or kind.contains("mortar") or kind.contains("shooter") or kind.contains("pea")
-	if lower:
-		_draw_style_backdrop(p + Vector2(0.0, -5.0 * size_scale), 34.0 * size_scale, base, alpha)
-		_draw_unified_rect(Rect2(p + Vector2(-25.0, -32.0) * size_scale, Vector2(50.0, 62.0) * size_scale), dark, ink, 5.0 * size_scale)
-		for spot in [Vector2(-14, -14), Vector2(12, -22), Vector2(-10, 12), Vector2(16, 20)]:
-			draw_circle(p + spot * size_scale, 3.0 * size_scale, light)
-	elif shroom:
-		_draw_unified_rect(Rect2(p + Vector2(-10.0, -3.0) * size_scale, Vector2(20.0, 34.0) * size_scale), light, ink, 4.0 * size_scale)
-		draw_arc(p + Vector2(0.0, -18.0) * size_scale, 26.0 * size_scale, PI, TAU, 24, ink, 6.0 * size_scale, true)
-		draw_arc(p + Vector2(0.0, -18.0) * size_scale, 22.0 * size_scale, PI, TAU, 24, base, 13.0 * size_scale, true)
-		for i in range(5):
-			draw_circle(p + Vector2(-15.0 + i * 7.5, -18.0 - (i % 2) * 5.0) * size_scale, 2.8 * size_scale, light)
-	elif flower:
-		draw_line(p + Vector2(0.0, 22.0) * size_scale, p + Vector2(0.0, -6.0) * size_scale, dark, 8.0 * size_scale)
-		for i in range(8):
-			var angle := -PI * 0.5 + float(i) * TAU / 8.0 + sin(ui_time * 0.7) * 0.03
-			var petal := p + Vector2.from_angle(angle) * 20.0 * size_scale
-			draw_circle(petal, 10.0 * size_scale, ink)
-			draw_circle(petal, 7.5 * size_scale, light)
-		draw_circle(p + Vector2(0.0, -6.0) * size_scale, 14.0 * size_scale, ink)
-		draw_circle(p + Vector2(0.0, -7.0) * size_scale, 11.0 * size_scale, base)
-	else:
-		draw_line(p + Vector2(0.0, 22.0) * size_scale, p + Vector2(0.0, -8.0) * size_scale, dark, 8.0 * size_scale)
-		draw_circle(p + Vector2(0.0, -14.0) * size_scale, 23.0 * size_scale, ink)
-		draw_circle(p + Vector2(0.0, -15.0) * size_scale, 19.0 * size_scale, base)
-		if launcher:
-			draw_circle(p + Vector2(18.0, -16.0) * size_scale, 12.0 * size_scale, ink)
-			draw_circle(p + Vector2(20.0, -16.0) * size_scale, 8.0 * size_scale, light)
-	var face := p + Vector2(0.0, -14.0 if not lower else -8.0) * size_scale
-	if not kind.contains("mine"):
-		for side in [-1, 1]:
-			draw_circle(face + Vector2(float(side) * 6.0, -2.0) * size_scale, 4.5 * size_scale, Color(1.0, 1.0, 0.9, alpha))
-			draw_circle(face + Vector2(float(side) * 6.0, -2.0) * size_scale, 2.0 * size_scale, ink)
-		draw_arc(face + Vector2(0.0, 6.0) * size_scale, 6.0 * size_scale, 0.15, PI - 0.15, 14, ink, 1.8 * size_scale, true)
-	if flash > 0.0:
-		draw_circle(face, 25.0 * size_scale, Color(1.0, 1.0, 1.0, clampf(flash * 1.6, 0.0, 0.42) * alpha))
-	if float(plant.get("sleep_timer", 0.0)) > 0.0:
-		draw_arc(face, 32.0 * size_scale, ui_time, ui_time + PI * 1.4, 24, Color(0.56, 0.82, 1.0, 0.7 * alpha), 2.2 * size_scale, true)
-
-
-func _draw_unified_zombie(center: Vector2, zombie: Dictionary, size_scale: float = 1.0, alpha: float = 1.0) -> void:
-	var kind := String(zombie.get("kind", "zombie"))
-	var skin := Color(0.48, 0.62, 0.49, alpha)
-	var accent := _unified_color(kind, false)
-	var ink := Color(0.08, 0.12, 0.12, alpha)
-	var step := sin(ui_time * 5.8 + float(zombie.get("anim_phase", 0.0))) * 4.0 * size_scale
-	var p := center
-	_draw_ground_shadow(p, 28.0 * size_scale, alpha, 40.0 * size_scale)
-	_draw_style_backdrop(p + Vector2(0.0, -14.0) * size_scale, 34.0 * size_scale, accent, alpha)
-	for side in [-1, 1]:
-		draw_line(p + Vector2(float(side) * 8.0, 18.0) * size_scale, p + Vector2(float(side) * 12.0 + step * float(side), 42.0) * size_scale, ink, 9.0 * size_scale)
-		draw_circle(p + Vector2(float(side) * 12.0 + step * float(side), 42.0) * size_scale, 6.0 * size_scale, ink)
-	_draw_unified_rect(Rect2(p + Vector2(-19.0, -8.0) * size_scale, Vector2(38.0, 38.0) * size_scale), accent.darkened(0.25), ink, 5.0 * size_scale)
-	draw_line(p + Vector2(-8.0, -2.0) * size_scale, p + Vector2(-22.0, 13.0) * size_scale, skin, 8.0 * size_scale)
-	draw_line(p + Vector2(8.0, -2.0) * size_scale, p + Vector2(22.0, 12.0) * size_scale, skin, 8.0 * size_scale)
-	draw_circle(p + Vector2(0.0, -28.0) * size_scale, 22.0 * size_scale, ink)
-	draw_circle(p + Vector2(-1.0, -29.0) * size_scale, 18.0 * size_scale, skin)
-	for side in [-1, 1]:
-		draw_circle(p + Vector2(float(side) * 7.0, -32.0) * size_scale, 5.5 * size_scale, Color(1.0, 0.98, 0.82, alpha))
-		draw_circle(p + Vector2(float(side) * 7.0, -32.0) * size_scale, 2.5 * size_scale, ink)
-	draw_line(p + Vector2(-13.0, -19.0) * size_scale, p + Vector2(8.0, -18.0) * size_scale, ink, 3.0 * size_scale)
-	if kind.contains("gargantuar") or kind.contains("mech") or kind.contains("boss"):
-		draw_arc(p + Vector2(0.0, -10.0) * size_scale, 38.0 * size_scale, PI, TAU, 20, accent.lightened(0.18), 5.0 * size_scale, true)
-	if bool(zombie.get("hypnotized", false)):
-		draw_arc(p + Vector2(0.0, -28.0) * size_scale, 27.0 * size_scale, -ui_time, -ui_time + PI * 1.4, 24, Color(0.86, 0.5, 1.0, 0.8 * alpha), 2.4 * size_scale, true)
-	if float(zombie.get("slow_timer", 0.0)) > 0.0:
-		draw_arc(p + Vector2(0.0, -12.0) * size_scale, 45.0 * size_scale, ui_time, ui_time + PI * 1.5, 28, Color(0.55, 0.86, 1.0, 0.72 * alpha), 2.2 * size_scale, true)
-	if float(zombie.get("shield_health", 0.0)) > 0.0:
-		draw_arc(p + Vector2(0.0, -12.0) * size_scale, 48.0 * size_scale, -PI * 0.5, PI * 0.9, 30, Color(0.48, 0.9, 0.94, 0.82 * alpha), 3.0 * size_scale, true)
-	var flash := clampf(float(zombie.get("flash", 0.0)) * 1.6, 0.0, 0.42)
-	if flash > 0.0:
-		draw_circle(p + Vector2(0.0, -28.0) * size_scale, 24.0 * size_scale, Color(1.0, 1.0, 1.0, flash * alpha))
-
-
 func _draw_ambient_grade() -> void:
 	# One coherent ambient pass over the whole battle scene: a faint world-tint
 	# wash plus a soft vignette for depth. Single knob: _ambient_light_for_level.
@@ -22570,10 +22421,11 @@ func _draw_battle_background() -> void:
 		# Ground gradient
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(0.0, 118.0), Vector2(size.x, size.y - 118.0)), Color(0.62, 0.78, 0.44), Color(0.48, 0.66, 0.3))
 		# Rolling hills with varied colors
+		var hill_scale := size.x / BASE_VIEWPORT_SIZE.x
 		draw_polygon(
 			PackedVector2Array([
-				Vector2(0.0, 182.0), Vector2(160.0, 150.0), Vector2(336.0, 194.0),
-				Vector2(596.0, 156.0), Vector2(860.0, 210.0), Vector2(1092.0, 168.0),
+				Vector2(0.0, 182.0), Vector2(160.0 * hill_scale, 150.0), Vector2(336.0 * hill_scale, 194.0),
+				Vector2(596.0 * hill_scale, 156.0), Vector2(860.0 * hill_scale, 210.0), Vector2(1092.0 * hill_scale, 168.0),
 				Vector2(size.x, 198.0), Vector2(size.x, 232.0), Vector2(0.0, 232.0),
 			]),
 			PackedColorArray([
@@ -23799,31 +23651,13 @@ func _draw_plants() -> void:
 			var support_draw_center = Vector2(support_motion["center"])
 			_set_combat_transform(support_draw_center, float(support_motion["rotation"]), Vector2(support_motion["scale"]) * unit_scale)
 			var support_kind := String(support["kind"])
-			if UNIFIED_COMBAT_VISUALS:
-				_draw_unified_plant(Vector2.ZERO, support_kind, support, 0.9, 1.0, float(support.get("flash", 0.0)))
-				_set_combat_transform()
-				if grid[row][col] == null:
-					_draw_click_ultimate_indicator(support_draw_center, support)
-					_draw_health_bar(support_draw_center + Vector2(0.0, -26.0 * unit_scale), 48.0 * unit_scale, clampf(float(support["health"]) / float(support["max_health"]), 0.0, 1.0), Color(0.24, 0.82, 0.28))
-				continue
-			_draw_ground_shadow(Vector2.ZERO, 24.0, 0.8, 30.0)
-			var support_drawn_with_image2 := _try_draw_image2_plant(support_kind, Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
-			match "__image2_drawn__" if support_drawn_with_image2 else support_kind:
-				"lily_pad":
-					_draw_lily_pad(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
-				"flower_pot":
-					_draw_flower_pot(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
-				"cork_plug":
-					_draw_cork_plug(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
-				"holy_flower":
-					_draw_holy_flower(Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
-			_draw_plant_style_overlay(support, 0.82)
+			_draw_plant_body(support_kind, Vector2.ZERO, 1.0, float(support.get("flash", 0.0)), 1.0, support)
 			_set_combat_transform()
 			if grid[row][col] == null:
 				_draw_click_ultimate_indicator(support_draw_center, support)
 				_draw_health_bar(
-					support_draw_center + Vector2(0.0, -26.0),
-					48.0,
+					support_draw_center + Vector2(0.0, -26.0 * unit_scale),
+					48.0 * unit_scale,
 					clampf(float(support["health"]) / float(support["max_health"]), 0.0, 1.0),
 					Color(0.24, 0.82, 0.28)
 				)
@@ -23841,7 +23675,7 @@ func _draw_plants() -> void:
 			var draw_center = Vector2(motion["center"])
 			if _plant_has_food_power(plant):
 				draw_circle(draw_center + Vector2(0.0, -8.0), 34.0, Color(0.2, 0.98, 0.34, 0.14))
-				_draw_plant_food_icon(draw_center + Vector2(0.0, -52.0), 0.38)
+				_draw_plant_food_icon(draw_center + Vector2(0.0, -52.0 * unit_scale), 0.38)
 			if float(plant.get("youmu_charm_timer", 0.0)) > 0.0:
 				var charm_pulse = 0.5 + 0.5 * sin(level_time * 7.0 + float(plant.get("anim_phase", 0.0)))
 				draw_circle(draw_center + Vector2(0.0, -10.0), 34.0 + charm_pulse * 5.0, Color(0.56, 0.84, 1.0, 0.14))
@@ -23849,296 +23683,9 @@ func _draw_plants() -> void:
 
 			_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]) * unit_scale)
 			var plant_kind := String(plant["kind"])
-			if UNIFIED_COMBAT_VISUALS:
-				_draw_unified_plant(Vector2.ZERO, plant_kind, plant, 1.0, 1.0, flash)
-				_set_combat_transform()
-				_draw_enhancement_aura(draw_center, plant_kind)
-				_draw_click_ultimate_indicator(draw_center, plant)
-				if plant_kind != "cherry_bomb" and plant_kind != "jalapeno":
-					_draw_health_bar(draw_center + Vector2(0.0, -42.0 * unit_scale), 58.0 * unit_scale, clampf(float(plant["health"]) / float(plant["max_health"]), 0.0, 1.0), Color(0.32, 0.86, 0.24))
-				continue
-			_draw_ground_shadow(Vector2.ZERO, 29.0, 1.0, 34.0)
-			var plant_drawn_with_image2 := _try_draw_image2_plant(plant_kind, Vector2.ZERO, 1.0, flash)
-			if bool(Defs.PLANTS.get(plant_kind, {}).get("volcano_expansion", false)):
-				_ensure_volcano_expansion().draw_plant(plant_kind, Vector2.ZERO, 1.0, flash, 1.0, plant)
-				plant_drawn_with_image2 = true
-			match "__image2_drawn__" if plant_drawn_with_image2 else plant_kind:
-				"sunflower":
-					_draw_sunflower(Vector2.ZERO, 1.0, flash)
-				"peashooter":
-					_draw_peashooter(Vector2.ZERO, 1.0, flash)
-				"puff_shroom":
-					_draw_puff_shroom(Vector2.ZERO, 1.0, flash)
-				"snow_pea":
-					_draw_snow_pea(Vector2.ZERO, 1.0, flash)
-				"wallnut":
-					_draw_wallnut(Vector2.ZERO, 1.0, flash, float(plant["health"]) / float(plant["max_health"]))
-				"cherry_bomb":
-					_draw_cherry_bomb(Vector2.ZERO, 1.0, clampf(float(plant["fuse_timer"]) / float(Defs.PLANTS["cherry_bomb"]["fuse"]), 0.0, 1.0))
-				"potato_mine":
-					_draw_potato_mine(Vector2.ZERO, 1.0, bool(plant["armed"]), clampf(1.0 - float(plant["arm_timer"]) / float(Defs.PLANTS["potato_mine"]["arm_time"]), 0.0, 1.0))
-				"chomper":
-					_draw_chomper(Vector2.ZERO, 1.0, clampf(float(plant["chew_timer"]) / float(Defs.PLANTS["chomper"]["chew_time"]), 0.0, 1.0))
-				"repeater":
-					_draw_repeater(Vector2.ZERO, 1.0, flash)
-				"threepeater":
-					_draw_threepeater(Vector2.ZERO, 1.0, flash)
-				"boomerang_shooter":
-					_draw_boomerang_shooter(Vector2.ZERO, 1.0, flash)
-				"sakura_shooter":
-					_draw_sakura_shooter(Vector2.ZERO, 1.0, flash)
-				"lotus_lancer":
-					_draw_lotus_lancer(Vector2.ZERO, 1.0, flash)
-				"mist_orchid":
-					_draw_mist_orchid(Vector2.ZERO, 1.0, flash)
-				"anchor_fern":
-					_draw_anchor_fern(Vector2.ZERO, 1.0, flash)
-				"glowvine":
-					_draw_glowvine(Vector2.ZERO, 1.0, flash)
-				"brine_pot":
-					_draw_brine_pot(Vector2.ZERO, 1.0, flash)
-				"storm_reed":
-					_draw_storm_reed(Vector2.ZERO, 1.0, flash)
-				"moonforge":
-					_draw_moonforge(Vector2.ZERO, 1.0, flash)
-				"mirror_reed":
-					_draw_mirror_reed(Vector2.ZERO, 1.0, flash)
-				"frost_fan":
-					_draw_frost_fan(Vector2.ZERO, 1.0, flash)
-				"cabbage_pult":
-					_draw_cabbage_pult(Vector2.ZERO, 1.0, flash)
-				"coffee_bean":
-					_draw_coffee_bean(Vector2.ZERO, 1.0, flash)
-				"garlic":
-					_draw_garlic(Vector2.ZERO, 1.0, flash)
-				"kernel_pult":
-					_draw_kernel_pult(Vector2.ZERO, 1.0, flash)
-				"marigold":
-					_draw_marigold(Vector2.ZERO, 1.0, flash)
-				"melon_pult":
-					_draw_melon_pult(Vector2.ZERO, 1.0, flash)
-				"origami_blossom":
-					_draw_origami_blossom(Vector2.ZERO, 1.0, flash)
-				"chimney_pepper":
-					_draw_chimney_pepper(Vector2.ZERO, 1.0, flash)
-				"tesla_tulip":
-					_draw_tesla_tulip(Vector2.ZERO, 1.0, flash)
-				"brick_guard":
-					_draw_brick_guard(Vector2.ZERO, 1.0, flash, float(plant["health"]) / float(plant["max_health"]))
-				"signal_ivy":
-					_draw_signal_ivy(Vector2.ZERO, 1.0, flash)
-				"roof_vane":
-					_draw_roof_vane(Vector2.ZERO, 1.0, flash)
-				"skylight_melon":
-					_draw_skylight_melon(Vector2.ZERO, 1.0, flash)
-				"heather_shooter":
-					_draw_heather_shooter(Vector2.ZERO, 1.0, flash)
-				"leyline":
-					_draw_leyline(Vector2.ZERO, 1.0, flash)
-				"holo_nut":
-					_draw_holo_nut(Vector2.ZERO, 1.0, flash, float(plant["health"]) / float(plant["max_health"]))
-				"healing_gourd":
-					_draw_healing_gourd(Vector2.ZERO, 1.0, flash)
-				"mango_bowling":
-					_draw_mango_bowling(Vector2.ZERO, 1.0, flash)
-				"snow_bloom":
-					_draw_snow_bloom(Vector2.ZERO, 1.0, flash, clampf(float(plant.get("fuse_timer", 0.0)) / maxf(float(Defs.PLANTS["snow_bloom"].get("wilt_time", 8.0)), 0.01), 0.0, 1.0))
-				"cluster_boomerang":
-					_draw_cluster_boomerang(Vector2.ZERO, 1.0, flash)
-				"glitch_walnut":
-					_draw_glitch_walnut(Vector2.ZERO, 1.0, flash, float(plant["health"]) / float(plant["max_health"]))
-				"nether_shroom":
-					_draw_nether_shroom(Vector2.ZERO, 1.0, flash)
-				"seraph_flower":
-					_draw_seraph_flower(Vector2.ZERO, 1.0, flash)
-				"magma_stream":
-					_draw_magma_stream(
-						Vector2.ZERO,
-						1.0,
-						flash,
-						clampf(
-							float(plant.get("fuse_timer", 0.0)) / maxf(float(Defs.PLANTS["magma_stream"].get("wilt_time", 9.0)), 0.01),
-							0.0,
-							1.0
-						)
-					)
-				"orange_bloom":
-					_draw_orange_bloom(Vector2.ZERO, 1.0, flash)
-				"hive_flower":
-					_draw_hive_flower(Vector2.ZERO, 1.0, flash)
-				"mamba_tree":
-					_draw_mamba_tree(Vector2.ZERO, 1.0, flash)
-				"chambord_sniper":
-					_draw_chambord_sniper(Vector2.ZERO, 1.0, flash)
-				"dream_disc":
-					_draw_dream_disc(Vector2.ZERO, 1.0, flash)
-				"umbrella_leaf":
-					_draw_umbrella_leaf(Vector2.ZERO, 1.0, flash)
-				"amber_shooter":
-					_draw_amber_shooter(Vector2.ZERO, 1.0, flash)
-				"vine_lasher":
-					_draw_vine_lasher(Vector2.ZERO, 1.0, flash)
-				"pepper_mortar":
-					_draw_pepper_mortar(Vector2.ZERO, 1.0, flash)
-				"cactus_guard":
-					_draw_cactus_guard(Vector2.ZERO, 1.0, flash, float(plant["health"]) / float(plant["max_health"]))
-				"pulse_bulb":
-					_draw_pulse_bulb(Vector2.ZERO, 1.0, flash)
-				"sun_bean":
-					_draw_sun_bean(Vector2.ZERO, 1.0, flash)
-				"sun_shroom":
-					_draw_sun_shroom(Vector2.ZERO, 1.0, flash, bool(plant["mature"]))
-				"fume_shroom":
-					_draw_fume_shroom(Vector2.ZERO, 1.0, flash)
-				"sea_shroom":
-					_draw_sea_shroom(Vector2.ZERO, 1.0, flash)
-				"grave_buster":
-					_draw_grave_buster(Vector2.ZERO, 1.0, flash)
-				"hypno_shroom":
-					_draw_hypno_shroom(Vector2.ZERO, 1.0, flash)
-				"scaredy_shroom":
-					_draw_scaredy_shroom(Vector2.ZERO, 1.0, flash, _has_close_zombie(center, float(Defs.PLANTS["scaredy_shroom"]["fear_radius"])))
-				"plantern":
-					_draw_plantern(Vector2.ZERO, 1.0, flash)
-				"cactus":
-					_draw_cactus(Vector2.ZERO, 1.0, flash)
-				"blover":
-					_draw_blover(Vector2.ZERO, 1.0, flash)
-				"split_pea":
-					_draw_split_pea(Vector2.ZERO, 1.0, flash)
-				"starfruit":
-					_draw_starfruit(Vector2.ZERO, 1.0, flash)
-				"pumpkin":
-					_draw_pumpkin(Vector2.ZERO, 1.0, flash, clampf(float(plant.get("armor_health", 0.0)) / maxf(float(plant.get("max_armor_health", 1.0)), 1.0), 0.0, 1.0))
-				"magnet_shroom":
-					_draw_magnet_shroom(Vector2.ZERO, 1.0, flash)
-				"ice_shroom":
-					_draw_ice_shroom(Vector2.ZERO, 1.0, flash)
-				"doom_shroom":
-					_draw_doom_shroom(Vector2.ZERO, 1.0, flash)
-				"moon_lotus":
-					_draw_moon_lotus(Vector2.ZERO, 1.0, flash)
-				"prism_grass":
-					_draw_prism_grass(Vector2.ZERO, 1.0, flash)
-				"lantern_bloom":
-					_draw_lantern_bloom(Vector2.ZERO, 1.0, flash)
-				"meteor_gourd":
-					_draw_meteor_gourd(Vector2.ZERO, 1.0, flash)
-				"root_snare":
-					_draw_root_snare(Vector2.ZERO, 1.0, flash)
-				"thunder_pine":
-					_draw_thunder_pine(Vector2.ZERO, 1.0, flash)
-				"dream_drum":
-					_draw_dream_drum(Vector2.ZERO, 1.0, flash)
-				"wind_orchid":
-					_draw_wind_orchid(Vector2.ZERO, 1.0, flash)
-				"squash":
-					_draw_squash(Vector2.ZERO, 1.0, flash)
-				"tangle_kelp":
-					_draw_tangle_kelp(Vector2.ZERO, 1.0, flash)
-				"jalapeno":
-					_draw_jalapeno(Vector2.ZERO, 1.0, flash)
-				"spikeweed":
-					_draw_spikeweed(Vector2.ZERO, 1.0, flash)
-				"torchwood":
-					_draw_torchwood(Vector2.ZERO, 1.0, flash)
-				"tallnut":
-					_draw_tallnut(Vector2.ZERO, 1.0, flash, float(plant["health"]) / float(plant["max_health"]))
-				# Gacha plants
-				"shadow_pea":
-					_draw_shadow_pea(Vector2.ZERO, 1.0, flash)
-				"ice_queen":
-					_draw_ice_queen(Vector2.ZERO, 1.0, flash)
-				"vine_emperor":
-					_draw_vine_emperor(Vector2.ZERO, 1.0, flash)
-				"soul_flower":
-					_draw_soul_flower(Vector2.ZERO, 1.0, flash)
-				"plasma_shooter":
-					_draw_plasma_shooter(Vector2.ZERO, 1.0, flash)
-				"crystal_nut":
-					_draw_crystal_nut(Vector2.ZERO, 1.0, flash, float(plant["health"]) / float(plant["max_health"]))
-				"dragon_fruit":
-					_draw_dragon_fruit(Vector2.ZERO, 1.0, flash)
-				"time_rose":
-					_draw_time_rose(Vector2.ZERO, 1.0, flash)
-				"galaxy_sunflower":
-					_draw_galaxy_sunflower(Vector2.ZERO, 1.0, flash)
-				"void_shroom":
-					_draw_void_shroom(Vector2.ZERO, 1.0, flash)
-				"phoenix_tree":
-					_draw_phoenix_tree(Vector2.ZERO, 1.0, flash)
-				"thunder_god":
-					_draw_thunder_god(Vector2.ZERO, 1.0, flash)
-				"prism_pea":
-					_draw_prism_pea(Vector2.ZERO, 1.0, flash)
-				"magnet_daisy":
-					_draw_magnet_daisy(Vector2.ZERO, 1.0, flash)
-				"thorn_cactus":
-					_draw_thorn_cactus(Vector2.ZERO, 1.0, flash)
-				"bubble_lotus":
-					_draw_bubble_lotus(Vector2.ZERO, 1.0, flash)
-				"spiral_bamboo":
-					_draw_spiral_bamboo(Vector2.ZERO, 1.0, flash)
-				"honey_blossom":
-					_draw_honey_blossom(Vector2.ZERO, 1.0, flash)
-				"echo_fern":
-					_draw_echo_fern(Vector2.ZERO, 1.0, flash)
-				"glow_ivy":
-					_draw_glow_ivy(Vector2.ZERO, 1.0, flash)
-				"laser_lily":
-					_draw_laser_lily(Vector2.ZERO, 1.0, flash)
-				"rock_armor_fruit":
-					_draw_rock_armor_fruit(Vector2.ZERO, 1.0, flash)
-				"aurora_orchid":
-					_draw_aurora_orchid(Vector2.ZERO, 1.0, flash)
-				"blast_pomegranate":
-					_draw_blast_pomegranate(Vector2.ZERO, 1.0, flash)
-				"frost_cypress":
-					_draw_frost_cypress(Vector2.ZERO, 1.0, flash)
-				"mirror_shroom":
-					_draw_mirror_shroom(Vector2.ZERO, 1.0, flash)
-				"chain_lotus":
-					_draw_chain_lotus(Vector2.ZERO, 1.0, flash)
-				"plasma_shroom":
-					_draw_plasma_shroom(Vector2.ZERO, 1.0, flash)
-				"meteor_flower":
-					_draw_meteor_flower(Vector2.ZERO, 1.0, flash)
-				"destiny_tree":
-					_draw_destiny_tree(Vector2.ZERO, 1.0, flash)
-				"abyss_tentacle":
-					_draw_abyss_tentacle(Vector2.ZERO, 1.0, flash)
-				"solar_emperor":
-					_draw_solar_emperor(Vector2.ZERO, 1.0, flash)
-				"shadow_assassin":
-					_draw_shadow_assassin(Vector2.ZERO, 1.0, flash)
-				"core_blossom":
-					_draw_core_blossom(Vector2.ZERO, 1.0, flash)
-				"holy_lotus":
-					_draw_holy_lotus(Vector2.ZERO, 1.0, flash)
-				"chaos_shroom":
-					_draw_chaos_shroom(Vector2.ZERO, 1.0, flash)
-				# Volcano world plants
-				"dragon_bubble_pult":
-					_draw_dragon_bubble_pult(Vector2.ZERO, 1.0, flash)
-				"cyclone_grass":
-					_draw_cyclone_grass(Vector2.ZERO, 1.0, flash)
-				"sand_lotus":
-					_draw_sand_lotus(Vector2.ZERO, 1.0, flash)
-				"frost_boomerang":
-					_draw_frost_boomerang(Vector2.ZERO, 1.0, flash)
-				"toxic_gum_pult":
-					_draw_toxic_gum_pult(Vector2.ZERO, 1.0, flash)
-				"corn_cannon":
-					_draw_corn_cannon(Vector2.ZERO, 1.0, flash)
-				"holy_flower":
-					_draw_holy_flower(Vector2.ZERO, 1.0, flash)
-				"ice_cream":
-					_draw_ice_cream(Vector2.ZERO, 1.0, flash)
-				"gator_cannon":
-					_draw_gator_cannon(Vector2.ZERO, 1.0, flash)
+			_draw_plant_body(plant_kind, Vector2.ZERO, 1.0, flash, 1.0, plant)
 			if String(plant.get("shell_kind", "")) == "pumpkin" and String(plant["kind"]) != "pumpkin":
 				_draw_pumpkin(Vector2.ZERO, 1.0, flash, clampf(float(plant.get("armor_health", 0.0)) / maxf(float(plant.get("max_armor_health", 1.0)), 1.0), 0.0, 1.0), 0.92)
-			_draw_plant_style_overlay(plant)
 			_set_combat_transform()
 
 			# Enhancement aura
@@ -24148,14 +23695,14 @@ func _draw_plants() -> void:
 			if String(plant["kind"]) != "cherry_bomb" and String(plant["kind"]) != "jalapeno":
 				if float(plant["armor_health"]) > 0.0 and float(plant["max_armor_health"]) > 0.0:
 					_draw_health_bar(
-						draw_center + Vector2(0.0, -52.0),
-						58.0,
+						draw_center + Vector2(0.0, -52.0 * unit_scale),
+						58.0 * unit_scale,
 						clampf(float(plant["armor_health"]) / float(plant["max_armor_health"]), 0.0, 1.0),
 						Color(0.16, 0.96, 0.3)
 					)
 				_draw_health_bar(
-					draw_center + Vector2(0.0, -42.0),
-					58.0,
+					draw_center + Vector2(0.0, -42.0 * unit_scale),
+					58.0 * unit_scale,
 					clampf(float(plant["health"]) / float(plant["max_health"]), 0.0, 1.0),
 					Color(0.32, 0.86, 0.24)
 				)
@@ -24172,10 +23719,6 @@ func _draw_projectiles() -> void:
 		var pulse = 1.0 + 0.12 * sin(level_time * 14.0 + projectile_pos.x * 0.04)
 		var projectile_radius = float(projectile.get("radius", 8.0)) * pulse
 		var trail_dir = 1.0 if float(projectile.get("speed", 0.0)) >= 0.0 else -1.0
-		# Shared procedural shell: every projectile gets the same readable core and
-		# halo before its shape-specific geometry is drawn.
-		draw_circle(projectile_pos, projectile_radius * 1.55, Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.10))
-		draw_arc(projectile_pos, projectile_radius * 1.34, level_time * 2.0, level_time * 2.0 + PI * 1.35, 18, Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.42), 1.2, true)
 		if _try_draw_polished_projectile(projectile_kind, projectile_pos, projectile_radius, trail_dir, projectile_color):
 			continue
 		if projectile_kind == "origami_plane":
@@ -24814,12 +24357,6 @@ func _draw_effects() -> void:
 			_ensure_volcano_expansion().draw_effect(effect)
 			continue
 		var anim_speed = float(effect.get("anim_speed", 4.0))
-		var effect_center := Vector2(effect.get("position", Vector2.ZERO))
-		var effect_radius := maxf(_effect_visual_radius(effect, ratio), 18.0)
-		# Shared effect language: a restrained pulse ring anchors every custom
-		# effect, including image2 and Touhou spell-card visuals.
-		draw_circle(effect_center, effect_radius * 1.08, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.08))
-		draw_arc(effect_center, effect_radius, level_time * 0.8, level_time * 0.8 + PI * 1.4, 28, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.42), 1.5, true)
 		if _try_draw_image2_effect(shape, effect, ratio, effect_color):
 			continue
 		if shape == "projectile_impact":
@@ -26856,499 +26393,99 @@ func _draw_mowers() -> void:
 			draw_line(center + Vector2(16.0, -12.0), center + Vector2(34.0, -28.0), Color(0.28, 0.28, 0.28), 3.0)
 
 
-func _draw_card_icon(kind: String, center: Vector2, portrait_scale: float = 1.0) -> void:
-	if UNIFIED_COMBAT_VISUALS:
-		_draw_unified_plant(center + Vector2(0.0, 6.0) * portrait_scale, kind, {}, 0.52 * portrait_scale, 1.0, 0.0)
+func _draw_ink_disc(center: Vector2, radius: float, fill: Color, filled: bool = true, stroke_width: float = -1.0) -> void:
+	draw_circle(center, radius, fill, filled, stroke_width, true)
+	# Shade solid body pieces, leaving small face details and translucent glows flat.
+	if not filled or radius < 5.0 or fill.a < 0.35:
 		return
-	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
-		_ensure_volcano_expansion().draw_plant(kind, center + Vector2(0.0, 6.0), 0.58)
+	var width := radius * 0.105
+	var ink := Color("#213b3a", fill.a).lerp(fill.darkened(0.68), 0.24)
+	draw_arc(center, radius - width * 0.5, 0.0, TAU, 32, ink, width, true)
+	if radius >= 10.0 and fill.get_luminance() > 0.13:
+		draw_arc(center + Vector2(-radius * 0.05, -radius * 0.08), radius * 0.75, PI * 1.08, PI * 1.64, 14, Color(fill.lightened(0.28), fill.a * 0.65), width * 0.8, true)
+
+
+func _draw_ink_rect(rect: Rect2, fill: Color, filled: bool = true, width: float = -1.0, antialiased: bool = false) -> void:
+	draw_rect(rect, fill, filled, width, antialiased)
+	var shortest := minf(rect.size.x, rect.size.y)
+	if not filled or shortest < 5.0 or fill.a < 0.35:
 		return
-	if _try_draw_image2_plant(kind, center + Vector2(0.0, 8.0), 0.54, 0.0):
+	var stroke := shortest * 0.085
+	draw_rect(rect.grow(-stroke * 0.5), Color("#213b3a", fill.a), false, stroke, true)
+	draw_line(rect.position + Vector2(stroke, stroke), rect.position + Vector2(rect.size.x - stroke, stroke), Color(fill.lightened(0.24), fill.a * 0.8), stroke, true)
+
+
+func _draw_ink_polygon(points: PackedVector2Array, colors: PackedColorArray) -> void:
+	draw_polygon(points, colors)
+	if points.size() < 3 or colors.is_empty():
 		return
+	var bounds := Rect2(points[0], Vector2.ZERO)
+	var opacity := colors[0].a
+	for point in points:
+		bounds = bounds.expand(point)
+	for color in colors:
+		opacity = minf(opacity, color.a)
+	if opacity < 0.35:
+		return
+	var outline := points.duplicate()
+	outline.append(points[0])
+	draw_polyline(outline, Color("#213b3a", opacity), minf(bounds.size.x, bounds.size.y) * 0.055, true)
+
+
+func _draw_ink_line(from: Vector2, to: Vector2, fill: Color, width: float = -1.0, antialiased: bool = false) -> void:
+	if width >= 4.0 and fill.a >= 0.35:
+		draw_line(from, to, Color("#213b3a", fill.a), width * 1.5, true)
+	draw_line(from, to, fill, width, antialiased)
+
+
+func _draw_plant_body(kind: String, center: Vector2, size_scale: float = 1.0, flash: float = 0.0, alpha: float = 1.0, plant: Dictionary = {}) -> void:
+	var definition: Dictionary = Defs.PLANTS.get(kind, {})
+	if bool(definition.get("volcano_expansion", false)):
+		_ensure_volcano_expansion().draw_plant(kind, center, size_scale, flash, alpha, plant)
+		return
+	# Each species keeps its original renderer. Only state arguments are shared
+	# between battle, cards, almanac portraits, and translucent placement previews.
+	var renderer := "_draw_%s" % kind
 	match kind:
-		"peashooter":
-			_draw_peashooter(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"puff_shroom":
-			_draw_puff_shroom(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"sunflower":
-			_draw_sunflower(center + Vector2(0.0, 2.0), 0.52, 0.0)
-		"cherry_bomb":
-			_draw_cherry_bomb(center + Vector2(0.0, 6.0), 0.54, 0.0)
-		"wallnut":
-			_draw_wallnut(center + Vector2(0.0, 8.0), 0.56, 0.0, 1.0)
-		"potato_mine":
-			_draw_potato_mine(center + Vector2(0.0, 8.0), 0.56, true, 1.0)
-		"snow_pea":
-			_draw_snow_pea(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"chomper":
-			_draw_chomper(center + Vector2(0.0, 10.0), 0.54, 0.0)
-		"repeater":
-			_draw_repeater(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"threepeater":
-			_draw_threepeater(center + Vector2(0.0, 6.0), 0.48, 0.0)
-		"boomerang_shooter":
-			_draw_boomerang_shooter(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"sakura_shooter":
-			_draw_sakura_shooter(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"lotus_lancer":
-			_draw_lotus_lancer(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"mist_orchid":
-			_draw_mist_orchid(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"anchor_fern":
-			_draw_anchor_fern(center + Vector2(0.0, 7.0), 0.5, 0.0)
-		"glowvine":
-			_draw_glowvine(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"brine_pot":
-			_draw_brine_pot(center + Vector2(0.0, 7.0), 0.5, 0.0)
-		"storm_reed":
-			_draw_storm_reed(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"moonforge":
-			_draw_moonforge(center + Vector2(0.0, 7.0), 0.5, 0.0)
-		"mirror_reed":
-			_draw_mirror_reed(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"frost_fan":
-			_draw_frost_fan(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"cabbage_pult":
-			_draw_cabbage_pult(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"flower_pot":
-			_draw_flower_pot(center + Vector2(0.0, 12.0), 0.54, 0.0)
-		"kernel_pult":
-			_draw_kernel_pult(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"coffee_bean":
-			_draw_coffee_bean(center + Vector2(0.0, 8.0), 0.54, 0.0)
-		"garlic":
-			_draw_garlic(center + Vector2(0.0, 10.0), 0.54, 0.0)
-		"umbrella_leaf":
-			_draw_umbrella_leaf(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"marigold":
-			_draw_marigold(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"melon_pult":
-			_draw_melon_pult(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"origami_blossom":
-			_draw_origami_blossom(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"chimney_pepper":
-			_draw_chimney_pepper(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"tesla_tulip":
-			_draw_tesla_tulip(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"brick_guard":
-			_draw_brick_guard(center + Vector2(0.0, 8.0), 0.5, 0.0, 1.0)
-		"signal_ivy":
-			_draw_signal_ivy(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"roof_vane":
-			_draw_roof_vane(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"skylight_melon":
-			_draw_skylight_melon(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"heather_shooter":
-			_draw_heather_shooter(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"leyline":
-			_draw_leyline(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"holo_nut":
-			_draw_holo_nut(center + Vector2(0.0, 8.0), 0.5, 0.0, 1.0)
-		"healing_gourd":
-			_draw_healing_gourd(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"mango_bowling":
-			_draw_mango_bowling(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"snow_bloom":
-			_draw_snow_bloom(center + Vector2(0.0, 8.0), 0.5, 0.0, 1.0)
-		"cluster_boomerang":
-			_draw_cluster_boomerang(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"glitch_walnut":
-			_draw_glitch_walnut(center + Vector2(0.0, 8.0), 0.5, 0.0, 1.0)
-		"nether_shroom":
-			_draw_nether_shroom(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"seraph_flower":
-			_draw_seraph_flower(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"magma_stream":
-			_draw_magma_stream(center + Vector2(0.0, 8.0), 0.5, 0.0, 1.0)
-		"orange_bloom":
-			_draw_orange_bloom(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"hive_flower":
-			_draw_hive_flower(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"mamba_tree":
-			_draw_mamba_tree(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"chambord_sniper":
-			_draw_chambord_sniper(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"dream_disc":
-			_draw_dream_disc(center + Vector2(0.0, 8.0), 0.5, 0.0)
-		"amber_shooter":
-			_draw_amber_shooter(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"vine_lasher":
-			_draw_vine_lasher(center + Vector2(0.0, 6.0), 0.52, 0.0)
-		"pepper_mortar":
-			_draw_pepper_mortar(center + Vector2(0.0, 6.0), 0.54, 0.0)
-		"cactus_guard":
-			_draw_cactus_guard(center + Vector2(0.0, 8.0), 0.54, 0.0, 1.0)
-		"pulse_bulb":
-			_draw_pulse_bulb(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"sun_bean":
-			_draw_sun_bean(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"sun_shroom":
-			_draw_sun_shroom(center + Vector2(0.0, 8.0), 0.52, 0.0, false)
-		"sea_shroom":
-			_draw_sea_shroom(center + Vector2(0.0, 10.0), 0.52, 0.0)
-		"fume_shroom":
-			_draw_fume_shroom(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"grave_buster":
-			_draw_grave_buster(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"hypno_shroom":
-			_draw_hypno_shroom(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"scaredy_shroom":
-			_draw_scaredy_shroom(center + Vector2(0.0, 8.0), 0.52, 0.0, false)
-		"plantern":
-			_draw_plantern(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"cactus":
-			_draw_cactus(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"blover":
-			_draw_blover(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"split_pea":
-			_draw_split_pea(center + Vector2(0.0, 6.0), 0.5, 0.0)
-		"starfruit":
-			_draw_starfruit(center + Vector2(0.0, 6.0), 0.52, 0.0)
-		"pumpkin":
-			_draw_pumpkin(center + Vector2(0.0, 8.0), 0.52, 0.0, 1.0)
-		"magnet_shroom":
-			_draw_magnet_shroom(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"ice_shroom":
-			_draw_ice_shroom(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"doom_shroom":
-			_draw_doom_shroom(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"moon_lotus":
-			_draw_moon_lotus(center + Vector2(0.0, 6.0), 0.52, 0.0)
-		"prism_grass":
-			_draw_prism_grass(center + Vector2(0.0, 6.0), 0.52, 0.0)
-		"lantern_bloom":
-			_draw_lantern_bloom(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"meteor_gourd":
-			_draw_meteor_gourd(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"root_snare":
-			_draw_root_snare(center + Vector2(0.0, 6.0), 0.52, 0.0)
-		"thunder_pine":
-			_draw_thunder_pine(center + Vector2(0.0, 6.0), 0.52, 0.0)
-		"dream_drum":
-			_draw_dream_drum(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"wind_orchid":
-			_draw_wind_orchid(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"lily_pad":
-			_draw_lily_pad(center + Vector2(0.0, 12.0), 0.56, 0.0)
-		"squash":
-			_draw_squash(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"tangle_kelp":
-			_draw_tangle_kelp(center + Vector2(0.0, 10.0), 0.54, 0.0)
-		"jalapeno":
-			_draw_jalapeno(center + Vector2(0.0, 8.0), 0.54, 0.0)
-		"spikeweed":
-			_draw_spikeweed(center + Vector2(0.0, 12.0), 0.56, 0.0)
-		"torchwood":
-			_draw_torchwood(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"tallnut":
-			_draw_tallnut(center + Vector2(0.0, 8.0), 0.52, 0.0, 1.0)
 		"wallnut_bowling":
-			_draw_bowling_nut(center + Vector2(0.0, 8.0), 0.54, 0.0)
-		# Gacha plants
-		"shadow_pea":
-			_draw_shadow_pea(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"ice_queen":
-			_draw_ice_queen(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"vine_emperor":
-			_draw_vine_emperor(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"soul_flower":
-			_draw_soul_flower(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"plasma_shooter":
-			_draw_plasma_shooter(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"crystal_nut":
-			_draw_crystal_nut(center + Vector2(0.0, 8.0), 0.52, 0.0, 1.0)
-		"dragon_fruit":
-			_draw_dragon_fruit(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"time_rose":
-			_draw_time_rose(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"galaxy_sunflower":
-			_draw_galaxy_sunflower(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"void_shroom":
-			_draw_void_shroom(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"phoenix_tree":
-			_draw_phoenix_tree(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"thunder_god":
-			_draw_thunder_god(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"prism_pea":
-			_draw_prism_pea(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"magnet_daisy":
-			_draw_magnet_daisy(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"thorn_cactus":
-			_draw_thorn_cactus(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"bubble_lotus":
-			_draw_bubble_lotus(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"spiral_bamboo":
-			_draw_spiral_bamboo(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"honey_blossom":
-			_draw_honey_blossom(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"echo_fern":
-			_draw_echo_fern(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"glow_ivy":
-			_draw_glow_ivy(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"laser_lily":
-			_draw_laser_lily(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"rock_armor_fruit":
-			_draw_rock_armor_fruit(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"aurora_orchid":
-			_draw_aurora_orchid(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"blast_pomegranate":
-			_draw_blast_pomegranate(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"frost_cypress":
-			_draw_frost_cypress(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"mirror_shroom":
-			_draw_mirror_shroom(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"chain_lotus":
-			_draw_chain_lotus(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"plasma_shroom":
-			_draw_plasma_shroom(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"meteor_flower":
-			_draw_meteor_flower(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"destiny_tree":
-			_draw_destiny_tree(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"abyss_tentacle":
-			_draw_abyss_tentacle(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"solar_emperor":
-			_draw_solar_emperor(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"shadow_assassin":
-			_draw_shadow_assassin(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"core_blossom":
-			_draw_core_blossom(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"holy_lotus":
-			_draw_holy_lotus(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"chaos_shroom":
-			_draw_chaos_shroom(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		# Volcano world plants
-		"dragon_bubble_pult":
-			_draw_dragon_bubble_pult(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"cork_plug":
-			_draw_cork_plug(center + Vector2(0.0, 10.0), 0.52, 0.0)
-		"cyclone_grass":
-			_draw_cyclone_grass(center + Vector2(0.0, 6.0), 0.52, 0.0)
-		"sand_lotus":
-			_draw_sand_lotus(center + Vector2(0.0, 6.0), 0.52, 0.0)
-		"frost_boomerang":
-			_draw_frost_boomerang(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"toxic_gum_pult":
-			_draw_toxic_gum_pult(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"corn_cannon":
-			_draw_corn_cannon(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"holy_flower":
-			_draw_holy_flower(center + Vector2(0.0, 4.0), 0.52, 0.0)
-		"ice_cream":
-			_draw_ice_cream(center + Vector2(0.0, 8.0), 0.52, 0.0)
-		"gator_cannon":
-			_draw_gator_cannon(center + Vector2(0.0, 4.0), 0.52, 0.0)
+			_draw_bowling_nut(center, size_scale, flash, alpha, bool(plant.get("empowered", false)))
+		"wallnut", "tallnut", "brick_guard", "holo_nut", "glitch_walnut", "cactus_guard", "crystal_nut":
+			var health_ratio := clampf(float(plant.get("health", 1.0)) / maxf(float(plant.get("max_health", 1.0)), 0.01), 0.0, 1.0)
+			call(renderer, center, size_scale, flash, health_ratio, alpha)
+		"pumpkin":
+			var armor_ratio := clampf(float(plant.get("armor_health", 1.0)) / maxf(float(plant.get("max_armor_health", 1.0)), 0.01), 0.0, 1.0)
+			_draw_pumpkin(center, size_scale, flash, armor_ratio, alpha)
+		"cherry_bomb":
+			var fuse_ratio := clampf(float(plant.get("fuse_timer", 0.0)) / float(definition.fuse), 0.0, 1.0)
+			_draw_cherry_bomb(center, size_scale, fuse_ratio, alpha)
+		"potato_mine":
+			var arm_ratio := clampf(1.0 - float(plant.get("arm_timer", 0.0)) / float(definition.arm_time), 0.0, 1.0)
+			_draw_potato_mine(center, size_scale, bool(plant.get("armed", true)), arm_ratio, alpha)
+		"chomper":
+			var chew_ratio := clampf(float(plant.get("chew_timer", 0.0)) / float(definition.chew_time), 0.0, 1.0)
+			_draw_chomper(center, size_scale, chew_ratio, alpha)
+		"sun_shroom":
+			_draw_sun_shroom(center, size_scale, flash, bool(plant.get("mature", true)), alpha)
+		"scaredy_shroom":
+			var hiding := false
+			if plant.has("row") and plant.has("col"):
+				hiding = _has_close_zombie(_cell_center(int(plant.row), int(plant.col)), float(definition.fear_radius))
+			_draw_scaredy_shroom(center, size_scale, flash, hiding, alpha)
+		"snow_bloom", "magma_stream":
+			var wilt_time := maxf(float(definition.wilt_time), 0.01)
+			var wilt_ratio := clampf(float(plant.get("fuse_timer", wilt_time)) / wilt_time, 0.0, 1.0)
+			call(renderer, center, size_scale, flash, wilt_ratio, alpha)
+		_:
+			call(renderer, center, size_scale, flash, alpha)
+
+
+func _draw_card_icon(kind: String, center: Vector2, portrait_scale: float = 1.0) -> void:
+	var icon_scale := 0.58
+	_draw_plant_body(kind, center + Vector2(0.0, 4.0) * portrait_scale, icon_scale * portrait_scale)
 
 
 func _draw_plant_preview(kind: String, center: Vector2) -> void:
-	if UNIFIED_COMBAT_VISUALS:
-		_draw_unified_plant(center, kind, {}, 0.82, 0.42, 0.0)
-		return
-	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
-		_ensure_volcano_expansion().draw_plant(kind, center, 1.0, 0.0, 0.42)
-		return
-	if _try_draw_image2_plant(kind, center, 1.0, 0.0, 0.42):
-		return
-	match kind:
-		"peashooter":
-			_draw_peashooter(center, 1.0, 0.0, 0.42)
-		"puff_shroom":
-			_draw_puff_shroom(center, 1.0, 0.0, 0.42)
-		"sunflower":
-			_draw_sunflower(center, 1.0, 0.0, 0.42)
-		"cherry_bomb":
-			_draw_cherry_bomb(center, 1.0, 0.0, 0.42)
-		"wallnut":
-			_draw_wallnut(center, 1.0, 0.0, 1.0, 0.42)
-		"potato_mine":
-			_draw_potato_mine(center, 1.0, false, 0.0, 0.42)
-		"snow_pea":
-			_draw_snow_pea(center, 1.0, 0.0, 0.42)
-		"chomper":
-			_draw_chomper(center, 1.0, 0.0, 0.42)
-		"repeater":
-			_draw_repeater(center, 1.0, 0.0, 0.42)
-		"threepeater":
-			_draw_threepeater(center, 1.0, 0.0, 0.42)
-		"boomerang_shooter":
-			_draw_boomerang_shooter(center, 1.0, 0.0, 0.42)
-		"sakura_shooter":
-			_draw_sakura_shooter(center, 1.0, 0.0, 0.42)
-		"lotus_lancer":
-			_draw_lotus_lancer(center, 1.0, 0.0, 0.42)
-		"mist_orchid":
-			_draw_mist_orchid(center, 1.0, 0.0, 0.42)
-		"anchor_fern":
-			_draw_anchor_fern(center, 1.0, 0.0, 0.42)
-		"glowvine":
-			_draw_glowvine(center, 1.0, 0.0, 0.42)
-		"brine_pot":
-			_draw_brine_pot(center, 1.0, 0.0, 0.42)
-		"storm_reed":
-			_draw_storm_reed(center, 1.0, 0.0, 0.42)
-		"moonforge":
-			_draw_moonforge(center, 1.0, 0.0, 0.42)
-		"mirror_reed":
-			_draw_mirror_reed(center, 1.0, 0.0, 0.42)
-		"frost_fan":
-			_draw_frost_fan(center, 1.0, 0.0, 0.42)
-		"cabbage_pult":
-			_draw_cabbage_pult(center, 1.0, 0.0, 0.42)
-		"flower_pot":
-			_draw_flower_pot(center + Vector2(0.0, 8.0), 1.0, 0.0, 0.42)
-		"kernel_pult":
-			_draw_kernel_pult(center, 1.0, 0.0, 0.42)
-		"coffee_bean":
-			_draw_coffee_bean(center, 1.0, 0.0, 0.42)
-		"garlic":
-			_draw_garlic(center, 1.0, 0.0, 0.42)
-		"umbrella_leaf":
-			_draw_umbrella_leaf(center, 1.0, 0.0, 0.42)
-		"marigold":
-			_draw_marigold(center, 1.0, 0.0, 0.42)
-		"melon_pult":
-			_draw_melon_pult(center, 1.0, 0.0, 0.42)
-		"origami_blossom":
-			_draw_origami_blossom(center, 1.0, 0.0, 0.42)
-		"chimney_pepper":
-			_draw_chimney_pepper(center, 1.0, 0.0, 0.42)
-		"tesla_tulip":
-			_draw_tesla_tulip(center, 1.0, 0.0, 0.42)
-		"brick_guard":
-			_draw_brick_guard(center, 1.0, 0.0, 1.0, 0.42)
-		"signal_ivy":
-			_draw_signal_ivy(center, 1.0, 0.0, 0.42)
-		"roof_vane":
-			_draw_roof_vane(center, 1.0, 0.0, 0.42)
-		"skylight_melon":
-			_draw_skylight_melon(center, 1.0, 0.0, 0.42)
-		"heather_shooter":
-			_draw_heather_shooter(center, 1.0, 0.0, 0.42)
-		"leyline":
-			_draw_leyline(center, 1.0, 0.0, 0.42)
-		"holo_nut":
-			_draw_holo_nut(center, 1.0, 0.0, 1.0, 0.42)
-		"healing_gourd":
-			_draw_healing_gourd(center, 1.0, 0.0, 0.42)
-		"mango_bowling":
-			_draw_mango_bowling(center, 1.0, 0.0, 0.42)
-		"snow_bloom":
-			_draw_snow_bloom(center, 1.0, 0.0, 1.0, 0.42)
-		"cluster_boomerang":
-			_draw_cluster_boomerang(center, 1.0, 0.0, 0.42)
-		"glitch_walnut":
-			_draw_glitch_walnut(center, 1.0, 0.0, 1.0, 0.42)
-		"nether_shroom":
-			_draw_nether_shroom(center, 1.0, 0.0, 0.42)
-		"seraph_flower":
-			_draw_seraph_flower(center, 1.0, 0.0, 0.42)
-		"magma_stream":
-			_draw_magma_stream(center, 1.0, 0.0, 1.0, 0.42)
-		"orange_bloom":
-			_draw_orange_bloom(center, 1.0, 0.0, 0.42)
-		"hive_flower":
-			_draw_hive_flower(center, 1.0, 0.0, 0.42)
-		"mamba_tree":
-			_draw_mamba_tree(center, 1.0, 0.0, 0.42)
-		"chambord_sniper":
-			_draw_chambord_sniper(center, 1.0, 0.0, 0.42)
-		"dream_disc":
-			_draw_dream_disc(center, 1.0, 0.0, 0.42)
-		"amber_shooter":
-				_draw_amber_shooter(center, 1.0, 0.0, 0.42)
-		"vine_lasher":
-			_draw_vine_lasher(center, 1.0, 0.0, 0.42)
-		"pepper_mortar":
-			_draw_pepper_mortar(center, 1.0, 0.0, 0.42)
-		"cactus_guard":
-			_draw_cactus_guard(center, 1.0, 0.0, 1.0, 0.42)
-		"pulse_bulb":
-			_draw_pulse_bulb(center, 1.0, 0.0, 0.42)
-		"sun_bean":
-			_draw_sun_bean(center, 1.0, 0.0, 0.42)
-		"sun_shroom":
-			_draw_sun_shroom(center, 1.0, 0.0, false, 0.42)
-		"sea_shroom":
-			_draw_sea_shroom(center, 1.0, 0.0, 0.42)
-		"fume_shroom":
-			_draw_fume_shroom(center, 1.0, 0.0, 0.42)
-		"grave_buster":
-			_draw_grave_buster(center, 1.0, 0.0, 0.42)
-		"hypno_shroom":
-			_draw_hypno_shroom(center, 1.0, 0.0, 0.42)
-		"scaredy_shroom":
-			_draw_scaredy_shroom(center, 1.0, 0.0, false, 0.42)
-		"plantern":
-			_draw_plantern(center, 1.0, 0.0, 0.42)
-		"cactus":
-			_draw_cactus(center, 1.0, 0.0, 0.42)
-		"blover":
-			_draw_blover(center, 1.0, 0.0, 0.42)
-		"split_pea":
-			_draw_split_pea(center, 1.0, 0.0, 0.42)
-		"starfruit":
-			_draw_starfruit(center, 1.0, 0.0, 0.42)
-		"pumpkin":
-			_draw_pumpkin(center, 1.0, 0.0, 1.0, 0.42)
-		"magnet_shroom":
-			_draw_magnet_shroom(center, 1.0, 0.0, 0.42)
-		"ice_shroom":
-			_draw_ice_shroom(center, 1.0, 0.0, 0.42)
-		"doom_shroom":
-			_draw_doom_shroom(center, 1.0, 0.0, 0.42)
-		"moon_lotus":
-			_draw_moon_lotus(center, 1.0, 0.0, 0.42)
-		"prism_grass":
-			_draw_prism_grass(center, 1.0, 0.0, 0.42)
-		"lantern_bloom":
-			_draw_lantern_bloom(center, 1.0, 0.0, 0.42)
-		"meteor_gourd":
-			_draw_meteor_gourd(center, 1.0, 0.0, 0.42)
-		"root_snare":
-			_draw_root_snare(center, 1.0, 0.0, 0.42)
-		"thunder_pine":
-			_draw_thunder_pine(center, 1.0, 0.0, 0.42)
-		"dream_drum":
-			_draw_dream_drum(center, 1.0, 0.0, 0.42)
-		"wind_orchid":
-			_draw_wind_orchid(center, 1.0, 0.0, 0.42)
-		"lily_pad":
-			_draw_lily_pad(center, 1.0, 0.0, 0.42)
-		"squash":
-			_draw_squash(center, 1.0, 0.0, 0.42)
-		"tangle_kelp":
-			_draw_tangle_kelp(center, 1.0, 0.0, 0.42)
-		"jalapeno":
-			_draw_jalapeno(center, 1.0, 0.0, 0.42)
-		"spikeweed":
-			_draw_spikeweed(center, 1.0, 0.0, 0.42)
-		"torchwood":
-			_draw_torchwood(center, 1.0, 0.0, 0.42)
-		"tallnut":
-			_draw_tallnut(center, 1.0, 0.0, 1.0, 0.42)
-		"wallnut_bowling":
-			_draw_bowling_nut(center, 1.0, 0.0, 0.42)
-		# Volcano world plants
-		"dragon_bubble_pult":
-			_draw_dragon_bubble_pult(center, 1.0, 0.0, 0.42)
-		"cork_plug":
-			_draw_cork_plug(center, 1.0, 0.0, 0.42)
-		"cyclone_grass":
-			_draw_cyclone_grass(center, 1.0, 0.0, 0.42)
-		"sand_lotus":
-			_draw_sand_lotus(center, 1.0, 0.0, 0.42)
-		"frost_boomerang":
-			_draw_frost_boomerang(center, 1.0, 0.0, 0.42)
-		"toxic_gum_pult":
-			_draw_toxic_gum_pult(center, 1.0, 0.0, 0.42)
-		"corn_cannon":
-			_draw_corn_cannon(center, 1.0, 0.0, 0.42)
-		"holy_flower":
-			_draw_holy_flower(center, 1.0, 0.0, 0.42)
-		"ice_cream":
-			_draw_ice_cream(center, 1.0, 0.0, 0.42)
-		"gator_cannon":
-			_draw_gator_cannon(center, 1.0, 0.0, 0.42)
+	_draw_plant_body(kind, center, _battle_unit_scale(), 0.0, 0.42)
 
 
 func _draw_sunflower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -27359,16 +26496,16 @@ func _draw_sunflower(center: Vector2, size_scale: float, flash: float, alpha: fl
 	# Shadow under plant
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	# Stem with slight curve
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.2, 0.52, 0.16, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.2, 0.52, 0.16, alpha), 6.0 * size_scale)
 	# Leaves with vein
-	draw_circle(center + Vector2(-13.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.28, 0.7, 0.22, alpha))
+	_draw_ink_disc(center + Vector2(-13.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.28, 0.7, 0.22, alpha))
 	draw_circle(center + Vector2(-13.0 * size_scale, 18.0 * size_scale), 7.0 * size_scale, Color(0.32, 0.74, 0.26, alpha))
-	draw_circle(center + Vector2(13.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.28, 0.7, 0.22, alpha))
+	_draw_ink_disc(center + Vector2(13.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.28, 0.7, 0.22, alpha))
 	draw_circle(center + Vector2(13.0 * size_scale, 18.0 * size_scale), 7.0 * size_scale, Color(0.32, 0.74, 0.26, alpha))
 	# Outer petals (darker layer)
 	for index in range(10):
 		var angle = TAU * float(index) / 10.0 + 0.16
-		draw_circle(core_center + Vector2(cos(angle), sin(angle)) * 23.0 * size_scale, 9.0 * size_scale, petal_color.darkened(0.12))
+		_draw_ink_disc(core_center + Vector2(cos(angle), sin(angle)) * 23.0 * size_scale, 9.0 * size_scale, petal_color.darkened(0.12))
 	# Inner petals
 	for index in range(10):
 		var angle = TAU * float(index) / 10.0
@@ -27378,8 +26515,8 @@ func _draw_sunflower(center: Vector2, size_scale: float, flash: float, alpha: fl
 		var angle = TAU * float(index) / 5.0 - 0.3
 		draw_circle(core_center + Vector2(cos(angle), sin(angle)) * 18.0 * size_scale, 4.0 * size_scale, Color(1.0, 0.94, 0.5, 0.3 * alpha))
 	# Core
-	draw_circle(core_center, 17.0 * size_scale, Color(0.43, 0.22, 0.08, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(core_center, 13.0 * size_scale, Color(0.48, 0.26, 0.1, alpha))
+	_draw_ink_disc(core_center, 17.0 * size_scale, Color(0.43, 0.22, 0.08, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_disc(core_center, 13.0 * size_scale, Color(0.48, 0.26, 0.1, alpha))
 	# Core highlight
 	draw_circle(core_center + Vector2(-4.0 * size_scale, -4.0 * size_scale), 5.0 * size_scale, Color(0.56, 0.32, 0.14, alpha))
 	# Eyes
@@ -27399,21 +26536,21 @@ func _draw_peashooter(center: Vector2, size_scale: float, flash: float, alpha: f
 	# Shadow
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	# Stem
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(-1.0 * size_scale, 33.0 * size_scale), Color(0.2, 0.5, 0.14, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(-1.0 * size_scale, 33.0 * size_scale), Color(0.2, 0.5, 0.14, alpha), 7.0 * size_scale)
 	# Stem highlight
-	draw_line(center + Vector2(-2.0 * size_scale, 10.0 * size_scale), center + Vector2(-3.0 * size_scale, 30.0 * size_scale), Color(0.28, 0.58, 0.2, alpha), 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, 10.0 * size_scale), center + Vector2(-3.0 * size_scale, 30.0 * size_scale), Color(0.28, 0.58, 0.2, alpha), 2.0 * size_scale)
 	# Leaves
-	draw_circle(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
+	_draw_ink_disc(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
 	draw_circle(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 6.0 * size_scale, Color(0.32, 0.76, 0.26, alpha))
-	draw_circle(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
+	_draw_ink_disc(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
 	draw_circle(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 6.0 * size_scale, Color(0.32, 0.76, 0.26, alpha))
 	# Head
 	var head = center + Vector2(-2.0 * size_scale, -10.0 * size_scale)
-	draw_circle(head, 20.0 * size_scale, body_color)
+	_draw_ink_disc(head, 20.0 * size_scale, body_color)
 	# Head highlight
 	draw_circle(head + Vector2(-6.0 * size_scale, -6.0 * size_scale), 8.0 * size_scale, Color(0.52, 0.9, 0.38, alpha))
 	# Barrel
-	draw_circle(head + Vector2(24.0 * size_scale, 0.0), 11.0 * size_scale, body_color.darkened(0.06))
+	_draw_ink_disc(head + Vector2(24.0 * size_scale, 0.0), 11.0 * size_scale, body_color.darkened(0.06))
 	draw_circle(head + Vector2(24.0 * size_scale, 0.0), 8.0 * size_scale, body_color.darkened(0.02))
 	# Barrel opening
 	draw_circle(head + Vector2(31.0 * size_scale, 0.0), 5.0 * size_scale, Color(0.18, 0.42, 0.12, alpha))
@@ -27422,31 +26559,31 @@ func _draw_peashooter(center: Vector2, size_scale: float, flash: float, alpha: f
 	draw_circle(head + Vector2(-6.0 * size_scale, -6.0 * size_scale), 3.0 * size_scale, Color(0.05, 0.05, 0.05, alpha))
 	draw_circle(head + Vector2(-5.0 * size_scale, -7.0 * size_scale), 1.2 * size_scale, Color(1.0, 1.0, 1.0, 0.6 * alpha))
 	# Lip/chin
-	draw_circle(head + Vector2(-10.0 * size_scale, 10.0 * size_scale), 10.0 * size_scale, Color(0.24, 0.66, 0.2, alpha))
+	_draw_ink_disc(head + Vector2(-10.0 * size_scale, 10.0 * size_scale), 10.0 * size_scale, Color(0.24, 0.66, 0.2, alpha))
 	draw_circle(head + Vector2(-10.0 * size_scale, 10.0 * size_scale), 7.0 * size_scale, Color(0.28, 0.7, 0.24, alpha))
 
 
 func _draw_snow_pea(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.58, 0.88, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.2)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 33.0 * size_scale), Color(0.22, 0.53, 0.16, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 33.0 * size_scale), Color(0.22, 0.53, 0.16, alpha), 7.0 * size_scale)
 	draw_circle(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 8.0 * size_scale, Color(0.34, 0.77, 0.78, alpha))
 	draw_circle(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.34, 0.77, 0.78, alpha))
 	var head = center + Vector2(-2.0 * size_scale, -10.0 * size_scale)
-	draw_circle(head, 20.0 * size_scale, body_color)
-	draw_circle(head + Vector2(24.0 * size_scale, 0.0), 11.0 * size_scale, body_color.darkened(0.06))
+	_draw_ink_disc(head, 20.0 * size_scale, body_color)
+	_draw_ink_disc(head + Vector2(24.0 * size_scale, 0.0), 11.0 * size_scale, body_color.darkened(0.06))
 	draw_circle(head + Vector2(31.0 * size_scale, 0.0), 4.0 * size_scale, Color(0.26, 0.54, 0.7, alpha))
 	draw_circle(head + Vector2(-6.0 * size_scale, -6.0 * size_scale), 3.0 * size_scale, Color(0.05, 0.05, 0.05, alpha))
-	draw_circle(head + Vector2(-10.0 * size_scale, 10.0 * size_scale), 10.0 * size_scale, Color(0.4, 0.82, 0.9, alpha))
+	_draw_ink_disc(head + Vector2(-10.0 * size_scale, 10.0 * size_scale), 10.0 * size_scale, Color(0.4, 0.82, 0.9, alpha))
 
 
 func _draw_puff_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var cap_color = Color(0.74, 0.52, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var cap = center + Vector2(0.0, -4.0 * size_scale)
 	# Stem
-	draw_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.78, 0.84, 0.66, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.78, 0.84, 0.66, alpha), 6.0 * size_scale)
 	draw_circle(center + Vector2(-7.0 * size_scale, 22.0 * size_scale), 5.0 * size_scale, Color(0.6, 0.74, 0.5, alpha))
 	# Cap
-	draw_circle(cap, 18.0 * size_scale, cap_color)
+	_draw_ink_disc(cap, 18.0 * size_scale, cap_color)
 	draw_circle(cap, 12.0 * size_scale, cap_color.lightened(0.08))
 	# Pale spots on cap
 	draw_circle(cap + Vector2(-8.0 * size_scale, -4.0 * size_scale), 3.2 * size_scale, Color(0.9, 0.78, 0.98, alpha * 0.7))
@@ -27473,7 +26610,7 @@ func _draw_sun_shroom(center: Vector2, size_scale: float, flash: float, mature: 
 	draw_arc(cap, (cap_radius + 7.0) * size_scale, glow_phase, glow_phase + PI * 1.5, 22, Color(1.0, 0.86, 0.32, alpha * 0.26), 2.4 * size_scale)
 	draw_arc(cap, (cap_radius + 11.0) * size_scale, -glow_phase * 0.7, -glow_phase * 0.7 + PI * 1.2, 18, Color(1.0, 0.92, 0.5, alpha * 0.18), 1.8 * size_scale)
 	# Stem
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, stem_height * size_scale), Color(0.9, 0.86, 0.66, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, stem_height * size_scale), Color(0.9, 0.86, 0.66, alpha), 6.0 * size_scale)
 	# Cap + highlight
 	draw_circle(cap, cap_radius * size_scale, cap_color)
 	draw_circle(cap + Vector2(-cap_radius * 0.3 * size_scale, -cap_radius * 0.3 * size_scale), cap_radius * 0.5 * size_scale, cap_color.lightened(0.16))
@@ -27488,12 +26625,12 @@ func _draw_sun_shroom(center: Vector2, size_scale: float, flash: float, mature: 
 
 
 func _draw_fume_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.84, 0.8, 0.76, alpha), 7.0 * size_scale)
-	draw_circle(center + Vector2(-2.0 * size_scale, -8.0 * size_scale), 22.0 * size_scale, Color(0.62, 0.34, 0.76, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(18.0 * size_scale, -10.0 * size_scale), 12.0 * size_scale, Color(0.78, 0.54, 0.92, alpha))
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.84, 0.8, 0.76, alpha), 7.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-2.0 * size_scale, -8.0 * size_scale), 22.0 * size_scale, Color(0.62, 0.34, 0.76, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_disc(center + Vector2(18.0 * size_scale, -10.0 * size_scale), 12.0 * size_scale, Color(0.78, 0.54, 0.92, alpha))
 	draw_circle(center + Vector2(-7.0 * size_scale, -11.0 * size_scale), 3.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(3.0 * size_scale, -11.0 * size_scale), 3.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_rect(Rect2(center + Vector2(12.0 * size_scale, -18.0 * size_scale), Vector2(32.0 * size_scale, 16.0 * size_scale)), Color(0.9, 0.72, 1.0, alpha), true)
+	_draw_ink_rect(Rect2(center + Vector2(12.0 * size_scale, -18.0 * size_scale), Vector2(32.0 * size_scale, 16.0 * size_scale)), Color(0.9, 0.72, 1.0, alpha), true)
 	draw_circle(center + Vector2(44.0 * size_scale, -10.0 * size_scale), 8.0 * size_scale, Color(0.94, 0.8, 1.0, alpha * 0.9))
 	draw_circle(center + Vector2(54.0 * size_scale, -10.0 * size_scale), 5.0 * size_scale, Color(0.94, 0.8, 1.0, alpha * 0.54))
 
@@ -27502,24 +26639,24 @@ func _draw_grave_buster(center: Vector2, size_scale: float, flash: float, alpha:
 	var body = Color(0.22, 0.7, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var dark = Color(0.14, 0.48, 0.12, alpha)
 	# Leaves/base
-	draw_circle(center + Vector2(-14.0 * size_scale, 6.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.24, alpha))
-	draw_circle(center + Vector2(14.0 * size_scale, 6.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.24, alpha))
-	draw_line(center + Vector2(-18.0 * size_scale, 22.0 * size_scale), center + Vector2(18.0 * size_scale, 22.0 * size_scale), Color(0.12, 0.5, 0.1, alpha), 4.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-14.0 * size_scale, 6.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.24, alpha))
+	_draw_ink_disc(center + Vector2(14.0 * size_scale, 6.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.24, alpha))
+	_draw_ink_line(center + Vector2(-18.0 * size_scale, 22.0 * size_scale), center + Vector2(18.0 * size_scale, 22.0 * size_scale), Color(0.12, 0.5, 0.1, alpha), 4.0 * size_scale)
 	# Main head bulb
-	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 18.0 * size_scale, body)
+	_draw_ink_disc(center + Vector2(0.0, 6.0 * size_scale), 18.0 * size_scale, body)
 	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 12.0 * size_scale, body.lightened(0.1))
 	# Wide open maw (the grave-eating mouth)
 	draw_arc(center + Vector2(0.0, 8.0 * size_scale), 13.0 * size_scale, PI, TAU, 16, Color(0.06, 0.05, 0.04, alpha), 5.0 * size_scale)
-	draw_circle(center + Vector2(0.0, 8.0 * size_scale), 11.0 * size_scale, Color(0.2, 0.06, 0.06, alpha))
+	_draw_ink_disc(center + Vector2(0.0, 8.0 * size_scale), 11.0 * size_scale, Color(0.2, 0.06, 0.06, alpha))
 	# Teeth (top + bottom rows)
 	for tooth_index in range(5):
 		var tooth_x = (-8.0 + float(tooth_index) * 4.0) * size_scale
-		draw_polygon(PackedVector2Array([
+		_draw_ink_polygon(PackedVector2Array([
 			center + Vector2(tooth_x - 1.5, 0.0 * size_scale),
 			center + Vector2(tooth_x + 1.5, 0.0 * size_scale),
 			center + Vector2(tooth_x, 5.0 * size_scale),
 		]), PackedColorArray([Color(0.94, 0.92, 0.82, alpha), Color(0.94, 0.92, 0.82, alpha), Color(0.94, 0.92, 0.82, alpha)]))
-		draw_polygon(PackedVector2Array([
+		_draw_ink_polygon(PackedVector2Array([
 			center + Vector2(tooth_x - 1.5, 14.0 * size_scale),
 			center + Vector2(tooth_x + 1.5, 14.0 * size_scale),
 			center + Vector2(tooth_x, 9.0 * size_scale),
@@ -27529,8 +26666,8 @@ func _draw_grave_buster(center: Vector2, size_scale: float, flash: float, alpha:
 	draw_circle(center + Vector2(7.0 * size_scale, -6.0 * size_scale), 3.2 * size_scale, Color(0.95, 0.86, 0.3, alpha))
 	draw_circle(center + Vector2(-7.0 * size_scale, -6.0 * size_scale), 1.4 * size_scale, Color(0.1, 0.06, 0.04, alpha))
 	draw_circle(center + Vector2(7.0 * size_scale, -6.0 * size_scale), 1.4 * size_scale, Color(0.1, 0.06, 0.04, alpha))
-	draw_line(center + Vector2(-12.0 * size_scale, -11.0 * size_scale), center + Vector2(-3.0 * size_scale, -8.0 * size_scale), dark, 2.0 * size_scale)
-	draw_line(center + Vector2(12.0 * size_scale, -11.0 * size_scale), center + Vector2(3.0 * size_scale, -8.0 * size_scale), dark, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(-12.0 * size_scale, -11.0 * size_scale), center + Vector2(-3.0 * size_scale, -8.0 * size_scale), dark, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(12.0 * size_scale, -11.0 * size_scale), center + Vector2(3.0 * size_scale, -8.0 * size_scale), dark, 2.0 * size_scale)
 
 
 func _draw_hypno_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -27541,9 +26678,9 @@ func _draw_hypno_shroom(center: Vector2, size_scale: float, flash: float, alpha:
 	draw_arc(cap, 24.0 * size_scale, swirl_phase, swirl_phase + PI * 1.6, 24, Color(0.62, 0.4, 0.94, alpha * 0.22), 2.4 * size_scale)
 	draw_arc(cap, 28.0 * size_scale, -swirl_phase * 0.7, -swirl_phase * 0.7 + PI * 1.3, 20, Color(0.4, 0.58, 0.98, alpha * 0.16), 2.0 * size_scale)
 	# Stem
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
 	# Cap
-	draw_circle(cap, 18.0 * size_scale, cap_color)
+	_draw_ink_disc(cap, 18.0 * size_scale, cap_color)
 	draw_circle(cap, 12.0 * size_scale, cap_color.lightened(0.08))
 	# Cap freckles
 	draw_circle(cap + Vector2(-8.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
@@ -27563,8 +26700,8 @@ func _draw_hypno_shroom(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_scaredy_shroom(center: Vector2, size_scale: float, flash: float, hiding: bool, alpha: float = 1.0) -> void:
 	var cap_center = center + Vector2(0.0, -6.0 * size_scale if not hiding else 4.0 * size_scale)
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
-	draw_circle(cap_center, 17.0 * size_scale, Color(0.74, 0.5, 0.9, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
+	_draw_ink_disc(cap_center, 17.0 * size_scale, Color(0.74, 0.5, 0.9, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
 	draw_circle(cap_center + Vector2(-6.0 * size_scale, -2.0 * size_scale), 4.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
 	draw_circle(cap_center + Vector2(6.0 * size_scale, -2.0 * size_scale), 4.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
 	draw_circle(cap_center + Vector2(-6.0 * size_scale, -2.0 * size_scale), 1.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
@@ -27584,9 +26721,9 @@ func _draw_ice_shroom(center: Vector2, size_scale: float, flash: float, alpha: f
 	draw_arc(cap, 26.0 * size_scale, mist_phase, mist_phase + PI * 1.4, 20, Color(0.8, 0.94, 1.0, alpha * 0.18), 2.2 * size_scale)
 	draw_arc(cap, 30.0 * size_scale, -mist_phase * 0.6, -mist_phase * 0.6 + PI * 1.2, 18, Color(0.86, 0.96, 1.0, alpha * 0.12), 1.6 * size_scale)
 	# Stem
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.86, 0.92, 1.0, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.86, 0.92, 1.0, alpha), 6.0 * size_scale)
 	# Cap
-	draw_circle(cap, 20.0 * size_scale, cap_color)
+	_draw_ink_disc(cap, 20.0 * size_scale, cap_color)
 	draw_circle(cap + Vector2(-6.0 * size_scale, -6.0 * size_scale), 9.0 * size_scale, cap_color.lightened(0.14))
 	# Ice crystals on cap
 	draw_circle(cap + Vector2(-9.0 * size_scale, -13.0 * size_scale), 6.0 * size_scale, frost)
@@ -27594,12 +26731,12 @@ func _draw_ice_shroom(center: Vector2, size_scale: float, flash: float, alpha: f
 	draw_circle(cap + Vector2(0.0 * size_scale, -18.0 * size_scale), 4.0 * size_scale, frost)
 	for crystal_index in range(4):
 		var cx = cap.x + (-12.0 + float(crystal_index) * 8.0) * size_scale
-		draw_line(Vector2(cx, cap.y - 4.0 * size_scale), Vector2(cx, cap.y - 12.0 * size_scale), frost, 1.6 * size_scale)
+		_draw_ink_line(Vector2(cx, cap.y - 4.0 * size_scale), Vector2(cx, cap.y - 12.0 * size_scale), frost, 1.6 * size_scale)
 	# Frosty brow line
-	draw_line(cap + Vector2(-18.0 * size_scale, -4.0 * size_scale), cap + Vector2(18.0 * size_scale, -4.0 * size_scale), frost, 2.4 * size_scale)
+	_draw_ink_line(cap + Vector2(-18.0 * size_scale, -4.0 * size_scale), cap + Vector2(18.0 * size_scale, -4.0 * size_scale), frost, 2.4 * size_scale)
 	# Half-closed sleepy eyes
-	draw_line(cap + Vector2(-9.0 * size_scale, 1.0 * size_scale), cap + Vector2(-3.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
-	draw_line(cap + Vector2(3.0 * size_scale, 1.0 * size_scale), cap + Vector2(9.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
+	_draw_ink_line(cap + Vector2(-9.0 * size_scale, 1.0 * size_scale), cap + Vector2(-3.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
+	_draw_ink_line(cap + Vector2(3.0 * size_scale, 1.0 * size_scale), cap + Vector2(9.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
 	# Shivering mouth
 	draw_arc(cap + Vector2(0.0, 8.0 * size_scale), 4.0 * size_scale, 0.1, PI - 0.1, 8, Color(0.1, 0.16, 0.28, alpha), 1.6 * size_scale)
 
@@ -27613,13 +26750,13 @@ func _draw_doom_shroom(center: Vector2, size_scale: float, flash: float, alpha: 
 	draw_arc(cap, 30.0 * size_scale, pulse_phase, pulse_phase + PI * 1.5, 24, Color(0.86, 0.18, 0.28, alpha * 0.24), 2.6 * size_scale)
 	draw_arc(cap, 34.0 * size_scale, -pulse_phase * 0.7, -pulse_phase * 0.7 + PI * 1.2, 20, Color(0.96, 0.3, 0.34, alpha * 0.16), 2.0 * size_scale)
 	# Stem (gnarled, dark)
-	draw_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.58, 0.52, 0.46, alpha), 7.0 * size_scale)
-	draw_line(center + Vector2(-3.0 * size_scale, 16.0 * size_scale), center + Vector2(-4.0 * size_scale, 30.0 * size_scale), Color(0.42, 0.36, 0.32, alpha), 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.58, 0.52, 0.46, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(-3.0 * size_scale, 16.0 * size_scale), center + Vector2(-4.0 * size_scale, 30.0 * size_scale), Color(0.42, 0.36, 0.32, alpha), 2.0 * size_scale)
 	# Cap layers
-	draw_circle(cap, 24.0 * size_scale, cap_color)
+	_draw_ink_disc(cap, 24.0 * size_scale, cap_color)
 	draw_circle(cap, 17.0 * size_scale, cap_color.lightened(0.06))
 	# Glowing power core
-	draw_circle(cap, 11.0 * size_scale, core_glow)
+	_draw_ink_disc(cap, 11.0 * size_scale, core_glow)
 	draw_circle(cap, 7.0 * size_scale, core_glow.lightened(0.3))
 	draw_circle(cap, 3.0 * size_scale, Color(1.0, 0.96, 0.82, alpha))
 	# Dark eye sockets (skull-like)
@@ -27628,17 +26765,17 @@ func _draw_doom_shroom(center: Vector2, size_scale: float, flash: float, alpha: 
 	draw_circle(cap + Vector2(-9.0 * size_scale, -6.0 * size_scale), 1.6 * size_scale, Color(0.98, 0.7, 0.34, alpha))
 	draw_circle(cap + Vector2(9.0 * size_scale, -6.0 * size_scale), 1.6 * size_scale, Color(0.98, 0.7, 0.34, alpha))
 	# Gritted teeth mouth
-	draw_line(cap + Vector2(-7.0 * size_scale, 4.0 * size_scale), cap + Vector2(7.0 * size_scale, 4.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 2.4 * size_scale)
+	_draw_ink_line(cap + Vector2(-7.0 * size_scale, 4.0 * size_scale), cap + Vector2(7.0 * size_scale, 4.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 2.4 * size_scale)
 	for tooth_index in range(4):
 		var tooth_x = (-5.0 + float(tooth_index) * 3.3) * size_scale
-		draw_line(cap + Vector2(tooth_x, 4.0 * size_scale), cap + Vector2(tooth_x, 7.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 1.4 * size_scale)
+		_draw_ink_line(cap + Vector2(tooth_x, 4.0 * size_scale), cap + Vector2(tooth_x, 7.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 1.4 * size_scale)
 
 
 func _draw_sea_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	draw_arc(center + Vector2(0.0, 18.0 * size_scale), 26.0 * size_scale, PI * 0.06, PI * 0.94, 18, Color(0.22, 0.66, 0.72, alpha * 0.74), 5.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 30.0 * size_scale), Color(0.78, 0.92, 0.96, alpha), 5.5 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 30.0 * size_scale), Color(0.78, 0.92, 0.96, alpha), 5.5 * size_scale)
 	var cap_center = center + Vector2(0.0, -6.0 * size_scale)
-	draw_circle(cap_center, 18.0 * size_scale, Color(0.42, 0.78, 0.9, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_disc(cap_center, 18.0 * size_scale, Color(0.42, 0.78, 0.9, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
 	draw_circle(cap_center + Vector2(10.0 * size_scale, -1.0 * size_scale), 8.0 * size_scale, Color(0.64, 0.92, 1.0, alpha))
 	draw_circle(cap_center + Vector2(-5.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(cap_center + Vector2(4.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
@@ -27647,38 +26784,38 @@ func _draw_sea_shroom(center: Vector2, size_scale: float, flash: float, alpha: f
 
 
 func _draw_plantern(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.16, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.16, alpha), 6.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.3, 0.72, 0.24, alpha))
 	draw_circle(center + Vector2(12.0 * size_scale, 20.0 * size_scale), 8.0 * size_scale, Color(0.3, 0.72, 0.24, alpha))
 	var lantern_center = center + Vector2(0.0, -6.0 * size_scale)
-	draw_circle(lantern_center, 24.0 * size_scale, Color(0.96, 0.96, 0.54, alpha * 0.12 + flash * 0.12))
-	draw_rect(Rect2(lantern_center + Vector2(-16.0 * size_scale, -12.0 * size_scale), Vector2(32.0 * size_scale, 28.0 * size_scale)), Color(0.96, 0.88, 0.38, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0), true)
-	draw_rect(Rect2(lantern_center + Vector2(-20.0 * size_scale, -18.0 * size_scale), Vector2(40.0 * size_scale, 8.0 * size_scale)), Color(0.22, 0.46, 0.18, alpha), true)
-	draw_rect(Rect2(lantern_center + Vector2(-20.0 * size_scale, 12.0 * size_scale), Vector2(40.0 * size_scale, 8.0 * size_scale)), Color(0.22, 0.46, 0.18, alpha), true)
-	draw_line(lantern_center + Vector2(-12.0 * size_scale, -18.0 * size_scale), lantern_center + Vector2(-12.0 * size_scale, 20.0 * size_scale), Color(0.24, 0.42, 0.18, alpha), 2.0 * size_scale)
-	draw_line(lantern_center + Vector2(12.0 * size_scale, -18.0 * size_scale), lantern_center + Vector2(12.0 * size_scale, 20.0 * size_scale), Color(0.24, 0.42, 0.18, alpha), 2.0 * size_scale)
+	_draw_ink_disc(lantern_center, 24.0 * size_scale, Color(0.96, 0.96, 0.54, alpha * 0.12 + flash * 0.12))
+	_draw_ink_rect(Rect2(lantern_center + Vector2(-16.0 * size_scale, -12.0 * size_scale), Vector2(32.0 * size_scale, 28.0 * size_scale)), Color(0.96, 0.88, 0.38, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0), true)
+	_draw_ink_rect(Rect2(lantern_center + Vector2(-20.0 * size_scale, -18.0 * size_scale), Vector2(40.0 * size_scale, 8.0 * size_scale)), Color(0.22, 0.46, 0.18, alpha), true)
+	_draw_ink_rect(Rect2(lantern_center + Vector2(-20.0 * size_scale, 12.0 * size_scale), Vector2(40.0 * size_scale, 8.0 * size_scale)), Color(0.22, 0.46, 0.18, alpha), true)
+	_draw_ink_line(lantern_center + Vector2(-12.0 * size_scale, -18.0 * size_scale), lantern_center + Vector2(-12.0 * size_scale, 20.0 * size_scale), Color(0.24, 0.42, 0.18, alpha), 2.0 * size_scale)
+	_draw_ink_line(lantern_center + Vector2(12.0 * size_scale, -18.0 * size_scale), lantern_center + Vector2(12.0 * size_scale, 20.0 * size_scale), Color(0.24, 0.42, 0.18, alpha), 2.0 * size_scale)
 
 
 func _draw_cactus(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.26, 0.74, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_rect(Rect2(center + Vector2(-12.0 * size_scale, -22.0 * size_scale), Vector2(24.0 * size_scale, 58.0 * size_scale)), body_color, true)
-	draw_circle(center + Vector2(0.0, -22.0 * size_scale), 12.0 * size_scale, body_color)
-	draw_rect(Rect2(center + Vector2(-26.0 * size_scale, -4.0 * size_scale), Vector2(12.0 * size_scale, 24.0 * size_scale)), body_color.darkened(0.06), true)
+	_draw_ink_rect(Rect2(center + Vector2(-12.0 * size_scale, -22.0 * size_scale), Vector2(24.0 * size_scale, 58.0 * size_scale)), body_color, true)
+	_draw_ink_disc(center + Vector2(0.0, -22.0 * size_scale), 12.0 * size_scale, body_color)
+	_draw_ink_rect(Rect2(center + Vector2(-26.0 * size_scale, -4.0 * size_scale), Vector2(12.0 * size_scale, 24.0 * size_scale)), body_color.darkened(0.06), true)
 	draw_circle(center + Vector2(-20.0 * size_scale, -4.0 * size_scale), 6.0 * size_scale, body_color.darkened(0.06))
-	draw_rect(Rect2(center + Vector2(14.0 * size_scale, -10.0 * size_scale), Vector2(12.0 * size_scale, 26.0 * size_scale)), body_color.darkened(0.04), true)
+	_draw_ink_rect(Rect2(center + Vector2(14.0 * size_scale, -10.0 * size_scale), Vector2(12.0 * size_scale, 26.0 * size_scale)), body_color.darkened(0.04), true)
 	draw_circle(center + Vector2(20.0 * size_scale, -10.0 * size_scale), 6.0 * size_scale, body_color.darkened(0.04))
 	for spike_x in [-10.0, -4.0, 4.0, 10.0]:
-		draw_line(center + Vector2(spike_x * size_scale, -18.0 * size_scale), center + Vector2((spike_x - 4.0) * size_scale, -26.0 * size_scale), Color(0.98, 0.94, 0.82, alpha), 1.8 * size_scale)
-		draw_line(center + Vector2(spike_x * size_scale, 2.0 * size_scale), center + Vector2((spike_x + 4.0) * size_scale, -6.0 * size_scale), Color(0.98, 0.94, 0.82, alpha), 1.8 * size_scale)
+		_draw_ink_line(center + Vector2(spike_x * size_scale, -18.0 * size_scale), center + Vector2((spike_x - 4.0) * size_scale, -26.0 * size_scale), Color(0.98, 0.94, 0.82, alpha), 1.8 * size_scale)
+		_draw_ink_line(center + Vector2(spike_x * size_scale, 2.0 * size_scale), center + Vector2((spike_x + 4.0) * size_scale, -6.0 * size_scale), Color(0.98, 0.94, 0.82, alpha), 1.8 * size_scale)
 	draw_circle(center + Vector2(0.0, -32.0 * size_scale), 5.0 * size_scale, Color(0.94, 0.48, 0.82, alpha))
 	draw_circle(center + Vector2(-4.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
 
 func _draw_blover(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.58, 0.2, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.58, 0.2, alpha), 5.0 * size_scale)
 	for offset in [Vector2(-12.0, -6.0), Vector2(12.0, -6.0), Vector2(-8.0, 8.0), Vector2(8.0, 8.0)]:
-		draw_circle(center + offset * size_scale, 10.0 * size_scale, Color(0.54, 0.88, 0.34, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+		_draw_ink_disc(center + offset * size_scale, 10.0 * size_scale, Color(0.54, 0.88, 0.34, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
 	draw_circle(center + Vector2(0.0, 1.0 * size_scale), 5.0 * size_scale, Color(0.42, 0.76, 0.28, alpha))
 	draw_arc(center + Vector2(20.0 * size_scale, -2.0 * size_scale), 18.0 * size_scale, -1.1, 1.1, 18, Color(0.86, 0.98, 0.94, alpha * 0.42), 2.4 * size_scale)
 	draw_arc(center + Vector2(30.0 * size_scale, -2.0 * size_scale), 12.0 * size_scale, -1.0, 1.0, 16, Color(0.86, 0.98, 0.94, alpha * 0.32), 2.0 * size_scale)
@@ -27690,7 +26827,7 @@ func _draw_split_pea(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var body_color = Color(0.34, 0.78, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var dark = body_color.darkened(0.12)
 	# Rear-facing head (bigger, with its own muzzle pointing left)
-	draw_circle(rear_head, 13.0 * size_scale, body_color)
+	_draw_ink_disc(rear_head, 13.0 * size_scale, body_color)
 	draw_circle(rear_head, 9.0 * size_scale, body_color.lightened(0.08))
 	# Rear muzzle (faces left)
 	draw_circle(rear_head + Vector2(-14.0 * size_scale, 0.0), 7.0 * size_scale, dark)
@@ -27703,11 +26840,11 @@ func _draw_split_pea(center: Vector2, size_scale: float, flash: float, alpha: fl
 	draw_circle(rear_head + Vector2(-3.0 * size_scale, -4.0 * size_scale), 1.1 * size_scale, Color(0.1, 0.06, 0.04, alpha))
 	draw_circle(rear_head + Vector2(-9.0 * size_scale, -4.0 * size_scale), 1.1 * size_scale, Color(0.1, 0.06, 0.04, alpha))
 	# Determined brow
-	draw_line(rear_head + Vector2(0.0 * size_scale, -7.0 * size_scale), rear_head + Vector2(-10.0 * size_scale, -7.0 * size_scale), dark, 1.8 * size_scale)
+	_draw_ink_line(rear_head + Vector2(0.0 * size_scale, -7.0 * size_scale), rear_head + Vector2(-10.0 * size_scale, -7.0 * size_scale), dark, 1.8 * size_scale)
 
 
 func _draw_starfruit(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.18, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.18, alpha), 6.0 * size_scale)
 	var star_center = center + Vector2(0.0, -8.0 * size_scale)
 	var star_points = PackedVector2Array()
 	var star_colors = PackedColorArray()
@@ -27717,7 +26854,7 @@ func _draw_starfruit(center: Vector2, size_scale: float, flash: float, alpha: fl
 		var radius = 22.0 if point_index % 2 == 0 else 9.0
 		star_points.append(star_center + Vector2(cos(angle), sin(angle)) * radius * size_scale)
 		star_colors.append(star_fill)
-	draw_polygon(star_points, star_colors)
+	_draw_ink_polygon(star_points, star_colors)
 	draw_circle(star_center + Vector2(-5.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(star_center + Vector2(5.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_arc(star_center + Vector2(0.0, 3.0 * size_scale), 5.0 * size_scale, 0.2, PI - 0.2, 12, Color(0.52, 0.3, 0.08, alpha), 2.0 * size_scale)
@@ -27725,11 +26862,11 @@ func _draw_starfruit(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 func _draw_pumpkin(center: Vector2, size_scale: float, flash: float, ratio: float, alpha: float = 1.0) -> void:
 	var shell_color = Color(0.96, 0.54, 0.16, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	draw_circle(center + Vector2(0.0, 4.0 * size_scale), 24.0 * size_scale, shell_color)
-	draw_circle(center + Vector2(-14.0 * size_scale, 4.0 * size_scale), 18.0 * size_scale, shell_color.darkened(0.04))
-	draw_circle(center + Vector2(14.0 * size_scale, 4.0 * size_scale), 18.0 * size_scale, shell_color.darkened(0.04))
-	draw_rect(Rect2(center + Vector2(-6.0 * size_scale, -28.0 * size_scale), Vector2(12.0 * size_scale, 10.0 * size_scale)), Color(0.24, 0.56, 0.16, alpha), true)
-	draw_polygon(
+	_draw_ink_disc(center + Vector2(0.0, 4.0 * size_scale), 24.0 * size_scale, shell_color)
+	_draw_ink_disc(center + Vector2(-14.0 * size_scale, 4.0 * size_scale), 18.0 * size_scale, shell_color.darkened(0.04))
+	_draw_ink_disc(center + Vector2(14.0 * size_scale, 4.0 * size_scale), 18.0 * size_scale, shell_color.darkened(0.04))
+	_draw_ink_rect(Rect2(center + Vector2(-6.0 * size_scale, -28.0 * size_scale), Vector2(12.0 * size_scale, 10.0 * size_scale)), Color(0.24, 0.56, 0.16, alpha), true)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-14.0 * size_scale, -2.0 * size_scale),
 			center + Vector2(-4.0 * size_scale, 8.0 * size_scale),
@@ -27737,7 +26874,7 @@ func _draw_pumpkin(center: Vector2, size_scale: float, flash: float, ratio: floa
 		]),
 		PackedColorArray([Color(0.16, 0.08, 0.02, alpha), Color(0.16, 0.08, 0.02, alpha), Color(0.16, 0.08, 0.02, alpha)])
 	)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(14.0 * size_scale, -2.0 * size_scale),
 			center + Vector2(4.0 * size_scale, 8.0 * size_scale),
@@ -27747,37 +26884,37 @@ func _draw_pumpkin(center: Vector2, size_scale: float, flash: float, ratio: floa
 	)
 	draw_arc(center + Vector2(0.0, 12.0 * size_scale), 10.0 * size_scale, 0.16, PI - 0.16, 14, Color(0.16, 0.08, 0.02, alpha), 3.0 * size_scale)
 	if ratio < 0.65:
-		draw_line(center + Vector2(-8.0 * size_scale, -16.0 * size_scale), center + Vector2(2.0 * size_scale, 6.0 * size_scale), Color(0.58, 0.18, 0.06, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(-8.0 * size_scale, -16.0 * size_scale), center + Vector2(2.0 * size_scale, 6.0 * size_scale), Color(0.58, 0.18, 0.06, alpha), 2.0 * size_scale)
 	if ratio < 0.35:
-		draw_line(center + Vector2(10.0 * size_scale, -14.0 * size_scale), center + Vector2(0.0, 18.0 * size_scale), Color(0.58, 0.18, 0.06, alpha), 2.2 * size_scale)
+		_draw_ink_line(center + Vector2(10.0 * size_scale, -14.0 * size_scale), center + Vector2(0.0, 18.0 * size_scale), Color(0.58, 0.18, 0.06, alpha), 2.2 * size_scale)
 
 
 func _draw_magnet_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
 	var cap_center = center + Vector2(0.0, -6.0 * size_scale)
-	draw_circle(cap_center, 18.0 * size_scale, Color(0.68, 0.46, 0.9, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_disc(cap_center, 18.0 * size_scale, Color(0.68, 0.46, 0.9, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
 	draw_arc(cap_center + Vector2(0.0, -6.0 * size_scale), 12.0 * size_scale, PI * 0.1, PI * 0.9, 18, Color(0.94, 0.22, 0.24, alpha), 4.0 * size_scale)
-	draw_rect(Rect2(cap_center + Vector2(-14.0 * size_scale, -8.0 * size_scale), Vector2(6.0 * size_scale, 16.0 * size_scale)), Color(0.94, 0.22, 0.24, alpha), true)
-	draw_rect(Rect2(cap_center + Vector2(8.0 * size_scale, -8.0 * size_scale), Vector2(6.0 * size_scale, 16.0 * size_scale)), Color(0.54, 0.72, 1.0, alpha), true)
+	_draw_ink_rect(Rect2(cap_center + Vector2(-14.0 * size_scale, -8.0 * size_scale), Vector2(6.0 * size_scale, 16.0 * size_scale)), Color(0.94, 0.22, 0.24, alpha), true)
+	_draw_ink_rect(Rect2(cap_center + Vector2(8.0 * size_scale, -8.0 * size_scale), Vector2(6.0 * size_scale, 16.0 * size_scale)), Color(0.54, 0.72, 1.0, alpha), true)
 	draw_circle(cap_center + Vector2(-4.0 * size_scale, -6.0 * size_scale), 2.0 * size_scale, Color(1.0, 0.94, 0.58, alpha * 0.8))
 	draw_circle(cap_center + Vector2(4.0 * size_scale, -6.0 * size_scale), 2.0 * size_scale, Color(1.0, 0.94, 0.58, alpha * 0.8))
 
 
 func _draw_grave(center: Vector2, size_scale: float, alpha: float = 1.0) -> void:
-	draw_rect(Rect2(center + Vector2(-18.0 * size_scale, -26.0 * size_scale), Vector2(36.0 * size_scale, 42.0 * size_scale)), Color(0.48, 0.5, 0.58, alpha), true)
+	_draw_ink_rect(Rect2(center + Vector2(-18.0 * size_scale, -26.0 * size_scale), Vector2(36.0 * size_scale, 42.0 * size_scale)), Color(0.48, 0.5, 0.58, alpha), true)
 	draw_arc(center + Vector2(0.0, -26.0 * size_scale), 18.0 * size_scale, PI, TAU, 18, Color(0.48, 0.5, 0.58, alpha), 36.0 * size_scale)
-	draw_rect(Rect2(center + Vector2(-20.0 * size_scale, 14.0 * size_scale), Vector2(40.0 * size_scale, 8.0 * size_scale)), Color(0.36, 0.3, 0.26, alpha), true)
-	draw_line(center + Vector2(-8.0 * size_scale, -12.0 * size_scale), center + Vector2(8.0 * size_scale, -12.0 * size_scale), Color(0.8, 0.82, 0.88, alpha), 3.0 * size_scale)
-	draw_line(center + Vector2(0.0, -20.0 * size_scale), center + Vector2(0.0, -4.0 * size_scale), Color(0.8, 0.82, 0.88, alpha), 3.0 * size_scale)
+	_draw_ink_rect(Rect2(center + Vector2(-20.0 * size_scale, 14.0 * size_scale), Vector2(40.0 * size_scale, 8.0 * size_scale)), Color(0.36, 0.3, 0.26, alpha), true)
+	_draw_ink_line(center + Vector2(-8.0 * size_scale, -12.0 * size_scale), center + Vector2(8.0 * size_scale, -12.0 * size_scale), Color(0.8, 0.82, 0.88, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -20.0 * size_scale), center + Vector2(0.0, -4.0 * size_scale), Color(0.8, 0.82, 0.88, alpha), 3.0 * size_scale)
 
 
 func _draw_vase(center: Vector2, size_scale: float, hostile: bool, alpha: float = 1.0) -> void:
 	var shell_color = Color(0.82, 0.78, 0.96, alpha) if hostile else Color(0.86, 0.94, 1.0, alpha)
 	var accent_color = Color(0.64, 0.36, 0.86, alpha) if hostile else Color(0.32, 0.64, 0.94, alpha)
 	draw_arc(center + Vector2(0.0, -18.0 * size_scale), 20.0 * size_scale, PI, TAU, 20, shell_color, 16.0 * size_scale)
-	draw_rect(Rect2(center + Vector2(-20.0 * size_scale, -18.0 * size_scale), Vector2(40.0 * size_scale, 42.0 * size_scale)), shell_color, true)
-	draw_rect(Rect2(center + Vector2(-22.0 * size_scale, 20.0 * size_scale), Vector2(44.0 * size_scale, 8.0 * size_scale)), shell_color.darkened(0.08), true)
-	draw_line(center + Vector2(-12.0 * size_scale, -6.0 * size_scale), center + Vector2(12.0 * size_scale, -6.0 * size_scale), accent_color, 3.0 * size_scale)
+	_draw_ink_rect(Rect2(center + Vector2(-20.0 * size_scale, -18.0 * size_scale), Vector2(40.0 * size_scale, 42.0 * size_scale)), shell_color, true)
+	_draw_ink_rect(Rect2(center + Vector2(-22.0 * size_scale, 20.0 * size_scale), Vector2(44.0 * size_scale, 8.0 * size_scale)), shell_color.darkened(0.08), true)
+	_draw_ink_line(center + Vector2(-12.0 * size_scale, -6.0 * size_scale), center + Vector2(12.0 * size_scale, -6.0 * size_scale), accent_color, 3.0 * size_scale)
 	draw_arc(center + Vector2(0.0, 6.0 * size_scale), 11.0 * size_scale, 0.1, PI - 0.1, 16, accent_color, 2.0 * size_scale)
 	draw_circle(center + Vector2(0.0, -18.0 * size_scale), 4.0 * size_scale, accent_color)
 
@@ -27788,13 +26925,13 @@ func _draw_repeater(center: Vector2, size_scale: float, flash: float, alpha: flo
 	var dark_barrel = barrel_color.darkened(0.18)
 	# Second barrel head (top-right, the "repeater" extra muzzle)
 	var second_head = center + Vector2(16.0 * size_scale, -16.0 * size_scale)
-	draw_circle(second_head, 12.0 * size_scale, barrel_color)
+	_draw_ink_disc(second_head, 12.0 * size_scale, barrel_color)
 	draw_circle(second_head, 8.0 * size_scale, barrel_color.lightened(0.1))
 	# Muzzle opening
 	draw_circle(second_head + Vector2(13.0 * size_scale, -2.0 * size_scale), 6.0 * size_scale, dark_barrel)
 	draw_circle(second_head + Vector2(13.0 * size_scale, -2.0 * size_scale), 3.5 * size_scale, Color(0.12, 0.08, 0.06, alpha))
 	# Connecting chamber between the two heads
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(2.0 * size_scale, -2.0 * size_scale),
 			center + Vector2(10.0 * size_scale, -14.0 * size_scale),
@@ -27805,7 +26942,7 @@ func _draw_repeater(center: Vector2, size_scale: float, flash: float, alpha: flo
 		PackedColorArray([dark_barrel, dark_barrel, dark_barrel, dark_barrel, dark_barrel])
 	)
 	# Reinforcement band
-	draw_line(second_head + Vector2(-8.0 * size_scale, -2.0 * size_scale), second_head + Vector2(8.0 * size_scale, -2.0 * size_scale), barrel_color.lightened(0.2), 2.0 * size_scale)
+	_draw_ink_line(second_head + Vector2(-8.0 * size_scale, -2.0 * size_scale), second_head + Vector2(8.0 * size_scale, -2.0 * size_scale), barrel_color.lightened(0.2), 2.0 * size_scale)
 	# Second head eye (looks tougher)
 	draw_circle(second_head + Vector2(2.0 * size_scale, -3.0 * size_scale), 2.4 * size_scale, Color(0.95, 0.92, 0.4, alpha))
 	draw_circle(second_head + Vector2(3.0 * size_scale, -3.0 * size_scale), 1.0 * size_scale, Color(0.1, 0.06, 0.04, alpha))
@@ -27815,8 +26952,8 @@ func _draw_amber_shooter(center: Vector2, size_scale: float, flash: float, alpha
 	_draw_peashooter(center + Vector2(-2.0 * size_scale, 0.0), size_scale, flash, alpha)
 	var amber_color = Color(0.94, 0.68, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var crystal_center = center + Vector2(-2.0 * size_scale, -12.0 * size_scale)
-	draw_circle(crystal_center, 10.0 * size_scale, amber_color)
-	draw_polygon(
+	_draw_ink_disc(crystal_center, 10.0 * size_scale, amber_color)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			crystal_center + Vector2(0.0, -14.0 * size_scale),
 			crystal_center + Vector2(-10.0 * size_scale, 0.0),
@@ -27846,9 +26983,9 @@ func _draw_vine_lasher(center: Vector2, size_scale: float, flash: float, alpha: 
 		vine_color,
 		6.2 * size_scale
 	)
-	draw_circle(center + Vector2(-10.0 * size_scale, 12.0 * size_scale), 10.0 * size_scale, Color(0.22, 0.72, 0.24, alpha))
-	draw_circle(center + Vector2(10.0 * size_scale, 10.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.28, alpha))
-	draw_circle(center + Vector2(-2.0 * size_scale, -12.0 * size_scale), 14.0 * size_scale, Color(0.26, 0.7, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6))
+	_draw_ink_disc(center + Vector2(-10.0 * size_scale, 12.0 * size_scale), 10.0 * size_scale, Color(0.22, 0.72, 0.24, alpha))
+	_draw_ink_disc(center + Vector2(10.0 * size_scale, 10.0 * size_scale), 11.0 * size_scale, Color(0.28, 0.78, 0.28, alpha))
+	_draw_ink_disc(center + Vector2(-2.0 * size_scale, -12.0 * size_scale), 14.0 * size_scale, Color(0.26, 0.7, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6))
 	draw_circle(center + Vector2(-6.0 * size_scale, -13.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(3.0 * size_scale, -13.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_polyline(
@@ -27863,7 +27000,7 @@ func _draw_vine_lasher(center: Vector2, size_scale: float, flash: float, alpha: 
 	)
 	var lash_tip = center + Vector2(42.0 * size_scale, -12.0 * size_scale)
 	draw_circle(lash_tip, 5.4 * size_scale, bloom_color)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			lash_tip + Vector2(8.0 * size_scale, 0.0),
 			lash_tip + Vector2(0.0, -8.0 * size_scale),
@@ -27872,7 +27009,7 @@ func _draw_vine_lasher(center: Vector2, size_scale: float, flash: float, alpha: 
 		]),
 		PackedColorArray([Color(0.96, 1.0, 0.88, alpha), bloom_color, Color(0.32, 0.72, 0.2, alpha), bloom_color])
 	)
-	draw_line(lash_tip + Vector2(5.0 * size_scale, -1.0 * size_scale), lash_tip + Vector2(11.0 * size_scale, -4.0 * size_scale), Color(0.94, 1.0, 0.82, alpha), 1.6 * size_scale)
+	_draw_ink_line(lash_tip + Vector2(5.0 * size_scale, -1.0 * size_scale), lash_tip + Vector2(11.0 * size_scale, -4.0 * size_scale), Color(0.94, 1.0, 0.82, alpha), 1.6 * size_scale)
 
 
 func _draw_pepper_mortar(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -27884,7 +27021,7 @@ func _draw_pepper_mortar(center: Vector2, size_scale: float, flash: float, alpha
 	draw_circle(center + Vector2(-13.0 * size_scale, 16.0 * size_scale), 3.0 * size_scale, Color(0.5, 0.46, 0.5, alpha))
 	draw_circle(center + Vector2(13.0 * size_scale, 16.0 * size_scale), 3.0 * size_scale, Color(0.5, 0.46, 0.5, alpha))
 	# Mortar barrel (angled tube)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-14.0 * size_scale, 6.0 * size_scale),
 			center + Vector2(14.0 * size_scale, -14.0 * size_scale),
@@ -27897,10 +27034,10 @@ func _draw_pepper_mortar(center: Vector2, size_scale: float, flash: float, alpha
 	draw_circle(center + Vector2(18.0 * size_scale, -11.0 * size_scale), 7.0 * size_scale, Color(0.12, 0.1, 0.12, alpha))
 	draw_circle(center + Vector2(18.0 * size_scale, -11.0 * size_scale), 4.0 * size_scale, Color(0.98, 0.66, 0.22, alpha * (0.7 + flash * 1.5)))
 	# Pepper body cradled at base
-	draw_circle(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), 13.0 * size_scale, pepper_color)
+	_draw_ink_disc(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), 13.0 * size_scale, pepper_color)
 	draw_circle(center + Vector2(-6.0 * size_scale, 4.0 * size_scale), 4.5 * size_scale, pepper_color.lightened(0.2))
 	# Pepper stem + leaf cap
-	draw_line(center + Vector2(-2.0 * size_scale, -4.0 * size_scale), center + Vector2(-2.0 * size_scale, -14.0 * size_scale), Color(0.2, 0.5, 0.16, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, -4.0 * size_scale), center + Vector2(-2.0 * size_scale, -14.0 * size_scale), Color(0.2, 0.5, 0.16, alpha), 3.0 * size_scale)
 	draw_circle(center + Vector2(-10.0 * size_scale, -12.0 * size_scale), 6.0 * size_scale, Color(0.22, 0.6, 0.18, alpha))
 	draw_circle(center + Vector2(7.0 * size_scale, -12.0 * size_scale), 6.0 * size_scale, Color(0.22, 0.6, 0.18, alpha))
 	# Angry pepper eyes
@@ -27918,12 +27055,12 @@ func _draw_cactus_guard(center: Vector2, size_scale: float, flash: float, ratio:
 	draw_arc(center + Vector2(0.0, 4.0 * size_scale), 28.0 * size_scale, aura_phase, aura_phase + PI * 1.6, 24, Color(0.5, 0.92, 0.7, alpha * 0.32), 2.4 * size_scale)
 	draw_arc(center + Vector2(0.0, 4.0 * size_scale), 32.0 * size_scale, -aura_phase * 0.7, -aura_phase * 0.7 + PI * 1.3, 20, Color(0.62, 0.96, 0.82, alpha * 0.22), 1.8 * size_scale)
 	# Main barrel body
-	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 22.0 * size_scale, body_color)
+	_draw_ink_disc(center + Vector2(0.0, 6.0 * size_scale), 22.0 * size_scale, body_color)
 	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 16.0 * size_scale, body_color.lightened(0.08))
 	# Ribs (vertical ridges)
 	for rib_index in range(3):
 		var rib_x = (-8.0 + float(rib_index) * 8.0) * size_scale
-		draw_line(center + Vector2(rib_x, -12.0 * size_scale), center + Vector2(rib_x, 24.0 * size_scale), rib_color, 2.2 * size_scale)
+		_draw_ink_line(center + Vector2(rib_x, -12.0 * size_scale), center + Vector2(rib_x, 24.0 * size_scale), rib_color, 2.2 * size_scale)
 	# Arms
 	draw_circle(center + Vector2(-18.0 * size_scale, 0.0 * size_scale), 8.0 * size_scale, body_color)
 	draw_circle(center + Vector2(-22.0 * size_scale, -8.0 * size_scale), 5.0 * size_scale, body_color.lightened(0.06))
@@ -27934,7 +27071,7 @@ func _draw_cactus_guard(center: Vector2, size_scale: float, flash: float, ratio:
 		var spine_angle = float(spine_index) * TAU / 10.0 + 0.3
 		var spine_base = center + Vector2(0.0, 6.0 * size_scale) + Vector2(cos(spine_angle), sin(spine_angle)) * 20.0 * size_scale
 		var spine_tip = center + Vector2(0.0, 6.0 * size_scale) + Vector2(cos(spine_angle), sin(spine_angle)) * 28.0 * size_scale
-		draw_line(spine_base, spine_tip, Color(0.95, 0.9, 0.7, alpha), 1.6 * size_scale)
+		_draw_ink_line(spine_base, spine_tip, Color(0.95, 0.9, 0.7, alpha), 1.6 * size_scale)
 	# Face
 	draw_circle(center + Vector2(-6.0 * size_scale, 2.0 * size_scale), 2.6 * size_scale, Color(0.1, 0.08, 0.06, alpha))
 	draw_circle(center + Vector2(6.0 * size_scale, 2.0 * size_scale), 2.6 * size_scale, Color(0.1, 0.08, 0.06, alpha))
@@ -27942,17 +27079,17 @@ func _draw_cactus_guard(center: Vector2, size_scale: float, flash: float, ratio:
 	draw_circle(center + Vector2(7.0 * size_scale, 1.0 * size_scale), 0.9 * size_scale, Color(1.0, 1.0, 1.0, alpha))
 	draw_arc(center + Vector2(0.0, 9.0 * size_scale), 4.0 * size_scale, PI * 0.15, PI * 0.85, 8, Color(0.1, 0.08, 0.06, alpha), 1.6 * size_scale)
 	if ratio < 0.45:
-		draw_line(center + Vector2(0.0, -16.0 * size_scale), center + Vector2(0.0, 14.0 * size_scale), Color(0.18, 0.42, 0.14, alpha * 0.6), 1.8 * size_scale)
+		_draw_ink_line(center + Vector2(0.0, -16.0 * size_scale), center + Vector2(0.0, 14.0 * size_scale), Color(0.18, 0.42, 0.14, alpha * 0.6), 1.8 * size_scale)
 
 
 func _draw_pulse_bulb(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var bulb_center = center + Vector2(0.0, -8.0 * size_scale)
 	var bulb_color = Color(0.98, 0.92, 0.34, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.9)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.58, 0.18, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), 9.0 * size_scale, Color(0.26, 0.72, 0.22, alpha))
-	draw_circle(center + Vector2(8.0 * size_scale, 14.0 * size_scale), 9.0 * size_scale, Color(0.26, 0.72, 0.22, alpha))
-	draw_circle(bulb_center, 18.0 * size_scale, bulb_color)
-	draw_circle(bulb_center, 10.0 * size_scale, Color(1.0, 0.78, 0.16, alpha))
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.58, 0.18, alpha), 6.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), 9.0 * size_scale, Color(0.26, 0.72, 0.22, alpha))
+	_draw_ink_disc(center + Vector2(8.0 * size_scale, 14.0 * size_scale), 9.0 * size_scale, Color(0.26, 0.72, 0.22, alpha))
+	_draw_ink_disc(bulb_center, 18.0 * size_scale, bulb_color)
+	_draw_ink_disc(bulb_center, 10.0 * size_scale, Color(1.0, 0.78, 0.16, alpha))
 	draw_circle(bulb_center, 5.0 * size_scale, Color(1.0, 0.98, 0.8, alpha * 0.84))
 	for petal_index in range(4):
 		var petal_angle = float(petal_index) * TAU / 4.0 + PI * 0.25
@@ -27968,16 +27105,16 @@ func _draw_sun_bean(center: Vector2, size_scale: float, flash: float, alpha: flo
 	var petal_color = Color(0.98, 0.78, 0.16, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var face_color = Color(0.96, 0.66, 0.16, alpha)
 	# Stem and leaves
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.54, 0.16, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(-9.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.24, 0.68, 0.2, alpha))
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.54, 0.16, alpha), 6.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-9.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.24, 0.68, 0.2, alpha))
 	draw_circle(center + Vector2(10.0 * size_scale, 22.0 * size_scale), 8.0 * size_scale, Color(0.24, 0.68, 0.2, alpha))
 	# Petal ring (12 petals)
 	for petal_index in range(12):
 		var petal_angle = float(petal_index) * TAU / 12.0
 		var petal_center = head + Vector2(cos(petal_angle), sin(petal_angle)) * 17.0 * size_scale
-		draw_circle(petal_center, 8.5 * size_scale, petal_color)
+		_draw_ink_disc(petal_center, 8.5 * size_scale, petal_color)
 	# Face disc
-	draw_circle(head, 14.0 * size_scale, face_color)
+	_draw_ink_disc(head, 14.0 * size_scale, face_color)
 	draw_circle(head, 9.0 * size_scale, face_color.lightened(0.12))
 	# Eyes
 	draw_circle(head + Vector2(-5.0 * size_scale, -2.0 * size_scale), 2.8 * size_scale, Color(0.1, 0.08, 0.06, alpha))
@@ -27995,8 +27132,8 @@ func _draw_sun_bean(center: Vector2, size_scale: float, flash: float, alpha: flo
 func _draw_wind_orchid(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var blossom_center = center + Vector2(0.0, -8.0 * size_scale)
 	var petal_color = Color(0.76, 0.94, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.58, 0.18, alpha), 5.4 * size_scale)
-	draw_circle(center + Vector2(-8.0 * size_scale, 16.0 * size_scale), 8.5 * size_scale, Color(0.28, 0.74, 0.24, alpha))
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.58, 0.18, alpha), 5.4 * size_scale)
+	_draw_ink_disc(center + Vector2(-8.0 * size_scale, 16.0 * size_scale), 8.5 * size_scale, Color(0.28, 0.74, 0.24, alpha))
 	draw_circle(center + Vector2(9.0 * size_scale, 14.0 * size_scale), 8.0 * size_scale, Color(0.28, 0.74, 0.24, alpha))
 	for index in range(5):
 		var angle = -PI * 0.5 + float(index) * TAU / 5.0
@@ -28010,17 +27147,17 @@ func _draw_wind_orchid(center: Vector2, size_scale: float, flash: float, alpha: 
 
 
 func _draw_moon_lotus(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 18.0 * size_scale, Color(0.7, 0.82, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_disc(center + Vector2(0.0, -6.0 * size_scale), 18.0 * size_scale, Color(0.7, 0.82, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
 	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 8.0 * size_scale, Color(0.92, 0.96, 1.0, alpha))
 	for index in range(6):
 		var angle = TAU * float(index) / 6.0
 		draw_circle(center + Vector2(cos(angle), sin(angle)) * 16.0 * size_scale, 6.0 * size_scale, Color(0.54, 0.72, 0.98, alpha))
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.2, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.2, alpha), 6.0 * size_scale)
 
 
 func _draw_prism_grass(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.2, alpha), 6.0 * size_scale)
-	draw_polygon(
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.2, alpha), 6.0 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(0.0, -24.0 * size_scale),
 			center + Vector2(-18.0 * size_scale, 4.0 * size_scale),
@@ -28032,34 +27169,34 @@ func _draw_prism_grass(center: Vector2, size_scale: float, flash: float, alpha: 
 			Color(0.42, 0.84, 0.96, alpha),
 		])
 	)
-	draw_circle(center + Vector2(0.0, 8.0 * size_scale), 10.0 * size_scale, Color(0.28, 0.72, 0.24, alpha))
+	_draw_ink_disc(center + Vector2(0.0, 8.0 * size_scale), 10.0 * size_scale, Color(0.28, 0.72, 0.24, alpha))
 
 
 func _draw_lantern_bloom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.2, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -12.0 * size_scale), 16.0 * size_scale, Color(0.96, 0.72, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_rect(Rect2(center + Vector2(-12.0 * size_scale, -2.0 * size_scale), Vector2(24.0 * size_scale, 24.0 * size_scale)), Color(0.5, 0.28, 0.12, alpha), true)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.2, alpha), 6.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, -12.0 * size_scale), 16.0 * size_scale, Color(0.96, 0.72, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_rect(Rect2(center + Vector2(-12.0 * size_scale, -2.0 * size_scale), Vector2(24.0 * size_scale, 24.0 * size_scale)), Color(0.5, 0.28, 0.12, alpha), true)
 	draw_circle(center + Vector2(-10.0 * size_scale, 16.0 * size_scale), 8.0 * size_scale, Color(0.3, 0.78, 0.24, alpha))
 	draw_circle(center + Vector2(10.0 * size_scale, 16.0 * size_scale), 8.0 * size_scale, Color(0.3, 0.78, 0.24, alpha))
 
 
 func _draw_meteor_gourd(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(0.0, 8.0 * size_scale), 20.0 * size_scale, Color(0.86, 0.48, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_disc(center + Vector2(0.0, 8.0 * size_scale), 20.0 * size_scale, Color(0.86, 0.48, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
 	draw_circle(center + Vector2(-10.0 * size_scale, -4.0 * size_scale), 7.0 * size_scale, Color(1.0, 0.72, 0.3, alpha))
 	draw_circle(center + Vector2(12.0 * size_scale, -8.0 * size_scale), 6.0 * size_scale, Color(0.7, 0.18, 0.12, alpha))
-	draw_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 6.0 * size_scale)
 
 
 func _draw_root_snare(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 6.0 * size_scale)
 	for index in range(3):
 		var x_offset = -12.0 + float(index) * 12.0
-		draw_line(center + Vector2(x_offset * size_scale, 4.0 * size_scale), center + Vector2((x_offset + 6.0 * sin(float(index))) * size_scale, -18.0 * size_scale), Color(0.38, 0.72, 0.24, alpha), 4.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 10.0 * size_scale, Color(0.64, 0.88, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+		_draw_ink_line(center + Vector2(x_offset * size_scale, 4.0 * size_scale), center + Vector2((x_offset + 6.0 * sin(float(index))) * size_scale, -18.0 * size_scale), Color(0.38, 0.72, 0.24, alpha), 4.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, -6.0 * size_scale), 10.0 * size_scale, Color(0.64, 0.88, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
 
 
 func _draw_thunder_pine(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(0.0, -26.0 * size_scale),
 			center + Vector2(-18.0 * size_scale, 20.0 * size_scale),
@@ -28071,24 +27208,24 @@ func _draw_thunder_pine(center: Vector2, size_scale: float, flash: float, alpha:
 			Color(0.18, 0.38, 0.12, alpha),
 		])
 	)
-	draw_line(center + Vector2(0.0, 18.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.38, 0.26, 0.12, alpha), 5.0 * size_scale)
-	draw_line(center + Vector2(-6.0 * size_scale, -4.0 * size_scale), center + Vector2(4.0 * size_scale, 10.0 * size_scale), Color(1.0, 0.92, 0.28, alpha), 2.0 * size_scale)
-	draw_line(center + Vector2(4.0 * size_scale, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 18.0 * size_scale), Color(1.0, 0.92, 0.28, alpha), 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 18.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.38, 0.26, 0.12, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, -4.0 * size_scale), center + Vector2(4.0 * size_scale, 10.0 * size_scale), Color(1.0, 0.92, 0.28, alpha), 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(4.0 * size_scale, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 18.0 * size_scale), Color(1.0, 0.92, 0.28, alpha), 2.0 * size_scale)
 
 
 func _draw_dream_drum(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(0.0, 10.0 * size_scale), 18.0 * size_scale, Color(0.74, 0.46, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(center + Vector2(0.0, 10.0 * size_scale), 10.0 * size_scale, Color(0.94, 0.82, 0.52, alpha))
-	draw_line(center + Vector2(-14.0 * size_scale, -10.0 * size_scale), center + Vector2(-6.0 * size_scale, 2.0 * size_scale), Color(0.28, 0.64, 0.22, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(14.0 * size_scale, -10.0 * size_scale), center + Vector2(6.0 * size_scale, 2.0 * size_scale), Color(0.28, 0.64, 0.22, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(0.0, 18.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 5.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, 10.0 * size_scale), 18.0 * size_scale, Color(0.74, 0.46, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
+	_draw_ink_disc(center + Vector2(0.0, 10.0 * size_scale), 10.0 * size_scale, Color(0.94, 0.82, 0.52, alpha))
+	_draw_ink_line(center + Vector2(-14.0 * size_scale, -10.0 * size_scale), center + Vector2(-6.0 * size_scale, 2.0 * size_scale), Color(0.28, 0.64, 0.22, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(14.0 * size_scale, -10.0 * size_scale), center + Vector2(6.0 * size_scale, 2.0 * size_scale), Color(0.28, 0.64, 0.22, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 18.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 5.0 * size_scale)
 
 
 func _draw_lily_pad(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_circle(center + Vector2(-14.0 * size_scale, 12.0 * size_scale), 18.0 * size_scale, Color(0.24, 0.72, 0.38, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4))
-	draw_circle(center + Vector2(10.0 * size_scale, 10.0 * size_scale), 20.0 * size_scale, Color(0.2, 0.64, 0.34, alpha))
-	draw_circle(center + Vector2(0.0, 4.0 * size_scale), 16.0 * size_scale, Color(0.28, 0.8, 0.44, alpha))
-	draw_polygon(
+	_draw_ink_disc(center + Vector2(-14.0 * size_scale, 12.0 * size_scale), 18.0 * size_scale, Color(0.24, 0.72, 0.38, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4))
+	_draw_ink_disc(center + Vector2(10.0 * size_scale, 10.0 * size_scale), 20.0 * size_scale, Color(0.2, 0.64, 0.34, alpha))
+	_draw_ink_disc(center + Vector2(0.0, 4.0 * size_scale), 16.0 * size_scale, Color(0.28, 0.8, 0.44, alpha))
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(4.0 * size_scale, -4.0 * size_scale),
 			center + Vector2(22.0 * size_scale, 8.0 * size_scale),
@@ -28099,14 +27236,14 @@ func _draw_lily_pad(center: Vector2, size_scale: float, flash: float, alpha: flo
 
 
 func _draw_squash(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 30.0 * size_scale), Color(0.22, 0.58, 0.18, alpha), 5.0 * size_scale)
-	draw_circle(center + Vector2(0.0, 0.0), 22.0 * size_scale, Color(0.44, 0.86, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6))
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 30.0 * size_scale), Color(0.22, 0.58, 0.18, alpha), 5.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, 0.0), 22.0 * size_scale, Color(0.44, 0.86, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6))
 	draw_circle(center + Vector2(-11.0 * size_scale, -3.0 * size_scale), 7.0 * size_scale, Color(0.58, 0.92, 0.28, alpha))
 	draw_circle(center + Vector2(11.0 * size_scale, -4.0 * size_scale), 7.0 * size_scale, Color(0.58, 0.92, 0.28, alpha))
 	draw_circle(center + Vector2(-7.0 * size_scale, -2.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(7.0 * size_scale, -2.0 * size_scale), 2.6 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_line(center + Vector2(-12.0 * size_scale, -14.0 * size_scale), center + Vector2(-4.0 * size_scale, -10.0 * size_scale), Color(0.08, 0.08, 0.08, alpha), 2.0 * size_scale)
-	draw_line(center + Vector2(4.0 * size_scale, -10.0 * size_scale), center + Vector2(12.0 * size_scale, -14.0 * size_scale), Color(0.08, 0.08, 0.08, alpha), 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(-12.0 * size_scale, -14.0 * size_scale), center + Vector2(-4.0 * size_scale, -10.0 * size_scale), Color(0.08, 0.08, 0.08, alpha), 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(4.0 * size_scale, -10.0 * size_scale), center + Vector2(12.0 * size_scale, -14.0 * size_scale), Color(0.08, 0.08, 0.08, alpha), 2.0 * size_scale)
 	draw_arc(center + Vector2(0.0, 11.0 * size_scale), 9.0 * size_scale, 0.15, PI - 0.15, 12, Color(0.08, 0.08, 0.08, alpha), 2.2 * size_scale)
 
 
@@ -28114,14 +27251,14 @@ func _draw_threepeater(center: Vector2, size_scale: float, flash: float, alpha: 
 	var head_color = Color(0.34, 0.78, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var dark_head = head_color.darkened(0.14)
 	# Shared stem + leaf base
-	draw_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.16, alpha), 7.0 * size_scale)
-	draw_circle(center + Vector2(-13.0 * size_scale, 22.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
-	draw_circle(center + Vector2(15.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
+	_draw_ink_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.16, alpha), 7.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-13.0 * size_scale, 22.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
+	_draw_ink_disc(center + Vector2(15.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.27, 0.72, 0.22, alpha))
 	# Three heads stacked vertically
 	var head_offsets = [Vector2(2.0, -22.0), Vector2(6.0, -6.0), Vector2(2.0, 10.0)]
 	for head_index in range(3):
 		var head_pos = center + head_offsets[head_index] * size_scale
-		draw_circle(head_pos, 13.0 * size_scale, head_color)
+		_draw_ink_disc(head_pos, 13.0 * size_scale, head_color)
 		draw_circle(head_pos, 9.0 * size_scale, head_color.lightened(0.08))
 		# Muzzle (faces right)
 		draw_circle(head_pos + Vector2(14.0 * size_scale, 0.0), 7.0 * size_scale, dark_head)
@@ -28130,7 +27267,7 @@ func _draw_threepeater(center: Vector2, size_scale: float, flash: float, alpha: 
 		draw_circle(head_pos + Vector2(-1.0 * size_scale, -3.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 		draw_circle(head_pos + Vector2(0.0 * size_scale, -4.0 * size_scale), 0.9 * size_scale, Color(1.0, 1.0, 1.0, alpha))
 	# Connecting neck between heads
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-9.0 * size_scale, -18.0 * size_scale),
 			center + Vector2(-9.0 * size_scale, 6.0 * size_scale),
@@ -28146,14 +27283,14 @@ func _draw_boomerang_shooter(center: Vector2, size_scale: float, flash: float, a
 	var arm_color = Color(0.72, 0.9, 0.38, alpha)
 	var boom_color = Color(0.96, 0.68, 0.18, alpha)
 	var spin = sin(level_time * 6.0) * 2.0
-	draw_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 6.0 * size_scale)
-	draw_line(center + Vector2(-8.0 * size_scale, 22.0 * size_scale), center + Vector2(-22.0 * size_scale, 12.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(-8.0 * size_scale, 24.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 4.0 * size_scale)
-	draw_circle(center + Vector2(-12.0 * size_scale, -2.0 * size_scale), 17.0 * size_scale, body_color)
-	draw_circle(center + Vector2(-24.0 * size_scale, -4.0 * size_scale), 12.0 * size_scale, body_color.darkened(0.04))
-	draw_circle(center + Vector2(-2.0 * size_scale, -6.0 * size_scale), 12.0 * size_scale, arm_color)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(-8.0 * size_scale, 22.0 * size_scale), center + Vector2(-22.0 * size_scale, 12.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-8.0 * size_scale, 24.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-12.0 * size_scale, -2.0 * size_scale), 17.0 * size_scale, body_color)
+	_draw_ink_disc(center + Vector2(-24.0 * size_scale, -4.0 * size_scale), 12.0 * size_scale, body_color.darkened(0.04))
+	_draw_ink_disc(center + Vector2(-2.0 * size_scale, -6.0 * size_scale), 12.0 * size_scale, arm_color)
 	draw_circle(center + Vector2(-30.0 * size_scale, -8.0 * size_scale), 8.0 * size_scale, Color(0.72, 0.9, 0.3, alpha))
-	draw_line(center + Vector2(-4.0 * size_scale, -8.0 * size_scale), center + Vector2(20.0 * size_scale, -18.0 * size_scale), Color(0.34, 0.6, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, -8.0 * size_scale), center + Vector2(20.0 * size_scale, -18.0 * size_scale), Color(0.34, 0.6, 0.18, alpha), 4.0 * size_scale)
 	draw_arc(center + Vector2(26.0 * size_scale, (-18.0 + spin) * size_scale), 12.0 * size_scale, -1.25, 0.95, 18, boom_color, 3.2 * size_scale)
 	draw_arc(center + Vector2(24.0 * size_scale, (-18.0 + spin) * size_scale), 7.0 * size_scale, -1.15, 0.82, 14, Color(0.5, 0.28, 0.08, alpha), 1.4 * size_scale)
 	draw_arc(center + Vector2(-26.0 * size_scale, -28.0 * size_scale), 10.0 * size_scale, 1.8, 4.3, 16, boom_color.darkened(0.08), 2.4 * size_scale)
@@ -28166,9 +27303,9 @@ func _draw_sakura_shooter(center: Vector2, size_scale: float, flash: float, alph
 	var canopy = Color(0.98, 0.76, 0.86, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var blossom_core = Color(0.98, 0.56, 0.72, alpha)
 	var drift = sin(level_time * 2.4 + center.x * 0.02) * 2.0
-	draw_line(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), bark, 6.0 * size_scale)
-	draw_line(center + Vector2(-8.0 * size_scale, 6.0 * size_scale), center + Vector2(10.0 * size_scale, -10.0 * size_scale), bark, 4.0 * size_scale)
-	draw_line(center + Vector2(-6.0 * size_scale, -2.0 * size_scale), center + Vector2(-22.0 * size_scale, -18.0 * size_scale), bark, 3.2 * size_scale)
+	_draw_ink_line(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), bark, 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(-8.0 * size_scale, 6.0 * size_scale), center + Vector2(10.0 * size_scale, -10.0 * size_scale), bark, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, -2.0 * size_scale), center + Vector2(-22.0 * size_scale, -18.0 * size_scale), bark, 3.2 * size_scale)
 	for blossom in [
 		Vector2(-24.0, -20.0),
 		Vector2(-8.0, -24.0 + drift),
@@ -28194,9 +27331,9 @@ func _draw_lotus_lancer(center: Vector2, size_scale: float, flash: float, alpha:
 	var lotus_purple = Color(0.7, 0.54, 0.88, alpha)
 	var lance_blue = Color(0.78, 0.94, 1.0, alpha)
 	var wave = sin(level_time * 3.1 + center.x * 0.01) * 2.0
-	draw_circle(center + Vector2(-8.0 * size_scale, 18.0 * size_scale), 16.0 * size_scale, Color(0.18, 0.62, 0.38, alpha))
-	draw_circle(center + Vector2(8.0 * size_scale, 18.0 * size_scale), 14.0 * size_scale, Color(0.22, 0.68, 0.42, alpha))
-	draw_polygon(
+	_draw_ink_disc(center + Vector2(-8.0 * size_scale, 18.0 * size_scale), 16.0 * size_scale, Color(0.18, 0.62, 0.38, alpha))
+	_draw_ink_disc(center + Vector2(8.0 * size_scale, 18.0 * size_scale), 14.0 * size_scale, Color(0.22, 0.68, 0.42, alpha))
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(6.0 * size_scale, 10.0 * size_scale),
 			center + Vector2(24.0 * size_scale, 18.0 * size_scale),
@@ -28204,18 +27341,18 @@ func _draw_lotus_lancer(center: Vector2, size_scale: float, flash: float, alpha:
 		]),
 		PackedColorArray([Color(0.12, 0.54, 0.32, alpha), Color(0.16, 0.62, 0.38, alpha), Color(0.12, 0.54, 0.32, alpha)])
 	)
-	draw_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-2.0 * size_scale, -20.0 * size_scale), Color(0.24, 0.58, 0.3, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-2.0 * size_scale, -20.0 * size_scale), Color(0.24, 0.58, 0.3, alpha), 5.0 * size_scale)
 	for petal in [
 		Vector2(-16.0, -6.0 + wave),
 		Vector2(-4.0, -18.0),
 		Vector2(8.0, -8.0 - wave * 0.5),
 		Vector2(-2.0, -2.0)
 	]:
-		draw_circle(center + petal * size_scale, 10.0 * size_scale, lotus_purple)
+		_draw_ink_disc(center + petal * size_scale, 10.0 * size_scale, lotus_purple)
 	draw_circle(center + Vector2(-2.0 * size_scale, -8.0 * size_scale), 7.0 * size_scale, Color(0.98, 0.88, 0.46, alpha))
-	draw_line(center + Vector2(10.0 * size_scale, -10.0 * size_scale), center + Vector2(34.0 * size_scale, -20.0 * size_scale), lance_blue, 3.0 * size_scale)
-	draw_line(center + Vector2(34.0 * size_scale, -20.0 * size_scale), center + Vector2(54.0 * size_scale, -20.0 * size_scale), Color(0.92, 0.98, 1.0, alpha), 2.2 * size_scale)
-	draw_polygon(
+	_draw_ink_line(center + Vector2(10.0 * size_scale, -10.0 * size_scale), center + Vector2(34.0 * size_scale, -20.0 * size_scale), lance_blue, 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(34.0 * size_scale, -20.0 * size_scale), center + Vector2(54.0 * size_scale, -20.0 * size_scale), Color(0.92, 0.98, 1.0, alpha), 2.2 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(54.0 * size_scale, -20.0 * size_scale),
 			center + Vector2(68.0 * size_scale, -26.0 * size_scale),
@@ -28233,13 +27370,13 @@ func _draw_mist_orchid(center: Vector2, size_scale: float, flash: float, alpha: 
 	var stem = Color(0.28, 0.56, 0.24, alpha)
 	var petal = Color(0.88, 0.98, 0.96, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var mist = Color(0.7, 0.92, 0.9, alpha * 0.6)
-	draw_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), stem, 5.0 * size_scale)
-	draw_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), stem, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), stem, 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), stem, 4.0 * size_scale)
 	for petal_center in [Vector2(-12.0, -10.0), Vector2(0.0, -18.0), Vector2(12.0, -10.0), Vector2(0.0, 0.0)]:
-		draw_circle(center + petal_center * size_scale, 10.0 * size_scale, petal)
+		_draw_ink_disc(center + petal_center * size_scale, 10.0 * size_scale, petal)
 	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 6.0 * size_scale, Color(0.5, 0.76, 0.62, alpha))
 	draw_circle(center + Vector2(-18.0 * size_scale, -20.0 * size_scale), 8.0 * size_scale, mist)
-	draw_circle(center + Vector2(18.0 * size_scale, -24.0 * size_scale), 10.0 * size_scale, mist)
+	_draw_ink_disc(center + Vector2(18.0 * size_scale, -24.0 * size_scale), 10.0 * size_scale, mist)
 	draw_circle(center + Vector2(-4.0 * size_scale, -12.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -12.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
@@ -28247,15 +27384,15 @@ func _draw_mist_orchid(center: Vector2, size_scale: float, flash: float, alpha: 
 func _draw_anchor_fern(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var fern = Color(0.34, 0.72, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.7)
 	var anchor = Color(0.52, 0.6, 0.66, alpha)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.5, 0.18, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.5, 0.18, alpha), 5.0 * size_scale)
 	for index in range(4):
 		var angle = -1.9 + float(index) * 0.55
 		var tip = center + Vector2(cos(angle), sin(angle)) * 24.0 * size_scale
-		draw_line(center + Vector2(0.0, 6.0 * size_scale), tip, fern, 4.0 * size_scale)
-	draw_line(center + Vector2(18.0 * size_scale, -8.0 * size_scale), center + Vector2(18.0 * size_scale, 12.0 * size_scale), anchor, 4.0 * size_scale)
+		_draw_ink_line(center + Vector2(0.0, 6.0 * size_scale), tip, fern, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(18.0 * size_scale, -8.0 * size_scale), center + Vector2(18.0 * size_scale, 12.0 * size_scale), anchor, 4.0 * size_scale)
 	draw_arc(center + Vector2(18.0 * size_scale, 10.0 * size_scale), 9.0 * size_scale, 0.2, PI - 0.2, 14, anchor, 3.0 * size_scale)
-	draw_line(center + Vector2(10.0 * size_scale, 16.0 * size_scale), center + Vector2(2.0 * size_scale, 26.0 * size_scale), anchor, 3.0 * size_scale)
-	draw_line(center + Vector2(26.0 * size_scale, 16.0 * size_scale), center + Vector2(34.0 * size_scale, 26.0 * size_scale), anchor, 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(10.0 * size_scale, 16.0 * size_scale), center + Vector2(2.0 * size_scale, 26.0 * size_scale), anchor, 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(26.0 * size_scale, 16.0 * size_scale), center + Vector2(34.0 * size_scale, 26.0 * size_scale), anchor, 3.0 * size_scale)
 	draw_circle(center + Vector2(-8.0 * size_scale, -10.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(0.0, -12.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
@@ -28263,12 +27400,12 @@ func _draw_anchor_fern(center: Vector2, size_scale: float, flash: float, alpha: 
 func _draw_glowvine(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var vine = Color(0.24, 0.62, 0.3, alpha)
 	var glow = Color(0.68, 1.0, 0.76, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
-	draw_line(center + Vector2(-6.0 * size_scale, 10.0 * size_scale), center + Vector2(-10.0 * size_scale, 34.0 * size_scale), vine, 4.0 * size_scale)
-	draw_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(10.0 * size_scale, 34.0 * size_scale), vine, 4.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, -18.0 * size_scale), vine, 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, 10.0 * size_scale), center + Vector2(-10.0 * size_scale, 34.0 * size_scale), vine, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(10.0 * size_scale, 34.0 * size_scale), vine, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, -18.0 * size_scale), vine, 5.0 * size_scale)
 	for orb_center in [Vector2(-16.0, -12.0), Vector2(0.0, -20.0), Vector2(16.0, -8.0)]:
 		draw_circle(center + orb_center * size_scale, 8.0 * size_scale, glow)
-		draw_circle(center + orb_center * size_scale, 14.0 * size_scale, Color(glow.r, glow.g, glow.b, alpha * 0.18))
+		_draw_ink_disc(center + orb_center * size_scale, 14.0 * size_scale, Color(glow.r, glow.g, glow.b, alpha * 0.18))
 	draw_arc(center + Vector2(0.0, -8.0 * size_scale), 26.0 * size_scale, 3.5, 5.7, 20, Color(0.8, 1.0, 0.88, alpha * 0.24), 1.6 * size_scale)
 	draw_circle(center + Vector2(-6.0 * size_scale, -14.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(2.0 * size_scale, -15.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
@@ -28277,11 +27414,11 @@ func _draw_glowvine(center: Vector2, size_scale: float, flash: float, alpha: flo
 func _draw_brine_pot(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var clay = Color(0.66, 0.46, 0.26, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var brine = Color(0.68, 0.92, 0.84, alpha)
-	draw_rect(Rect2(center + Vector2(-16.0 * size_scale, -8.0 * size_scale), Vector2(32.0 * size_scale, 26.0 * size_scale)), clay, true)
+	_draw_ink_rect(Rect2(center + Vector2(-16.0 * size_scale, -8.0 * size_scale), Vector2(32.0 * size_scale, 26.0 * size_scale)), clay, true)
 	draw_arc(center + Vector2(0.0, -10.0 * size_scale), 16.0 * size_scale, PI, TAU, 16, clay.lightened(0.1), 4.0 * size_scale)
-	draw_line(center + Vector2(-6.0 * size_scale, 18.0 * size_scale), center + Vector2(-10.0 * size_scale, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(6.0 * size_scale, 18.0 * size_scale), center + Vector2(10.0 * size_scale, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 4.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -10.0 * size_scale), 10.0 * size_scale, brine)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, 18.0 * size_scale), center + Vector2(-10.0 * size_scale, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(6.0 * size_scale, 18.0 * size_scale), center + Vector2(10.0 * size_scale, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, -10.0 * size_scale), 10.0 * size_scale, brine)
 	draw_circle(center + Vector2(-10.0 * size_scale, -16.0 * size_scale), 6.0 * size_scale, Color(brine.r, brine.g, brine.b, alpha * 0.72))
 	draw_circle(center + Vector2(10.0 * size_scale, -20.0 * size_scale), 7.0 * size_scale, Color(brine.r, brine.g, brine.b, alpha * 0.72))
 	draw_circle(center + Vector2(-5.0 * size_scale, -2.0 * size_scale), 1.8 * size_scale, Color(0.08, 0.08, 0.08, alpha))
@@ -28291,15 +27428,15 @@ func _draw_brine_pot(center: Vector2, size_scale: float, flash: float, alpha: fl
 func _draw_storm_reed(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var reed = Color(0.42, 0.68, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var spark = Color(0.96, 0.96, 0.58, alpha)
-	draw_line(center + Vector2(-4.0 * size_scale, 8.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), reed, 4.0 * size_scale)
-	draw_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), reed, 4.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, -20.0 * size_scale), reed, 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 8.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), reed, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), reed, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, -20.0 * size_scale), reed, 5.0 * size_scale)
 	for branch in [Vector2(-14.0, -4.0), Vector2(12.0, -12.0), Vector2(2.0, -20.0)]:
-		draw_line(center + Vector2(0.0, -4.0 * size_scale), center + branch * size_scale, reed, 3.0 * size_scale)
+		_draw_ink_line(center + Vector2(0.0, -4.0 * size_scale), center + branch * size_scale, reed, 3.0 * size_scale)
 		draw_circle(center + branch * size_scale, 6.0 * size_scale, spark)
-	draw_line(center + Vector2(-16.0 * size_scale, -18.0 * size_scale), center + Vector2(-6.0 * size_scale, -8.0 * size_scale), spark, 2.0 * size_scale)
-	draw_line(center + Vector2(-6.0 * size_scale, -8.0 * size_scale), center + Vector2(-12.0 * size_scale, 0.0), spark, 2.0 * size_scale)
-	draw_line(center + Vector2(10.0 * size_scale, -22.0 * size_scale), center + Vector2(18.0 * size_scale, -10.0 * size_scale), spark, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(-16.0 * size_scale, -18.0 * size_scale), center + Vector2(-6.0 * size_scale, -8.0 * size_scale), spark, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, -8.0 * size_scale), center + Vector2(-12.0 * size_scale, 0.0), spark, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(10.0 * size_scale, -22.0 * size_scale), center + Vector2(18.0 * size_scale, -10.0 * size_scale), spark, 2.0 * size_scale)
 	draw_circle(center + Vector2(-4.0 * size_scale, -12.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -13.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
@@ -28308,15 +27445,15 @@ func _draw_moonforge(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var petal = Color(0.96, 0.72, 0.44, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var forge = Color(0.56, 0.24, 0.12, alpha)
 	var ember = Color(1.0, 0.84, 0.54, alpha)
-	draw_line(center + Vector2(-4.0 * size_scale, 10.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.54, 0.2, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(6.0 * size_scale, 12.0 * size_scale), center + Vector2(10.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.54, 0.2, alpha), 4.0 * size_scale)
-	draw_rect(Rect2(center + Vector2(-14.0 * size_scale, -8.0 * size_scale), Vector2(28.0 * size_scale, 24.0 * size_scale)), forge, true)
-	draw_circle(center + Vector2(0.0, -18.0 * size_scale), 10.0 * size_scale, petal)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 10.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.54, 0.2, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(6.0 * size_scale, 12.0 * size_scale), center + Vector2(10.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.54, 0.2, alpha), 4.0 * size_scale)
+	_draw_ink_rect(Rect2(center + Vector2(-14.0 * size_scale, -8.0 * size_scale), Vector2(28.0 * size_scale, 24.0 * size_scale)), forge, true)
+	_draw_ink_disc(center + Vector2(0.0, -18.0 * size_scale), 10.0 * size_scale, petal)
 	draw_circle(center + Vector2(-10.0 * size_scale, -8.0 * size_scale), 8.0 * size_scale, petal)
 	draw_circle(center + Vector2(10.0 * size_scale, -8.0 * size_scale), 8.0 * size_scale, petal)
 	draw_circle(center + Vector2(0.0, -2.0 * size_scale), 7.0 * size_scale, ember)
-	draw_line(center + Vector2(16.0 * size_scale, -18.0 * size_scale), center + Vector2(34.0 * size_scale, -28.0 * size_scale), Color(0.92, 0.96, 1.0, alpha), 2.6 * size_scale)
-	draw_polygon(
+	_draw_ink_line(center + Vector2(16.0 * size_scale, -18.0 * size_scale), center + Vector2(34.0 * size_scale, -28.0 * size_scale), Color(0.92, 0.96, 1.0, alpha), 2.6 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(34.0 * size_scale, -28.0 * size_scale),
 			center + Vector2(48.0 * size_scale, -34.0 * size_scale),
@@ -28334,14 +27471,14 @@ func _draw_mirror_reed(center: Vector2, size_scale: float, flash: float, alpha: 
 	var frame_color = Color(0.88, 0.78, 0.42, alpha)
 	var mirror_color = Color(0.76, 0.9, 1.0, alpha * 0.92)
 	var gleam = 4.0 * sin(level_time * 2.6)
-	draw_line(center + Vector2(-10.0 * size_scale, 12.0 * size_scale), center + Vector2(-12.0 * size_scale, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(2.0 * size_scale, 14.0 * size_scale), center + Vector2(4.0 * size_scale, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(-4.0 * size_scale, 8.0 * size_scale), center + Vector2(12.0 * size_scale, -20.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 3.4 * size_scale)
-	draw_rect(Rect2(center + Vector2(8.0 * size_scale, -30.0 * size_scale), Vector2(28.0 * size_scale, 34.0 * size_scale)), frame_color, true)
-	draw_rect(Rect2(center + Vector2(11.0 * size_scale, -27.0 * size_scale), Vector2(22.0 * size_scale, 28.0 * size_scale)), mirror_color, true)
-	draw_line(center + Vector2((14.0 + gleam) * size_scale, -24.0 * size_scale), center + Vector2((30.0 + gleam) * size_scale, -8.0 * size_scale), Color(1.0, 1.0, 1.0, alpha * 0.7), 2.0 * size_scale)
-	draw_circle(center + Vector2(-10.0 * size_scale, 0.0), 10.0 * size_scale, reed_green)
-	draw_circle(center + Vector2(0.0, -10.0 * size_scale), 9.0 * size_scale, Color(0.64, 0.86, 0.5, alpha))
+	_draw_ink_line(center + Vector2(-10.0 * size_scale, 12.0 * size_scale), center + Vector2(-12.0 * size_scale, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(2.0 * size_scale, 14.0 * size_scale), center + Vector2(4.0 * size_scale, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 8.0 * size_scale), center + Vector2(12.0 * size_scale, -20.0 * size_scale), Color(0.3, 0.62, 0.18, alpha), 3.4 * size_scale)
+	_draw_ink_rect(Rect2(center + Vector2(8.0 * size_scale, -30.0 * size_scale), Vector2(28.0 * size_scale, 34.0 * size_scale)), frame_color, true)
+	_draw_ink_rect(Rect2(center + Vector2(11.0 * size_scale, -27.0 * size_scale), Vector2(22.0 * size_scale, 28.0 * size_scale)), mirror_color, true)
+	_draw_ink_line(center + Vector2((14.0 + gleam) * size_scale, -24.0 * size_scale), center + Vector2((30.0 + gleam) * size_scale, -8.0 * size_scale), Color(1.0, 1.0, 1.0, alpha * 0.7), 2.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-10.0 * size_scale, 0.0), 10.0 * size_scale, reed_green)
+	_draw_ink_disc(center + Vector2(0.0, -10.0 * size_scale), 9.0 * size_scale, Color(0.64, 0.86, 0.5, alpha))
 	draw_circle(center + Vector2(-14.0 * size_scale, -2.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(-6.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_arc(center + Vector2(22.0 * size_scale, -12.0 * size_scale), 18.0 * size_scale, -0.9, 0.9, 18, Color(0.92, 1.0, 1.0, alpha * 0.32), 1.6 * size_scale)
@@ -28352,16 +27489,16 @@ func _draw_frost_fan(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var fan_blue = Color(0.62, 0.84, 1.0, alpha)
 	var handle = Color(0.4, 0.66, 0.34, alpha)
 	var gust = sin(level_time * 4.2 + center.x * 0.01) * 2.4
-	draw_line(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), center + Vector2(-12.0 * size_scale, 34.0 * size_scale), handle, 5.0 * size_scale)
-	draw_circle(center + Vector2(-14.0 * size_scale, -2.0 * size_scale), 11.0 * size_scale, Color(0.54, 0.82, 0.44, alpha))
+	_draw_ink_line(center + Vector2(-8.0 * size_scale, 14.0 * size_scale), center + Vector2(-12.0 * size_scale, 34.0 * size_scale), handle, 5.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-14.0 * size_scale, -2.0 * size_scale), 11.0 * size_scale, Color(0.54, 0.82, 0.44, alpha))
 	draw_circle(center + Vector2(-8.0 * size_scale, -4.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(-16.0 * size_scale, -2.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	var fan_origin = center + Vector2(-2.0 * size_scale, 8.0 * size_scale)
 	for rib in range(5):
 		var angle = -1.45 + float(rib) * 0.42
 		var tip = fan_origin + Vector2(cos(angle), sin(angle)) * (32.0 + gust + rib * 2.0) * size_scale
-		draw_line(fan_origin, tip, Color(0.68, 0.86, 1.0, alpha * 0.9), 2.0 * size_scale)
-	draw_polygon(
+		_draw_ink_line(fan_origin, tip, Color(0.68, 0.86, 1.0, alpha * 0.9), 2.0 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			fan_origin + Vector2(-6.0 * size_scale, -34.0 * size_scale),
 			fan_origin + Vector2(26.0 * size_scale, -22.0 * size_scale),
@@ -28373,15 +27510,15 @@ func _draw_frost_fan(center: Vector2, size_scale: float, flash: float, alpha: fl
 	draw_arc(fan_origin + Vector2(10.0 * size_scale, -10.0 * size_scale), 26.0 * size_scale, -1.45, 0.2, 24, Color(1.0, 1.0, 1.0, alpha * 0.42), 1.8 * size_scale)
 	for snow in range(3):
 		var flake = center + Vector2((18.0 + snow * 10.0) * size_scale, (-20.0 + snow * 8.0 + sin(level_time * 2.4 + snow) * 4.0) * size_scale)
-		draw_line(flake + Vector2(-3.0 * size_scale, 0.0), flake + Vector2(3.0 * size_scale, 0.0), Color(0.92, 0.98, 1.0, alpha * 0.8), 1.2 * size_scale)
-		draw_line(flake + Vector2(0.0, -3.0 * size_scale), flake + Vector2(0.0, 3.0 * size_scale), Color(0.92, 0.98, 1.0, alpha * 0.8), 1.2 * size_scale)
+		_draw_ink_line(flake + Vector2(-3.0 * size_scale, 0.0), flake + Vector2(3.0 * size_scale, 0.0), Color(0.92, 0.98, 1.0, alpha * 0.8), 1.2 * size_scale)
+		_draw_ink_line(flake + Vector2(0.0, -3.0 * size_scale), flake + Vector2(0.0, 3.0 * size_scale), Color(0.92, 0.98, 1.0, alpha * 0.8), 1.2 * size_scale)
 
 
 func _draw_flower_pot(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var pot_color = Color(0.7, 0.42, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
-	draw_rect(Rect2(center + Vector2(-18.0 * size_scale, -2.0 * size_scale), Vector2(36.0 * size_scale, 22.0 * size_scale)), pot_color, true)
-	draw_rect(Rect2(center + Vector2(-22.0 * size_scale, -8.0 * size_scale), Vector2(44.0 * size_scale, 8.0 * size_scale)), pot_color.lightened(0.12), true)
-	draw_polygon(
+	_draw_ink_rect(Rect2(center + Vector2(-18.0 * size_scale, -2.0 * size_scale), Vector2(36.0 * size_scale, 22.0 * size_scale)), pot_color, true)
+	_draw_ink_rect(Rect2(center + Vector2(-22.0 * size_scale, -8.0 * size_scale), Vector2(44.0 * size_scale, 8.0 * size_scale)), pot_color.lightened(0.12), true)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-18.0 * size_scale, 20.0 * size_scale),
 			center + Vector2(-8.0 * size_scale, 34.0 * size_scale),
@@ -28390,16 +27527,16 @@ func _draw_flower_pot(center: Vector2, size_scale: float, flash: float, alpha: f
 		]),
 		PackedColorArray([pot_color.darkened(0.08), pot_color.darkened(0.18), pot_color.darkened(0.18), pot_color.darkened(0.08)])
 	)
-	draw_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(32.0 * size_scale, 6.0 * size_scale)), Color(0.34, 0.22, 0.14, alpha), true)
+	_draw_ink_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(32.0 * size_scale, 6.0 * size_scale)), Color(0.34, 0.22, 0.14, alpha), true)
 
 
 func _draw_cabbage_pult(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	_draw_flower_pot(center + Vector2(0.0, 12.0 * size_scale), size_scale * 0.92, flash, alpha)
 	var leaf = Color(0.42, 0.78, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
-	draw_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(-2.0 * size_scale, 4.0 * size_scale), center + Vector2(20.0 * size_scale, -6.0 * size_scale), leaf, 4.0 * size_scale)
-	draw_circle(center + Vector2(-10.0 * size_scale, -4.0 * size_scale), 14.0 * size_scale, leaf)
-	draw_circle(center + Vector2(-20.0 * size_scale, -6.0 * size_scale), 10.0 * size_scale, leaf.darkened(0.06))
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, 4.0 * size_scale), center + Vector2(20.0 * size_scale, -6.0 * size_scale), leaf, 4.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-10.0 * size_scale, -4.0 * size_scale), 14.0 * size_scale, leaf)
+	_draw_ink_disc(center + Vector2(-20.0 * size_scale, -6.0 * size_scale), 10.0 * size_scale, leaf.darkened(0.06))
 	draw_circle(center + Vector2(-2.0 * size_scale, -10.0 * size_scale), 10.0 * size_scale, leaf.lightened(0.08))
 	draw_circle(center + Vector2(-16.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(-8.0 * size_scale, -10.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
@@ -28409,8 +27546,8 @@ func _draw_kernel_pult(center: Vector2, size_scale: float, flash: float, alpha: 
 	_draw_flower_pot(center + Vector2(0.0, 12.0 * size_scale), size_scale * 0.92, flash, alpha)
 	var husk = Color(0.48, 0.76, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
 	var cob = Color(0.98, 0.86, 0.32, alpha)
-	draw_line(center + Vector2(-2.0 * size_scale, 10.0 * size_scale), center + Vector2(-4.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.18, alpha), 4.0 * size_scale)
-	draw_polygon(
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, 10.0 * size_scale), center + Vector2(-4.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-18.0 * size_scale, 2.0 * size_scale),
 			center + Vector2(-6.0 * size_scale, -18.0 * size_scale),
@@ -28419,7 +27556,7 @@ func _draw_kernel_pult(center: Vector2, size_scale: float, flash: float, alpha: 
 		]),
 		PackedColorArray([husk, husk, husk.darkened(0.08), husk.darkened(0.04)])
 	)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(12.0 * size_scale, -2.0 * size_scale),
 			center + Vector2(-2.0 * size_scale, -20.0 * size_scale),
@@ -28428,28 +27565,28 @@ func _draw_kernel_pult(center: Vector2, size_scale: float, flash: float, alpha: 
 		]),
 		PackedColorArray([husk, husk, husk.darkened(0.08), husk.darkened(0.04)])
 	)
-	draw_rect(Rect2(center + Vector2(-9.0 * size_scale, -18.0 * size_scale), Vector2(18.0 * size_scale, 26.0 * size_scale)), cob, true)
+	_draw_ink_rect(Rect2(center + Vector2(-9.0 * size_scale, -18.0 * size_scale), Vector2(18.0 * size_scale, 26.0 * size_scale)), cob, true)
 	draw_circle(center + Vector2(-4.0 * size_scale, -8.0 * size_scale), 1.8 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -10.0 * size_scale), 1.8 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
 
 func _draw_coffee_bean(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var bean = Color(0.48, 0.28, 0.16, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
-	draw_circle(center + Vector2(-8.0 * size_scale, 2.0 * size_scale), 10.0 * size_scale, bean)
-	draw_circle(center + Vector2(8.0 * size_scale, 2.0 * size_scale), 10.0 * size_scale, bean.darkened(0.06))
-	draw_line(center + Vector2(0.0, -10.0 * size_scale), center + Vector2(0.0, 20.0 * size_scale), Color(0.26, 0.54, 0.18, alpha), 3.0 * size_scale)
-	draw_line(center + Vector2(0.0, -8.0 * size_scale), center + Vector2(-12.0 * size_scale, -20.0 * size_scale), Color(0.34, 0.68, 0.2, alpha), 3.0 * size_scale)
-	draw_line(center + Vector2(0.0, -8.0 * size_scale), center + Vector2(12.0 * size_scale, -18.0 * size_scale), Color(0.34, 0.68, 0.2, alpha), 3.0 * size_scale)
-	draw_line(center + Vector2(-4.0 * size_scale, -6.0 * size_scale), center + Vector2(-1.0 * size_scale, 12.0 * size_scale), Color(0.26, 0.16, 0.1, alpha), 1.6 * size_scale)
-	draw_line(center + Vector2(4.0 * size_scale, -6.0 * size_scale), center + Vector2(1.0 * size_scale, 12.0 * size_scale), Color(0.26, 0.16, 0.1, alpha), 1.6 * size_scale)
+	_draw_ink_disc(center + Vector2(-8.0 * size_scale, 2.0 * size_scale), 10.0 * size_scale, bean)
+	_draw_ink_disc(center + Vector2(8.0 * size_scale, 2.0 * size_scale), 10.0 * size_scale, bean.darkened(0.06))
+	_draw_ink_line(center + Vector2(0.0, -10.0 * size_scale), center + Vector2(0.0, 20.0 * size_scale), Color(0.26, 0.54, 0.18, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -8.0 * size_scale), center + Vector2(-12.0 * size_scale, -20.0 * size_scale), Color(0.34, 0.68, 0.2, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -8.0 * size_scale), center + Vector2(12.0 * size_scale, -18.0 * size_scale), Color(0.34, 0.68, 0.2, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, -6.0 * size_scale), center + Vector2(-1.0 * size_scale, 12.0 * size_scale), Color(0.26, 0.16, 0.1, alpha), 1.6 * size_scale)
+	_draw_ink_line(center + Vector2(4.0 * size_scale, -6.0 * size_scale), center + Vector2(1.0 * size_scale, 12.0 * size_scale), Color(0.26, 0.16, 0.1, alpha), 1.6 * size_scale)
 
 
 func _draw_garlic(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var bulb = Color(0.94, 0.88, 0.72, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
-	draw_circle(center + Vector2(-8.0 * size_scale, 6.0 * size_scale), 12.0 * size_scale, bulb)
-	draw_circle(center + Vector2(0.0, 2.0 * size_scale), 14.0 * size_scale, bulb)
-	draw_circle(center + Vector2(10.0 * size_scale, 6.0 * size_scale), 12.0 * size_scale, bulb.darkened(0.02))
-	draw_line(center + Vector2(0.0, -10.0 * size_scale), center + Vector2(0.0, -28.0 * size_scale), Color(0.42, 0.74, 0.28, alpha), 3.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-8.0 * size_scale, 6.0 * size_scale), 12.0 * size_scale, bulb)
+	_draw_ink_disc(center + Vector2(0.0, 2.0 * size_scale), 14.0 * size_scale, bulb)
+	_draw_ink_disc(center + Vector2(10.0 * size_scale, 6.0 * size_scale), 12.0 * size_scale, bulb.darkened(0.02))
+	_draw_ink_line(center + Vector2(0.0, -10.0 * size_scale), center + Vector2(0.0, -28.0 * size_scale), Color(0.42, 0.74, 0.28, alpha), 3.0 * size_scale)
 	draw_circle(center + Vector2(-4.0 * size_scale, 0.0), 2.0 * size_scale, Color(0.16, 0.12, 0.08, alpha))
 	draw_circle(center + Vector2(5.0 * size_scale, -1.0 * size_scale), 2.0 * size_scale, Color(0.16, 0.12, 0.08, alpha))
 	draw_arc(center + Vector2(1.0 * size_scale, 10.0 * size_scale), 8.0 * size_scale, 0.2, PI - 0.2, 12, Color(0.42, 0.22, 0.16, alpha), 1.8 * size_scale)
@@ -28458,8 +27595,8 @@ func _draw_garlic(center: Vector2, size_scale: float, flash: float, alpha: float
 func _draw_umbrella_leaf(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var canopy = Color(0.36, 0.76, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var vein = Color(0.18, 0.48, 0.14, alpha)
-	draw_line(center + Vector2(0.0, -8.0 * size_scale), center + Vector2(0.0, 32.0 * size_scale), Color(0.36, 0.56, 0.18, alpha), 4.0 * size_scale)
-	draw_polygon(
+	_draw_ink_line(center + Vector2(0.0, -8.0 * size_scale), center + Vector2(0.0, 32.0 * size_scale), Color(0.36, 0.56, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(0.0, -32.0 * size_scale),
 			center + Vector2(28.0 * size_scale, -8.0 * size_scale),
@@ -28469,15 +27606,15 @@ func _draw_umbrella_leaf(center: Vector2, size_scale: float, flash: float, alpha
 		]),
 		PackedColorArray([canopy, canopy, canopy.darkened(0.08), canopy.darkened(0.08), canopy])
 	)
-	draw_line(center + Vector2(0.0, -28.0 * size_scale), center + Vector2(0.0, 4.0 * size_scale), vein, 2.0 * size_scale)
-	draw_line(center + Vector2(0.0, -18.0 * size_scale), center + Vector2(-16.0 * size_scale, -4.0 * size_scale), vein, 1.6 * size_scale)
-	draw_line(center + Vector2(0.0, -18.0 * size_scale), center + Vector2(16.0 * size_scale, -4.0 * size_scale), vein, 1.6 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -28.0 * size_scale), center + Vector2(0.0, 4.0 * size_scale), vein, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -18.0 * size_scale), center + Vector2(-16.0 * size_scale, -4.0 * size_scale), vein, 1.6 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -18.0 * size_scale), center + Vector2(16.0 * size_scale, -4.0 * size_scale), vein, 1.6 * size_scale)
 	draw_arc(center + Vector2(0.0, 20.0 * size_scale), 8.0 * size_scale, 0.0, PI, 10, Color(0.32, 0.44, 0.16, alpha), 1.8 * size_scale)
 
 
 func _draw_marigold(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal = Color(1.0, 0.84, 0.26, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.28, 0.62, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.28, 0.62, 0.18, alpha), 4.0 * size_scale)
 	for index in range(8):
 		var angle = float(index) * TAU / 8.0
 		draw_circle(center + Vector2(cos(angle), sin(angle)) * 14.0 * size_scale + Vector2(0.0, -8.0 * size_scale), 7.0 * size_scale, petal)
@@ -28490,12 +27627,12 @@ func _draw_melon_pult(center: Vector2, size_scale: float, flash: float, alpha: f
 	_draw_flower_pot(center + Vector2(0.0, 12.0 * size_scale), size_scale * 0.94, flash, alpha)
 	var rind = Color(0.32, 0.72, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var flesh = Color(0.9, 0.26, 0.22, alpha)
-	draw_line(center + Vector2(-2.0 * size_scale, 10.0 * size_scale), center + Vector2(-4.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 4.0 * size_scale)
-	draw_circle(center + Vector2(-6.0 * size_scale, -8.0 * size_scale), 16.0 * size_scale, rind)
-	draw_circle(center + Vector2(-6.0 * size_scale, -8.0 * size_scale), 12.0 * size_scale, flesh)
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, 10.0 * size_scale), center + Vector2(-4.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 4.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-6.0 * size_scale, -8.0 * size_scale), 16.0 * size_scale, rind)
+	_draw_ink_disc(center + Vector2(-6.0 * size_scale, -8.0 * size_scale), 12.0 * size_scale, flesh)
 	for seed_index in range(4):
 		draw_circle(center + Vector2((-10.0 + seed_index * 3.8) * size_scale, (-8.0 + float(seed_index % 2) * 4.0) * size_scale), 1.4 * size_scale, Color(0.16, 0.08, 0.08, alpha))
-	draw_line(center + Vector2(6.0 * size_scale, -6.0 * size_scale), center + Vector2(26.0 * size_scale, -16.0 * size_scale), Color(0.42, 0.72, 0.26, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(6.0 * size_scale, -6.0 * size_scale), center + Vector2(26.0 * size_scale, -16.0 * size_scale), Color(0.42, 0.72, 0.26, alpha), 4.0 * size_scale)
 	draw_arc(center + Vector2(30.0 * size_scale, -18.0 * size_scale), 10.0 * size_scale, -1.2, 1.0, 16, rind, 2.4 * size_scale)
 
 
@@ -28503,9 +27640,9 @@ func _draw_origami_blossom(center: Vector2, size_scale: float, flash: float, alp
 	var stem = Color(0.3, 0.62, 0.2, alpha)
 	var paper = Color(0.96, 0.9, 0.76, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var crease = Color(0.72, 0.52, 0.34, alpha)
-	draw_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), stem, 4.0 * size_scale)
-	draw_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), stem, 4.0 * size_scale)
-	draw_polygon(
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), stem, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), stem, 4.0 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-22.0 * size_scale, -4.0 * size_scale),
 			center + Vector2(-4.0 * size_scale, -24.0 * size_scale),
@@ -28514,7 +27651,7 @@ func _draw_origami_blossom(center: Vector2, size_scale: float, flash: float, alp
 		]),
 		PackedColorArray([paper, paper, paper.darkened(0.04), paper.darkened(0.08)])
 	)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(22.0 * size_scale, -6.0 * size_scale),
 			center + Vector2(4.0 * size_scale, -24.0 * size_scale),
@@ -28523,8 +27660,8 @@ func _draw_origami_blossom(center: Vector2, size_scale: float, flash: float, alp
 		]),
 		PackedColorArray([paper, paper, paper.darkened(0.04), paper.darkened(0.08)])
 	)
-	draw_line(center + Vector2(-18.0 * size_scale, -6.0 * size_scale), center + Vector2(18.0 * size_scale, -6.0 * size_scale), crease, 1.6 * size_scale)
-	draw_line(center + Vector2(0.0, -24.0 * size_scale), center + Vector2(0.0, 4.0 * size_scale), crease, 1.6 * size_scale)
+	_draw_ink_line(center + Vector2(-18.0 * size_scale, -6.0 * size_scale), center + Vector2(18.0 * size_scale, -6.0 * size_scale), crease, 1.6 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -24.0 * size_scale), center + Vector2(0.0, 4.0 * size_scale), crease, 1.6 * size_scale)
 	draw_circle(center + Vector2(-4.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.1, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.1, 0.08, 0.08, alpha))
 
@@ -28533,10 +27670,10 @@ func _draw_chimney_pepper(center: Vector2, size_scale: float, flash: float, alph
 	var brick = Color(0.62, 0.28, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var ember = Color(1.0, 0.54, 0.18, alpha)
 	var pepper = Color(0.92, 0.18, 0.12, alpha)
-	draw_line(center + Vector2(-6.0 * size_scale, 8.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 4.0 * size_scale)
-	draw_rect(Rect2(center + Vector2(-16.0 * size_scale, -6.0 * size_scale), Vector2(24.0 * size_scale, 28.0 * size_scale)), brick, true)
-	draw_rect(Rect2(center + Vector2(-20.0 * size_scale, -12.0 * size_scale), Vector2(32.0 * size_scale, 8.0 * size_scale)), brick.lightened(0.1), true)
-	draw_circle(center + Vector2(18.0 * size_scale, -4.0 * size_scale), 12.0 * size_scale, pepper)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, 8.0 * size_scale), center + Vector2(-8.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 4.0 * size_scale)
+	_draw_ink_rect(Rect2(center + Vector2(-16.0 * size_scale, -6.0 * size_scale), Vector2(24.0 * size_scale, 28.0 * size_scale)), brick, true)
+	_draw_ink_rect(Rect2(center + Vector2(-20.0 * size_scale, -12.0 * size_scale), Vector2(32.0 * size_scale, 8.0 * size_scale)), brick.lightened(0.1), true)
+	_draw_ink_disc(center + Vector2(18.0 * size_scale, -4.0 * size_scale), 12.0 * size_scale, pepper)
 	draw_circle(center + Vector2(22.0 * size_scale, -16.0 * size_scale), 8.0 * size_scale, ember)
 	draw_circle(center + Vector2(0.0, -20.0 * size_scale), 6.0 * size_scale, Color(1.0, 0.76, 0.34, alpha * 0.7))
 	draw_circle(center + Vector2(-4.0 * size_scale, -2.0 * size_scale), 1.8 * size_scale, Color(0.08, 0.08, 0.08, alpha))
@@ -28547,9 +27684,9 @@ func _draw_tesla_tulip(center: Vector2, size_scale: float, flash: float, alpha: 
 	var petal = Color(0.9, 0.82, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var metal = Color(0.72, 0.8, 0.92, alpha)
 	var spark = Color(1.0, 0.94, 0.56, alpha)
-	draw_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.56, 0.18, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(4.0 * size_scale, 12.0 * size_scale), center + Vector2(6.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.56, 0.18, alpha), 4.0 * size_scale)
-	draw_polygon(
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.56, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(4.0 * size_scale, 12.0 * size_scale), center + Vector2(6.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.56, 0.18, alpha), 4.0 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-18.0 * size_scale, -6.0 * size_scale),
 			center + Vector2(0.0, -24.0 * size_scale),
@@ -28558,11 +27695,11 @@ func _draw_tesla_tulip(center: Vector2, size_scale: float, flash: float, alpha: 
 		]),
 		PackedColorArray([petal, petal, petal, petal.darkened(0.08)])
 	)
-	draw_line(center + Vector2(0.0, -26.0 * size_scale), center + Vector2(0.0, -38.0 * size_scale), metal, 2.0 * size_scale)
-	draw_line(center + Vector2(-8.0 * size_scale, -20.0 * size_scale), center + Vector2(-14.0 * size_scale, -30.0 * size_scale), metal, 1.8 * size_scale)
-	draw_line(center + Vector2(8.0 * size_scale, -20.0 * size_scale), center + Vector2(14.0 * size_scale, -30.0 * size_scale), metal, 1.8 * size_scale)
-	draw_line(center + Vector2(-14.0 * size_scale, -30.0 * size_scale), center + Vector2(-8.0 * size_scale, -36.0 * size_scale), spark, 1.4 * size_scale)
-	draw_line(center + Vector2(14.0 * size_scale, -30.0 * size_scale), center + Vector2(8.0 * size_scale, -36.0 * size_scale), spark, 1.4 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -26.0 * size_scale), center + Vector2(0.0, -38.0 * size_scale), metal, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(-8.0 * size_scale, -20.0 * size_scale), center + Vector2(-14.0 * size_scale, -30.0 * size_scale), metal, 1.8 * size_scale)
+	_draw_ink_line(center + Vector2(8.0 * size_scale, -20.0 * size_scale), center + Vector2(14.0 * size_scale, -30.0 * size_scale), metal, 1.8 * size_scale)
+	_draw_ink_line(center + Vector2(-14.0 * size_scale, -30.0 * size_scale), center + Vector2(-8.0 * size_scale, -36.0 * size_scale), spark, 1.4 * size_scale)
+	_draw_ink_line(center + Vector2(14.0 * size_scale, -30.0 * size_scale), center + Vector2(8.0 * size_scale, -36.0 * size_scale), spark, 1.4 * size_scale)
 	draw_circle(center + Vector2(-4.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
@@ -28570,30 +27707,30 @@ func _draw_tesla_tulip(center: Vector2, size_scale: float, flash: float, alpha: 
 func _draw_brick_guard(center: Vector2, size_scale: float, flash: float, health_ratio: float, alpha: float = 1.0) -> void:
 	var brick = Color(0.72, 0.36, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.2)
 	var mortar = Color(0.9, 0.84, 0.72, alpha)
-	draw_rect(Rect2(center + Vector2(-22.0 * size_scale, -6.0 * size_scale), Vector2(44.0 * size_scale, 34.0 * size_scale)), brick, true)
+	_draw_ink_rect(Rect2(center + Vector2(-22.0 * size_scale, -6.0 * size_scale), Vector2(44.0 * size_scale, 34.0 * size_scale)), brick, true)
 	for row_index in range(3):
 		var y = -4.0 + row_index * 11.0
-		draw_line(center + Vector2(-22.0 * size_scale, y * size_scale), center + Vector2(22.0 * size_scale, y * size_scale), mortar, 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(-22.0 * size_scale, y * size_scale), center + Vector2(22.0 * size_scale, y * size_scale), mortar, 2.0 * size_scale)
 	for col_index in range(3):
 		var x = -12.0 + col_index * 12.0 + (6.0 if col_index % 2 == 0 else 0.0)
-		draw_line(center + Vector2(x * size_scale, -6.0 * size_scale), center + Vector2(x * size_scale, 28.0 * size_scale), mortar, 1.8 * size_scale)
+		_draw_ink_line(center + Vector2(x * size_scale, -6.0 * size_scale), center + Vector2(x * size_scale, 28.0 * size_scale), mortar, 1.8 * size_scale)
 	draw_circle(center + Vector2(-7.0 * size_scale, 2.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(7.0 * size_scale, 2.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_arc(center + Vector2(0.0, 12.0 * size_scale), 8.0 * size_scale, 0.25, PI - 0.25, 12, Color(0.24, 0.12, 0.1, alpha), 1.8 * size_scale)
 	if health_ratio < 0.55:
-		draw_line(center + Vector2(-16.0 * size_scale, 6.0 * size_scale), center + Vector2(-4.0 * size_scale, 18.0 * size_scale), mortar.darkened(0.12), 2.0 * size_scale)
-		draw_line(center + Vector2(6.0 * size_scale, 0.0), center + Vector2(16.0 * size_scale, 14.0 * size_scale), mortar.darkened(0.12), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(-16.0 * size_scale, 6.0 * size_scale), center + Vector2(-4.0 * size_scale, 18.0 * size_scale), mortar.darkened(0.12), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(6.0 * size_scale, 0.0), center + Vector2(16.0 * size_scale, 14.0 * size_scale), mortar.darkened(0.12), 2.0 * size_scale)
 
 
 func _draw_signal_ivy(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var vine = Color(0.34, 0.68, 0.26, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var signal_color = Color(0.7, 0.96, 1.0, alpha)
-	draw_line(center + Vector2(-6.0 * size_scale, 10.0 * size_scale), center + Vector2(-10.0 * size_scale, 34.0 * size_scale), vine, 4.0 * size_scale)
-	draw_line(center + Vector2(4.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), vine, 4.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, -18.0 * size_scale), vine, 4.0 * size_scale)
-	draw_circle(center + Vector2(-12.0 * size_scale, -6.0 * size_scale), 9.0 * size_scale, vine)
-	draw_rect(Rect2(center + Vector2(6.0 * size_scale, -26.0 * size_scale), Vector2(20.0 * size_scale, 24.0 * size_scale)), Color(0.3, 0.48, 0.34, alpha), true)
-	draw_rect(Rect2(center + Vector2(9.0 * size_scale, -23.0 * size_scale), Vector2(14.0 * size_scale, 18.0 * size_scale)), signal_color, true)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, 10.0 * size_scale), center + Vector2(-10.0 * size_scale, 34.0 * size_scale), vine, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(4.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), vine, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, -18.0 * size_scale), vine, 4.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-12.0 * size_scale, -6.0 * size_scale), 9.0 * size_scale, vine)
+	_draw_ink_rect(Rect2(center + Vector2(6.0 * size_scale, -26.0 * size_scale), Vector2(20.0 * size_scale, 24.0 * size_scale)), Color(0.3, 0.48, 0.34, alpha), true)
+	_draw_ink_rect(Rect2(center + Vector2(9.0 * size_scale, -23.0 * size_scale), Vector2(14.0 * size_scale, 18.0 * size_scale)), signal_color, true)
 	draw_arc(center + Vector2(16.0 * size_scale, -16.0 * size_scale), 18.0 * size_scale, -0.9, 0.9, 16, Color(signal_color.r, signal_color.g, signal_color.b, alpha * 0.28), 1.8 * size_scale)
 	draw_arc(center + Vector2(16.0 * size_scale, -16.0 * size_scale), 12.0 * size_scale, -0.8, 0.8, 16, Color(signal_color.r, signal_color.g, signal_color.b, alpha * 0.38), 1.4 * size_scale)
 	draw_circle(center + Vector2(-16.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
@@ -28604,9 +27741,9 @@ func _draw_roof_vane(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var vane = Color(0.82, 0.68, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
 	var leaf = Color(0.46, 0.74, 0.3, alpha)
 	var sway = sin(level_time * 3.4 + center.x * 0.01) * 4.0
-	draw_line(center + Vector2(0.0, -20.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.38, 0.32, 0.18, alpha), 3.4 * size_scale)
-	draw_line(center + Vector2(-18.0 * size_scale, -2.0 * size_scale), center + Vector2(18.0 * size_scale, -2.0 * size_scale), vane, 2.0 * size_scale)
-	draw_polygon(
+	_draw_ink_line(center + Vector2(0.0, -20.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.38, 0.32, 0.18, alpha), 3.4 * size_scale)
+	_draw_ink_line(center + Vector2(-18.0 * size_scale, -2.0 * size_scale), center + Vector2(18.0 * size_scale, -2.0 * size_scale), vane, 2.0 * size_scale)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2((20.0 + sway) * size_scale, -2.0 * size_scale),
 			center + Vector2((4.0 + sway) * size_scale, -12.0 * size_scale),
@@ -28614,7 +27751,7 @@ func _draw_roof_vane(center: Vector2, size_scale: float, flash: float, alpha: fl
 		]),
 		PackedColorArray([vane, vane.darkened(0.08), vane.darkened(0.02)])
 	)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2((-20.0 + sway * 0.4) * size_scale, -2.0 * size_scale),
 			center + Vector2((-6.0 + sway * 0.4) * size_scale, -16.0 * size_scale),
@@ -28622,7 +27759,7 @@ func _draw_roof_vane(center: Vector2, size_scale: float, flash: float, alpha: fl
 		]),
 		PackedColorArray([leaf, leaf.darkened(0.08), leaf.darkened(0.02)])
 	)
-	draw_circle(center + Vector2(-8.0 * size_scale, 10.0 * size_scale), 10.0 * size_scale, leaf)
+	_draw_ink_disc(center + Vector2(-8.0 * size_scale, 10.0 * size_scale), 10.0 * size_scale, leaf)
 	draw_circle(center + Vector2(-12.0 * size_scale, 8.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(-4.0 * size_scale, 8.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
@@ -28633,14 +27770,14 @@ func _draw_skylight_melon(center: Vector2, size_scale: float, flash: float, alph
 	var glass = Color(0.72, 0.9, 1.0, alpha * 0.72)
 	var rind = Color(0.36, 0.76, 0.26, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var flesh = Color(0.92, 0.32, 0.24, alpha)
-	draw_rect(Rect2(center + Vector2(4.0 * size_scale, -28.0 * size_scale), Vector2(28.0 * size_scale, 24.0 * size_scale)), frame, true)
-	draw_rect(Rect2(center + Vector2(7.0 * size_scale, -25.0 * size_scale), Vector2(22.0 * size_scale, 18.0 * size_scale)), glass, true)
-	draw_line(center + Vector2(18.0 * size_scale, -25.0 * size_scale), center + Vector2(18.0 * size_scale, -7.0 * size_scale), frame.darkened(0.1), 1.8 * size_scale)
-	draw_circle(center + Vector2(-10.0 * size_scale, -6.0 * size_scale), 15.0 * size_scale, rind)
-	draw_circle(center + Vector2(-10.0 * size_scale, -6.0 * size_scale), 11.0 * size_scale, flesh)
+	_draw_ink_rect(Rect2(center + Vector2(4.0 * size_scale, -28.0 * size_scale), Vector2(28.0 * size_scale, 24.0 * size_scale)), frame, true)
+	_draw_ink_rect(Rect2(center + Vector2(7.0 * size_scale, -25.0 * size_scale), Vector2(22.0 * size_scale, 18.0 * size_scale)), glass, true)
+	_draw_ink_line(center + Vector2(18.0 * size_scale, -25.0 * size_scale), center + Vector2(18.0 * size_scale, -7.0 * size_scale), frame.darkened(0.1), 1.8 * size_scale)
+	_draw_ink_disc(center + Vector2(-10.0 * size_scale, -6.0 * size_scale), 15.0 * size_scale, rind)
+	_draw_ink_disc(center + Vector2(-10.0 * size_scale, -6.0 * size_scale), 11.0 * size_scale, flesh)
 	for seed_index in range(4):
 		draw_circle(center + Vector2((-14.0 + seed_index * 3.4) * size_scale, (-6.0 + float(seed_index % 2) * 3.6) * size_scale), 1.3 * size_scale, Color(0.16, 0.08, 0.08, alpha))
-	draw_line(center + Vector2(-2.0 * size_scale, 10.0 * size_scale), center + Vector2(-4.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, 10.0 * size_scale), center + Vector2(-4.0 * size_scale, 34.0 * size_scale), Color(0.24, 0.54, 0.16, alpha), 4.0 * size_scale)
 	draw_circle(center + Vector2(-14.0 * size_scale, -10.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(-6.0 * size_scale, -10.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
@@ -28650,19 +27787,19 @@ func _draw_heather_shooter(center: Vector2, size_scale: float, flash: float, alp
 	var blossom = Color(0.82, 0.34, 0.62, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var thorn = Color(0.46, 0.12, 0.32, alpha)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), stem, 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), stem, 6.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.36, 0.7, 0.24, alpha))
 	draw_circle(center + Vector2(12.0 * size_scale, 16.0 * size_scale), 7.0 * size_scale, Color(0.3, 0.64, 0.22, alpha))
 	var bloom_center = center + Vector2(-4.0 * size_scale, -10.0 * size_scale)
-	draw_circle(bloom_center, 18.0 * size_scale, blossom)
-	draw_circle(bloom_center + Vector2(22.0 * size_scale, 0.0), 10.0 * size_scale, blossom.darkened(0.08))
+	_draw_ink_disc(bloom_center, 18.0 * size_scale, blossom)
+	_draw_ink_disc(bloom_center + Vector2(22.0 * size_scale, 0.0), 10.0 * size_scale, blossom.darkened(0.08))
 	draw_circle(bloom_center + Vector2(30.0 * size_scale, 0.0), 5.0 * size_scale, Color(0.22, 0.06, 0.14, alpha))
 	for petal_index in range(6):
 		var angle = TAU * float(petal_index) / 6.0
 		draw_circle(bloom_center + Vector2(cos(angle), sin(angle)) * 18.0 * size_scale, 6.0 * size_scale, blossom.lightened(0.08))
 	for thorn_index in range(3):
 		var thorn_tip = bloom_center + Vector2(10.0 + thorn_index * 10.0, -16.0 + thorn_index * 8.0) * size_scale
-		draw_line(thorn_tip, thorn_tip + Vector2(6.0, -6.0) * size_scale, thorn, 1.8 * size_scale)
+		_draw_ink_line(thorn_tip, thorn_tip + Vector2(6.0, -6.0) * size_scale, thorn, 1.8 * size_scale)
 	draw_circle(bloom_center + Vector2(-6.0 * size_scale, -6.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(bloom_center + Vector2(3.0 * size_scale, -6.0 * size_scale), 2.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 
@@ -28671,7 +27808,7 @@ func _draw_leyline(center: Vector2, size_scale: float, flash: float, alpha: floa
 	var stone = Color(0.32, 0.38, 0.44, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.5)
 	var rune = Color(0.38, 0.92, 1.0, alpha)
 	_draw_ground_shadow(center, 16.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-18.0 * size_scale, 22.0 * size_scale),
 			center + Vector2(-10.0 * size_scale, -12.0 * size_scale),
@@ -28681,9 +27818,9 @@ func _draw_leyline(center: Vector2, size_scale: float, flash: float, alpha: floa
 		]),
 		PackedColorArray([stone.darkened(0.08), stone, stone.lightened(0.08), stone, stone.darkened(0.12)])
 	)
-	draw_line(center + Vector2(0.0, -20.0 * size_scale), center + Vector2(0.0, 18.0 * size_scale), rune, 2.4 * size_scale)
-	draw_line(center + Vector2(-10.0 * size_scale, -2.0 * size_scale), center + Vector2(10.0 * size_scale, -10.0 * size_scale), rune, 1.8 * size_scale)
-	draw_line(center + Vector2(-8.0 * size_scale, 12.0 * size_scale), center + Vector2(8.0 * size_scale, 4.0 * size_scale), rune, 1.8 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -20.0 * size_scale), center + Vector2(0.0, 18.0 * size_scale), rune, 2.4 * size_scale)
+	_draw_ink_line(center + Vector2(-10.0 * size_scale, -2.0 * size_scale), center + Vector2(10.0 * size_scale, -10.0 * size_scale), rune, 1.8 * size_scale)
+	_draw_ink_line(center + Vector2(-8.0 * size_scale, 12.0 * size_scale), center + Vector2(8.0 * size_scale, 4.0 * size_scale), rune, 1.8 * size_scale)
 	for spark_index in range(3):
 		var spark_phase = level_time * 4.2 + spark_index * 1.3
 		var spark_center = center + Vector2(sin(spark_phase) * 12.0, -16.0 + spark_index * 14.0) * size_scale
@@ -28695,25 +27832,25 @@ func _draw_leyline(center: Vector2, size_scale: float, flash: float, alpha: floa
 func _draw_holo_nut(center: Vector2, size_scale: float, flash: float, health_ratio: float, alpha: float = 1.0) -> void:
 	var shell = Color(0.56, 0.76, 0.94, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	_draw_wallnut(center, size_scale, flash * 0.4, maxf(health_ratio, 0.15), alpha * 0.86)
-	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 31.0 * size_scale, Color(shell.r, shell.g, shell.b, alpha * 0.1), false, 2.2 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, 6.0 * size_scale), 31.0 * size_scale, Color(shell.r, shell.g, shell.b, alpha * 0.1), false, 2.2 * size_scale)
 	for grid_index in range(3):
 		var grid_y = -8.0 + grid_index * 10.0
-		draw_line(center + Vector2(-18.0 * size_scale, grid_y * size_scale), center + Vector2(18.0 * size_scale, grid_y * size_scale), Color(shell.r, shell.g, shell.b, alpha * 0.44), 1.4 * size_scale)
+		_draw_ink_line(center + Vector2(-18.0 * size_scale, grid_y * size_scale), center + Vector2(18.0 * size_scale, grid_y * size_scale), Color(shell.r, shell.g, shell.b, alpha * 0.44), 1.4 * size_scale)
 	for grid_arc in range(2):
 		draw_arc(center + Vector2(0.0, 6.0 * size_scale), (18.0 + grid_arc * 7.0) * size_scale, -1.0, 1.0, 18, Color(shell.r, shell.g, shell.b, alpha * 0.42), 1.6 * size_scale)
 	if health_ratio < 0.55:
-		draw_line(center + Vector2(-12.0 * size_scale, -12.0 * size_scale), center + Vector2(6.0 * size_scale, 16.0 * size_scale), Color(1.0, 0.84, 0.96, alpha * 0.52), 1.6 * size_scale)
+		_draw_ink_line(center + Vector2(-12.0 * size_scale, -12.0 * size_scale), center + Vector2(6.0 * size_scale, 16.0 * size_scale), Color(1.0, 0.84, 0.96, alpha * 0.52), 1.6 * size_scale)
 
 
 func _draw_healing_gourd(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var gourd = Color(0.7, 0.9, 0.4, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var glow = Color(0.72, 1.0, 0.82, alpha)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.54, 0.18, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 14.0 * size_scale, gourd)
-	draw_circle(center + Vector2(0.0, 10.0 * size_scale), 20.0 * size_scale, gourd.darkened(0.04))
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.54, 0.18, alpha), 6.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, -8.0 * size_scale), 14.0 * size_scale, gourd)
+	_draw_ink_disc(center + Vector2(0.0, 10.0 * size_scale), 20.0 * size_scale, gourd.darkened(0.04))
 	draw_circle(center + Vector2(-4.0 * size_scale, -12.0 * size_scale), 4.0 * size_scale, Color(0.82, 0.98, 0.62, alpha))
-	draw_line(center + Vector2(0.0, -24.0 * size_scale), center + Vector2(6.0 * size_scale, -34.0 * size_scale), Color(0.3, 0.66, 0.22, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -24.0 * size_scale), center + Vector2(6.0 * size_scale, -34.0 * size_scale), Color(0.3, 0.66, 0.22, alpha), 3.0 * size_scale)
 	draw_circle(center + Vector2(-6.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	for drop_index in range(3):
@@ -28726,15 +27863,15 @@ func _draw_mango_bowling(center: Vector2, size_scale: float, flash: float, alpha
 	var mango = Color(0.98, 0.72, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var rind = Color(0.34, 0.68, 0.22, alpha)
 	if empowered:
-		draw_circle(center + Vector2(0.0, 8.0 * size_scale), 32.0 * size_scale, Color(0.98, 0.84, 0.34, alpha * 0.16))
+		_draw_ink_disc(center + Vector2(0.0, 8.0 * size_scale), 32.0 * size_scale, Color(0.98, 0.84, 0.34, alpha * 0.16))
 		draw_arc(center + Vector2(0.0, 8.0 * size_scale), 28.0 * size_scale, -0.72, 0.72, 18, Color(1.0, 0.96, 0.74, alpha * 0.72), 2.0 * size_scale)
-	draw_circle(center + Vector2(0.0, 10.0 * size_scale), 24.0 * size_scale, mango)
+	_draw_ink_disc(center + Vector2(0.0, 10.0 * size_scale), 24.0 * size_scale, mango)
 	draw_circle(center + Vector2(-4.0 * size_scale, 2.0 * size_scale), 18.0 * size_scale, mango.lightened(0.08))
 	draw_arc(center + Vector2(2.0 * size_scale, 8.0 * size_scale), 16.0 * size_scale, -0.9, 0.9, 16, Color(0.88, 0.46, 0.12, alpha * 0.6), 2.0 * size_scale)
 	draw_circle(center + Vector2(-2.0 * size_scale, 2.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(8.0 * size_scale, 2.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_line(center + Vector2(0.0, 32.0 * size_scale), center + Vector2(0.0, 40.0 * size_scale), Color(0.22, 0.5, 0.14, alpha), 4.0 * size_scale)
-	draw_line(center + Vector2(-4.0 * size_scale, -12.0 * size_scale), center + Vector2(10.0 * size_scale, -22.0 * size_scale), rind, 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 32.0 * size_scale), center + Vector2(0.0, 40.0 * size_scale), Color(0.22, 0.5, 0.14, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, -12.0 * size_scale), center + Vector2(10.0 * size_scale, -22.0 * size_scale), rind, 3.0 * size_scale)
 	draw_circle(center + Vector2(12.0 * size_scale, -22.0 * size_scale), 7.0 * size_scale, rind)
 
 
@@ -28743,11 +27880,11 @@ func _draw_snow_bloom(center: Vector2, size_scale: float, flash: float, wilt_rat
 	var core = Color(0.54, 0.8, 1.0, alpha)
 	var bloom_scale = 0.78 + wilt_ratio * 0.22
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.56, 0.84, 0.94, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.56, 0.84, 0.94, alpha), 4.0 * size_scale)
 	for petal_index in range(6):
 		var angle = TAU * float(petal_index) / 6.0 + PI * 0.166
 		var petal_center = center + Vector2(cos(angle), sin(angle)) * 16.0 * size_scale * bloom_scale
-		draw_polygon(
+		_draw_ink_polygon(
 			PackedVector2Array([
 				petal_center + Vector2(0.0, -7.0 * size_scale * bloom_scale),
 				petal_center + Vector2(6.0 * size_scale * bloom_scale, 0.0),
@@ -28760,18 +27897,18 @@ func _draw_snow_bloom(center: Vector2, size_scale: float, flash: float, wilt_rat
 	for flake_index in range(3):
 		var flake_angle = level_time * 2.8 + flake_index * TAU / 3.0
 		var flake_center = center + Vector2(cos(flake_angle) * 20.0, -12.0 + sin(flake_angle) * 8.0) * size_scale
-		draw_line(flake_center + Vector2(-4.0, 0.0) * size_scale, flake_center + Vector2(4.0, 0.0) * size_scale, Color(1.0, 1.0, 1.0, alpha * 0.42), 1.2 * size_scale)
-		draw_line(flake_center + Vector2(0.0, -4.0) * size_scale, flake_center + Vector2(0.0, 4.0) * size_scale, Color(1.0, 1.0, 1.0, alpha * 0.42), 1.2 * size_scale)
+		_draw_ink_line(flake_center + Vector2(-4.0, 0.0) * size_scale, flake_center + Vector2(4.0, 0.0) * size_scale, Color(1.0, 1.0, 1.0, alpha * 0.42), 1.2 * size_scale)
+		_draw_ink_line(flake_center + Vector2(0.0, -4.0) * size_scale, flake_center + Vector2(0.0, 4.0) * size_scale, Color(1.0, 1.0, 1.0, alpha * 0.42), 1.2 * size_scale)
 
 
 func _draw_cluster_boomerang(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var leaf = Color(0.36, 0.72, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var blade = Color(0.74, 0.96, 0.92, alpha)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.52, 0.16, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-10.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf)
 	draw_circle(center + Vector2(10.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf.darkened(0.04))
-	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 16.0 * size_scale, Color(0.48, 0.86, 0.34, alpha))
+	_draw_ink_disc(center + Vector2(0.0, -8.0 * size_scale), 16.0 * size_scale, Color(0.48, 0.86, 0.34, alpha))
 	draw_circle(center + Vector2(-4.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	for blade_index in range(3):
@@ -28783,13 +27920,13 @@ func _draw_cluster_boomerang(center: Vector2, size_scale: float, flash: float, a
 func _draw_glitch_walnut(center: Vector2, size_scale: float, flash: float, health_ratio: float, alpha: float = 1.0) -> void:
 	var shell = Color(0.48, 0.34, 0.68, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	_draw_wallnut(center, size_scale, flash * 0.3, maxf(health_ratio, 0.15), alpha * 0.88)
-	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 30.0 * size_scale, Color(shell.r, shell.g, shell.b, alpha * 0.08))
+	_draw_ink_disc(center + Vector2(0.0, 6.0 * size_scale), 30.0 * size_scale, Color(shell.r, shell.g, shell.b, alpha * 0.08))
 	for crack_index in range(3):
 		var crack_y = -10.0 + crack_index * 12.0
-		draw_line(center + Vector2(-14.0 * size_scale, crack_y * size_scale), center + Vector2(14.0 * size_scale, (crack_y + sin(level_time * 5.0 + crack_index) * 4.0) * size_scale), Color(0.42, 0.96, 1.0, alpha * 0.62), 1.8 * size_scale)
+		_draw_ink_line(center + Vector2(-14.0 * size_scale, crack_y * size_scale), center + Vector2(14.0 * size_scale, (crack_y + sin(level_time * 5.0 + crack_index) * 4.0) * size_scale), Color(0.42, 0.96, 1.0, alpha * 0.62), 1.8 * size_scale)
 	for pixel_index in range(6):
 		var pixel_center = center + Vector2(-18.0 + pixel_index * 7.0, -18.0 + fmod(float(pixel_index) * 5.0 + level_time * 18.0, 34.0)) * size_scale
-		draw_rect(Rect2(pixel_center, Vector2(4.0, 4.0) * size_scale), Color(0.72, 0.96, 1.0, alpha * 0.42), true)
+		_draw_ink_rect(Rect2(pixel_center, Vector2(4.0, 4.0) * size_scale), Color(0.72, 0.96, 1.0, alpha * 0.42), true)
 	if health_ratio < 0.5:
 		draw_arc(center + Vector2(0.0, 4.0 * size_scale), 18.0 * size_scale, 0.2, PI - 0.2, 12, Color(0.96, 0.62, 1.0, alpha * 0.56), 1.8 * size_scale)
 
@@ -28798,8 +27935,8 @@ func _draw_nether_shroom(center: Vector2, size_scale: float, flash: float, alpha
 	var cap = Color(0.42, 0.18, 0.62, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var stem = Color(0.84, 0.8, 0.9, alpha)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), stem, 6.0 * size_scale)
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 18.0 * size_scale, cap)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), stem, 6.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, -6.0 * size_scale), 18.0 * size_scale, cap)
 	draw_circle(center + Vector2(11.0 * size_scale, -2.0 * size_scale), 10.0 * size_scale, cap.lightened(0.12))
 	draw_circle(center + Vector2(-10.0 * size_scale, -1.0 * size_scale), 8.0 * size_scale, cap.darkened(0.08))
 	for swirl_index in range(3):
@@ -28810,14 +27947,14 @@ func _draw_nether_shroom(center: Vector2, size_scale: float, flash: float, alpha
 	draw_arc(center + Vector2(5.0 * size_scale, -8.0 * size_scale), 4.5 * size_scale, 0.0, TAU, 16, Color(0.4, 0.92, 1.0, 0.8 * alpha), 1.6 * size_scale)
 	draw_circle(center + Vector2(-5.0 * size_scale, -8.0 * size_scale), 0.9 * size_scale, Color(0.4, 0.92, 1.0, alpha))
 	draw_circle(center + Vector2(5.0 * size_scale, -8.0 * size_scale), 0.9 * size_scale, Color(0.4, 0.92, 1.0, alpha))
-	draw_rect(Rect2(center + Vector2(-10.0 * size_scale, 12.0 * size_scale), Vector2(20.0, 8.0) * size_scale), Color(0.28, 0.16, 0.08, 0.72 * alpha), true)
+	_draw_ink_rect(Rect2(center + Vector2(-10.0 * size_scale, 12.0 * size_scale), Vector2(20.0, 8.0) * size_scale), Color(0.28, 0.16, 0.08, 0.72 * alpha), true)
 
 
 func _draw_seraph_flower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal = Color(1.0, 0.9, 0.7, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var core = Color(0.98, 0.72, 0.28, alpha)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.62, 0.2, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.62, 0.2, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-10.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.42, 0.76, 0.28, alpha))
 	draw_circle(center + Vector2(10.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.42, 0.76, 0.28, alpha))
 	var bloom = center + Vector2(0.0, -8.0 * size_scale)
@@ -28825,12 +27962,12 @@ func _draw_seraph_flower(center: Vector2, size_scale: float, flash: float, alpha
 		var angle = TAU * float(petal_index) / 6.0 - PI * 0.5
 		var petal_center = bloom + Vector2(cos(angle), sin(angle)) * 16.0 * size_scale
 		draw_circle(petal_center, 8.0 * size_scale, petal)
-	draw_circle(bloom, 10.0 * size_scale, core)
+	_draw_ink_disc(bloom, 10.0 * size_scale, core)
 	for spear_index in range(3):
 		var spear_angle = -0.28 + float(spear_index) * 0.28
 		var tip = bloom + Vector2(16.0 + float(spear_index) * 4.0, -18.0 + float(spear_index) * 5.0) * size_scale
-		draw_line(bloom + Vector2(4.0, -2.0 + spear_index * 2.0) * size_scale, tip, Color(0.92, 0.76, 0.28, alpha), 2.0 * size_scale)
-		draw_polygon(
+		_draw_ink_line(bloom + Vector2(4.0, -2.0 + spear_index * 2.0) * size_scale, tip, Color(0.92, 0.76, 0.28, alpha), 2.0 * size_scale)
+		_draw_ink_polygon(
 			PackedVector2Array([
 				tip + Vector2(8.0, 0.0) * size_scale,
 				tip + Vector2(-2.0, -4.0) * size_scale,
@@ -28838,7 +27975,7 @@ func _draw_seraph_flower(center: Vector2, size_scale: float, flash: float, alpha
 			]),
 			PackedColorArray([Color(1.0, 0.96, 0.88, alpha), Color(0.98, 0.84, 0.42, alpha), Color(0.98, 0.84, 0.42, alpha)])
 		)
-		draw_line(tip + Vector2(-6.0, 0.0) * size_scale, tip + Vector2(0.0, sin(level_time * 3.0 + spear_angle) * 4.0) * size_scale, Color(1.0, 0.94, 0.72, 0.4 * alpha), 1.2 * size_scale)
+		_draw_ink_line(tip + Vector2(-6.0, 0.0) * size_scale, tip + Vector2(0.0, sin(level_time * 3.0 + spear_angle) * 4.0) * size_scale, Color(1.0, 0.94, 0.72, 0.4 * alpha), 1.2 * size_scale)
 	draw_arc(bloom + Vector2(0.0, -22.0 * size_scale), 14.0 * size_scale, PI * 0.1, PI * 0.9, 18, Color(1.0, 0.92, 0.62, 0.42 * alpha), 2.0 * size_scale)
 
 
@@ -28847,12 +27984,12 @@ func _draw_magma_stream(center: Vector2, size_scale: float, flash: float, wilt_r
 	var magma = Color(1.0, 0.38, 0.12, alpha).lerp(Color(1.0, 0.82, 0.5, alpha), flash * 0.8)
 	var ember = Color(1.0, 0.84, 0.52, alpha)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_circle(center + Vector2(0.0, 26.0 * size_scale), 18.0 * size_scale, Color(0.72, 0.12, 0.04, 0.66 * alpha))
-	draw_circle(center + Vector2(-6.0 * size_scale, 24.0 * size_scale), 10.0 * size_scale, Color(1.0, 0.34, 0.1, 0.74 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, 26.0 * size_scale), 18.0 * size_scale, Color(0.72, 0.12, 0.04, 0.66 * alpha))
+	_draw_ink_disc(center + Vector2(-6.0 * size_scale, 24.0 * size_scale), 10.0 * size_scale, Color(1.0, 0.34, 0.1, 0.74 * alpha))
 	draw_circle(center + Vector2(8.0 * size_scale, 24.0 * size_scale), 8.0 * size_scale, Color(1.0, 0.6, 0.2, 0.58 * alpha))
-	draw_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 24.0 * size_scale), Color(0.38, 0.16, 0.06, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 24.0 * size_scale), Color(0.38, 0.16, 0.06, alpha), 6.0 * size_scale)
 	var bloom = center + Vector2(0.0, -6.0 * size_scale)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			bloom + Vector2(0.0, -20.0) * size_scale,
 			bloom + Vector2(16.0, -4.0) * size_scale,
@@ -28873,39 +28010,39 @@ func _draw_orange_bloom(center: Vector2, size_scale: float, flash: float, alpha:
 	var petal = Color(1.0, 0.62, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var juice = Color(1.0, 0.84, 0.38, alpha)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.28, 0.58, 0.18, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.28, 0.58, 0.18, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.34, 0.72, 0.24, alpha))
 	draw_circle(center + Vector2(12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.34, 0.72, 0.24, alpha))
 	var bloom = center + Vector2(0.0, -8.0 * size_scale)
 	for petal_index in range(7):
 		var angle = TAU * float(petal_index) / 7.0 - PI * 0.5
 		draw_circle(bloom + Vector2(cos(angle), sin(angle)) * 16.0 * size_scale, 8.0 * size_scale, petal)
-	draw_circle(bloom, 10.0 * size_scale, Color(0.96, 0.46, 0.16, alpha))
+	_draw_ink_disc(bloom, 10.0 * size_scale, Color(0.96, 0.46, 0.16, alpha))
 	draw_circle(bloom + Vector2(-4.0 * size_scale, -4.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(bloom + Vector2(4.0 * size_scale, -4.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	for droplet_index in range(3):
 		var droplet = bloom + Vector2(18.0 + droplet_index * 7.0, -2.0 + sin(level_time * 3.2 + droplet_index) * 5.0) * size_scale
-		draw_circle(droplet, (4.0 - droplet_index * 0.6) * size_scale, Color(1.0, 0.7, 0.28, 0.46 * alpha))
+		_draw_ink_disc(droplet, (4.0 - droplet_index * 0.6) * size_scale, Color(1.0, 0.7, 0.28, 0.46 * alpha))
 
 
 func _draw_hive_flower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var leaf = Color(0.38, 0.74, 0.24, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	var hive = Color(0.96, 0.78, 0.24, alpha)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.26, 0.56, 0.18, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf)
 	draw_circle(center + Vector2(12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf.darkened(0.06))
 	var hive_center = center + Vector2(0.0, -6.0 * size_scale)
-	draw_circle(hive_center, 16.0 * size_scale, hive)
+	_draw_ink_disc(hive_center, 16.0 * size_scale, hive)
 	for stripe_index in range(3):
-		draw_line(hive_center + Vector2(-10.0, -8.0 + stripe_index * 8.0) * size_scale, hive_center + Vector2(10.0, -8.0 + stripe_index * 8.0) * size_scale, Color(0.36, 0.22, 0.08, 0.88 * alpha), 2.0 * size_scale)
+		_draw_ink_line(hive_center + Vector2(-10.0, -8.0 + stripe_index * 8.0) * size_scale, hive_center + Vector2(10.0, -8.0 + stripe_index * 8.0) * size_scale, Color(0.36, 0.22, 0.08, 0.88 * alpha), 2.0 * size_scale)
 	draw_circle(hive_center + Vector2(-4.0 * size_scale, -2.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(hive_center + Vector2(4.0 * size_scale, -2.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	for bee_index in range(3):
 		var orbit = level_time * 5.8 + float(bee_index) * TAU / 3.0
 		var bee = hive_center + Vector2(cos(orbit) * 22.0, -12.0 + sin(orbit) * 10.0) * size_scale
 		draw_circle(bee, 4.0 * size_scale, Color(0.98, 0.84, 0.24, 0.9 * alpha))
-		draw_line(bee + Vector2(-1.8, 0.0) * size_scale, bee + Vector2(1.8, 0.0) * size_scale, Color(0.16, 0.16, 0.18, 0.7), 1.1 * size_scale)
+		_draw_ink_line(bee + Vector2(-1.8, 0.0) * size_scale, bee + Vector2(1.8, 0.0) * size_scale, Color(0.16, 0.16, 0.18, 0.7), 1.1 * size_scale)
 		draw_circle(bee + Vector2(-2.0, -3.0) * size_scale, 1.8 * size_scale, Color(0.9, 0.96, 1.0, 0.34 * alpha))
 		draw_circle(bee + Vector2(2.0, -3.0) * size_scale, 1.8 * size_scale, Color(0.9, 0.96, 1.0, 0.34 * alpha))
 
@@ -28914,13 +28051,13 @@ func _draw_mamba_tree(center: Vector2, size_scale: float, flash: float, alpha: f
 	var bark = Color(0.22, 0.16, 0.12, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 0.8)
 	var venom = Color(0.56, 0.9, 0.3, alpha)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, -2.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), bark, 10.0 * size_scale)
-	draw_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(-16.0, -12.0) * size_scale, bark, 5.0 * size_scale)
-	draw_line(center + Vector2(0.0, 2.0 * size_scale), center + Vector2(18.0, -14.0) * size_scale, bark, 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -2.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), bark, 10.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(-16.0, -12.0) * size_scale, bark, 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 2.0 * size_scale), center + Vector2(18.0, -14.0) * size_scale, bark, 5.0 * size_scale)
 	var canopy = center + Vector2(0.0, -16.0 * size_scale)
-	draw_circle(canopy, 18.0 * size_scale, Color(0.1, 0.18, 0.08, alpha))
-	draw_circle(canopy + Vector2(-12.0 * size_scale, 4.0 * size_scale), 12.0 * size_scale, Color(0.14, 0.22, 0.1, alpha))
-	draw_circle(canopy + Vector2(12.0 * size_scale, 4.0 * size_scale), 12.0 * size_scale, Color(0.14, 0.22, 0.1, alpha))
+	_draw_ink_disc(canopy, 18.0 * size_scale, Color(0.1, 0.18, 0.08, alpha))
+	_draw_ink_disc(canopy + Vector2(-12.0 * size_scale, 4.0 * size_scale), 12.0 * size_scale, Color(0.14, 0.22, 0.1, alpha))
+	_draw_ink_disc(canopy + Vector2(12.0 * size_scale, 4.0 * size_scale), 12.0 * size_scale, Color(0.14, 0.22, 0.1, alpha))
 	draw_circle(canopy + Vector2(-5.0 * size_scale, -3.0 * size_scale), 2.2 * size_scale, venom)
 	draw_circle(canopy + Vector2(5.0 * size_scale, -3.0 * size_scale), 2.2 * size_scale, venom)
 	for coal_index in range(4):
@@ -28932,32 +28069,32 @@ func _draw_chambord_sniper(center: Vector2, size_scale: float, flash: float, alp
 	var leaf = Color(0.3, 0.72, 0.26, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	var metal = Color(0.76, 0.82, 0.9, alpha)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.24, 0.56, 0.18, alpha), 5.0 * size_scale)
 	draw_circle(center + Vector2(-12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf)
 	draw_circle(center + Vector2(12.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, leaf.darkened(0.08))
 	var head = center + Vector2(-6.0 * size_scale, -8.0 * size_scale)
-	draw_circle(head, 12.0 * size_scale, leaf)
+	_draw_ink_disc(head, 12.0 * size_scale, leaf)
 	draw_circle(head + Vector2(-3.0 * size_scale, -4.0 * size_scale), 2.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_rect(Rect2(center + Vector2(-4.0 * size_scale, -12.0 * size_scale), Vector2(30.0, 8.0) * size_scale), metal, true)
-	draw_rect(Rect2(center + Vector2(22.0 * size_scale, -10.0 * size_scale), Vector2(18.0, 4.0) * size_scale), metal.darkened(0.08), true)
+	_draw_ink_rect(Rect2(center + Vector2(-4.0 * size_scale, -12.0 * size_scale), Vector2(30.0, 8.0) * size_scale), metal, true)
+	_draw_ink_rect(Rect2(center + Vector2(22.0 * size_scale, -10.0 * size_scale), Vector2(18.0, 4.0) * size_scale), metal.darkened(0.08), true)
 	draw_circle(center + Vector2(8.0 * size_scale, -16.0 * size_scale), 5.0 * size_scale, Color(0.16, 0.2, 0.28, alpha))
 	draw_circle(center + Vector2(8.0 * size_scale, -16.0 * size_scale), 2.2 * size_scale, Color(0.72, 0.96, 1.0, 0.78 * alpha))
-	draw_line(center + Vector2(-6.0 * size_scale, -6.0 * size_scale), center + Vector2(-16.0, 8.0) * size_scale, Color(0.4, 0.32, 0.18, alpha), 2.4 * size_scale)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, -6.0 * size_scale), center + Vector2(-16.0, 8.0) * size_scale, Color(0.4, 0.32, 0.18, alpha), 2.4 * size_scale)
 
 
 func _draw_dream_disc(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var ring = Color(0.72, 0.62, 0.98, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 34.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.28, 0.54, 0.2, alpha), 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.28, 0.54, 0.2, alpha), 4.0 * size_scale)
 	draw_circle(center + Vector2(-10.0 * size_scale, 20.0 * size_scale), 7.0 * size_scale, Color(0.42, 0.74, 0.3, alpha))
 	draw_circle(center + Vector2(10.0 * size_scale, 20.0 * size_scale), 7.0 * size_scale, Color(0.42, 0.74, 0.3, alpha))
 	var disc = center + Vector2(0.0, -6.0 * size_scale)
-	draw_circle(disc, 18.0 * size_scale, Color(0.18, 0.14, 0.36, 0.24 * alpha))
-	draw_circle(disc, 14.0 * size_scale, ring, false, 3.0 * size_scale)
+	_draw_ink_disc(disc, 18.0 * size_scale, Color(0.18, 0.14, 0.36, 0.24 * alpha))
+	_draw_ink_disc(disc, 14.0 * size_scale, ring, false, 3.0 * size_scale)
 	draw_circle(disc, 4.0 * size_scale, Color(0.92, 0.88, 1.0, 0.86 * alpha))
 	for thread_index in range(4):
 		var offset_x = -9.0 + thread_index * 6.0
-		draw_line(disc + Vector2(offset_x, 12.0) * size_scale, disc + Vector2(offset_x, 24.0 + sin(level_time * 2.4 + thread_index) * 3.0) * size_scale, Color(0.84, 0.78, 0.98, 0.7 * alpha), 1.2 * size_scale)
+		_draw_ink_line(disc + Vector2(offset_x, 12.0) * size_scale, disc + Vector2(offset_x, 24.0 + sin(level_time * 2.4 + thread_index) * 3.0) * size_scale, Color(0.84, 0.78, 0.98, 0.7 * alpha), 1.2 * size_scale)
 		draw_circle(disc + Vector2(offset_x, 26.0 + sin(level_time * 2.4 + thread_index) * 3.0) * size_scale, 2.4 * size_scale, Color(0.96, 0.88, 0.58, 0.78 * alpha))
 	for spark_index in range(3):
 		var orbit = level_time * 2.8 + float(spark_index) * TAU / 3.0
@@ -28967,7 +28104,7 @@ func _draw_dream_disc(center: Vector2, size_scale: float, flash: float, alpha: f
 func _draw_tangle_kelp(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	for index in range(4):
 		var x_offset = -14.0 + float(index) * 9.0
-		draw_line(
+		_draw_ink_line(
 			center + Vector2(x_offset * size_scale, 28.0 * size_scale),
 			center + Vector2((x_offset + sin(ui_time * 2.0 + float(index)) * 4.0) * size_scale, (-8.0 - float(index % 2) * 10.0) * size_scale),
 			Color(0.16, 0.54, 0.32, alpha),
@@ -28987,9 +28124,9 @@ func _draw_jalapeno(center: Vector2, size_scale: float, flash: float, alpha: flo
 		var flame_y = -18.0 - flame_ratio * 16.0 + sin(flame_phase + flame_index * 1.3) * 3.0
 		var flame_r = (10.0 - flame_ratio * 5.0) * size_scale
 		var flame_color = Color(0.98, 0.5 + flame_ratio * 0.4, 0.16, alpha * (0.7 - flame_ratio * 0.12)).lerp(Color(1.0, 0.95, 0.7, alpha), flame_ratio * 0.5)
-		draw_circle(center + Vector2(sin(flame_phase * 0.7 + flame_index) * 4.0 * size_scale, flame_y * size_scale), flame_r, flame_color)
+		_draw_ink_disc(center + Vector2(sin(flame_phase * 0.7 + flame_index) * 4.0 * size_scale, flame_y * size_scale), flame_r, flame_color)
 	# Chili body (tapered polygon, darker at bottom, brighter at top)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-14.0 * size_scale, 20.0 * size_scale),
 			center + Vector2(14.0 * size_scale, 20.0 * size_scale),
@@ -29000,26 +28137,26 @@ func _draw_jalapeno(center: Vector2, size_scale: float, flash: float, alpha: flo
 		PackedColorArray([body_dark, body_dark, body_color, body_color.lightened(0.15), body_color])
 	)
 	# Highlight streak
-	draw_line(center + Vector2(-7.0 * size_scale, 14.0 * size_scale), center + Vector2(-5.0 * size_scale, -8.0 * size_scale), body_color.lightened(0.3), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(-7.0 * size_scale, 14.0 * size_scale), center + Vector2(-5.0 * size_scale, -8.0 * size_scale), body_color.lightened(0.3), 3.0 * size_scale)
 	# Stem and leaf cap
-	draw_line(center + Vector2(0.0, -16.0 * size_scale), center + Vector2(0.0, -28.0 * size_scale), Color(0.22, 0.54, 0.16, alpha), 3.6 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, -16.0 * size_scale), center + Vector2(0.0, -28.0 * size_scale), Color(0.22, 0.54, 0.16, alpha), 3.6 * size_scale)
 	draw_circle(center + Vector2(-7.0 * size_scale, -26.0 * size_scale), 6.0 * size_scale, Color(0.24, 0.6, 0.18, alpha))
 	draw_circle(center + Vector2(7.0 * size_scale, -26.0 * size_scale), 6.0 * size_scale, Color(0.24, 0.6, 0.18, alpha))
 	# Angry eyes (slanted)
-	draw_line(center + Vector2(-10.0 * size_scale, 2.0 * size_scale), center + Vector2(-2.0 * size_scale, 5.0 * size_scale), Color(0.95, 0.9, 0.4, alpha), 2.6 * size_scale)
-	draw_line(center + Vector2(10.0 * size_scale, 2.0 * size_scale), center + Vector2(2.0 * size_scale, 5.0 * size_scale), Color(0.95, 0.9, 0.4, alpha), 2.6 * size_scale)
+	_draw_ink_line(center + Vector2(-10.0 * size_scale, 2.0 * size_scale), center + Vector2(-2.0 * size_scale, 5.0 * size_scale), Color(0.95, 0.9, 0.4, alpha), 2.6 * size_scale)
+	_draw_ink_line(center + Vector2(10.0 * size_scale, 2.0 * size_scale), center + Vector2(2.0 * size_scale, 5.0 * size_scale), Color(0.95, 0.9, 0.4, alpha), 2.6 * size_scale)
 	draw_circle(center + Vector2(-6.0 * size_scale, 5.0 * size_scale), 1.6 * size_scale, Color(0.1, 0.06, 0.04, alpha))
 	draw_circle(center + Vector2(6.0 * size_scale, 5.0 * size_scale), 1.6 * size_scale, Color(0.1, 0.06, 0.04, alpha))
 	# Furious mouth
-	draw_line(center + Vector2(-6.0 * size_scale, 13.0 * size_scale), center + Vector2(6.0 * size_scale, 13.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 2.2 * size_scale)
-	draw_line(center + Vector2(-3.0 * size_scale, 13.0 * size_scale), center + Vector2(-3.0 * size_scale, 16.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 1.6 * size_scale)
-	draw_line(center + Vector2(3.0 * size_scale, 13.0 * size_scale), center + Vector2(3.0 * size_scale, 16.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 1.6 * size_scale)
+	_draw_ink_line(center + Vector2(-6.0 * size_scale, 13.0 * size_scale), center + Vector2(6.0 * size_scale, 13.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 2.2 * size_scale)
+	_draw_ink_line(center + Vector2(-3.0 * size_scale, 13.0 * size_scale), center + Vector2(-3.0 * size_scale, 16.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 1.6 * size_scale)
+	_draw_ink_line(center + Vector2(3.0 * size_scale, 13.0 * size_scale), center + Vector2(3.0 * size_scale, 16.0 * size_scale), Color(0.1, 0.06, 0.04, alpha), 1.6 * size_scale)
 
 
 func _draw_spikeweed(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	for index in range(6):
 		var x_offset = -20.0 + float(index) * 8.0
-		draw_polygon(
+		_draw_ink_polygon(
 			PackedVector2Array([
 				center + Vector2(x_offset * size_scale, 18.0 * size_scale),
 				center + Vector2((x_offset + 4.0) * size_scale, (-2.0 - float(index % 2) * 8.0) * size_scale),
@@ -29038,14 +28175,14 @@ func _draw_torchwood(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var bark_dark = Color(0.32, 0.18, 0.1, alpha)
 	var flame_phase = level_time * 8.0
 	# Trunk stump
-	draw_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(32.0 * size_scale, 34.0 * size_scale)), bark, true)
-	draw_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(8.0 * size_scale, 34.0 * size_scale)), bark_dark, true)
+	_draw_ink_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(32.0 * size_scale, 34.0 * size_scale)), bark, true)
+	_draw_ink_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(8.0 * size_scale, 34.0 * size_scale)), bark_dark, true)
 	# Bark grain lines
-	draw_line(center + Vector2(-4.0 * size_scale, 0.0), center + Vector2(-4.0 * size_scale, 28.0 * size_scale), bark_dark, 2.0 * size_scale)
-	draw_line(center + Vector2(6.0 * size_scale, 0.0), center + Vector2(6.0 * size_scale, 28.0 * size_scale), bark_dark, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(-4.0 * size_scale, 0.0), center + Vector2(-4.0 * size_scale, 28.0 * size_scale), bark_dark, 2.0 * size_scale)
+	_draw_ink_line(center + Vector2(6.0 * size_scale, 0.0), center + Vector2(6.0 * size_scale, 28.0 * size_scale), bark_dark, 2.0 * size_scale)
 	# Cut top ring
 	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 16.0 * size_scale, bark.lightened(0.1))
-	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 11.0 * size_scale, bark)
+	_draw_ink_disc(center + Vector2(0.0, -4.0 * size_scale), 11.0 * size_scale, bark)
 	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 6.0 * size_scale, bark_dark)
 	# Flame crown (flickering tongues)
 	for flame_index in range(7):
@@ -29053,7 +28190,7 @@ func _draw_torchwood(center: Vector2, size_scale: float, flash: float, alpha: fl
 		var flame_x = (-14.0 + flame_ratio * 28.0) * size_scale
 		var flame_h = (18.0 + sin(flame_phase + flame_index * 1.4) * 5.0) * size_scale
 		var flame_color = Color(0.98, 0.4 + flame_ratio * 0.3, 0.12, alpha * (0.7 - abs(flame_ratio - 0.5) * 0.4)).lerp(Color(1.0, 0.92, 0.5, alpha), flame_ratio * 0.4)
-		draw_polygon(PackedVector2Array([
+		_draw_ink_polygon(PackedVector2Array([
 			center + Vector2(flame_x - 4.0 * size_scale, -4.0 * size_scale),
 			center + Vector2(flame_x + 4.0 * size_scale, -4.0 * size_scale),
 			center + Vector2(flame_x + sin(flame_phase + flame_index) * 2.0 * size_scale, -4.0 * size_scale - flame_h),
@@ -29067,24 +28204,29 @@ func _draw_torchwood(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 func _draw_tallnut(center: Vector2, size_scale: float, flash: float, ratio: float, alpha: float = 1.0) -> void:
 	var shell_color = Color(0.64, 0.42, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
-	draw_rect(Rect2(center + Vector2(-24.0 * size_scale, -24.0 * size_scale), Vector2(48.0 * size_scale, 62.0 * size_scale)), shell_color, true)
-	draw_arc(center + Vector2(0.0, -24.0 * size_scale), 24.0 * size_scale, PI, TAU, 18, shell_color, 48.0 * size_scale)
+	var shell := PackedVector2Array()
+	for index in range(19):
+		shell.append(center + (Vector2(0, -18) + Vector2.from_angle(PI + PI * index / 18.0) * 24.0) * size_scale)
+	shell.append(center + Vector2(24, 38) * size_scale)
+	shell.append(center + Vector2(-24, 38) * size_scale)
+	_draw_ink_polygon(shell, PackedColorArray([shell_color]))
+	draw_line(center + Vector2(-17, -14) * size_scale, center + Vector2(-17, 28) * size_scale, shell_color.lightened(0.2), 4.0 * size_scale, true)
 	draw_circle(center + Vector2(-8.0 * size_scale, -2.0 * size_scale), 3.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(center + Vector2(8.0 * size_scale, -2.0 * size_scale), 3.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_arc(center + Vector2(0.0, 14.0 * size_scale), 7.0 * size_scale, 0.15, PI - 0.15, 12, Color(0.08, 0.08, 0.08, alpha), 2.0 * size_scale)
 	if ratio < 0.7:
-		draw_line(center + Vector2(-6.0 * size_scale, -10.0 * size_scale), center + Vector2(4.0 * size_scale, 12.0 * size_scale), Color(0.34, 0.18, 0.08, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(-6.0 * size_scale, -10.0 * size_scale), center + Vector2(4.0 * size_scale, 12.0 * size_scale), Color(0.34, 0.18, 0.08, alpha), 2.0 * size_scale)
 	if ratio < 0.4:
-		draw_line(center + Vector2(12.0 * size_scale, -4.0 * size_scale), center + Vector2(-4.0 * size_scale, 20.0 * size_scale), Color(0.34, 0.18, 0.08, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(12.0 * size_scale, -4.0 * size_scale), center + Vector2(-4.0 * size_scale, 20.0 * size_scale), Color(0.34, 0.18, 0.08, alpha), 2.0 * size_scale)
 
 
 func _draw_bowling_nut(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0, empowered: bool = false) -> void:
 	if empowered:
-		draw_circle(center + Vector2(0.0, 6.0 * size_scale), 33.0 * size_scale, Color(0.24, 0.98, 0.76, alpha * 0.18))
+		_draw_ink_disc(center + Vector2(0.0, 6.0 * size_scale), 33.0 * size_scale, Color(0.24, 0.98, 0.76, alpha * 0.18))
 		draw_arc(center + Vector2(0.0, 6.0 * size_scale), 29.0 * size_scale, -0.82, 0.82, 18, Color(0.92, 1.0, 0.98, alpha * 0.72), 2.2 * size_scale)
 	_draw_wallnut(center, size_scale, flash, 1.0, alpha)
 	var stripe_color = Color(0.2, 0.96, 0.72, alpha) if empowered else Color(0.82, 0.16, 0.16, alpha)
-	draw_line(center + Vector2(-18.0 * size_scale, 10.0 * size_scale), center + Vector2(18.0 * size_scale, 10.0 * size_scale), stripe_color, 4.0 * size_scale)
+	_draw_ink_line(center + Vector2(-18.0 * size_scale, 10.0 * size_scale), center + Vector2(18.0 * size_scale, 10.0 * size_scale), stripe_color, 4.0 * size_scale)
 	if empowered:
 		draw_arc(center + Vector2(0.0, 6.0 * size_scale), 16.0 * size_scale, 0.18, PI - 0.18, 14, Color(0.96, 1.0, 0.94, alpha * 0.82), 1.8 * size_scale)
 
@@ -29096,7 +28238,7 @@ func _draw_wallnut(center: Vector2, size_scale: float, flash: float, ratio: floa
 	# Shadow
 	_draw_ground_shadow(center, 18.0 * size_scale, alpha, 36.0 * size_scale)
 	# Shell body
-	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 28.0 * size_scale, shell_color)
+	_draw_ink_disc(center + Vector2(0.0, 6.0 * size_scale), 28.0 * size_scale, shell_color)
 	# Shell shading (darker bottom)
 	draw_circle(center + Vector2(0.0, 16.0 * size_scale), 20.0 * size_scale, shell_color.darkened(0.08))
 	# Shell highlight (top)
@@ -29113,23 +28255,23 @@ func _draw_wallnut(center: Vector2, size_scale: float, flash: float, ratio: floa
 	draw_arc(center + Vector2(0.0, 11.0 * size_scale), 7.0 * size_scale, 0.15, PI - 0.15, 12, Color(0.06, 0.06, 0.06, alpha), 2.0 * size_scale)
 	# Damage cracks
 	if ratio < 0.68:
-		draw_line(center + Vector2(-4.0 * size_scale, -20.0 * size_scale), center + Vector2(4.0 * size_scale, -3.0 * size_scale), Color(0.35, 0.19, 0.08, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(-4.0 * size_scale, -20.0 * size_scale), center + Vector2(4.0 * size_scale, -3.0 * size_scale), Color(0.35, 0.19, 0.08, alpha), 2.0 * size_scale)
 	if ratio < 0.34:
-		draw_line(center + Vector2(10.0 * size_scale, -14.0 * size_scale), center + Vector2(-6.0 * size_scale, 8.0 * size_scale), Color(0.35, 0.19, 0.08, alpha), 2.0 * size_scale)
-		draw_line(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), center + Vector2(-2.0 * size_scale, 12.0 * size_scale), Color(0.35, 0.19, 0.08, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(10.0 * size_scale, -14.0 * size_scale), center + Vector2(-6.0 * size_scale, 8.0 * size_scale), Color(0.35, 0.19, 0.08, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), center + Vector2(-2.0 * size_scale, 12.0 * size_scale), Color(0.35, 0.19, 0.08, alpha), 2.0 * size_scale)
 		# Extra damage detail
-		draw_line(center + Vector2(14.0 * size_scale, 4.0 * size_scale), center + Vector2(6.0 * size_scale, 18.0 * size_scale), Color(0.35, 0.19, 0.08, 0.6 * alpha), 1.5 * size_scale)
+		_draw_ink_line(center + Vector2(14.0 * size_scale, 4.0 * size_scale), center + Vector2(6.0 * size_scale, 18.0 * size_scale), Color(0.35, 0.19, 0.08, 0.6 * alpha), 1.5 * size_scale)
 
 
 func _draw_cherry_bomb(center: Vector2, size_scale: float, fuse_ratio: float, alpha: float = 1.0) -> void:
 	var left = center + Vector2(-12.0 * size_scale, -2.0 * size_scale)
 	var right = center + Vector2(12.0 * size_scale, -4.0 * size_scale)
-	draw_circle(left, 16.0 * size_scale, Color(0.88, 0.12, 0.18, alpha))
-	draw_circle(right, 16.0 * size_scale, Color(0.93, 0.16, 0.22, alpha))
-	draw_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 28.0 * size_scale), Color(0.22, 0.5, 0.16, alpha), 6.0 * size_scale)
-	draw_line(left + Vector2(2.0 * size_scale, -16.0 * size_scale), left + Vector2(10.0 * size_scale, -28.0 * size_scale), Color(0.28, 0.46, 0.16, alpha), 3.0 * size_scale)
-	draw_line(right + Vector2(-2.0 * size_scale, -16.0 * size_scale), right + Vector2(8.0 * size_scale, -26.0 * size_scale), Color(0.28, 0.46, 0.16, alpha), 3.0 * size_scale)
-	draw_line(center + Vector2(4.0 * size_scale, -18.0 * size_scale), center + Vector2(14.0 * size_scale, -30.0 * size_scale), Color(0.2, 0.2, 0.2, alpha), 2.0 * size_scale)
+	_draw_ink_disc(left, 16.0 * size_scale, Color(0.88, 0.12, 0.18, alpha))
+	_draw_ink_disc(right, 16.0 * size_scale, Color(0.93, 0.16, 0.22, alpha))
+	_draw_ink_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 28.0 * size_scale), Color(0.22, 0.5, 0.16, alpha), 6.0 * size_scale)
+	_draw_ink_line(left + Vector2(2.0 * size_scale, -16.0 * size_scale), left + Vector2(10.0 * size_scale, -28.0 * size_scale), Color(0.28, 0.46, 0.16, alpha), 3.0 * size_scale)
+	_draw_ink_line(right + Vector2(-2.0 * size_scale, -16.0 * size_scale), right + Vector2(8.0 * size_scale, -26.0 * size_scale), Color(0.28, 0.46, 0.16, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(4.0 * size_scale, -18.0 * size_scale), center + Vector2(14.0 * size_scale, -30.0 * size_scale), Color(0.2, 0.2, 0.2, alpha), 2.0 * size_scale)
 	var spark_color = Color(1.0, 0.92, 0.28, alpha)
 	if fuse_ratio > 0.0:
 		spark_color = spark_color.lerp(Color(1.0, 0.22, 0.16, alpha), 1.0 - clampf(fuse_ratio, 0.0, 1.0))
@@ -29140,29 +28282,29 @@ func _draw_potato_mine(center: Vector2, size_scale: float, armed: bool, arm_rati
 	var body_color = Color(0.63, 0.45, 0.2, alpha)
 	if armed:
 		body_color = Color(0.78, 0.56, 0.23, alpha)
-	draw_circle(center + Vector2(0.0, 14.0 * size_scale), 23.0 * size_scale, body_color)
+	_draw_ink_disc(center + Vector2(0.0, 14.0 * size_scale), 23.0 * size_scale, body_color)
 	draw_circle(center + Vector2(-7.0 * size_scale, 10.0 * size_scale), 2.5 * size_scale, Color(0.06, 0.06, 0.06, alpha))
 	draw_circle(center + Vector2(7.0 * size_scale, 10.0 * size_scale), 2.5 * size_scale, Color(0.06, 0.06, 0.06, alpha))
-	draw_line(center + Vector2(-12.0 * size_scale, 28.0 * size_scale), center + Vector2(-24.0 * size_scale, 38.0 * size_scale), Color(0.2, 0.46, 0.14, alpha), 3.0 * size_scale)
-	draw_line(center + Vector2(12.0 * size_scale, 28.0 * size_scale), center + Vector2(24.0 * size_scale, 38.0 * size_scale), Color(0.2, 0.46, 0.14, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(-12.0 * size_scale, 28.0 * size_scale), center + Vector2(-24.0 * size_scale, 38.0 * size_scale), Color(0.2, 0.46, 0.14, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(12.0 * size_scale, 28.0 * size_scale), center + Vector2(24.0 * size_scale, 38.0 * size_scale), Color(0.2, 0.46, 0.14, alpha), 3.0 * size_scale)
 	if armed:
 		draw_circle(center + Vector2(0.0, -2.0 * size_scale), 7.0 * size_scale, Color(0.95, 0.24, 0.18, alpha))
 	else:
 		draw_arc(center + Vector2(0.0, 16.0 * size_scale), 10.0 * size_scale, 0.2, PI - 0.2, 12, Color(0.06, 0.06, 0.06, alpha), 2.0 * size_scale)
-		draw_rect(Rect2(center + Vector2(-18.0 * size_scale, -18.0 * size_scale), Vector2(36.0 * size_scale * arm_ratio, 4.0 * size_scale)), Color(1.0, 0.84, 0.24, alpha), true)
+		_draw_ink_rect(Rect2(center + Vector2(-18.0 * size_scale, -18.0 * size_scale), Vector2(36.0 * size_scale * arm_ratio, 4.0 * size_scale)), Color(1.0, 0.84, 0.24, alpha), true)
 
 
 func _draw_chomper(center: Vector2, size_scale: float, chew_ratio: float, alpha: float = 1.0) -> void:
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.53, 0.16, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.53, 0.16, alpha), 7.0 * size_scale)
 	draw_circle(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 8.0 * size_scale, Color(0.32, 0.72, 0.24, alpha))
 	draw_circle(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.32, 0.72, 0.24, alpha))
 	var head = center + Vector2(0.0, -6.0 * size_scale)
-	draw_circle(head, 18.0 * size_scale, Color(0.64, 0.2, 0.48, alpha))
-	draw_circle(head + Vector2(14.0 * size_scale, 2.0 * size_scale), 14.0 * size_scale, Color(0.72, 0.28, 0.56, alpha))
+	_draw_ink_disc(head, 18.0 * size_scale, Color(0.64, 0.2, 0.48, alpha))
+	_draw_ink_disc(head + Vector2(14.0 * size_scale, 2.0 * size_scale), 14.0 * size_scale, Color(0.72, 0.28, 0.56, alpha))
 	draw_circle(head + Vector2(11.0 * size_scale, -4.0 * size_scale), 3.0 * size_scale, Color(0.06, 0.06, 0.06, alpha))
-	draw_line(head + Vector2(16.0 * size_scale, 12.0 * size_scale), head + Vector2(24.0 * size_scale, 24.0 * size_scale), Color(0.86, 0.92, 0.9, alpha), 4.0 * size_scale)
+	_draw_ink_line(head + Vector2(16.0 * size_scale, 12.0 * size_scale), head + Vector2(24.0 * size_scale, 24.0 * size_scale), Color(0.86, 0.92, 0.9, alpha), 4.0 * size_scale)
 	if chew_ratio > 0.0:
-		draw_rect(Rect2(head + Vector2(-18.0 * size_scale, -26.0 * size_scale), Vector2(40.0 * size_scale * chew_ratio, 4.0 * size_scale)), Color(1.0, 0.82, 0.22, alpha), true)
+		_draw_ink_rect(Rect2(head + Vector2(-18.0 * size_scale, -26.0 * size_scale), Vector2(40.0 * size_scale * chew_ratio, 4.0 * size_scale)), Color(1.0, 0.82, 0.22, alpha), true)
 
 
 func _draw_plant_food_icon(center: Vector2, size_scale: float) -> void:
@@ -29177,8 +28319,29 @@ func _menu_icon_transform(center: Vector2, size_scale: float) -> Transform2D:
 	return menu_draw_transform * Transform2D(0.0, Vector2(size_scale, size_scale), 0.0, center)
 
 
+func _zombie_portrait_bounds(kind: String) -> Rect2:
+	if _boss_frame_count_for_kind(kind) > 0:
+		return Rect2(-100, -174, 200, 228)
+	match kind:
+		"balloon_zombie":
+			return Rect2(-36, -114, 80, 162)
+		"gargantuar", "mech_zombie", "wolf_knight_zombie":
+			return Rect2(-72, -90, 144, 174)
+		"day_boss", "night_boss", "pool_boss", "fog_boss", "roof_boss", "city_boss", "volcano_boss":
+			return Rect2(-90, -102, 180, 170)
+		"kite_zombie", "dragon_dance":
+			return Rect2(-72, -112, 144, 164)
+		"pogo_zombie":
+			return Rect2(-36, -58, 72, 132)
+		"umbrella_zombie":
+			return Rect2(-46, -102, 92, 176)
+	return Rect2(-46, -66, 92, 116)
+
+
 func _draw_zombie_icon(kind: String, center: Vector2, size_scale: float) -> void:
-	draw_set_transform_matrix(_menu_icon_transform(center, size_scale))
+	var bounds := _zombie_portrait_bounds(kind)
+	var fit := minf(96.0 / bounds.size.x, 104.0 / bounds.size.y)
+	draw_set_transform_matrix(_menu_icon_transform(center, size_scale * fit))
 	# Show the zombie with full accessories (shield) so the almanac icon
 	# displays the cone/bucket/helmet, not just the bare head.
 	var icon_shield = float(Defs.ZOMBIES.get(kind, {}).get("shield_health", 0.0))
@@ -29186,12 +28349,15 @@ func _draw_zombie_icon(kind: String, center: Vector2, size_scale: float) -> void
 	if kind == "newspaper":
 		icon_enraged = false
 	_draw_zombie(
-		Vector2.ZERO,
+		-bounds.get_center(),
 		{
 			"kind": kind,
 			"flash": 0.0,
 			"slow_timer": 0.0,
-			"has_vaulted": true,
+			"portrait": true,
+			"has_vaulted": false,
+			"balloon_flying": true,
+			"pogo_active": true,
 			"jumping": false,
 			"reflect_timer": 0.0,
 			"plant_food_carrier": false,
@@ -29214,16 +28380,16 @@ func _draw_bungee_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
 	var body = Color(0.3, 0.34, 0.42).lerp(Color(1.0, 1.0, 1.0), flash * 1.6)
 	var vest = Color(0.72, 0.26, 0.16).lerp(Color(1.0, 1.0, 1.0), flash * 1.2)
-	draw_line(harness + Vector2(0.0, -78.0), harness + Vector2(0.0, 22.0), Color(0.18, 0.18, 0.2), 2.0)
-	draw_line(harness + Vector2(-12.0, -64.0), harness + Vector2(12.0, -40.0), Color(0.2, 0.2, 0.22), 2.0)
-	draw_line(harness + Vector2(12.0, -64.0), harness + Vector2(-12.0, -40.0), Color(0.2, 0.2, 0.22), 2.0)
-	draw_circle(harness + Vector2(0.0, -24.0), 14.0, Color(0.74, 0.82, 0.7))
-	draw_rect(Rect2(harness + Vector2(-12.0, -8.0), Vector2(24.0, 30.0)), vest, true)
-	draw_rect(Rect2(harness + Vector2(-10.0, -2.0), Vector2(20.0, 8.0)), body, true)
-	draw_line(harness + Vector2(-8.0, 16.0), harness + Vector2(-14.0, 36.0), Color(0.22, 0.22, 0.24), 3.0)
-	draw_line(harness + Vector2(8.0, 16.0), harness + Vector2(14.0, 36.0), Color(0.22, 0.22, 0.24), 3.0)
-	draw_line(harness + Vector2(-10.0, -4.0), harness + Vector2(-22.0, 6.0), Color(0.56, 0.64, 0.54), 3.0)
-	draw_line(harness + Vector2(10.0, -4.0), harness + Vector2(22.0, 6.0), Color(0.56, 0.64, 0.54), 3.0)
+	_draw_ink_line(harness + Vector2(0.0, -78.0), harness + Vector2(0.0, 22.0), Color(0.18, 0.18, 0.2), 2.0)
+	_draw_ink_line(harness + Vector2(-12.0, -64.0), harness + Vector2(12.0, -40.0), Color(0.2, 0.2, 0.22), 2.0)
+	_draw_ink_line(harness + Vector2(12.0, -64.0), harness + Vector2(-12.0, -40.0), Color(0.2, 0.2, 0.22), 2.0)
+	_draw_ink_disc(harness + Vector2(0.0, -24.0), 14.0, Color(0.74, 0.82, 0.7))
+	_draw_ink_rect(Rect2(harness + Vector2(-12.0, -8.0), Vector2(24.0, 30.0)), vest, true)
+	_draw_ink_rect(Rect2(harness + Vector2(-10.0, -2.0), Vector2(20.0, 8.0)), body, true)
+	_draw_ink_line(harness + Vector2(-8.0, 16.0), harness + Vector2(-14.0, 36.0), Color(0.22, 0.22, 0.24), 3.0)
+	_draw_ink_line(harness + Vector2(8.0, 16.0), harness + Vector2(14.0, 36.0), Color(0.22, 0.22, 0.24), 3.0)
+	_draw_ink_line(harness + Vector2(-10.0, -4.0), harness + Vector2(-22.0, 6.0), Color(0.56, 0.64, 0.54), 3.0)
+	_draw_ink_line(harness + Vector2(10.0, -4.0), harness + Vector2(22.0, 6.0), Color(0.56, 0.64, 0.54), 3.0)
 	draw_circle(harness + Vector2(-4.0, -26.0), 1.8, Color.BLACK)
 	draw_circle(harness + Vector2(4.0, -26.0), 1.8, Color.BLACK)
 	draw_arc(harness + Vector2(0.0, -18.0), 5.0, 0.2, PI - 0.2, 12, Color(0.18, 0.18, 0.18), 1.8)
@@ -29239,23 +28405,23 @@ func _draw_ladder_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0).lerp(Color(0.64, 0.84, 1.0), slow_tint)
 	var coat = Color(0.62, 0.42, 0.18).lerp(Color(1.0, 1.0, 1.0), flash * 1.8).lerp(Color(0.46, 0.64, 0.9), slow_tint)
 	var pants = Color(0.22, 0.2, 0.18).lerp(Color(0.46, 0.64, 0.9), slow_tint * 0.8)
-	draw_line(torso + Vector2(-7.0, 22.0), torso + Vector2(-14.0 - step * 5.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_line(torso + Vector2(7.0, 22.0), torso + Vector2(14.0 + step * 5.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 36.0)), coat, true)
-	draw_rect(Rect2(torso + Vector2(-14.0, 14.0), Vector2(28.0, 12.0)), pants, true)
-	draw_circle(torso + Vector2(0.0, -28.0), 16.0, skin)
+	_draw_ink_line(torso + Vector2(-7.0, 22.0), torso + Vector2(-14.0 - step * 5.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(7.0, 22.0), torso + Vector2(14.0 + step * 5.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 36.0)), coat, true)
+	_draw_ink_rect(Rect2(torso + Vector2(-14.0, 14.0), Vector2(28.0, 12.0)), pants, true)
+	_draw_ink_disc(torso + Vector2(0.0, -28.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -30.0), 2.2, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -30.0), 2.2, Color.BLACK)
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-22.0 - step * 4.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(10.0, 0.0), torso + Vector2(20.0 + step * 3.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-22.0 - step * 4.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(20.0 + step * 3.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
 	if float(zombie.get("shield_health", 0.0)) > 0.0:
 		var ladder = Rect2(torso + Vector2(12.0, -48.0), Vector2(26.0, 64.0))
-		draw_rect(ladder, Color(0.66, 0.48, 0.24), false, 3.0)
-		draw_line(ladder.position + Vector2(9.0, 4.0), ladder.position + Vector2(9.0, ladder.size.y - 4.0), Color(0.66, 0.48, 0.24), 3.0)
-		draw_line(ladder.position + Vector2(17.0, 4.0), ladder.position + Vector2(17.0, ladder.size.y - 4.0), Color(0.66, 0.48, 0.24), 3.0)
+		_draw_ink_rect(ladder, Color(0.66, 0.48, 0.24), false, 3.0)
+		_draw_ink_line(ladder.position + Vector2(9.0, 4.0), ladder.position + Vector2(9.0, ladder.size.y - 4.0), Color(0.66, 0.48, 0.24), 3.0)
+		_draw_ink_line(ladder.position + Vector2(17.0, 4.0), ladder.position + Vector2(17.0, ladder.size.y - 4.0), Color(0.66, 0.48, 0.24), 3.0)
 		for rung in range(5):
 			var y = ladder.position.y + 10.0 + rung * 11.0
-			draw_line(Vector2(ladder.position.x + 2.0, y), Vector2(ladder.position.x + ladder.size.x - 2.0, y), Color(0.66, 0.48, 0.24), 2.0)
+			_draw_ink_line(Vector2(ladder.position.x + 2.0, y), Vector2(ladder.position.x + ladder.size.x - 2.0, y), Color(0.66, 0.48, 0.24), 2.0)
 
 
 func _draw_catapult_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -29267,24 +28433,24 @@ func _draw_catapult_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var chassis = Color(0.54, 0.42, 0.26).lerp(Color(1.0, 1.0, 1.0), flash * 1.6).lerp(Color(0.46, 0.64, 0.9), slow_tint)
 	var metal = Color(0.42, 0.44, 0.48).lerp(Color(1.0, 1.0, 1.0), flash * 1.2)
 	var ball_loaded = float(zombie.get("catapult_cooldown", 0.0)) > 0.24
-	draw_circle(center + Vector2(-24.0, 18.0), 12.0, Color(0.18, 0.18, 0.18))
-	draw_circle(center + Vector2(18.0, 18.0), 12.0, Color(0.18, 0.18, 0.18))
-	draw_line(center + Vector2(-24.0, 18.0), center + Vector2(-24.0 + cos(level_time * 8.0) * 8.0, 18.0 + sin(level_time * 8.0) * 8.0), Color(0.76, 0.76, 0.8), 2.0)
-	draw_line(center + Vector2(18.0, 18.0), center + Vector2(18.0 + cos(level_time * 8.0 + 0.8) * 8.0, 18.0 + sin(level_time * 8.0 + 0.8) * 8.0), Color(0.76, 0.76, 0.8), 2.0)
-	draw_rect(Rect2(center + Vector2(-34.0, -4.0), Vector2(62.0, 20.0)), chassis, true)
-	draw_line(center + Vector2(-18.0, -2.0), center + Vector2(-2.0, -48.0 - step * 4.0), chassis, 5.0)
-	draw_line(center + Vector2(4.0, -2.0), center + Vector2(-2.0, -48.0 - step * 4.0), chassis, 5.0)
-	draw_line(center + Vector2(-2.0, -48.0 - step * 4.0), center + Vector2(32.0, -24.0), chassis, 4.0)
-	draw_circle(center + Vector2(36.0, -20.0), 10.0, metal)
+	_draw_ink_disc(center + Vector2(-24.0, 18.0), 12.0, Color(0.18, 0.18, 0.18))
+	_draw_ink_disc(center + Vector2(18.0, 18.0), 12.0, Color(0.18, 0.18, 0.18))
+	_draw_ink_line(center + Vector2(-24.0, 18.0), center + Vector2(-24.0 + cos(level_time * 8.0) * 8.0, 18.0 + sin(level_time * 8.0) * 8.0), Color(0.76, 0.76, 0.8), 2.0)
+	_draw_ink_line(center + Vector2(18.0, 18.0), center + Vector2(18.0 + cos(level_time * 8.0 + 0.8) * 8.0, 18.0 + sin(level_time * 8.0 + 0.8) * 8.0), Color(0.76, 0.76, 0.8), 2.0)
+	_draw_ink_rect(Rect2(center + Vector2(-34.0, -4.0), Vector2(62.0, 20.0)), chassis, true)
+	_draw_ink_line(center + Vector2(-18.0, -2.0), center + Vector2(-2.0, -48.0 - step * 4.0), chassis, 5.0)
+	_draw_ink_line(center + Vector2(4.0, -2.0), center + Vector2(-2.0, -48.0 - step * 4.0), chassis, 5.0)
+	_draw_ink_line(center + Vector2(-2.0, -48.0 - step * 4.0), center + Vector2(32.0, -24.0), chassis, 4.0)
+	_draw_ink_disc(center + Vector2(36.0, -20.0), 10.0, metal)
 	if ball_loaded:
 		draw_circle(center + Vector2(36.0, -20.0), 7.0, Color(0.46, 0.28, 0.18))
 		draw_circle(center + Vector2(34.0, -22.0), 2.0, Color(0.62, 0.4, 0.26))
 	var zombie_center = center + Vector2(-4.0, -14.0 - absf(step) * 1.5)
-	draw_circle(zombie_center + Vector2(0.0, -22.0), 14.0, Color(0.74, 0.82, 0.7))
-	draw_rect(Rect2(zombie_center + Vector2(-12.0, -8.0), Vector2(24.0, 26.0)), Color(0.34, 0.28, 0.22), true)
-	draw_rect(Rect2(zombie_center + Vector2(-10.0, 10.0), Vector2(20.0, 8.0)), Color(0.2, 0.2, 0.22), true)
-	draw_line(zombie_center + Vector2(-8.0, 0.0), zombie_center + Vector2(-18.0, 12.0), Color(0.56, 0.64, 0.54), 3.0)
-	draw_line(zombie_center + Vector2(8.0, 0.0), center + Vector2(-4.0, -36.0), Color(0.56, 0.64, 0.54), 3.0)
+	_draw_ink_disc(zombie_center + Vector2(0.0, -22.0), 14.0, Color(0.74, 0.82, 0.7))
+	_draw_ink_rect(Rect2(zombie_center + Vector2(-12.0, -8.0), Vector2(24.0, 26.0)), Color(0.34, 0.28, 0.22), true)
+	_draw_ink_rect(Rect2(zombie_center + Vector2(-10.0, 10.0), Vector2(20.0, 8.0)), Color(0.2, 0.2, 0.22), true)
+	_draw_ink_line(zombie_center + Vector2(-8.0, 0.0), zombie_center + Vector2(-18.0, 12.0), Color(0.56, 0.64, 0.54), 3.0)
+	_draw_ink_line(zombie_center + Vector2(8.0, 0.0), center + Vector2(-4.0, -36.0), Color(0.56, 0.64, 0.54), 3.0)
 	draw_circle(zombie_center + Vector2(-4.0, -24.0), 1.8, Color.BLACK)
 	draw_circle(zombie_center + Vector2(4.0, -24.0), 1.8, Color.BLACK)
 
@@ -29299,25 +28465,25 @@ func _draw_gargantuar(center: Vector2, zombie: Dictionary) -> void:
 	var coat = Color(0.54, 0.28, 0.18).lerp(Color(1.0, 1.0, 1.0), flash * 1.4)
 	var pants = Color(0.22, 0.18, 0.16).lerp(Color(0.46, 0.64, 0.9), slow_tint * 0.8)
 	var torso = center + Vector2(0.0, -absf(step) * 3.0)
-	draw_line(torso + Vector2(-16.0, 44.0), torso + Vector2(-28.0 - step * 6.0, 88.0), Color(0.18, 0.18, 0.18), 8.0)
-	draw_line(torso + Vector2(16.0, 44.0), torso + Vector2(28.0 + step * 6.0, 88.0), Color(0.18, 0.18, 0.18), 8.0)
-	draw_rect(Rect2(torso + Vector2(-34.0, -16.0), Vector2(68.0, 64.0)), coat, true)
-	draw_rect(Rect2(torso + Vector2(-30.0, 34.0), Vector2(60.0, 16.0)), pants, true)
-	draw_circle(torso + Vector2(0.0, -40.0), 28.0, skin)
+	_draw_ink_line(torso + Vector2(-16.0, 44.0), torso + Vector2(-28.0 - step * 6.0, 88.0), Color(0.18, 0.18, 0.18), 8.0)
+	_draw_ink_line(torso + Vector2(16.0, 44.0), torso + Vector2(28.0 + step * 6.0, 88.0), Color(0.18, 0.18, 0.18), 8.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-34.0, -16.0), Vector2(68.0, 64.0)), coat, true)
+	_draw_ink_rect(Rect2(torso + Vector2(-30.0, 34.0), Vector2(60.0, 16.0)), pants, true)
+	_draw_ink_disc(torso + Vector2(0.0, -40.0), 28.0, skin)
 	draw_circle(torso + Vector2(-10.0, -46.0), 4.0, Color.BLACK)
 	draw_circle(torso + Vector2(10.0, -46.0), 4.0, Color.BLACK)
 	draw_arc(torso + Vector2(0.0, -26.0), 12.0, 0.25, PI - 0.25, 18, Color(0.14, 0.14, 0.14), 3.0)
-	draw_line(torso + Vector2(20.0, -6.0), torso + Vector2(52.0, 24.0 + step * 4.0), Color(0.54, 0.6, 0.5), 7.0)
-	draw_line(torso + Vector2(-20.0, -8.0), torso + Vector2(-48.0, 34.0), Color(0.54, 0.6, 0.5), 7.0)
-	draw_line(torso + Vector2(-48.0, 34.0), torso + Vector2(-78.0, -34.0), Color(0.48, 0.34, 0.18), 8.0)
-	draw_rect(Rect2(torso + Vector2(-96.0, -48.0), Vector2(28.0, 24.0)), Color(0.42, 0.3, 0.16), true)
-	draw_circle(torso + Vector2(-82.0, -48.0), 10.0, Color(0.42, 0.3, 0.16))
+	_draw_ink_line(torso + Vector2(20.0, -6.0), torso + Vector2(52.0, 24.0 + step * 4.0), Color(0.54, 0.6, 0.5), 7.0)
+	_draw_ink_line(torso + Vector2(-20.0, -8.0), torso + Vector2(-48.0, 34.0), Color(0.54, 0.6, 0.5), 7.0)
+	_draw_ink_line(torso + Vector2(-48.0, 34.0), torso + Vector2(-78.0, -34.0), Color(0.48, 0.34, 0.18), 8.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-96.0, -48.0), Vector2(28.0, 24.0)), Color(0.42, 0.3, 0.16), true)
+	_draw_ink_disc(torso + Vector2(-82.0, -48.0), 10.0, Color(0.42, 0.3, 0.16))
 	if not bool(zombie.get("imp_thrown", false)):
 		var imp_center = torso + Vector2(18.0, -66.0)
-		draw_circle(imp_center + Vector2(0.0, -10.0), 9.0, Color(0.72, 0.8, 0.68))
-		draw_rect(Rect2(imp_center + Vector2(-8.0, -2.0), Vector2(16.0, 18.0)), Color(0.72, 0.18, 0.16), true)
-		draw_line(imp_center + Vector2(-4.0, 14.0), imp_center + Vector2(-8.0, 24.0), Color(0.18, 0.18, 0.18), 2.0)
-		draw_line(imp_center + Vector2(4.0, 14.0), imp_center + Vector2(8.0, 24.0), Color(0.18, 0.18, 0.18), 2.0)
+		_draw_ink_disc(imp_center + Vector2(0.0, -10.0), 9.0, Color(0.72, 0.8, 0.68))
+		_draw_ink_rect(Rect2(imp_center + Vector2(-8.0, -2.0), Vector2(16.0, 18.0)), Color(0.72, 0.18, 0.16), true)
+		_draw_ink_line(imp_center + Vector2(-4.0, 14.0), imp_center + Vector2(-8.0, 24.0), Color(0.18, 0.18, 0.18), 2.0)
+		_draw_ink_line(imp_center + Vector2(4.0, 14.0), imp_center + Vector2(8.0, 24.0), Color(0.18, 0.18, 0.18), 2.0)
 
 
 func _draw_imp(center: Vector2, zombie: Dictionary) -> void:
@@ -29329,15 +28495,15 @@ func _draw_imp(center: Vector2, zombie: Dictionary) -> void:
 	var torso = center + Vector2(0.0, -absf(step) * 2.0)
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8).lerp(Color(0.64, 0.84, 1.0), slow_tint)
 	var shirt = Color(0.8, 0.22, 0.16).lerp(Color(1.0, 1.0, 1.0), flash * 1.4)
-	draw_line(torso + Vector2(-5.0, 16.0), torso + Vector2(-12.0 - step * 4.0, 34.0), Color(0.2, 0.2, 0.22), 3.0)
-	draw_line(torso + Vector2(5.0, 16.0), torso + Vector2(12.0 + step * 4.0, 34.0), Color(0.2, 0.2, 0.22), 3.0)
-	draw_rect(Rect2(torso + Vector2(-12.0, -2.0), Vector2(24.0, 20.0)), shirt, true)
-	draw_circle(torso + Vector2(0.0, -18.0), 12.0, skin)
+	_draw_ink_line(torso + Vector2(-5.0, 16.0), torso + Vector2(-12.0 - step * 4.0, 34.0), Color(0.2, 0.2, 0.22), 3.0)
+	_draw_ink_line(torso + Vector2(5.0, 16.0), torso + Vector2(12.0 + step * 4.0, 34.0), Color(0.2, 0.2, 0.22), 3.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-12.0, -2.0), Vector2(24.0, 20.0)), shirt, true)
+	_draw_ink_disc(torso + Vector2(0.0, -18.0), 12.0, skin)
 	draw_circle(torso + Vector2(-4.0, -20.0), 1.8, Color.BLACK)
 	draw_circle(torso + Vector2(4.0, -20.0), 1.8, Color.BLACK)
-	draw_line(torso + Vector2(-8.0, 4.0), torso + Vector2(-18.0 - step * 3.0, 12.0), Color(0.56, 0.64, 0.54), 3.0)
-	draw_line(torso + Vector2(8.0, 4.0), torso + Vector2(18.0 + step * 3.0, 12.0), Color(0.56, 0.64, 0.54), 3.0)
-	draw_polygon(
+	_draw_ink_line(torso + Vector2(-8.0, 4.0), torso + Vector2(-18.0 - step * 3.0, 12.0), Color(0.56, 0.64, 0.54), 3.0)
+	_draw_ink_line(torso + Vector2(8.0, 4.0), torso + Vector2(18.0 + step * 3.0, 12.0), Color(0.56, 0.64, 0.54), 3.0)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			torso + Vector2(0.0, -34.0),
 			torso + Vector2(-8.0, -18.0),
@@ -29360,17 +28526,17 @@ func _draw_kite_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var kite_phase = level_time * 2.4 + float(zombie.get("anim_phase", 0.0))
 	var kite_anchor = torso + Vector2(18.0, -78.0 + sin(kite_phase) * 6.0)
 	var kite_tip = kite_anchor + Vector2(26.0 + cos(kite_phase * 0.9) * 4.0, -6.0)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), coat, true)
-	draw_rect(Rect2(torso + Vector2(-14.0, 16.0), Vector2(28.0, 12.0)), pants, true)
-	draw_circle(torso + Vector2(0.0, -28.0), 16.0, skin)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), coat, true)
+	_draw_ink_rect(Rect2(torso + Vector2(-14.0, 16.0), Vector2(28.0, 12.0)), pants, true)
+	_draw_ink_disc(torso + Vector2(0.0, -28.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -30.0), 2.0, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -30.0), 2.0, Color.BLACK)
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0 - step * 5.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(10.0, -2.0), kite_anchor + Vector2(-4.0, 20.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(16.0, -4.0), kite_anchor + Vector2(-10.0, 18.0), Color(0.88, 0.88, 0.9, 0.7), 1.8)
-	draw_polygon(
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0 - step * 5.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, -2.0), kite_anchor + Vector2(-4.0, 20.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(16.0, -4.0), kite_anchor + Vector2(-10.0, 18.0), Color(0.88, 0.88, 0.9, 0.7), 1.8)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			kite_anchor + Vector2(0.0, -24.0),
 			kite_tip + Vector2(6.0, 2.0),
@@ -29384,10 +28550,10 @@ func _draw_kite_zombie(center: Vector2, zombie: Dictionary) -> void:
 			Color(0.88, 0.22, 0.2, 0.94),
 		])
 	)
-	draw_line(kite_anchor + Vector2(-20.0, 0.0), kite_anchor + Vector2(22.0, 0.0), Color(0.88, 0.96, 1.0, 0.46), 1.2)
-	draw_line(kite_anchor + Vector2(0.0, -20.0), kite_anchor + Vector2(0.0, 20.0), Color(0.88, 0.96, 1.0, 0.46), 1.2)
-	draw_line(kite_anchor + Vector2(-18.0, 18.0), kite_anchor + Vector2(-28.0, 36.0), Color(0.92, 0.72, 0.28, 0.82), 1.6)
-	draw_line(kite_anchor + Vector2(-26.0, 34.0), kite_anchor + Vector2(-18.0, 46.0), Color(0.92, 0.72, 0.28, 0.7), 1.4)
+	_draw_ink_line(kite_anchor + Vector2(-20.0, 0.0), kite_anchor + Vector2(22.0, 0.0), Color(0.88, 0.96, 1.0, 0.46), 1.2)
+	_draw_ink_line(kite_anchor + Vector2(0.0, -20.0), kite_anchor + Vector2(0.0, 20.0), Color(0.88, 0.96, 1.0, 0.46), 1.2)
+	_draw_ink_line(kite_anchor + Vector2(-18.0, 18.0), kite_anchor + Vector2(-28.0, 36.0), Color(0.92, 0.72, 0.28, 0.82), 1.6)
+	_draw_ink_line(kite_anchor + Vector2(-26.0, 34.0), kite_anchor + Vector2(-18.0, 46.0), Color(0.92, 0.72, 0.28, 0.7), 1.4)
 
 
 func _draw_kite_trap(center: Vector2, zombie: Dictionary) -> void:
@@ -29398,9 +28564,9 @@ func _draw_kite_trap(center: Vector2, zombie: Dictionary) -> void:
 	var cord_bottom = center + Vector2(0.0, -4.0)
 	var kite_color = Color(0.98, 0.84, 0.32, 0.94).lerp(Color(1.0, 1.0, 1.0, 0.96), flash * 1.2)
 	var trim = Color(0.92, 0.32, 0.24, 0.92)
-	draw_circle(kite_center, 22.0, Color(0.96, 0.92, 0.42, 0.08))
-	draw_line(cord_bottom, kite_center + Vector2(-4.0, 18.0), Color(0.92, 0.92, 0.96, 0.62), 1.4)
-	draw_polygon(
+	_draw_ink_disc(kite_center, 22.0, Color(0.96, 0.92, 0.42, 0.08))
+	_draw_ink_line(cord_bottom, kite_center + Vector2(-4.0, 18.0), Color(0.92, 0.92, 0.96, 0.62), 1.4)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			kite_center + Vector2(0.0, -20.0),
 			kite_center + Vector2(22.0, 0.0),
@@ -29409,15 +28575,15 @@ func _draw_kite_trap(center: Vector2, zombie: Dictionary) -> void:
 		]),
 		PackedColorArray([kite_color, trim, kite_color.darkened(0.04), trim.darkened(0.06)])
 	)
-	draw_line(kite_center + Vector2(-14.0, 0.0), kite_center + Vector2(14.0, 0.0), Color(1.0, 1.0, 1.0, 0.42), 1.2)
-	draw_line(kite_center + Vector2(0.0, -14.0), kite_center + Vector2(0.0, 14.0), Color(1.0, 1.0, 1.0, 0.42), 1.2)
+	_draw_ink_line(kite_center + Vector2(-14.0, 0.0), kite_center + Vector2(14.0, 0.0), Color(1.0, 1.0, 1.0, 0.42), 1.2)
+	_draw_ink_line(kite_center + Vector2(0.0, -14.0), kite_center + Vector2(0.0, 14.0), Color(1.0, 1.0, 1.0, 0.42), 1.2)
 	for spark_index in range(3):
 		var spark_angle = level_time * 5.0 + float(spark_index) * TAU / 3.0
 		var spark_center = kite_center + Vector2(cos(spark_angle), sin(spark_angle)) * 18.0
 		draw_circle(spark_center, 3.0, Color(0.88, 0.98, 1.0, 0.54))
-		draw_line(spark_center + Vector2(-3.0, 0.0), spark_center + Vector2(3.0, 0.0), Color(0.9, 1.0, 1.0, 0.4), 1.2)
-	draw_line(kite_center + Vector2(-16.0, 18.0), kite_center + Vector2(-24.0, 34.0), Color(0.98, 0.7, 0.24, 0.74), 1.4)
-	draw_line(kite_center + Vector2(-22.0, 32.0), kite_center + Vector2(-12.0, 46.0), Color(0.98, 0.7, 0.24, 0.62), 1.2)
+		_draw_ink_line(spark_center + Vector2(-3.0, 0.0), spark_center + Vector2(3.0, 0.0), Color(0.9, 1.0, 1.0, 0.4), 1.2)
+	_draw_ink_line(kite_center + Vector2(-16.0, 18.0), kite_center + Vector2(-24.0, 34.0), Color(0.98, 0.7, 0.24, 0.74), 1.4)
+	_draw_ink_line(kite_center + Vector2(-22.0, 32.0), kite_center + Vector2(-12.0, 46.0), Color(0.98, 0.7, 0.24, 0.62), 1.2)
 
 
 func _draw_hive_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -29430,25 +28596,25 @@ func _draw_hive_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8).lerp(Color(0.64, 0.84, 1.0), slow_tint)
 	var shirt = Color(0.44, 0.26, 0.14).lerp(Color(1.0, 1.0, 1.0), flash * 1.4).lerp(Color(0.46, 0.64, 0.9), slow_tint * 0.7)
 	var hive = Color(0.98, 0.78, 0.24, 0.96)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), shirt, true)
-	draw_rect(Rect2(torso + Vector2(-14.0, 16.0), Vector2(28.0, 12.0)), Color(0.18, 0.2, 0.22), true)
-	draw_circle(torso + Vector2(0.0, -28.0), 16.0, skin)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), shirt, true)
+	_draw_ink_rect(Rect2(torso + Vector2(-14.0, 16.0), Vector2(28.0, 12.0)), Color(0.18, 0.2, 0.22), true)
+	_draw_ink_disc(torso + Vector2(0.0, -28.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -30.0), 2.0, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -30.0), 2.0, Color.BLACK)
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-22.0 - step * 3.0, 10.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(10.0, 0.0), torso + Vector2(20.0 + step * 2.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_circle(torso + Vector2(20.0, -8.0), 16.0, hive)
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-22.0 - step * 3.0, 10.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(20.0 + step * 2.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_disc(torso + Vector2(20.0, -8.0), 16.0, hive)
 	for stripe_index in range(3):
-		draw_line(torso + Vector2(8.0, -16.0 + stripe_index * 8.0), torso + Vector2(30.0, -16.0 + stripe_index * 8.0), Color(0.42, 0.26, 0.1, 0.92), 2.2)
+		_draw_ink_line(torso + Vector2(8.0, -16.0 + stripe_index * 8.0), torso + Vector2(30.0, -16.0 + stripe_index * 8.0), Color(0.42, 0.26, 0.1, 0.92), 2.2)
 	draw_circle(torso + Vector2(28.0, -8.0), 3.6, Color(0.18, 0.18, 0.18, 0.84))
 	var bee_total = 3 if not bool(zombie.get("bee_summoned", false)) else 5
 	for bee_index in range(bee_total):
 		var bee_angle = level_time * 6.0 + float(bee_index) * TAU / maxf(float(bee_total), 1.0)
 		var bee_center = torso + Vector2(cos(bee_angle) * 22.0, -20.0 + sin(bee_angle) * 14.0)
 		draw_circle(bee_center, 4.2, Color(0.96, 0.82, 0.22, 0.88))
-		draw_line(bee_center + Vector2(-2.0, 0.0), bee_center + Vector2(2.0, 0.0), Color(0.18, 0.18, 0.18, 0.72), 1.2)
+		_draw_ink_line(bee_center + Vector2(-2.0, 0.0), bee_center + Vector2(2.0, 0.0), Color(0.18, 0.18, 0.18, 0.72), 1.2)
 		draw_circle(bee_center + Vector2(-3.0, -3.0), 2.0, Color(0.9, 0.96, 1.0, 0.3))
 		draw_circle(bee_center + Vector2(3.0, -3.0), 2.0, Color(0.9, 0.96, 1.0, 0.3))
 
@@ -29461,11 +28627,11 @@ func _draw_bee_minion(center: Vector2, zombie: Dictionary) -> void:
 		var bee_center = center + Vector2(cos(orbit) * 10.0, -12.0 + sin(orbit * 1.4) * 8.0)
 		var body = Color(0.98, 0.84, 0.24, 0.92).lerp(Color(1.0, 1.0, 1.0, 0.94), flash * 1.2)
 		draw_circle(bee_center, 5.0, body)
-		draw_line(bee_center + Vector2(-2.0, 0.0), bee_center + Vector2(2.0, 0.0), Color(0.16, 0.16, 0.18, 0.78), 1.2)
+		_draw_ink_line(bee_center + Vector2(-2.0, 0.0), bee_center + Vector2(2.0, 0.0), Color(0.16, 0.16, 0.18, 0.78), 1.2)
 		draw_circle(bee_center + Vector2(-3.0, -3.0), 2.2, Color(0.9, 0.96, 1.0, 0.34))
 		draw_circle(bee_center + Vector2(3.0, -3.0), 2.2, Color(0.9, 0.96, 1.0, 0.34))
-		draw_line(bee_center + Vector2(3.0, 1.0), bee_center + Vector2(7.0, 4.0), Color(0.26, 0.18, 0.08, 0.7), 1.0)
-	draw_circle(center + Vector2(0.0, -8.0), 18.0, Color(1.0, 0.84, 0.22, 0.08))
+		_draw_ink_line(bee_center + Vector2(3.0, 1.0), bee_center + Vector2(7.0, 4.0), Color(0.26, 0.18, 0.08, 0.7), 1.0)
+	_draw_ink_disc(center + Vector2(0.0, -8.0), 18.0, Color(1.0, 0.84, 0.22, 0.08))
 
 
 func _draw_turret_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -29475,20 +28641,20 @@ func _draw_turret_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var chassis = Color(0.44, 0.34, 0.24, 0.96).lerp(Color(1.0, 1.0, 1.0, 0.96), flash * 1.4)
 	var armor = Color(0.56, 0.58, 0.62, 0.94)
 	var barrel = Color(0.26, 0.28, 0.34, 0.96)
-	draw_circle(center + Vector2(-18.0, 20.0), 10.0, Color(0.16, 0.16, 0.18))
-	draw_circle(center + Vector2(20.0, 20.0), 10.0, Color(0.16, 0.16, 0.18))
-	draw_rect(Rect2(center + Vector2(-34.0, -2.0), Vector2(70.0, 22.0)), chassis, true)
-	draw_rect(Rect2(center + Vector2(-12.0, -26.0), Vector2(28.0, 24.0)), armor, true)
-	draw_line(center + Vector2(12.0, -18.0), center + Vector2(40.0 + recoil, -30.0 - recoil * 0.35), barrel, 8.0)
+	_draw_ink_disc(center + Vector2(-18.0, 20.0), 10.0, Color(0.16, 0.16, 0.18))
+	_draw_ink_disc(center + Vector2(20.0, 20.0), 10.0, Color(0.16, 0.16, 0.18))
+	_draw_ink_rect(Rect2(center + Vector2(-34.0, -2.0), Vector2(70.0, 22.0)), chassis, true)
+	_draw_ink_rect(Rect2(center + Vector2(-12.0, -26.0), Vector2(28.0, 24.0)), armor, true)
+	_draw_ink_line(center + Vector2(12.0, -18.0), center + Vector2(40.0 + recoil, -30.0 - recoil * 0.35), barrel, 8.0)
 	draw_circle(center + Vector2(44.0 + recoil, -32.0 - recoil * 0.35), 8.0, barrel)
-	draw_rect(Rect2(center + Vector2(-6.0, -40.0), Vector2(18.0, 10.0)), Color(0.74, 0.82, 0.7), true)
-	draw_circle(center + Vector2(2.0, -34.0), 10.0, Color(0.74, 0.82, 0.7))
+	_draw_ink_rect(Rect2(center + Vector2(-6.0, -40.0), Vector2(18.0, 10.0)), Color(0.74, 0.82, 0.7), true)
+	_draw_ink_disc(center + Vector2(2.0, -34.0), 10.0, Color(0.74, 0.82, 0.7))
 	draw_circle(center + Vector2(-2.0, -36.0), 1.8, Color.BLACK)
 	draw_circle(center + Vector2(5.0, -36.0), 1.8, Color.BLACK)
-	draw_line(center + Vector2(-4.0, -18.0), center + Vector2(-20.0, -6.0), Color(0.56, 0.64, 0.54), 3.0)
-	draw_line(center + Vector2(10.0, -18.0), center + Vector2(24.0 + recoil * 0.5, -24.0 - recoil * 0.2), Color(0.56, 0.64, 0.54), 3.0)
+	_draw_ink_line(center + Vector2(-4.0, -18.0), center + Vector2(-20.0, -6.0), Color(0.56, 0.64, 0.54), 3.0)
+	_draw_ink_line(center + Vector2(10.0, -18.0), center + Vector2(24.0 + recoil * 0.5, -24.0 - recoil * 0.2), Color(0.56, 0.64, 0.54), 3.0)
 	if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-		draw_circle(center + Vector2(52.0, -34.0), 14.0, Color(0.98, 0.68, 0.24, 0.18))
+		_draw_ink_disc(center + Vector2(52.0, -34.0), 14.0, Color(0.98, 0.68, 0.24, 0.18))
 		draw_circle(center + Vector2(52.0, -34.0), 6.0, Color(1.0, 0.86, 0.4, 0.6))
 
 
@@ -29502,17 +28668,17 @@ func _draw_programmer_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8).lerp(Color(0.64, 0.84, 1.0), slow_tint)
 	var hoodie = Color(0.12, 0.16, 0.24, 0.96).lerp(Color(1.0, 1.0, 1.0, 0.96), flash * 1.4).lerp(Color(0.46, 0.64, 0.9), slow_tint * 0.7)
 	var screen = Color(0.72, 0.96, 1.0, 0.92)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), hoodie, true)
-	draw_circle(torso + Vector2(0.0, -30.0), 16.0, skin)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), hoodie, true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -32.0), 2.0, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -32.0), 2.0, Color.BLACK)
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-18.0, 14.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(10.0, 0.0), torso + Vector2(22.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_rect(Rect2(torso + Vector2(8.0, -6.0), Vector2(24.0, 16.0)), Color(0.22, 0.24, 0.28, 0.96), true)
-	draw_rect(Rect2(torso + Vector2(10.0, -4.0), Vector2(20.0, 12.0)), screen, true)
-	draw_line(torso + Vector2(12.0, 0.0), torso + Vector2(26.0, 0.0), Color(0.2, 0.56, 0.26, 0.8), 1.2)
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-18.0, 14.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(22.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(8.0, -6.0), Vector2(24.0, 16.0)), Color(0.22, 0.24, 0.28, 0.96), true)
+	_draw_ink_rect(Rect2(torso + Vector2(10.0, -4.0), Vector2(20.0, 12.0)), screen, true)
+	_draw_ink_line(torso + Vector2(12.0, 0.0), torso + Vector2(26.0, 0.0), Color(0.2, 0.56, 0.26, 0.8), 1.2)
 	var glyphs = ["0", "1", "0", "1"]
 	for glyph_index in range(glyphs.size()):
 		var glyph_x = -18.0 + glyph_index * 12.0
@@ -29526,10 +28692,10 @@ func _draw_wenjie_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var body = Color(0.26, 0.36, 0.42, 0.96).lerp(Color(1.0, 1.0, 1.0, 0.96), flash * 1.4)
 	var trim = Color(0.72, 0.88, 1.0, 0.88)
 	var shift_pulse = 0.28 + 0.32 * absf(sin(level_time * 7.0 + lane_shift))
-	draw_circle(center + Vector2(-22.0, 22.0), 10.0, Color(0.14, 0.14, 0.16))
-	draw_circle(center + Vector2(22.0, 22.0), 10.0, Color(0.14, 0.14, 0.16))
-	draw_rect(Rect2(center + Vector2(-38.0, -2.0), Vector2(76.0, 24.0)), body, true)
-	draw_polygon(
+	_draw_ink_disc(center + Vector2(-22.0, 22.0), 10.0, Color(0.14, 0.14, 0.16))
+	_draw_ink_disc(center + Vector2(22.0, 22.0), 10.0, Color(0.14, 0.14, 0.16))
+	_draw_ink_rect(Rect2(center + Vector2(-38.0, -2.0), Vector2(76.0, 24.0)), body, true)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-18.0, -2.0),
 			center + Vector2(-8.0, -28.0),
@@ -29538,11 +28704,11 @@ func _draw_wenjie_zombie(center: Vector2, zombie: Dictionary) -> void:
 		]),
 		PackedColorArray([body.lightened(0.06), trim, trim, body.darkened(0.04)])
 	)
-	draw_rect(Rect2(center + Vector2(-6.0, -22.0), Vector2(20.0, 12.0)), Color(0.74, 0.82, 0.72), true)
-	draw_circle(center + Vector2(4.0, -24.0), 10.0, Color(0.74, 0.82, 0.72))
+	_draw_ink_rect(Rect2(center + Vector2(-6.0, -22.0), Vector2(20.0, 12.0)), Color(0.74, 0.82, 0.72), true)
+	_draw_ink_disc(center + Vector2(4.0, -24.0), 10.0, Color(0.74, 0.82, 0.72))
 	draw_circle(center + Vector2(0.0, -26.0), 1.8, Color.BLACK)
 	draw_circle(center + Vector2(6.0, -26.0), 1.8, Color.BLACK)
-	draw_rect(Rect2(center + Vector2(-28.0, 2.0), Vector2(18.0, 8.0)), Color(0.62, 0.72, 0.82, 0.86), true)
+	_draw_ink_rect(Rect2(center + Vector2(-28.0, 2.0), Vector2(18.0, 8.0)), Color(0.62, 0.72, 0.82, 0.86), true)
 	draw_circle(center + Vector2(32.0, 10.0), 4.6, Color(1.0, 0.56, 0.26, 0.74))
 	draw_circle(center + Vector2(-34.0, 10.0), 3.6, Color(0.78, 0.96, 1.0, 0.56 + shift_pulse))
 	draw_arc(center + Vector2(0.0, -2.0), 46.0, -0.24, 0.24, 18, Color(0.68, 0.94, 1.0, shift_pulse * 0.38), 2.0)
@@ -29555,22 +28721,22 @@ func _draw_janitor_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8)
 	var uniform = Color(0.18, 0.42, 0.46, 0.96)
 	var shovel = Color(0.74, 0.78, 0.82, 0.94)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), uniform, true)
-	draw_circle(torso + Vector2(0.0, -30.0), 16.0, skin)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), uniform, true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -32.0), 2.0, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -32.0), 2.0, Color.BLACK)
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(10.0, -4.0), torso + Vector2(30.0, 10.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, -4.0), torso + Vector2(30.0, 10.0), Color(0.56, 0.64, 0.54), 4.0)
 	if float(zombie.get("shield_health", 0.0)) > 0.0:
-		draw_line(torso + Vector2(18.0, -10.0), torso + Vector2(34.0, 24.0), Color(0.54, 0.38, 0.18), 4.0)
-		draw_rect(Rect2(torso + Vector2(24.0, -20.0), Vector2(14.0, 26.0)), shovel, true)
+		_draw_ink_line(torso + Vector2(18.0, -10.0), torso + Vector2(34.0, 24.0), Color(0.54, 0.38, 0.18), 4.0)
+		_draw_ink_rect(Rect2(torso + Vector2(24.0, -20.0), Vector2(14.0, 26.0)), shovel, true)
 		draw_arc(torso + Vector2(31.0, 8.0), 12.0, -0.8, 0.9, 12, Color(0.38, 0.42, 0.46, 0.9), 2.0)
 	else:
-		draw_line(torso + Vector2(18.0, -8.0), torso + Vector2(42.0, 10.0), Color(0.54, 0.38, 0.18), 4.0)
-		draw_rect(Rect2(torso + Vector2(36.0, 4.0), Vector2(18.0, 12.0)), shovel.darkened(0.08), true)
-	draw_rect(Rect2(torso + Vector2(-12.0, -44.0), Vector2(24.0, 8.0)), Color(0.12, 0.18, 0.2, 0.94), true)
+		_draw_ink_line(torso + Vector2(18.0, -8.0), torso + Vector2(42.0, 10.0), Color(0.54, 0.38, 0.18), 4.0)
+		_draw_ink_rect(Rect2(torso + Vector2(36.0, 4.0), Vector2(18.0, 12.0)), shovel.darkened(0.08), true)
+	_draw_ink_rect(Rect2(torso + Vector2(-12.0, -44.0), Vector2(24.0, 8.0)), Color(0.12, 0.18, 0.2, 0.94), true)
 
 
 func _draw_subway_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -29578,39 +28744,39 @@ func _draw_subway_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var train = Color(0.5, 0.6, 0.72, 0.98).lerp(Color(1.0, 1.0, 1.0, 0.98), flash * 1.4)
 	var cabin = Color(0.18, 0.22, 0.3, 0.98)
 	var glow = 0.42 + 0.22 * sin(level_time * 8.0 + float(zombie.get("anim_phase", 0.0)))
-	draw_circle(center + Vector2(-24.0, 22.0), 10.0, Color(0.14, 0.14, 0.16))
-	draw_circle(center + Vector2(24.0, 22.0), 10.0, Color(0.14, 0.14, 0.16))
-	draw_rect(Rect2(center + Vector2(-40.0, -10.0), Vector2(80.0, 34.0)), train, true)
-	draw_rect(Rect2(center + Vector2(-32.0, -20.0), Vector2(64.0, 16.0)), cabin, true)
-	draw_rect(Rect2(center + Vector2(-26.0, -16.0), Vector2(18.0, 10.0)), Color(0.78, 0.94, 1.0, 0.82), true)
-	draw_rect(Rect2(center + Vector2(8.0, -16.0), Vector2(18.0, 10.0)), Color(0.78, 0.94, 1.0, 0.82), true)
-	draw_circle(center + Vector2(0.0, -22.0), 9.0, Color(0.74, 0.82, 0.72))
+	_draw_ink_disc(center + Vector2(-24.0, 22.0), 10.0, Color(0.14, 0.14, 0.16))
+	_draw_ink_disc(center + Vector2(24.0, 22.0), 10.0, Color(0.14, 0.14, 0.16))
+	_draw_ink_rect(Rect2(center + Vector2(-40.0, -10.0), Vector2(80.0, 34.0)), train, true)
+	_draw_ink_rect(Rect2(center + Vector2(-32.0, -20.0), Vector2(64.0, 16.0)), cabin, true)
+	_draw_ink_rect(Rect2(center + Vector2(-26.0, -16.0), Vector2(18.0, 10.0)), Color(0.78, 0.94, 1.0, 0.82), true)
+	_draw_ink_rect(Rect2(center + Vector2(8.0, -16.0), Vector2(18.0, 10.0)), Color(0.78, 0.94, 1.0, 0.82), true)
+	_draw_ink_disc(center + Vector2(0.0, -22.0), 9.0, Color(0.74, 0.82, 0.72))
 	draw_circle(center + Vector2(-3.0, -24.0), 1.8, Color.BLACK)
 	draw_circle(center + Vector2(3.0, -24.0), 1.8, Color.BLACK)
 	draw_circle(center + Vector2(-26.0, 6.0), 4.8, Color(0.9, 0.98, 1.0, glow))
 	draw_circle(center + Vector2(26.0, 6.0), 4.8, Color(1.0, 0.76, 0.4, glow))
 	for stripe_index in range(3):
-		draw_line(center + Vector2(-32.0 + stripe_index * 20.0, 12.0), center + Vector2(-18.0 + stripe_index * 20.0, 12.0), Color(0.16, 0.2, 0.24, 0.62), 2.0)
+		_draw_ink_line(center + Vector2(-32.0 + stripe_index * 20.0, 12.0), center + Vector2(-18.0 + stripe_index * 20.0, 12.0), Color(0.16, 0.2, 0.24, 0.62), 2.0)
 
 
 func _draw_enderman_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
 	var phase = level_time * 5.2 + float(zombie.get("anim_phase", 0.0))
 	var body = Color(0.08, 0.06, 0.14, 0.94).lerp(Color(0.64, 0.2, 0.82, 0.94), flash * 0.8)
-	draw_circle(center + Vector2(0.0, 46.0), 12.0, Color(0.02, 0.02, 0.06, 0.22))
-	draw_rect(Rect2(center + Vector2(-10.0, -54.0), Vector2(20.0, 78.0)), body, true)
-	draw_rect(Rect2(center + Vector2(-22.0, -48.0), Vector2(12.0, 64.0)), body.darkened(0.04), true)
-	draw_rect(Rect2(center + Vector2(10.0, -48.0), Vector2(12.0, 64.0)), body.darkened(0.04), true)
-	draw_rect(Rect2(center + Vector2(-7.0, 20.0), Vector2(6.0, 28.0)), body, true)
-	draw_rect(Rect2(center + Vector2(1.0, 20.0), Vector2(6.0, 28.0)), body, true)
-	draw_rect(Rect2(center + Vector2(-6.0, -58.0), Vector2(12.0, 10.0)), Color(0.16, 0.0, 0.24, 0.94), true)
-	draw_rect(Rect2(center + Vector2(-8.0, -44.0), Vector2(6.0, 2.0)), Color(0.96, 0.42, 1.0, 0.88), true)
-	draw_rect(Rect2(center + Vector2(2.0, -44.0), Vector2(6.0, 2.0)), Color(0.96, 0.42, 1.0, 0.88), true)
+	_draw_ink_disc(center + Vector2(0.0, 46.0), 12.0, Color(0.02, 0.02, 0.06, 0.22))
+	_draw_ink_rect(Rect2(center + Vector2(-10.0, -54.0), Vector2(20.0, 78.0)), body, true)
+	_draw_ink_rect(Rect2(center + Vector2(-22.0, -48.0), Vector2(12.0, 64.0)), body.darkened(0.04), true)
+	_draw_ink_rect(Rect2(center + Vector2(10.0, -48.0), Vector2(12.0, 64.0)), body.darkened(0.04), true)
+	_draw_ink_rect(Rect2(center + Vector2(-7.0, 20.0), Vector2(6.0, 28.0)), body, true)
+	_draw_ink_rect(Rect2(center + Vector2(1.0, 20.0), Vector2(6.0, 28.0)), body, true)
+	_draw_ink_rect(Rect2(center + Vector2(-6.0, -58.0), Vector2(12.0, 10.0)), Color(0.16, 0.0, 0.24, 0.94), true)
+	_draw_ink_rect(Rect2(center + Vector2(-8.0, -44.0), Vector2(6.0, 2.0)), Color(0.96, 0.42, 1.0, 0.88), true)
+	_draw_ink_rect(Rect2(center + Vector2(2.0, -44.0), Vector2(6.0, 2.0)), Color(0.96, 0.42, 1.0, 0.88), true)
 	for shard_index in range(5):
 		var shard_center = center + Vector2(sin(phase + shard_index) * 22.0, -20.0 + cos(phase * 0.7 + shard_index) * 26.0)
-		draw_rect(Rect2(shard_center, Vector2(4.0, 4.0)), Color(0.82, 0.48, 1.0, 0.34), true)
+		_draw_ink_rect(Rect2(shard_center, Vector2(4.0, 4.0)), Color(0.82, 0.48, 1.0, 0.34), true)
 	if float(zombie.get("teleport_cooldown", 0.0)) < 0.5:
-		draw_circle(center, 34.0, Color(0.74, 0.36, 1.0, 0.08))
+		_draw_ink_disc(center, 34.0, Color(0.74, 0.36, 1.0, 0.08))
 
 
 func _draw_router_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -29621,17 +28787,17 @@ func _draw_router_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var coat = Color(0.34, 0.34, 0.38, 0.96)
 	var router = Color(0.86, 0.92, 0.98, 0.96)
 	var wifi_alpha = 0.2 + 0.18 * sin(level_time * 4.4 + float(zombie.get("uid", 0)) * 0.1)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), coat, true)
-	draw_circle(torso + Vector2(0.0, -30.0), 16.0, skin)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), coat, true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -32.0), 2.0, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -32.0), 2.0, Color.BLACK)
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(10.0, 0.0), torso + Vector2(22.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_rect(Rect2(torso + Vector2(10.0, -4.0), Vector2(24.0, 16.0)), router, true)
-	draw_line(torso + Vector2(14.0, -4.0), torso + Vector2(14.0, -18.0), Color(0.4, 0.46, 0.52), 1.6)
-	draw_line(torso + Vector2(30.0, -4.0), torso + Vector2(30.0, -18.0), Color(0.4, 0.46, 0.52), 1.6)
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(22.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(10.0, -4.0), Vector2(24.0, 16.0)), router, true)
+	_draw_ink_line(torso + Vector2(14.0, -4.0), torso + Vector2(14.0, -18.0), Color(0.4, 0.46, 0.52), 1.6)
+	_draw_ink_line(torso + Vector2(30.0, -4.0), torso + Vector2(30.0, -18.0), Color(0.4, 0.46, 0.52), 1.6)
 	draw_circle(torso + Vector2(18.0, 4.0), 2.0, Color(0.4, 0.92, 1.0, 0.8))
 	draw_circle(torso + Vector2(26.0, 4.0), 2.0, Color(1.0, 0.72, 0.42, 0.8))
 	draw_arc(torso + Vector2(22.0, -20.0), 18.0, -0.9, -0.2, 16, Color(0.64, 0.94, 1.0, wifi_alpha), 1.8)
@@ -29646,16 +28812,16 @@ func _draw_ski_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var torso = center + Vector2(0.0, -absf(step) * 2.0)
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8)
 	var coat = Color(0.18, 0.48, 0.78, 0.96)
-	draw_line(torso + Vector2(-8.0, 18.0), torso + Vector2(-14.0 - step * 4.0, 34.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 18.0), torso + Vector2(14.0 + step * 4.0, 34.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 32.0)), coat, true)
-	draw_circle(torso + Vector2(0.0, -28.0), 15.0, skin)
-	draw_rect(Rect2(torso + Vector2(-14.0, -40.0), Vector2(28.0, 8.0)), Color(0.84, 0.22, 0.18, 0.96), true)
-	draw_rect(Rect2(torso + Vector2(-10.0, -34.0), Vector2(20.0, 4.0)), Color(0.12, 0.18, 0.24, 0.94), true)
-	draw_line(torso + Vector2(-10.0, -2.0), torso + Vector2(-24.0, 10.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(10.0, -2.0), torso + Vector2(24.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(-18.0, 32.0), torso + Vector2(22.0, 28.0), Color(0.74, 0.82, 0.9, 0.96), 4.0)
-	draw_line(torso + Vector2(-22.0, 36.0), torso + Vector2(18.0, 32.0), Color(0.74, 0.82, 0.9, 0.96), 4.0)
+	_draw_ink_line(torso + Vector2(-8.0, 18.0), torso + Vector2(-14.0 - step * 4.0, 34.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 18.0), torso + Vector2(14.0 + step * 4.0, 34.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 32.0)), coat, true)
+	_draw_ink_disc(torso + Vector2(0.0, -28.0), 15.0, skin)
+	_draw_ink_rect(Rect2(torso + Vector2(-14.0, -40.0), Vector2(28.0, 8.0)), Color(0.84, 0.22, 0.18, 0.96), true)
+	_draw_ink_rect(Rect2(torso + Vector2(-10.0, -34.0), Vector2(20.0, 4.0)), Color(0.12, 0.18, 0.24, 0.94), true)
+	_draw_ink_line(torso + Vector2(-10.0, -2.0), torso + Vector2(-24.0, 10.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, -2.0), torso + Vector2(24.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(-18.0, 32.0), torso + Vector2(22.0, 28.0), Color(0.74, 0.82, 0.9, 0.96), 4.0)
+	_draw_ink_line(torso + Vector2(-22.0, 36.0), torso + Vector2(18.0, 32.0), Color(0.74, 0.82, 0.9, 0.96), 4.0)
 	draw_arc(torso + Vector2(-10.0, 34.0), 8.0, 0.2, PI - 0.2, 12, Color(0.22, 0.22, 0.26, 0.86), 2.0)
 	draw_arc(torso + Vector2(10.0, 32.0), 8.0, 0.2, PI - 0.2, 12, Color(0.22, 0.22, 0.26, 0.86), 2.0)
 
@@ -29668,19 +28834,19 @@ func _draw_flywheel_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8)
 	var armor = Color(0.42, 0.46, 0.54, 0.98)
 	var blade = Color(0.84, 0.9, 0.96, 0.94)
-	draw_line(torso + Vector2(-10.0, 24.0), torso + Vector2(-16.0 - step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(10.0, 24.0), torso + Vector2(16.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-18.0, -14.0), Vector2(36.0, 42.0)), armor, true)
-	draw_circle(torso + Vector2(0.0, -30.0), 16.0, skin)
+	_draw_ink_line(torso + Vector2(-10.0, 24.0), torso + Vector2(-16.0 - step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 24.0), torso + Vector2(16.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-18.0, -14.0), Vector2(36.0, 42.0)), armor, true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -32.0), 2.0, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -32.0), 2.0, Color.BLACK)
-	draw_line(torso + Vector2(-10.0, -2.0), torso + Vector2(-24.0, 10.0), Color(0.56, 0.64, 0.54), 4.0)
-	draw_line(torso + Vector2(10.0, -4.0), torso + Vector2(24.0 + cooldown_ratio * 6.0, 8.0 - cooldown_ratio * 4.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(-10.0, -2.0), torso + Vector2(-24.0, 10.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, -4.0), torso + Vector2(24.0 + cooldown_ratio * 6.0, 8.0 - cooldown_ratio * 4.0), Color(0.56, 0.64, 0.54), 4.0)
 	var rotor = torso + Vector2(28.0 + cooldown_ratio * 6.0, -6.0)
-	draw_circle(rotor, 12.0, Color(0.36, 0.38, 0.44, 0.98))
+	_draw_ink_disc(rotor, 12.0, Color(0.36, 0.38, 0.44, 0.98))
 	for blade_index in range(4):
 		var angle = level_time * (4.0 + cooldown_ratio * 8.0) + float(blade_index) * PI * 0.5
-		draw_line(rotor, rotor + Vector2(cos(angle), sin(angle)) * 18.0, blade, 2.4)
+		_draw_ink_line(rotor, rotor + Vector2(cos(angle), sin(angle)) * 18.0, blade, 2.4)
 	draw_circle(rotor, 4.0, Color(0.18, 0.18, 0.2, 0.96))
 
 
@@ -29690,18 +28856,18 @@ func _draw_wither_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var torso = center + Vector2(0.0, -absf(step) * 2.2)
 	var skin = Color(0.48, 0.56, 0.44, 0.96).lerp(Color(1.0, 1.0, 1.0, 0.96), flash * 1.6)
 	var robe = Color(0.26, 0.14, 0.18, 0.98)
-	draw_circle(torso + Vector2(0.0, 46.0), 12.0, Color(0.04, 0.02, 0.06, 0.2))
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.16, 0.16, 0.18), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.16, 0.16, 0.18), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), robe, true)
-	draw_circle(torso + Vector2(0.0, -30.0), 16.0, skin)
+	_draw_ink_disc(torso + Vector2(0.0, 46.0), 12.0, Color(0.04, 0.02, 0.06, 0.2))
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.16, 0.16, 0.18), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.16, 0.16, 0.18), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), robe, true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -32.0), 2.0, Color(0.82, 0.96, 0.52, 0.9))
 	draw_circle(torso + Vector2(5.0, -32.0), 2.0, Color(0.82, 0.96, 0.52, 0.9))
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0, 10.0), Color(0.42, 0.5, 0.38), 4.0)
-	draw_line(torso + Vector2(10.0, 0.0), torso + Vector2(24.0, 10.0), Color(0.42, 0.5, 0.38), 4.0)
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0, 10.0), Color(0.42, 0.5, 0.38), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(24.0, 10.0), Color(0.42, 0.5, 0.38), 4.0)
 	for shard_index in range(5):
 		var shard = torso + Vector2(sin(level_time * 2.0 + shard_index) * 22.0, -14.0 + cos(level_time * 1.3 + shard_index) * 18.0)
-		draw_rect(Rect2(shard, Vector2(4.0, 4.0)), Color(0.42, 0.1, 0.16, 0.34), true)
+		_draw_ink_rect(Rect2(shard, Vector2(4.0, 4.0)), Color(0.42, 0.1, 0.16, 0.34), true)
 	draw_arc(torso + Vector2(0.0, -6.0), 28.0, 0.0, TAU, 24, Color(0.44, 0.12, 0.18, 0.16), 2.0)
 
 
@@ -29710,18 +28876,18 @@ func _draw_mech_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var ash_hits = int(zombie.get("ash_hits_taken", 0))
 	var laser_ratio = 1.0 - clampf(float(zombie.get("laser_cooldown", 0.0)) / maxf(float(Defs.ZOMBIES["mech_zombie"].get("laser_cooldown", 4.8)), 0.01), 0.0, 1.0)
 	var hull = Color(0.42, 0.46, 0.52, 0.98).lerp(Color(1.0, 1.0, 1.0, 0.98), flash * 1.2)
-	draw_circle(center + Vector2(-20.0, 24.0), 11.0, Color(0.16, 0.16, 0.18))
-	draw_circle(center + Vector2(22.0, 24.0), 11.0, Color(0.16, 0.16, 0.18))
-	draw_rect(Rect2(center + Vector2(-34.0, -6.0), Vector2(70.0, 32.0)), hull, true)
-	draw_rect(Rect2(center + Vector2(-20.0, -32.0), Vector2(38.0, 26.0)), hull.darkened(0.08), true)
-	draw_circle(center + Vector2(0.0, -20.0), 12.0, Color(0.74, 0.82, 0.7))
+	_draw_ink_disc(center + Vector2(-20.0, 24.0), 11.0, Color(0.16, 0.16, 0.18))
+	_draw_ink_disc(center + Vector2(22.0, 24.0), 11.0, Color(0.16, 0.16, 0.18))
+	_draw_ink_rect(Rect2(center + Vector2(-34.0, -6.0), Vector2(70.0, 32.0)), hull, true)
+	_draw_ink_rect(Rect2(center + Vector2(-20.0, -32.0), Vector2(38.0, 26.0)), hull.darkened(0.08), true)
+	_draw_ink_disc(center + Vector2(0.0, -20.0), 12.0, Color(0.74, 0.82, 0.7))
 	draw_circle(center + Vector2(-4.0, -22.0), 2.0, Color.BLACK)
 	draw_circle(center + Vector2(4.0, -22.0), 2.0, Color.BLACK)
-	draw_line(center + Vector2(16.0, -8.0), center + Vector2(40.0 + laser_ratio * 8.0, -18.0 - laser_ratio * 4.0), Color(0.18, 0.2, 0.26), 7.0)
+	_draw_ink_line(center + Vector2(16.0, -8.0), center + Vector2(40.0 + laser_ratio * 8.0, -18.0 - laser_ratio * 4.0), Color(0.18, 0.2, 0.26), 7.0)
 	draw_circle(center + Vector2(44.0 + laser_ratio * 8.0, -20.0 - laser_ratio * 4.0), 7.0, Color(0.18, 0.2, 0.26))
 	draw_circle(center + Vector2(46.0 + laser_ratio * 8.0, -20.0 - laser_ratio * 4.0), 4.0, Color(1.0, 0.24 + laser_ratio * 0.56, 0.24, 0.7))
 	for plate_index in range(3):
-		draw_rect(Rect2(center + Vector2(-24.0 + plate_index * 18.0, 2.0), Vector2(10.0, 8.0)), Color(0.58, 0.62, 0.7, 0.92), true)
+		_draw_ink_rect(Rect2(center + Vector2(-24.0 + plate_index * 18.0, 2.0), Vector2(10.0, 8.0)), Color(0.58, 0.62, 0.7, 0.92), true)
 	for scorch_index in range(ash_hits):
 		draw_circle(center + Vector2(-12.0 + scorch_index * 12.0, -4.0), 5.0, Color(0.12, 0.08, 0.08, 0.9))
 
@@ -29733,14 +28899,14 @@ func _draw_wizard_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var torso = center + Vector2(0.0, -absf(step) * 1.8)
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8)
 	var robe = Color(0.34, 0.16, 0.52, 0.98)
-	draw_circle(torso + Vector2(0.0, 44.0), 11.0, Color(0.02, 0.02, 0.04, 0.16))
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 42.0)), robe, true)
-	draw_circle(torso + Vector2(0.0, -30.0), 15.0, skin)
+	_draw_ink_disc(torso + Vector2(0.0, 44.0), 11.0, Color(0.02, 0.02, 0.04, 0.16))
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 42.0)), robe, true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 15.0, skin)
 	draw_circle(torso + Vector2(-5.0, -32.0), 2.0, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -32.0), 2.0, Color.BLACK)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			torso + Vector2(0.0, -62.0),
 			torso + Vector2(-18.0, -20.0),
@@ -29748,8 +28914,8 @@ func _draw_wizard_zombie(center: Vector2, zombie: Dictionary) -> void:
 		]),
 		PackedColorArray([robe.darkened(0.08), robe, robe])
 	)
-	draw_rect(Rect2(torso + Vector2(-20.0, -20.0), Vector2(40.0, 6.0)), Color(0.18, 0.1, 0.28, 0.96), true)
-	draw_line(torso + Vector2(12.0, -2.0), torso + Vector2(28.0, 20.0), Color(0.56, 0.42, 0.18), 3.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-20.0, -20.0), Vector2(40.0, 6.0)), Color(0.18, 0.1, 0.28, 0.96), true)
+	_draw_ink_line(torso + Vector2(12.0, -2.0), torso + Vector2(28.0, 20.0), Color(0.56, 0.42, 0.18), 3.0)
 	draw_circle(torso + Vector2(30.0, 18.0), 6.0, Color(0.74, 0.62, 1.0, 0.94))
 	for orb_index in range(3):
 		var orb_angle = level_time * 3.6 + float(orb_index) * TAU / 3.0
@@ -29765,27 +28931,27 @@ func _draw_special_elite_body(center: Vector2, zombie: Dictionary, coat: Color, 
 	var torso = center + Vector2(0.0, -absf(step) * 2.0)
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.8).lerp(Color(0.64, 0.84, 1.0), slow_tint)
 	var coat_color = coat.lerp(Color(1.0, 1.0, 1.0), flash * 1.4).lerp(Color(0.46, 0.64, 0.9), slow_tint)
-	draw_circle(torso + Vector2(0.0, 44.0), 13.0, Color(0.02, 0.02, 0.04, 0.16))
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.18, 0.18, 0.2), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.18, 0.18, 0.2), 4.0)
-	draw_rect(Rect2(torso + Vector2(-17.0, -12.0), Vector2(34.0, 42.0)), coat_color, true)
-	draw_rect(Rect2(torso + Vector2(-17.0, -12.0), Vector2(34.0, 9.0)), accent.lerp(Color.WHITE, flash * 1.2), true)
-	draw_rect(Rect2(torso + Vector2(-16.0, 16.0), Vector2(32.0, 12.0)), Color(0.18, 0.18, 0.2).lerp(accent, 0.18), true)
-	draw_circle(torso + Vector2(0.0, -30.0), 16.0, skin)
+	_draw_ink_disc(torso + Vector2(0.0, 44.0), 13.0, Color(0.02, 0.02, 0.04, 0.16))
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.18, 0.18, 0.2), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.18, 0.18, 0.2), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-17.0, -12.0), Vector2(34.0, 42.0)), coat_color, true)
+	_draw_ink_rect(Rect2(torso + Vector2(-17.0, -12.0), Vector2(34.0, 9.0)), accent.lerp(Color.WHITE, flash * 1.2), true)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, 16.0), Vector2(32.0, 12.0)), Color(0.18, 0.18, 0.2).lerp(accent, 0.18), true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -32.0), 2.1, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -32.0), 2.1, Color.BLACK)
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0 - step * 3.0, 8.0), Color(0.54, 0.62, 0.52), 4.0)
-	draw_line(torso + Vector2(10.0, 0.0), torso + Vector2(24.0 + step * 3.0, 8.0), Color(0.54, 0.62, 0.52), 4.0)
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0 - step * 3.0, 8.0), Color(0.54, 0.62, 0.52), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(24.0 + step * 3.0, 8.0), Color(0.54, 0.62, 0.52), 4.0)
 	return torso
 
 
 func _draw_medic_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var torso = _draw_special_elite_body(center, zombie, Color(0.28, 0.44, 0.5), Color(0.34, 0.92, 0.58))
 	var pulse = 0.5 + 0.5 * sin(level_time * 4.0 + float(zombie.get("anim_phase", 0.0)))
-	draw_circle(torso + Vector2(0.0, -54.0), 16.0 + pulse * 3.0, Color(0.34, 0.92, 0.58, 0.10 + pulse * 0.06))
-	draw_rect(Rect2(torso + Vector2(-3.0, -64.0), Vector2(6.0, 20.0)), Color(0.84, 1.0, 0.9), true)
-	draw_rect(Rect2(torso + Vector2(-10.0, -57.0), Vector2(20.0, 6.0)), Color(0.84, 1.0, 0.9), true)
-	draw_line(torso + Vector2(12.0, -2.0), torso + Vector2(30.0, 14.0), Color(0.78, 1.0, 0.86), 3.0)
+	_draw_ink_disc(torso + Vector2(0.0, -54.0), 16.0 + pulse * 3.0, Color(0.34, 0.92, 0.58, 0.10 + pulse * 0.06))
+	_draw_ink_rect(Rect2(torso + Vector2(-3.0, -64.0), Vector2(6.0, 20.0)), Color(0.84, 1.0, 0.9), true)
+	_draw_ink_rect(Rect2(torso + Vector2(-10.0, -57.0), Vector2(20.0, 6.0)), Color(0.84, 1.0, 0.9), true)
+	_draw_ink_line(torso + Vector2(12.0, -2.0), torso + Vector2(30.0, 14.0), Color(0.78, 1.0, 0.86), 3.0)
 	draw_circle(torso + Vector2(32.0, 16.0), 6.0, Color(0.34, 0.92, 0.58, 0.9))
 
 
@@ -29793,10 +28959,10 @@ func _draw_shieldbearer_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var torso = _draw_special_elite_body(center, zombie, Color(0.26, 0.32, 0.42), Color(0.84, 0.72, 0.34))
 	var shield_alpha = 0.9 if float(zombie.get("shield_health", 0.0)) > 0.0 else 0.35
 	var shield_rect = Rect2(torso + Vector2(10.0, -24.0), Vector2(34.0, 58.0))
-	draw_rect(shield_rect, Color(0.18, 0.22, 0.28, shield_alpha), true)
-	draw_rect(shield_rect, Color(0.82, 0.72, 0.42, shield_alpha), false, 3.0)
-	draw_line(shield_rect.position + Vector2(5.0, 8.0), shield_rect.end - Vector2(5.0, 8.0), Color(0.92, 0.86, 0.62, shield_alpha * 0.7), 2.0)
-	draw_line(Vector2(shield_rect.end.x - 5.0, shield_rect.position.y + 8.0), Vector2(shield_rect.position.x + 5.0, shield_rect.end.y - 8.0), Color(0.92, 0.86, 0.62, shield_alpha * 0.7), 2.0)
+	_draw_ink_rect(shield_rect, Color(0.18, 0.22, 0.28, shield_alpha), true)
+	_draw_ink_rect(shield_rect, Color(0.82, 0.72, 0.42, shield_alpha), false, 3.0)
+	_draw_ink_line(shield_rect.position + Vector2(5.0, 8.0), shield_rect.end - Vector2(5.0, 8.0), Color(0.92, 0.86, 0.62, shield_alpha * 0.7), 2.0)
+	_draw_ink_line(Vector2(shield_rect.end.x - 5.0, shield_rect.position.y + 8.0), Vector2(shield_rect.position.x + 5.0, shield_rect.end.y - 8.0), Color(0.92, 0.86, 0.62, shield_alpha * 0.7), 2.0)
 
 
 func _draw_saboteur_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -29806,9 +28972,9 @@ func _draw_saboteur_zombie(center: Vector2, zombie: Dictionary) -> void:
 		bite_ratio = sin((1.0 - clampf(float(zombie.get("bite_timer", 0.0)) / 0.18, 0.0, 1.0)) * PI)
 	var blade_from = torso + Vector2(16.0, -2.0)
 	var blade_to = torso + Vector2(42.0 + bite_ratio * 16.0, -18.0 - bite_ratio * 6.0)
-	draw_line(blade_from, blade_to, Color(0.92, 0.94, 0.96), 4.0)
-	draw_line(blade_to, blade_to + Vector2(12.0, -4.0), Color(1.0, 0.56, 0.28), 2.0)
-	draw_circle(torso + Vector2(0.0, -30.0), 20.0, Color(1.0, 0.34, 0.18, 0.08 + bite_ratio * 0.08))
+	_draw_ink_line(blade_from, blade_to, Color(0.92, 0.94, 0.96), 4.0)
+	_draw_ink_line(blade_to, blade_to + Vector2(12.0, -4.0), Color(1.0, 0.56, 0.28), 2.0)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 20.0, Color(1.0, 0.34, 0.18, 0.08 + bite_ratio * 0.08))
 
 
 func _draw_rift_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -29817,17 +28983,17 @@ func _draw_rift_zombie(center: Vector2, zombie: Dictionary) -> void:
 	draw_arc(torso + Vector2(0.0, -12.0), 30.0 + pulse * 5.0, -1.2, 1.2, 22, Color(0.36, 0.86, 1.0, 0.34), 2.4)
 	draw_arc(torso + Vector2(0.0, -12.0), 18.0 + pulse * 4.0, 1.9, 4.6, 22, Color(0.72, 0.96, 1.0, 0.26), 2.0)
 	if bool(zombie.get("blink_active", false)):
-		draw_circle(torso + Vector2(0.0, -12.0), 46.0, Color(0.36, 0.86, 1.0, 0.12))
+		_draw_ink_disc(torso + Vector2(0.0, -12.0), 46.0, Color(0.36, 0.86, 1.0, 0.12))
 
 
 func _draw_bomber_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var torso = _draw_special_elite_body(center, zombie, Color(0.34, 0.22, 0.16), Color(1.0, 0.58, 0.18))
 	var fuse = 0.5 + 0.5 * sin(level_time * 7.0 + float(zombie.get("anim_phase", 0.0)))
-	draw_circle(torso + Vector2(22.0, 4.0), 14.0, Color(0.12, 0.12, 0.14))
-	draw_circle(torso + Vector2(22.0, 4.0), 10.0, Color(0.24, 0.2, 0.18))
-	draw_line(torso + Vector2(18.0, -8.0), torso + Vector2(10.0, -22.0), Color(0.12, 0.1, 0.08), 2.6)
+	_draw_ink_disc(torso + Vector2(22.0, 4.0), 14.0, Color(0.12, 0.12, 0.14))
+	_draw_ink_disc(torso + Vector2(22.0, 4.0), 10.0, Color(0.24, 0.2, 0.18))
+	_draw_ink_line(torso + Vector2(18.0, -8.0), torso + Vector2(10.0, -22.0), Color(0.12, 0.1, 0.08), 2.6)
 	draw_circle(torso + Vector2(8.0, -24.0), 4.0 + fuse * 2.0, Color(1.0, 0.74, 0.18, 0.84))
-	draw_circle(torso + Vector2(8.0, -24.0), 9.0 + fuse * 3.0, Color(1.0, 0.32, 0.12, 0.12))
+	_draw_ink_disc(torso + Vector2(8.0, -24.0), 9.0 + fuse * 3.0, Color(1.0, 0.32, 0.12, 0.12))
 
 
 func _draw_alice_doll_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -30945,10 +30111,10 @@ func _draw_umbrella_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var skin = Color(0.78, 0.84, 0.72).lerp(Color(1.0, 1.0, 1.0), flash * 1.6).lerp(Color(0.52, 0.76, 0.98), slow_tint)
 	var coat = Color(0.34, 0.4, 0.5).lerp(Color(1.0, 1.0, 1.0), flash * 1.3)
 	var torso = center + Vector2(0.0, -absf(step) * 3.0)
-	draw_line(torso + Vector2(-12.0, 40.0), torso + Vector2(-22.0 - step * 4.0, 78.0), Color(0.18, 0.18, 0.18), 7.0)
-	draw_line(torso + Vector2(12.0, 40.0), torso + Vector2(22.0 + step * 4.0, 78.0), Color(0.18, 0.18, 0.18), 7.0)
-	draw_rect(Rect2(torso + Vector2(-18.0, -14.0), Vector2(36.0, 56.0)), coat, true)
-	draw_circle(torso + Vector2(0.0, -30.0), 15.0, skin)
+	_draw_ink_line(torso + Vector2(-12.0, 40.0), torso + Vector2(-22.0 - step * 4.0, 78.0), Color(0.18, 0.18, 0.18), 7.0)
+	_draw_ink_line(torso + Vector2(12.0, 40.0), torso + Vector2(22.0 + step * 4.0, 78.0), Color(0.18, 0.18, 0.18), 7.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-18.0, -14.0), Vector2(36.0, 56.0)), coat, true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 15.0, skin)
 	draw_circle(torso + Vector2(-5.0, -32.0), 2.2, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -32.0), 2.2, Color.BLACK)
 	# The umbrella: a dome that blocks lobbed shots while intact.
@@ -30956,13 +30122,13 @@ func _draw_umbrella_zombie(center: Vector2, zombie: Dictionary) -> void:
 		var umbrella = Color(0.86, 0.26, 0.32).lerp(Color(1.0, 1.0, 1.0), flash * 1.2)
 		var dome = torso + Vector2(0.0, -56.0)
 		draw_arc(dome, 30.0, PI, TAU, 18, umbrella, 4.0)
-		draw_circle(dome + Vector2(0.0, -2.0), 30.0, Color(umbrella.r, umbrella.g, umbrella.b, 0.34))
+		_draw_ink_disc(dome + Vector2(0.0, -2.0), 30.0, Color(umbrella.r, umbrella.g, umbrella.b, 0.34))
 		# Ribs
 		for rib in range(3):
 			var ang = PI + float(rib + 1) * PI / 4.0
-			draw_line(dome, dome + Vector2(cos(ang) * 30.0, sin(ang) * 30.0), Color(0.5, 0.12, 0.16), 1.4)
+			_draw_ink_line(dome, dome + Vector2(cos(ang) * 30.0, sin(ang) * 30.0), Color(0.5, 0.12, 0.16), 1.4)
 		# Handle
-		draw_line(dome + Vector2(0.0, 0.0), torso + Vector2(0.0, -28.0), Color(0.3, 0.3, 0.32), 2.0)
+		_draw_ink_line(dome + Vector2(0.0, 0.0), torso + Vector2(0.0, -28.0), Color(0.3, 0.3, 0.32), 2.0)
 
 
 func _draw_shania_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -30974,17 +30140,17 @@ func _draw_shania_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var body = center + Vector2(0.0, -18.0 + bob)
 	# Aura when buffing
 	if bool(zombie.get("shania_buff_active", false)):
-		draw_circle(center, 42.0, Color(0.86, 0.42, 1.0, 0.18 + 0.06 * sin(cycle * 2.0)))
+		_draw_ink_disc(center, 42.0, Color(0.86, 0.42, 1.0, 0.18 + 0.06 * sin(cycle * 2.0)))
 	# Hover jet glow
 	draw_circle(center + Vector2(-10.0, 30.0), 8.0, Color(0.6, 0.8, 1.0, 0.4))
 	draw_circle(center + Vector2(10.0, 30.0), 8.0, Color(0.6, 0.8, 1.0, 0.4))
-	draw_circle(body + Vector2(0.0, -18.0), 15.0, skin)
+	_draw_ink_disc(body + Vector2(0.0, -18.0), 15.0, skin)
 	# Twin pigtails (魔幻手机 style)
 	draw_circle(body + Vector2(-12.0, -22.0), 7.0, dress)
 	draw_circle(body + Vector2(12.0, -22.0), 7.0, dress)
 	draw_circle(body + Vector2(-4.0, -20.0), 2.2, Color(0.2, 0.8, 0.9))
 	draw_circle(body + Vector2(4.0, -20.0), 2.2, Color(0.2, 0.8, 0.9))
-	draw_rect(Rect2(body + Vector2(-13.0, -6.0), Vector2(26.0, 32.0)), dress, true)
+	_draw_ink_rect(Rect2(body + Vector2(-13.0, -6.0), Vector2(26.0, 32.0)), dress, true)
 	# Sparkle crown when buffing
 	if bool(zombie.get("shania_buff_active", false)):
 		for s in range(3):
@@ -31006,10 +30172,10 @@ func _draw_shade_zombie(center: Vector2, zombie: Dictionary) -> void:
 	for point in trail:
 		var pt = Vector2(point["x"], float(point["y"]))
 		var life = float(point.get("life", 0.3))
-		draw_circle(pt + Vector2(0.0, -28.0), 14.0, Color(0.5, 0.2, 0.86, life * 0.5))
+		_draw_ink_disc(pt + Vector2(0.0, -28.0), 14.0, Color(0.5, 0.2, 0.86, life * 0.5))
 	# Cloak body
-	draw_rect(Rect2(body + Vector2(-16.0, -14.0), Vector2(32.0, 52.0)), cloak, true)
-	draw_circle(body + Vector2(0.0, -28.0), 14.0, skin)
+	_draw_ink_rect(Rect2(body + Vector2(-16.0, -14.0), Vector2(32.0, 52.0)), cloak, true)
+	_draw_ink_disc(body + Vector2(0.0, -28.0), 14.0, skin)
 	# Glowing eyes
 	draw_circle(body + Vector2(-5.0, -30.0), 2.6, Color(0.5, 0.3, 1.0, alpha))
 	draw_circle(body + Vector2(5.0, -30.0), 2.6, Color(0.5, 0.3, 1.0, alpha))
@@ -31030,17 +30196,17 @@ func _draw_crab_zombie(center: Vector2, zombie: Dictionary) -> void:
 	# Sideways scuttle legs
 	for li in range(3):
 		var ly = body.y + 8.0 + float(li) * 10.0
-		draw_line(body + Vector2(-14.0, ly), body + Vector2(-26.0 - step * 4.0, ly + 10.0), Color(0.5, 0.2, 0.16), 3.0)
-		draw_line(body + Vector2(14.0, ly), body + Vector2(26.0 + step * 4.0, ly + 10.0), Color(0.5, 0.2, 0.16), 3.0)
+		_draw_ink_line(body + Vector2(-14.0, ly), body + Vector2(-26.0 - step * 4.0, ly + 10.0), Color(0.5, 0.2, 0.16), 3.0)
+		_draw_ink_line(body + Vector2(14.0, ly), body + Vector2(26.0 + step * 4.0, ly + 10.0), Color(0.5, 0.2, 0.16), 3.0)
 	# Shell dome
-	draw_circle(body, 20.0, shell)
+	_draw_ink_disc(body, 20.0, shell)
 	draw_circle(body + Vector2(0.0, -4.0), 14.0, shell.lightened(0.12))
 	# Claws
 	var claw_y = body.y - 6.0
-	draw_circle(body + Vector2(-24.0, claw_y), 9.0, shell)
-	draw_circle(body + Vector2(24.0, claw_y), 9.0, shell)
+	_draw_ink_disc(body + Vector2(-24.0, claw_y), 9.0, shell)
+	_draw_ink_disc(body + Vector2(24.0, claw_y), 9.0, shell)
 	# Zombie head poking up
-	draw_circle(body + Vector2(0.0, -22.0), 11.0, skin)
+	_draw_ink_disc(body + Vector2(0.0, -22.0), 11.0, skin)
 	draw_circle(body + Vector2(-4.0, -24.0), 1.8, Color.BLACK)
 	draw_circle(body + Vector2(4.0, -24.0), 1.8, Color.BLACK)
 
@@ -31053,11 +30219,11 @@ func _draw_crabling(center: Vector2, zombie: Dictionary) -> void:
 	# Fast little legs
 	for li in range(2):
 		var ly = center.y + 6.0 + float(li) * 6.0
-		draw_line(center + Vector2(-8.0, ly), center + Vector2(-16.0 - step, ly + 6.0), Color(0.5, 0.2, 0.16), 2.0)
-		draw_line(center + Vector2(8.0, ly), center + Vector2(16.0 + step, ly + 6.0), Color(0.5, 0.2, 0.16), 2.0)
-	draw_circle(center + Vector2(0.0, -absf(step)), 12.0, shell)
+		_draw_ink_line(center + Vector2(-8.0, ly), center + Vector2(-16.0 - step, ly + 6.0), Color(0.5, 0.2, 0.16), 2.0)
+		_draw_ink_line(center + Vector2(8.0, ly), center + Vector2(16.0 + step, ly + 6.0), Color(0.5, 0.2, 0.16), 2.0)
+	_draw_ink_disc(center + Vector2(0.0, -absf(step)), 12.0, shell)
 	# Motion streak (charging)
-	draw_line(center + Vector2(16.0, -4.0), center + Vector2(34.0, -4.0), Color(1.0, 0.5, 0.3, 0.4), 2.0)
+	_draw_ink_line(center + Vector2(16.0, -4.0), center + Vector2(34.0, -4.0), Color(1.0, 0.5, 0.3, 0.4), 2.0)
 
 
 func _draw_camel_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -31069,22 +30235,22 @@ func _draw_camel_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var dark = Color(0.56, 0.42, 0.22)
 	var torso = center + Vector2(0.0, -absf(step) * 2.0)
 	# Platoon banner linking 3 camels — drawn as a connective slab behind.
-	draw_rect(Rect2(torso + Vector2(-20.0, 10.0), Vector2(40.0, 8.0)), dark, true)
+	_draw_ink_rect(Rect2(torso + Vector2(-20.0, 10.0), Vector2(40.0, 8.0)), dark, true)
 	# Two humps
-	draw_circle(torso + Vector2(-10.0, -6.0), 14.0, sand)
-	draw_circle(torso + Vector2(10.0, -6.0), 14.0, sand)
+	_draw_ink_disc(torso + Vector2(-10.0, -6.0), 14.0, sand)
+	_draw_ink_disc(torso + Vector2(10.0, -6.0), 14.0, sand)
 	draw_circle(torso + Vector2(-10.0, -10.0), 10.0, sand.lightened(0.1))
 	draw_circle(torso + Vector2(10.0, -10.0), 10.0, sand.lightened(0.1))
 	# Legs
-	draw_line(torso + Vector2(-14.0, 14.0), torso + Vector2(-18.0 - step * 3.0, 40.0), dark, 5.0)
-	draw_line(torso + Vector2(14.0, 14.0), torso + Vector2(18.0 + step * 3.0, 40.0), dark, 5.0)
+	_draw_ink_line(torso + Vector2(-14.0, 14.0), torso + Vector2(-18.0 - step * 3.0, 40.0), dark, 5.0)
+	_draw_ink_line(torso + Vector2(14.0, 14.0), torso + Vector2(18.0 + step * 3.0, 40.0), dark, 5.0)
 	# Neck + head
-	draw_line(torso + Vector2(16.0, -6.0), torso + Vector2(26.0, -26.0), sand, 6.0)
-	draw_circle(torso + Vector2(28.0, -30.0), 9.0, sand)
+	_draw_ink_line(torso + Vector2(16.0, -6.0), torso + Vector2(26.0, -26.0), sand, 6.0)
+	_draw_ink_disc(torso + Vector2(28.0, -30.0), 9.0, sand)
 	draw_circle(torso + Vector2(31.0, -32.0), 1.8, Color.BLACK)
 	# Carrier zombie rider (shield body)
 	if float(zombie.get("shield_health", 0.0)) > 0.0:
-		draw_rect(Rect2(torso + Vector2(-8.0, -34.0), Vector2(16.0, 22.0)), dark.lerp(Color(1.0, 1.0, 1.0), flash), true)
+		_draw_ink_rect(Rect2(torso + Vector2(-8.0, -34.0), Vector2(16.0, 22.0)), dark.lerp(Color(1.0, 1.0, 1.0), flash), true)
 
 
 func _draw_volcano_boss(center: Vector2, zombie: Dictionary) -> void:
@@ -31798,8 +30964,8 @@ func _draw_flandre_boss(center: Vector2, zombie: Dictionary) -> void:
 func _draw_dragon_boat_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var state = _dragon_boat_visual_state(center, zombie)
 	var flash = float(state["flash"])
-	draw_circle(Vector2(state["shadow_center"]), 26.0, Color(0.0, 0.18, 0.28, 0.12))
-	draw_polygon(
+	_draw_ink_disc(Vector2(state["shadow_center"]), 26.0, Color(0.0, 0.18, 0.28, 0.12))
+	_draw_ink_polygon(
 		PackedVector2Array(state["hull"]),
 		PackedColorArray([
 			Color(0.54, 0.2, 0.08),
@@ -31812,13 +30978,13 @@ func _draw_dragon_boat_zombie(center: Vector2, zombie: Dictionary) -> void:
 	)
 	for rider_variant in state["riders"]:
 		var rider: Dictionary = rider_variant
-		draw_circle(Vector2(rider["center"]), 11.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
-		draw_rect(Rect2(rider["body_rect"]), Color(0.34, 0.46, 0.72), true)
-		draw_line(Vector2(rider["paddle_from"]), Vector2(rider["paddle_to"]), Color(0.62, 0.44, 0.18), 2.0)
-	draw_line(Vector2(state["flag_a_from"]), Vector2(state["flag_a_to"]), Color(0.96, 0.76, 0.22), 3.0)
-	draw_line(Vector2(state["flag_b_from"]), Vector2(state["flag_b_to"]), Color(0.96, 0.34, 0.18), 3.0)
-	draw_line(Vector2(state["oar_left_from"]), Vector2(state["oar_left_to"]), Color(0.68, 0.48, 0.18), 3.0)
-	draw_line(Vector2(state["oar_mid_from"]), Vector2(state["oar_mid_to"]), Color(0.68, 0.48, 0.18), 3.0)
+		_draw_ink_disc(Vector2(rider["center"]), 11.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
+		_draw_ink_rect(Rect2(rider["body_rect"]), Color(0.34, 0.46, 0.72), true)
+		_draw_ink_line(Vector2(rider["paddle_from"]), Vector2(rider["paddle_to"]), Color(0.62, 0.44, 0.18), 2.0)
+	_draw_ink_line(Vector2(state["flag_a_from"]), Vector2(state["flag_a_to"]), Color(0.96, 0.76, 0.22), 3.0)
+	_draw_ink_line(Vector2(state["flag_b_from"]), Vector2(state["flag_b_to"]), Color(0.96, 0.34, 0.18), 3.0)
+	_draw_ink_line(Vector2(state["oar_left_from"]), Vector2(state["oar_left_to"]), Color(0.68, 0.48, 0.18), 3.0)
+	_draw_ink_line(Vector2(state["oar_mid_from"]), Vector2(state["oar_mid_to"]), Color(0.68, 0.48, 0.18), 3.0)
 
 
 func _draw_qinghua_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -31826,22 +30992,22 @@ func _draw_qinghua_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var slow_tint = 0.55 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0).lerp(Color(0.64, 0.84, 1.0), slow_tint)
 	var torso = center + Vector2(0.0, -absf(sin(level_time * 2.6 + float(zombie.get("anim_phase", 0.0)))) * 2.2)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), Color(0.24, 0.4, 0.62), true)
-	draw_circle(torso + Vector2(0.0, -28.0), 17.0, skin)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), Color(0.24, 0.4, 0.62), true)
+	_draw_ink_disc(torso + Vector2(0.0, -28.0), 17.0, skin)
 	draw_circle(torso + Vector2(-6.0, -30.0), 2.2, Color.BLACK)
 	draw_circle(torso + Vector2(6.0, -30.0), 2.2, Color.BLACK)
 	if float(zombie.get("shield_health", 0.0)) > 0.0:
-		draw_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 40.0)), Color(0.94, 0.98, 1.0, 0.94), true)
+		_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 40.0)), Color(0.94, 0.98, 1.0, 0.94), true)
 		draw_arc(torso + Vector2(22.0, 2.0), 20.0, -1.0, 1.0, 18, Color(0.2, 0.42, 0.86), 3.0)
 		for line in range(3):
-			draw_line(torso + Vector2(12.0, -10.0 + line * 10.0), torso + Vector2(32.0, -10.0 + line * 10.0), Color(0.22, 0.42, 0.78), 1.2)
+			_draw_ink_line(torso + Vector2(12.0, -10.0 + line * 10.0), torso + Vector2(32.0, -10.0 + line * 10.0), Color(0.22, 0.42, 0.78), 1.2)
 		draw_circle(torso + Vector2(22.0, 2.0), 4.0, Color(0.24, 0.56, 0.9, 0.66))
 	else:
 		for shard in range(4):
 			var shard_center = torso + Vector2(10.0 + float(shard) * 6.0, 18.0 + sin(level_time * 4.0 + float(shard)) * 2.0)
-			draw_polygon(
+			_draw_ink_polygon(
 				PackedVector2Array([
 					shard_center + Vector2(0.0, -4.0),
 					shard_center + Vector2(3.0, 0.0),
@@ -31853,7 +31019,7 @@ func _draw_qinghua_zombie(center: Vector2, zombie: Dictionary) -> void:
 
 
 func _draw_shouyue_zombie(center: Vector2, zombie: Dictionary) -> void:
-	var hidden_alpha = 0.42 if _is_hidden_from_lane_attacks(zombie) else 0.92
+	var hidden_alpha = 0.42 if not bool(zombie.get("portrait", false)) and _is_hidden_from_lane_attacks(zombie) else 0.92
 	var flash = float(zombie.get("flash", 0.0))
 	var aim_active = bool(zombie.get("snipe_charge_active", false))
 	var aim_ratio = 0.0
@@ -31862,31 +31028,31 @@ func _draw_shouyue_zombie(center: Vector2, zombie: Dictionary) -> void:
 		aim_ratio = 1.0 - clampf(float(zombie.get("snipe_charge_timer", 0.0)) / charge_duration, 0.0, 1.0)
 	var torso = center + Vector2(-aim_ratio * 5.0, -2.0 - absf(sin(level_time * 2.2 + float(zombie.get("anim_phase", 0.0)))) * (1.2 if aim_active else 1.8))
 	var alpha = hidden_alpha - flash * 0.12
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - aim_ratio * 3.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), Color(0.16, 0.26, 0.32, alpha), true)
-	draw_circle(torso + Vector2(0.0, -30.0), 16.0, Color(0.72, 0.8, 0.72, alpha))
-	draw_line(torso + Vector2(10.0, -6.0), torso + Vector2(34.0 + aim_ratio * 10.0, -18.0 - aim_ratio * 4.0), Color(0.22, 0.22, 0.24, alpha), 4.0)
-	draw_line(torso + Vector2(34.0 + aim_ratio * 10.0, -18.0 - aim_ratio * 4.0), torso + Vector2(48.0 + aim_ratio * 16.0, -18.0 - aim_ratio * 6.0), Color(0.76, 0.88, 0.98, alpha), 2.0 + aim_ratio * 0.8)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - aim_ratio * 3.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.18, 0.18, 0.2, alpha), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), Color(0.16, 0.26, 0.32, alpha), true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 16.0, Color(0.72, 0.8, 0.72, alpha))
+	_draw_ink_line(torso + Vector2(10.0, -6.0), torso + Vector2(34.0 + aim_ratio * 10.0, -18.0 - aim_ratio * 4.0), Color(0.22, 0.22, 0.24, alpha), 4.0)
+	_draw_ink_line(torso + Vector2(34.0 + aim_ratio * 10.0, -18.0 - aim_ratio * 4.0), torso + Vector2(48.0 + aim_ratio * 16.0, -18.0 - aim_ratio * 6.0), Color(0.76, 0.88, 0.98, alpha), 2.0 + aim_ratio * 0.8)
 	draw_circle(torso + Vector2(-5.0, -31.0), 2.0, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(torso + Vector2(5.0, -31.0), 2.0, Color(0.08, 0.08, 0.08, alpha))
 	if float(zombie.get("revealed_timer", 0.0)) > 0.0:
-		draw_circle(torso + Vector2(0.0, -20.0), 26.0, Color(0.62, 0.9, 1.0, 0.12))
+		_draw_ink_disc(torso + Vector2(0.0, -20.0), 26.0, Color(0.62, 0.9, 1.0, 0.12))
 	if aim_active:
-		draw_circle(torso + Vector2(24.0, -20.0), 9.0 + aim_ratio * 4.0, Color(0.82, 0.96, 1.0, 0.12 + aim_ratio * 0.08))
+		_draw_ink_disc(torso + Vector2(24.0, -20.0), 9.0 + aim_ratio * 4.0, Color(0.82, 0.96, 1.0, 0.12 + aim_ratio * 0.08))
 
 
 func _draw_ice_block_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
 	var torso = center + Vector2(0.0, -2.0 - absf(sin(level_time * 2.4 + float(zombie.get("anim_phase", 0.0)))) * 2.0)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), Color(0.22, 0.42, 0.6), true)
-	draw_circle(torso + Vector2(0.0, -30.0), 16.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 40.0)), Color(0.22, 0.42, 0.6), true)
+	_draw_ink_disc(torso + Vector2(0.0, -30.0), 16.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0))
 	var ice_alpha = 0.86 if float(zombie.get("shield_health", 0.0)) > 0.0 else 0.28
-	draw_rect(Rect2(torso + Vector2(8.0, -36.0), Vector2(28.0, 28.0)), Color(0.76, 0.96, 1.0, ice_alpha), true)
-	draw_line(torso + Vector2(12.0, -28.0), torso + Vector2(30.0, -18.0), Color(1.0, 1.0, 1.0, ice_alpha * 0.6), 2.0)
-	draw_line(torso + Vector2(14.0, -12.0), torso + Vector2(28.0, -30.0), Color(0.64, 0.9, 1.0, ice_alpha * 0.6), 2.0)
+	_draw_ink_rect(Rect2(torso + Vector2(8.0, -36.0), Vector2(28.0, 28.0)), Color(0.76, 0.96, 1.0, ice_alpha), true)
+	_draw_ink_line(torso + Vector2(12.0, -28.0), torso + Vector2(30.0, -18.0), Color(1.0, 1.0, 1.0, ice_alpha * 0.6), 2.0)
+	_draw_ink_line(torso + Vector2(14.0, -12.0), torso + Vector2(28.0, -30.0), Color(0.64, 0.9, 1.0, ice_alpha * 0.6), 2.0)
 
 
 func _draw_squash_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -31894,12 +31060,12 @@ func _draw_squash_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var body = Color(0.56, 0.88, 0.24).lerp(Color(1.0, 1.0, 1.0), flash * 1.8)
 	var stem = Color(0.26, 0.56, 0.16)
 	var squash_offset = -6.0 if bool(zombie.get("squash_active", false)) else 0.0
-	draw_line(center + Vector2(-4.0, 12.0), center + Vector2(-8.0, 36.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_line(center + Vector2(6.0, 12.0), center + Vector2(10.0, 36.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_circle(center + Vector2(0.0, -4.0 + squash_offset), 24.0, body)
+	_draw_ink_line(center + Vector2(-4.0, 12.0), center + Vector2(-8.0, 36.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_line(center + Vector2(6.0, 12.0), center + Vector2(10.0, 36.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_disc(center + Vector2(0.0, -4.0 + squash_offset), 24.0, body)
 	draw_circle(center + Vector2(-12.0, -6.0 + squash_offset), 8.0, Color(0.7, 0.96, 0.3))
 	draw_circle(center + Vector2(12.0, -8.0 + squash_offset), 8.0, Color(0.7, 0.96, 0.3))
-	draw_line(center + Vector2(0.0, -30.0 + squash_offset), center + Vector2(6.0, -42.0 + squash_offset), stem, 4.0)
+	_draw_ink_line(center + Vector2(0.0, -30.0 + squash_offset), center + Vector2(6.0, -42.0 + squash_offset), stem, 4.0)
 	draw_circle(center + Vector2(-8.0, -8.0 + squash_offset), 2.6, Color.BLACK)
 	draw_circle(center + Vector2(8.0, -8.0 + squash_offset), 2.6, Color.BLACK)
 	draw_arc(center + Vector2(0.0, 8.0 + squash_offset), 9.0, 0.1, PI - 0.1, 12, Color.BLACK, 2.0)
@@ -31910,14 +31076,14 @@ func _draw_excavator_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var body = Color(0.94, 0.76, 0.2).lerp(Color(1.0, 1.0, 1.0), flash * 1.8)
 	var cabin = Color(0.28, 0.38, 0.44)
 	var scoop = sin(level_time * 2.6 + float(zombie.get("anim_phase", 0.0))) * 6.0
-	draw_rect(Rect2(center + Vector2(-34.0, -2.0), Vector2(68.0, 28.0)), body, true)
-	draw_rect(Rect2(center + Vector2(-12.0, -24.0), Vector2(26.0, 20.0)), cabin, true)
-	draw_circle(center + Vector2(-20.0, 22.0), 10.0, Color(0.18, 0.18, 0.18))
-	draw_circle(center + Vector2(18.0, 22.0), 10.0, Color(0.18, 0.18, 0.18))
-	draw_circle(center + Vector2(-2.0, -30.0), 10.0, Color(0.74, 0.82, 0.7))
-	draw_line(center + Vector2(14.0, -12.0), center + Vector2(34.0, -18.0 - scoop), body.darkened(0.2), 5.0)
-	draw_line(center + Vector2(34.0, -18.0 - scoop), center + Vector2(48.0, -4.0 - scoop * 0.6), body.darkened(0.24), 4.0)
-	draw_polygon(
+	_draw_ink_rect(Rect2(center + Vector2(-34.0, -2.0), Vector2(68.0, 28.0)), body, true)
+	_draw_ink_rect(Rect2(center + Vector2(-12.0, -24.0), Vector2(26.0, 20.0)), cabin, true)
+	_draw_ink_disc(center + Vector2(-20.0, 22.0), 10.0, Color(0.18, 0.18, 0.18))
+	_draw_ink_disc(center + Vector2(18.0, 22.0), 10.0, Color(0.18, 0.18, 0.18))
+	_draw_ink_disc(center + Vector2(-2.0, -30.0), 10.0, Color(0.74, 0.82, 0.7))
+	_draw_ink_line(center + Vector2(14.0, -12.0), center + Vector2(34.0, -18.0 - scoop), body.darkened(0.2), 5.0)
+	_draw_ink_line(center + Vector2(34.0, -18.0 - scoop), center + Vector2(48.0, -4.0 - scoop * 0.6), body.darkened(0.24), 4.0)
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(48.0, -4.0 - scoop * 0.6),
 			center + Vector2(64.0, -2.0 - scoop * 0.6),
@@ -31930,14 +31096,14 @@ func _draw_excavator_zombie(center: Vector2, zombie: Dictionary) -> void:
 func _draw_barrel_screen_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
 	var torso = center + Vector2(0.0, -4.0)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), Color(0.28, 0.44, 0.62).lerp(Color(1.0, 1.0, 1.0), flash * 1.6), true)
-	draw_circle(torso + Vector2(0.0, -28.0), 16.0, Color(0.74, 0.82, 0.7))
-	draw_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(30.0, 48.0)), Color(0.44, 0.56, 0.66, 0.92), true)
-	draw_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(30.0, 48.0)), Color(0.24, 0.28, 0.34), false, 2.0)
-	draw_rect(Rect2(torso + Vector2(-18.0, -54.0), Vector2(36.0, 24.0)), Color(0.62, 0.62, 0.66), true)
-	draw_rect(Rect2(torso + Vector2(-22.0, -60.0), Vector2(44.0, 8.0)), Color(0.72, 0.72, 0.76), true)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), Color(0.28, 0.44, 0.62).lerp(Color(1.0, 1.0, 1.0), flash * 1.6), true)
+	_draw_ink_disc(torso + Vector2(0.0, -28.0), 16.0, Color(0.74, 0.82, 0.7))
+	_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(30.0, 48.0)), Color(0.44, 0.56, 0.66, 0.92), true)
+	_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(30.0, 48.0)), Color(0.24, 0.28, 0.34), false, 2.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-18.0, -54.0), Vector2(36.0, 24.0)), Color(0.62, 0.62, 0.66), true)
+	_draw_ink_rect(Rect2(torso + Vector2(-22.0, -60.0), Vector2(44.0, 8.0)), Color(0.72, 0.72, 0.76), true)
 
 
 func _draw_tornado_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -31947,17 +31113,17 @@ func _draw_tornado_zombie(center: Vector2, zombie: Dictionary) -> void:
 	for ring_index in range(4):
 		var ring_radius = 16.0 + ring_index * 8.0
 		draw_arc(center + Vector2(0.0, 18.0 - ring_index * 10.0), ring_radius, phase + ring_index * 0.3, phase + ring_index * 0.3 + PI * 1.25, 20, Color(0.82, 0.94, 1.0, 0.5 - ring_index * 0.08), 2.0)
-	draw_circle(center + Vector2(0.0, -28.0), 14.0, skin)
-	draw_rect(Rect2(center + Vector2(-12.0, -12.0), Vector2(24.0, 26.0)), Color(0.52, 0.58, 0.64, 0.84), true)
+	_draw_ink_disc(center + Vector2(0.0, -28.0), 14.0, skin)
+	_draw_ink_rect(Rect2(center + Vector2(-12.0, -12.0), Vector2(24.0, 26.0)), Color(0.52, 0.58, 0.64, 0.84), true)
 
 
 func _draw_wolf_knight_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
 	var mounted = bool(zombie.get("mounted", false))
 	if mounted:
-		draw_circle(center + Vector2(0.0, 12.0), 22.0, Color(0.42, 0.42, 0.44))
-		draw_circle(center + Vector2(20.0, 2.0), 14.0, Color(0.42, 0.42, 0.44))
-		draw_polygon(
+		_draw_ink_disc(center + Vector2(0.0, 12.0), 22.0, Color(0.42, 0.42, 0.44))
+		_draw_ink_disc(center + Vector2(20.0, 2.0), 14.0, Color(0.42, 0.42, 0.44))
+		_draw_ink_polygon(
 			PackedVector2Array([
 				center + Vector2(24.0, -8.0),
 				center + Vector2(32.0, -20.0),
@@ -31965,21 +31131,21 @@ func _draw_wolf_knight_zombie(center: Vector2, zombie: Dictionary) -> void:
 			]),
 			PackedColorArray([Color(0.28, 0.28, 0.3), Color(0.28, 0.28, 0.3), Color(0.28, 0.28, 0.3)])
 		)
-		draw_line(center + Vector2(-12.0, 24.0), center + Vector2(-20.0, 40.0), Color(0.18, 0.18, 0.18), 4.0)
-		draw_line(center + Vector2(6.0, 24.0), center + Vector2(0.0, 40.0), Color(0.18, 0.18, 0.18), 4.0)
-		draw_line(center + Vector2(24.0, 20.0), center + Vector2(18.0, 40.0), Color(0.18, 0.18, 0.18), 4.0)
-		draw_circle(center + Vector2(-2.0, -20.0), 12.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.6))
-		draw_rect(Rect2(center + Vector2(-12.0, -10.0), Vector2(24.0, 18.0)), Color(0.56, 0.2, 0.16), true)
-		draw_rect(Rect2(center + Vector2(-14.0, -34.0), Vector2(28.0, 10.0)), Color(0.66, 0.66, 0.72), true)
+		_draw_ink_line(center + Vector2(-12.0, 24.0), center + Vector2(-20.0, 40.0), Color(0.18, 0.18, 0.18), 4.0)
+		_draw_ink_line(center + Vector2(6.0, 24.0), center + Vector2(0.0, 40.0), Color(0.18, 0.18, 0.18), 4.0)
+		_draw_ink_line(center + Vector2(24.0, 20.0), center + Vector2(18.0, 40.0), Color(0.18, 0.18, 0.18), 4.0)
+		_draw_ink_disc(center + Vector2(-2.0, -20.0), 12.0, Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 1.6))
+		_draw_ink_rect(Rect2(center + Vector2(-12.0, -10.0), Vector2(24.0, 18.0)), Color(0.56, 0.2, 0.16), true)
+		_draw_ink_rect(Rect2(center + Vector2(-14.0, -34.0), Vector2(28.0, 10.0)), Color(0.66, 0.66, 0.72), true)
 	else:
-		draw_line(center + Vector2(-8.0, 24.0), center + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-		draw_line(center + Vector2(8.0, 24.0), center + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-		draw_rect(Rect2(center + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), Color(0.56, 0.2, 0.16).lerp(Color(1.0, 1.0, 1.0), flash * 1.6), true)
-		draw_circle(center + Vector2(0.0, -28.0), 16.0, Color(0.74, 0.82, 0.7))
+		_draw_ink_line(center + Vector2(-8.0, 24.0), center + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+		_draw_ink_line(center + Vector2(8.0, 24.0), center + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+		_draw_ink_rect(Rect2(center + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), Color(0.56, 0.2, 0.16).lerp(Color(1.0, 1.0, 1.0), flash * 1.6), true)
+		_draw_ink_disc(center + Vector2(0.0, -28.0), 16.0, Color(0.74, 0.82, 0.7))
 		var wolf_offset = float(zombie.get("wolf_escape_offset", 0.0))
 		if wolf_offset > 0.0:
-			draw_circle(center + Vector2(24.0 + wolf_offset, 14.0), 14.0, Color(0.42, 0.42, 0.44, 0.72))
-			draw_circle(center + Vector2(38.0 + wolf_offset, 8.0), 10.0, Color(0.42, 0.42, 0.44, 0.72))
+			_draw_ink_disc(center + Vector2(24.0 + wolf_offset, 14.0), 14.0, Color(0.42, 0.42, 0.44, 0.72))
+			_draw_ink_disc(center + Vector2(38.0 + wolf_offset, 8.0), 10.0, Color(0.42, 0.42, 0.44, 0.72))
 
 
 func _draw_dragon_dance_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -31988,12 +31154,12 @@ func _draw_dragon_dance_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var torso = center + Vector2(0.0, -absf(sin(phase * 0.5)) * 2.0)
 	for segment in range(4):
 		var segment_center = torso + Vector2(-18.0 + float(segment) * 16.0, -10.0 + sin(phase + float(segment) * 0.7) * 5.0)
-		draw_circle(segment_center, 11.0 - float(segment), Color(0.92, 0.12, 0.08, 0.9))
+		_draw_ink_disc(segment_center, 11.0 - float(segment), Color(0.92, 0.12, 0.08, 0.9))
 		draw_circle(segment_center, 6.0 - float(segment) * 0.4, Color(0.98, 0.74, 0.16, 0.82))
-	draw_rect(Rect2(torso + Vector2(-12.0, 4.0), Vector2(26.0, 28.0)), Color(0.54, 0.12, 0.08).lerp(Color(1.0, 1.0, 1.0), flash * 1.6), true)
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	draw_circle(torso + Vector2(18.0, -16.0), 12.0, Color(0.98, 0.28, 0.12))
+	_draw_ink_rect(Rect2(torso + Vector2(-12.0, 4.0), Vector2(26.0, 28.0)), Color(0.54, 0.12, 0.08).lerp(Color(1.0, 1.0, 1.0), flash * 1.6), true)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_disc(torso + Vector2(18.0, -16.0), 12.0, Color(0.98, 0.28, 0.12))
 	draw_circle(torso + Vector2(22.0, -18.0), 2.4, Color.BLACK)
 
 
@@ -32191,9 +31357,6 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie["flash"])
 	var slow_tint = 0.55 if float(zombie["slow_timer"]) > 0.0 else 0.0
 	var kind = String(zombie["kind"])
-	if UNIFIED_COMBAT_VISUALS:
-		_draw_unified_zombie(center, zombie)
-		return
 	if bool(Defs.ZOMBIES.get(kind, {}).get("volcano_expansion", false)):
 		_ensure_volcano_expansion().draw_zombie(center, zombie)
 		return
@@ -32421,7 +31584,7 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var head_bob = absf(step) * 2.6
 	var torso = center + Vector2(impact_ratio * 8.0, -head_bob - bite_ratio * 3.0)
 	if bool(zombie.get("plant_food_carrier", false)):
-		draw_circle(torso + Vector2(0.0, -24.0), 30.0, Color(0.18, 0.92, 0.26, 0.16))
+		_draw_ink_disc(torso + Vector2(0.0, -24.0), 30.0, Color(0.18, 0.92, 0.26, 0.16))
 	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0).lerp(Color(0.64, 0.84, 1.0), slow_tint)
 	var shirt_base = Color(0.26, 0.39, 0.67)
 	var pants_base = Color(0.22, 0.22, 0.24)
@@ -32512,48 +31675,49 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	# Shadow under zombie
 	_draw_ground_shadow(torso, 14.0, 1.0, 46.0)
 	# Legs with shoes
-	draw_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 + leg_swing, 42.0), Color(0.2, 0.2, 0.2), 4.0)
-	draw_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 - leg_swing, 42.0), Color(0.2, 0.2, 0.2), 4.0)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 + leg_swing, 42.0), Color(0.2, 0.2, 0.2), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 - leg_swing, 42.0), Color(0.2, 0.2, 0.2), 4.0)
 	draw_circle(torso + Vector2(-14.0 + leg_swing, 43.0), 3.0, Color(0.16, 0.14, 0.12))
 	draw_circle(torso + Vector2(14.0 - leg_swing, 43.0), 3.0, Color(0.16, 0.14, 0.12))
 	# Shirt body with gradient effect
-	draw_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), shirt, true)
-	draw_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 12.0)), shirt.lightened(0.06), true)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), shirt, true)
+	draw_rect(Rect2(torso + Vector2(-14.0, -8.0), Vector2(28.0, 9.0)), shirt.lightened(0.09), true)
 	# Pants
-	draw_rect(Rect2(torso + Vector2(-15.0, 16.0), Vector2(30.0, 12.0)), pants, true)
+	_draw_ink_rect(Rect2(torso + Vector2(-15.0, 16.0), Vector2(30.0, 12.0)), pants, true)
 	# Belt
-	draw_rect(Rect2(torso + Vector2(-15.0, 14.0), Vector2(30.0, 4.0)), Color(0.18, 0.16, 0.12), true)
+	_draw_ink_rect(Rect2(torso + Vector2(-15.0, 14.0), Vector2(30.0, 4.0)), Color(0.18, 0.16, 0.12), true)
 	# Arms
-	draw_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0 - arm_swing - bite_ratio * 4.0, 8.0 + arm_swing * 0.25 - bite_ratio * 6.0), Color(0.54, 0.62, 0.52), 4.0)
-	draw_line(torso + Vector2(10.0, 0.0), torso + Vector2(24.0 + arm_swing + bite_ratio * 14.0, 8.0 - arm_swing * 0.25 + bite_ratio * 6.0), Color(0.54, 0.62, 0.52), 4.0)
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0 - arm_swing - bite_ratio * 4.0, 8.0 + arm_swing * 0.25 - bite_ratio * 6.0), Color(0.54, 0.62, 0.52), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(24.0 + arm_swing + bite_ratio * 14.0, 8.0 - arm_swing * 0.25 + bite_ratio * 6.0), Color(0.54, 0.62, 0.52), 4.0)
 	# Hands
 	draw_circle(torso + Vector2(-24.0 - arm_swing - bite_ratio * 4.0, 8.0 + arm_swing * 0.25 - bite_ratio * 6.0), 3.0, Color(0.52, 0.6, 0.5))
 	draw_circle(torso + Vector2(24.0 + arm_swing + bite_ratio * 14.0, 8.0 - arm_swing * 0.25 + bite_ratio * 6.0), 3.0, Color(0.52, 0.6, 0.5))
 	# Head
-	draw_circle(torso + Vector2(0.0, -28.0), 17.0, skin)
+	_draw_ink_disc(torso + Vector2(0.0, -28.0), 17.0, skin)
 	# Head highlight
 	draw_circle(torso + Vector2(-4.0, -34.0), 6.0, skin.lightened(0.08))
 	# Eyes
-	draw_circle(torso + Vector2(-6.0, -30.0), 2.8, Color(0.96, 0.96, 0.86))
-	draw_circle(torso + Vector2(6.0, -30.0), 2.8, Color(0.96, 0.96, 0.86))
-	draw_circle(torso + Vector2(-6.0, -30.0), 1.6, Color.BLACK)
-	draw_circle(torso + Vector2(6.0, -30.0), 1.6, Color.BLACK)
+	draw_circle(torso + Vector2(-6.0, -30.0), 5.2, Color("#f8f5dd"), true, -1.0, true)
+	draw_circle(torso + Vector2(6.0, -30.0), 4.8, Color("#f8f5dd"), true, -1.0, true)
+	draw_circle(torso + Vector2(-7.5, -29.0), 2.2, Color("#213b3a"), true, -1.0, true)
+	draw_circle(torso + Vector2(4.5, -29.0), 2.0, Color("#213b3a"), true, -1.0, true)
 	# Mouth
-	draw_line(torso + Vector2(-3.0, -18.0), torso + Vector2(3.0, -18.0), Color(0.16, 0.16, 0.16), 2.0)
+	draw_line(torso + Vector2(-9.0, -18.0), torso + Vector2(5.0, -17.0), Color("#213b3a"), 2.5, true)
+	draw_rect(Rect2(torso + Vector2(-3.0, -19.0), Vector2(3.5, 4.0)), Color("#f8f5dd"))
 
 	match kind:
 		"normal":
 			# Tie
-			draw_line(torso + Vector2(0.0, -10.0), torso + Vector2(0.0, 24.0), Color(0.82, 0.12, 0.12), 2.5)
-			draw_polygon(PackedVector2Array([torso + Vector2(-4.0, 8.0), torso + Vector2(4.0, 8.0), torso + Vector2(0.0, 16.0)]), PackedColorArray([Color(0.82, 0.12, 0.12), Color(0.82, 0.12, 0.12), Color(0.82, 0.12, 0.12)]))
+			_draw_ink_line(torso + Vector2(0.0, -10.0), torso + Vector2(0.0, 24.0), Color(0.82, 0.12, 0.12), 2.5)
+			_draw_ink_polygon(PackedVector2Array([torso + Vector2(-4.0, 8.0), torso + Vector2(4.0, 8.0), torso + Vector2(0.0, 16.0)]), PackedColorArray([Color(0.82, 0.12, 0.12), Color(0.82, 0.12, 0.12), Color(0.82, 0.12, 0.12)]))
 			# Hair
-			draw_line(torso + Vector2(0.0, -42.0), torso + Vector2(4.0, -50.0), Color(0.16, 0.14, 0.1), 3.0)
-			draw_line(torso + Vector2(-4.0, -42.0), torso + Vector2(-8.0, -48.0), Color(0.16, 0.14, 0.1), 2.5)
-			draw_line(torso + Vector2(4.0, -42.0), torso + Vector2(10.0, -48.0), Color(0.16, 0.14, 0.1), 2.0)
+			_draw_ink_line(torso + Vector2(0.0, -42.0), torso + Vector2(4.0, -50.0), Color(0.16, 0.14, 0.1), 3.0)
+			_draw_ink_line(torso + Vector2(-4.0, -42.0), torso + Vector2(-8.0, -48.0), Color(0.16, 0.14, 0.1), 2.5)
+			_draw_ink_line(torso + Vector2(4.0, -42.0), torso + Vector2(10.0, -48.0), Color(0.16, 0.14, 0.1), 2.0)
 		"flag":
-			draw_line(torso + Vector2(0.0, -10.0), torso + Vector2(0.0, 24.0), Color(1.0, 0.94, 0.82), 2.0)
-			draw_line(torso + Vector2(18.0, -8.0), torso + Vector2(18.0, -50.0), Color(0.24, 0.24, 0.24), 3.0)
-			draw_polygon(
+			_draw_ink_line(torso + Vector2(0.0, -10.0), torso + Vector2(0.0, 24.0), Color(1.0, 0.94, 0.82), 2.0)
+			_draw_ink_line(torso + Vector2(18.0, -8.0), torso + Vector2(18.0, -50.0), Color(0.24, 0.24, 0.24), 3.0)
+			_draw_ink_polygon(
 				PackedVector2Array([
 					torso + Vector2(18.0, -48.0),
 					torso + Vector2(42.0, -40.0),
@@ -32567,7 +31731,7 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 			)
 		"conehead":
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				draw_polygon(
+				_draw_ink_polygon(
 					PackedVector2Array([
 						torso + Vector2(0.0, -58.0),
 						torso + Vector2(-13.0, -34.0),
@@ -32579,7 +31743,7 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 						Color(0.84, 0.44, 0.1),
 					])
 				)
-				draw_polygon(
+				_draw_ink_polygon(
 					PackedVector2Array([
 						torso + Vector2(0.0, -58.0),
 						torso + Vector2(-4.0, -42.0),
@@ -32593,108 +31757,108 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 				)
 		"buckethead":
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				draw_rect(Rect2(torso + Vector2(-15.0, -48.0), Vector2(30.0, 18.0)), Color(0.56, 0.56, 0.6), true)
-				draw_rect(Rect2(torso + Vector2(-13.0, -46.0), Vector2(26.0, 6.0)), Color(0.72, 0.72, 0.76), true)
-				draw_rect(Rect2(torso + Vector2(-17.0, -52.0), Vector2(34.0, 6.0)), Color(0.66, 0.66, 0.7), true)
+				_draw_ink_rect(Rect2(torso + Vector2(-15.0, -48.0), Vector2(30.0, 18.0)), Color(0.56, 0.56, 0.6), true)
+				_draw_ink_rect(Rect2(torso + Vector2(-13.0, -46.0), Vector2(26.0, 6.0)), Color(0.72, 0.72, 0.76), true)
+				_draw_ink_rect(Rect2(torso + Vector2(-17.0, -52.0), Vector2(34.0, 6.0)), Color(0.66, 0.66, 0.7), true)
 		"pole_vault":
-			draw_line(torso + Vector2(-10.0, -46.0), torso + Vector2(10.0, -46.0), Color(0.96, 0.96, 0.98), 4.0)
-			draw_rect(Rect2(torso + Vector2(-12.0, -4.0), Vector2(24.0, 10.0)), Color(0.96, 0.96, 0.98), true)
+			_draw_ink_line(torso + Vector2(-10.0, -46.0), torso + Vector2(10.0, -46.0), Color(0.96, 0.96, 0.98), 4.0)
+			_draw_ink_rect(Rect2(torso + Vector2(-12.0, -4.0), Vector2(24.0, 10.0)), Color(0.96, 0.96, 0.98), true)
 			if not bool(zombie.get("has_vaulted", true)) or bool(zombie.get("jumping", false)):
-				draw_line(torso + Vector2(-28.0, -42.0), torso + Vector2(34.0, -60.0), Color(0.54, 0.38, 0.18), 4.0)
+				_draw_ink_line(torso + Vector2(-28.0, -42.0), torso + Vector2(34.0, -60.0), Color(0.54, 0.38, 0.18), 4.0)
 		"newspaper":
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				draw_rect(Rect2(torso + Vector2(8.0, -30.0), Vector2(24.0, 34.0)), Color(0.9, 0.9, 0.9), true)
-				draw_rect(Rect2(torso + Vector2(10.0, -28.0), Vector2(20.0, 30.0)), Color(1.0, 1.0, 1.0), true)
+				_draw_ink_rect(Rect2(torso + Vector2(8.0, -30.0), Vector2(24.0, 34.0)), Color(0.9, 0.9, 0.9), true)
+				_draw_ink_rect(Rect2(torso + Vector2(10.0, -28.0), Vector2(20.0, 30.0)), Color(1.0, 1.0, 1.0), true)
 				for line_y in range(4):
-					draw_line(torso + Vector2(12.0, -22.0 + line_y * 7.0), torso + Vector2(28.0, -22.0 + line_y * 7.0), Color(0.38, 0.38, 0.38), 1.0)
+					_draw_ink_line(torso + Vector2(12.0, -22.0 + line_y * 7.0), torso + Vector2(28.0, -22.0 + line_y * 7.0), Color(0.38, 0.38, 0.38), 1.0)
 			else:
-				draw_line(torso + Vector2(-8.0, -38.0), torso + Vector2(-2.0, -34.0), Color(0.22, 0.12, 0.08), 3.0)
-				draw_line(torso + Vector2(2.0, -38.0), torso + Vector2(8.0, -34.0), Color(0.22, 0.12, 0.08), 3.0)
+				_draw_ink_line(torso + Vector2(-8.0, -38.0), torso + Vector2(-2.0, -34.0), Color(0.22, 0.12, 0.08), 3.0)
+				_draw_ink_line(torso + Vector2(2.0, -38.0), torso + Vector2(8.0, -34.0), Color(0.22, 0.12, 0.08), 3.0)
 				draw_arc(torso + Vector2(0.0, -18.0), 10.0, 0.0, PI, 12, Color(0.18, 0.06, 0.06), 2.0)
-			draw_rect(Rect2(torso + Vector2(-14.0, -12.0), Vector2(28.0, 14.0)), Color(0.42, 0.42, 0.46), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-14.0, -12.0), Vector2(28.0, 14.0)), Color(0.42, 0.42, 0.46), true)
 		"screen_door":
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				draw_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 48.0)), Color(0.46, 0.58, 0.68, 0.92), true)
+				_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 48.0)), Color(0.46, 0.58, 0.68, 0.92), true)
 				for grid_x in range(3):
-					draw_line(torso + Vector2(12.0 + grid_x * 8.0, -16.0), torso + Vector2(12.0 + grid_x * 8.0, 28.0), Color(0.82, 0.9, 0.96), 1.0)
+					_draw_ink_line(torso + Vector2(12.0 + grid_x * 8.0, -16.0), torso + Vector2(12.0 + grid_x * 8.0, 28.0), Color(0.82, 0.9, 0.96), 1.0)
 				for grid_y in range(5):
-					draw_line(torso + Vector2(10.0, -14.0 + grid_y * 10.0), torso + Vector2(34.0, -14.0 + grid_y * 10.0), Color(0.82, 0.9, 0.96), 1.0)
-				draw_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 48.0)), Color(0.28, 0.34, 0.4), false, 2.0)
+					_draw_ink_line(torso + Vector2(10.0, -14.0 + grid_y * 10.0), torso + Vector2(34.0, -14.0 + grid_y * 10.0), Color(0.82, 0.9, 0.96), 1.0)
+				_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 48.0)), Color(0.28, 0.34, 0.4), false, 2.0)
 			else:
-				draw_line(torso + Vector2(10.0, -16.0), torso + Vector2(32.0, 26.0), Color(0.52, 0.56, 0.62), 3.0)
-				draw_line(torso + Vector2(30.0, -16.0), torso + Vector2(12.0, 26.0), Color(0.52, 0.56, 0.62), 3.0)
+				_draw_ink_line(torso + Vector2(10.0, -16.0), torso + Vector2(32.0, 26.0), Color(0.52, 0.56, 0.62), 3.0)
+				_draw_ink_line(torso + Vector2(30.0, -16.0), torso + Vector2(12.0, 26.0), Color(0.52, 0.56, 0.62), 3.0)
 		"football":
-			draw_rect(Rect2(torso + Vector2(-22.0, -16.0), Vector2(44.0, 16.0)), Color(0.96, 0.96, 0.98), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-22.0, -16.0), Vector2(44.0, 16.0)), Color(0.96, 0.96, 0.98), true)
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				draw_rect(Rect2(torso + Vector2(-16.0, -52.0), Vector2(32.0, 22.0)), Color(0.88, 0.12, 0.12), true)
-				draw_line(torso + Vector2(-10.0, -41.0), torso + Vector2(10.0, -41.0), Color(0.96, 0.96, 0.98), 3.0)
-				draw_line(torso + Vector2(0.0, -48.0), torso + Vector2(0.0, -30.0), Color(0.96, 0.96, 0.98), 3.0)
+				_draw_ink_rect(Rect2(torso + Vector2(-16.0, -52.0), Vector2(32.0, 22.0)), Color(0.88, 0.12, 0.12), true)
+				_draw_ink_line(torso + Vector2(-10.0, -41.0), torso + Vector2(10.0, -41.0), Color(0.96, 0.96, 0.98), 3.0)
+				_draw_ink_line(torso + Vector2(0.0, -48.0), torso + Vector2(0.0, -30.0), Color(0.96, 0.96, 0.98), 3.0)
 		"dark_football":
-			draw_rect(Rect2(torso + Vector2(-22.0, -16.0), Vector2(44.0, 16.0)), Color(0.96, 0.96, 0.98), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-22.0, -16.0), Vector2(44.0, 16.0)), Color(0.96, 0.96, 0.98), true)
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				draw_rect(Rect2(torso + Vector2(-16.0, -52.0), Vector2(32.0, 22.0)), Color(0.08, 0.08, 0.1), true)
-				draw_line(torso + Vector2(-10.0, -41.0), torso + Vector2(10.0, -41.0), Color(0.42, 0.42, 0.46), 3.0)
-				draw_line(torso + Vector2(0.0, -48.0), torso + Vector2(0.0, -30.0), Color(0.42, 0.42, 0.46), 3.0)
+				_draw_ink_rect(Rect2(torso + Vector2(-16.0, -52.0), Vector2(32.0, 22.0)), Color(0.08, 0.08, 0.1), true)
+				_draw_ink_line(torso + Vector2(-10.0, -41.0), torso + Vector2(10.0, -41.0), Color(0.42, 0.42, 0.46), 3.0)
+				_draw_ink_line(torso + Vector2(0.0, -48.0), torso + Vector2(0.0, -30.0), Color(0.42, 0.42, 0.46), 3.0)
 		"dancing":
-			draw_circle(torso + Vector2(0.0, -42.0), 18.0, Color(0.12, 0.12, 0.12))
-			draw_rect(Rect2(torso + Vector2(-18.0, -18.0), Vector2(36.0, 10.0)), Color(0.98, 0.88, 0.18), true)
-			draw_line(torso + Vector2(-18.0, -4.0), torso + Vector2(-30.0, -14.0), Color(0.98, 0.88, 0.18), 3.0)
-			draw_line(torso + Vector2(18.0, -4.0), torso + Vector2(30.0, -14.0), Color(0.98, 0.88, 0.18), 3.0)
+			_draw_ink_disc(torso + Vector2(0.0, -42.0), 18.0, Color(0.12, 0.12, 0.12))
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -18.0), Vector2(36.0, 10.0)), Color(0.98, 0.88, 0.18), true)
+			_draw_ink_line(torso + Vector2(-18.0, -4.0), torso + Vector2(-30.0, -14.0), Color(0.98, 0.88, 0.18), 3.0)
+			_draw_ink_line(torso + Vector2(18.0, -4.0), torso + Vector2(30.0, -14.0), Color(0.98, 0.88, 0.18), 3.0)
 			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				draw_circle(torso + Vector2(0.0, -62.0), 14.0, Color(0.96, 0.24, 0.86, 0.18))
+				_draw_ink_disc(torso + Vector2(0.0, -62.0), 14.0, Color(0.96, 0.24, 0.86, 0.18))
 		"backup_dancer":
-			draw_circle(torso + Vector2(0.0, -42.0), 15.0, Color(0.14, 0.14, 0.16))
-			draw_rect(Rect2(torso + Vector2(-12.0, -10.0), Vector2(24.0, 36.0)), Color(0.94, 0.94, 0.96), true)
-			draw_line(torso + Vector2(0.0, -10.0), torso + Vector2(0.0, 24.0), Color(0.16, 0.16, 0.18), 2.0)
-			draw_line(torso + Vector2(-8.0, 0.0), torso + Vector2(-18.0, 10.0), Color(0.96, 0.96, 0.98), 3.0)
-			draw_line(torso + Vector2(8.0, 0.0), torso + Vector2(18.0, 10.0), Color(0.96, 0.96, 0.98), 3.0)
+			_draw_ink_disc(torso + Vector2(0.0, -42.0), 15.0, Color(0.14, 0.14, 0.16))
+			_draw_ink_rect(Rect2(torso + Vector2(-12.0, -10.0), Vector2(24.0, 36.0)), Color(0.94, 0.94, 0.96), true)
+			_draw_ink_line(torso + Vector2(0.0, -10.0), torso + Vector2(0.0, 24.0), Color(0.16, 0.16, 0.18), 2.0)
+			_draw_ink_line(torso + Vector2(-8.0, 0.0), torso + Vector2(-18.0, 10.0), Color(0.96, 0.96, 0.98), 3.0)
+			_draw_ink_line(torso + Vector2(8.0, 0.0), torso + Vector2(18.0, 10.0), Color(0.96, 0.96, 0.98), 3.0)
 		"ninja":
-			draw_rect(Rect2(torso + Vector2(-18.0, -16.0), Vector2(36.0, 44.0)), Color(0.1, 0.12, 0.16), true)
-			draw_rect(Rect2(torso + Vector2(-18.0, -52.0), Vector2(36.0, 10.0)), Color(0.04, 0.04, 0.06), true)
-			draw_rect(Rect2(torso + Vector2(-12.0, -34.0), Vector2(24.0, 6.0)), Color(0.78, 0.12, 0.12), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -16.0), Vector2(36.0, 44.0)), Color(0.1, 0.12, 0.16), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -52.0), Vector2(36.0, 10.0)), Color(0.04, 0.04, 0.06), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-12.0, -34.0), Vector2(24.0, 6.0)), Color(0.78, 0.12, 0.12), true)
 			if bool(zombie.get("ninja_dashed", false)):
-				draw_line(torso + Vector2(-26.0, -12.0), torso + Vector2(-40.0, -20.0), Color(0.8, 0.8, 0.88, 0.46), 3.0)
-				draw_line(torso + Vector2(-18.0, 8.0), torso + Vector2(-36.0, 10.0), Color(0.8, 0.8, 0.88, 0.36), 3.0)
+				_draw_ink_line(torso + Vector2(-26.0, -12.0), torso + Vector2(-40.0, -20.0), Color(0.8, 0.8, 0.88, 0.46), 3.0)
+				_draw_ink_line(torso + Vector2(-18.0, 8.0), torso + Vector2(-36.0, 10.0), Color(0.8, 0.8, 0.88, 0.36), 3.0)
 		"basketball":
-			draw_rect(Rect2(torso + Vector2(-18.0, -16.0), Vector2(36.0, 44.0)), Color(0.96, 0.52, 0.14), true)
-			draw_rect(Rect2(torso + Vector2(-14.0, -52.0), Vector2(28.0, 14.0)), Color(0.22, 0.22, 0.24), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -16.0), Vector2(36.0, 44.0)), Color(0.96, 0.52, 0.14), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-14.0, -52.0), Vector2(28.0, 14.0)), Color(0.22, 0.22, 0.24), true)
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
 				var orbit = level_time * 4.6 + phase
 				for orb_index in range(2):
 					var angle = orbit + float(orb_index) * PI
 					var orb_center = torso + Vector2(cos(angle) * 18.0, -6.0 + sin(angle) * 12.0)
-					draw_circle(orb_center, 9.0, Color(0.92, 0.54, 0.16))
+					_draw_ink_disc(orb_center, 9.0, Color(0.92, 0.54, 0.16))
 					draw_arc(orb_center, 7.0, 0.0, TAU, 12, Color(0.24, 0.16, 0.08), 1.0)
 		"balloon_zombie":
 			if bool(zombie.get("balloon_flying", false)):
 				var balloon_center = torso + Vector2(18.0, -90.0)
-				draw_line(torso + Vector2(10.0, -36.0), balloon_center + Vector2(-2.0, 18.0), Color(0.82, 0.82, 0.86), 2.0)
-				draw_circle(balloon_center, 20.0, Color(0.92, 0.24, 0.28))
+				_draw_ink_line(torso + Vector2(10.0, -36.0), balloon_center + Vector2(-2.0, 18.0), Color(0.82, 0.82, 0.86), 2.0)
+				_draw_ink_disc(balloon_center, 20.0, Color(0.92, 0.24, 0.28))
 				draw_circle(balloon_center + Vector2(-6.0, -6.0), 6.0, Color(1.0, 0.74, 0.76, 0.36))
 			else:
 				draw_arc(torso + Vector2(10.0, -52.0), 10.0, -0.6, 0.8, 12, Color(0.92, 0.24, 0.28, 0.42), 2.0)
 				draw_arc(torso + Vector2(20.0, -44.0), 6.0, -0.8, 1.0, 12, Color(0.92, 0.24, 0.28, 0.32), 2.0)
 		"digger_zombie":
-			draw_rect(Rect2(torso + Vector2(-16.0, -54.0), Vector2(32.0, 14.0)), Color(0.92, 0.78, 0.22), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-16.0, -54.0), Vector2(32.0, 14.0)), Color(0.92, 0.78, 0.22), true)
 			draw_circle(torso + Vector2(0.0, -40.0), 6.0, Color(1.0, 0.96, 0.6, 0.34))
-			draw_line(torso + Vector2(18.0, -10.0), torso + Vector2(32.0, -34.0), Color(0.52, 0.36, 0.18), 3.0)
-			draw_line(torso + Vector2(30.0, -36.0), torso + Vector2(38.0, -24.0), Color(0.72, 0.72, 0.76), 3.0)
+			_draw_ink_line(torso + Vector2(18.0, -10.0), torso + Vector2(32.0, -34.0), Color(0.52, 0.36, 0.18), 3.0)
+			_draw_ink_line(torso + Vector2(30.0, -36.0), torso + Vector2(38.0, -24.0), Color(0.72, 0.72, 0.76), 3.0)
 			if bool(zombie.get("digger_tunneling", false)):
-				draw_rect(Rect2(torso + Vector2(-28.0, 2.0), Vector2(56.0, 28.0)), Color(0.48, 0.34, 0.18, 0.72), true)
-				draw_circle(torso + Vector2(-20.0, 8.0), 10.0, Color(0.52, 0.38, 0.22, 0.84))
-				draw_circle(torso + Vector2(18.0, 10.0), 12.0, Color(0.46, 0.32, 0.18, 0.84))
+				_draw_ink_rect(Rect2(torso + Vector2(-28.0, 2.0), Vector2(56.0, 28.0)), Color(0.48, 0.34, 0.18, 0.72), true)
+				_draw_ink_disc(torso + Vector2(-20.0, 8.0), 10.0, Color(0.52, 0.38, 0.22, 0.84))
+				_draw_ink_disc(torso + Vector2(18.0, 10.0), 12.0, Color(0.46, 0.32, 0.18, 0.84))
 		"pogo_zombie":
 			if bool(zombie.get("pogo_active", false)):
-				draw_line(torso + Vector2(0.0, 8.0), torso + Vector2(0.0, 58.0), Color(0.82, 0.82, 0.88), 4.0)
+				_draw_ink_line(torso + Vector2(0.0, 8.0), torso + Vector2(0.0, 58.0), Color(0.82, 0.82, 0.88), 4.0)
 				draw_arc(torso + Vector2(0.0, 58.0), 12.0, 0.2, PI - 0.2, 14, Color(0.88, 0.24, 0.24), 4.0)
-			draw_rect(Rect2(torso + Vector2(-14.0, -52.0), Vector2(28.0, 10.0)), Color(0.24, 0.24, 0.28), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-14.0, -52.0), Vector2(28.0, 10.0)), Color(0.24, 0.24, 0.28), true)
 			draw_circle(torso + Vector2(-12.0, 16.0), 5.0, Color(0.88, 0.88, 0.92))
 			draw_circle(torso + Vector2(12.0, 16.0), 5.0, Color(0.88, 0.88, 0.92))
 		"jack_in_the_box_zombie":
-			draw_rect(Rect2(torso + Vector2(-16.0, -18.0), Vector2(32.0, 22.0)), Color(0.92, 0.62, 0.18), true)
-			draw_line(torso + Vector2(-16.0, -8.0), torso + Vector2(16.0, -8.0), Color(0.54, 0.24, 0.08), 2.0)
-			draw_line(torso + Vector2(0.0, -18.0), torso + Vector2(0.0, 4.0), Color(0.54, 0.24, 0.08), 2.0)
-			draw_circle(torso + Vector2(0.0, -58.0), 14.0, Color(0.96, 0.94, 0.92))
+			_draw_ink_rect(Rect2(torso + Vector2(-16.0, -18.0), Vector2(32.0, 22.0)), Color(0.92, 0.62, 0.18), true)
+			_draw_ink_line(torso + Vector2(-16.0, -8.0), torso + Vector2(16.0, -8.0), Color(0.54, 0.24, 0.08), 2.0)
+			_draw_ink_line(torso + Vector2(0.0, -18.0), torso + Vector2(0.0, 4.0), Color(0.54, 0.24, 0.08), 2.0)
+			_draw_ink_disc(torso + Vector2(0.0, -58.0), 14.0, Color(0.96, 0.94, 0.92))
 			draw_circle(torso + Vector2(-6.0, -60.0), 2.2, Color(0.08, 0.08, 0.08))
 			draw_circle(torso + Vector2(6.0, -60.0), 2.2, Color(0.08, 0.08, 0.08))
 			draw_arc(torso + Vector2(0.0, -52.0), 6.0, 0.2, PI - 0.2, 12, Color(0.18, 0.08, 0.08), 2.0)
@@ -32707,13 +31871,13 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 				ring_color = Color(0.98, 0.72, 0.18, 0.94)
 			elif kind == "lifebuoy_bucket":
 				ring_color = Color(0.78, 0.82, 0.9, 0.94)
-			draw_circle(torso + Vector2(0.0, 14.0), 18.0, ring_color)
-			draw_circle(torso + Vector2(0.0, 14.0), 10.0, Color(0.18, 0.36, 0.52, 0.9))
-			draw_rect(Rect2(torso + Vector2(-10.0, -44.0), Vector2(20.0, 6.0)), Color(0.18, 0.18, 0.22), true)
+			_draw_ink_disc(torso + Vector2(0.0, 14.0), 18.0, ring_color)
+			_draw_ink_disc(torso + Vector2(0.0, 14.0), 10.0, Color(0.18, 0.36, 0.52, 0.9))
+			_draw_ink_rect(Rect2(torso + Vector2(-10.0, -44.0), Vector2(20.0, 6.0)), Color(0.18, 0.18, 0.22), true)
 			draw_circle(torso + Vector2(-6.0, -41.0), 4.0, Color(0.62, 0.88, 0.96))
 			draw_circle(torso + Vector2(6.0, -41.0), 4.0, Color(0.62, 0.88, 0.96))
 			if kind == "lifebuoy_cone":
-				draw_polygon(
+				_draw_ink_polygon(
 					PackedVector2Array([
 						torso + Vector2(0.0, -62.0),
 						torso + Vector2(-16.0, -10.0),
@@ -32726,21 +31890,21 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 					])
 				)
 			elif kind == "lifebuoy_bucket":
-				draw_rect(Rect2(torso + Vector2(-17.0, -54.0), Vector2(34.0, 24.0)), Color(0.62, 0.62, 0.66), true)
-				draw_rect(Rect2(torso + Vector2(-20.0, -60.0), Vector2(40.0, 8.0)), Color(0.72, 0.72, 0.76), true)
+				_draw_ink_rect(Rect2(torso + Vector2(-17.0, -54.0), Vector2(34.0, 24.0)), Color(0.62, 0.62, 0.66), true)
+				_draw_ink_rect(Rect2(torso + Vector2(-20.0, -60.0), Vector2(40.0, 8.0)), Color(0.72, 0.72, 0.76), true)
 		"snorkel":
 			if bool(zombie.get("submerged", false)):
-				draw_rect(Rect2(torso + Vector2(-26.0, -4.0), Vector2(52.0, 32.0)), Color(0.16, 0.52, 0.76, 0.22), true)
-			draw_rect(Rect2(torso + Vector2(-10.0, -42.0), Vector2(20.0, 8.0)), Color(0.16, 0.2, 0.24), true)
-			draw_line(torso + Vector2(8.0, -42.0), torso + Vector2(18.0, -62.0), Color(0.94, 0.76, 0.18), 3.0)
-			draw_line(torso + Vector2(18.0, -62.0), torso + Vector2(10.0, -70.0), Color(0.94, 0.76, 0.18), 3.0)
+				_draw_ink_rect(Rect2(torso + Vector2(-26.0, -4.0), Vector2(52.0, 32.0)), Color(0.16, 0.52, 0.76, 0.22), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-10.0, -42.0), Vector2(20.0, 8.0)), Color(0.16, 0.2, 0.24), true)
+			_draw_ink_line(torso + Vector2(8.0, -42.0), torso + Vector2(18.0, -62.0), Color(0.94, 0.76, 0.18), 3.0)
+			_draw_ink_line(torso + Vector2(18.0, -62.0), torso + Vector2(10.0, -70.0), Color(0.94, 0.76, 0.18), 3.0)
 		"dolphin_rider":
-			draw_circle(torso + Vector2(0.0, -48.0), 13.0, Color(0.18, 0.64, 0.8))
+			_draw_ink_disc(torso + Vector2(0.0, -48.0), 13.0, Color(0.18, 0.64, 0.8))
 			draw_arc(torso + Vector2(0.0, -58.0), 8.0, PI, TAU, 10, Color(0.92, 0.94, 0.98), 3.0)
 			if not bool(zombie.get("has_vaulted", true)) or bool(zombie.get("jumping", false)):
-				draw_circle(torso + Vector2(2.0, 28.0), 16.0, Color(0.54, 0.82, 0.94))
-				draw_circle(torso + Vector2(18.0, 26.0), 10.0, Color(0.54, 0.82, 0.94))
-				draw_polygon(
+				_draw_ink_disc(torso + Vector2(2.0, 28.0), 16.0, Color(0.54, 0.82, 0.94))
+				_draw_ink_disc(torso + Vector2(18.0, 26.0), 10.0, Color(0.54, 0.82, 0.94))
+				_draw_ink_polygon(
 					PackedVector2Array([
 						torso + Vector2(-10.0, 18.0),
 						torso + Vector2(-24.0, 6.0),
@@ -32749,39 +31913,39 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 					PackedColorArray([Color(0.4, 0.72, 0.88), Color(0.4, 0.72, 0.88), Color(0.4, 0.72, 0.88)])
 				)
 			else:
-				draw_line(torso + Vector2(-8.0, 18.0), torso + Vector2(-20.0, 28.0), Color(0.72, 0.82, 0.88), 3.0)
+				_draw_ink_line(torso + Vector2(-8.0, 18.0), torso + Vector2(-20.0, 28.0), Color(0.72, 0.82, 0.88), 3.0)
 		"zomboni":
-			draw_rect(Rect2(torso + Vector2(-34.0, -8.0), Vector2(68.0, 34.0)), Color(0.58, 0.64, 0.7), true)
-			draw_rect(Rect2(torso + Vector2(-18.0, -28.0), Vector2(36.0, 18.0)), Color(0.82, 0.86, 0.9), true)
-			draw_rect(Rect2(torso + Vector2(-38.0, 18.0), Vector2(76.0, 10.0)), Color(0.16, 0.2, 0.24), true)
-			draw_rect(Rect2(torso + Vector2(10.0, -18.0), Vector2(16.0, 10.0)), Color(0.24, 0.42, 0.58), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-34.0, -8.0), Vector2(68.0, 34.0)), Color(0.58, 0.64, 0.7), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -28.0), Vector2(36.0, 18.0)), Color(0.82, 0.86, 0.9), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-38.0, 18.0), Vector2(76.0, 10.0)), Color(0.16, 0.2, 0.24), true)
+			_draw_ink_rect(Rect2(torso + Vector2(10.0, -18.0), Vector2(16.0, 10.0)), Color(0.24, 0.42, 0.58), true)
 			draw_circle(torso + Vector2(22.0, -22.0), 7.0, Color(0.74, 0.82, 0.7))
-			draw_rect(Rect2(torso + Vector2(-40.0, 26.0), Vector2(80.0, 6.0)), Color(0.86, 0.96, 1.0, 0.4), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-40.0, 26.0), Vector2(80.0, 6.0)), Color(0.86, 0.96, 1.0, 0.4), true)
 		"bobsled_team":
-			draw_rect(Rect2(torso + Vector2(-34.0, 12.0), Vector2(68.0, 14.0)), Color(0.56, 0.7, 0.82), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-34.0, 12.0), Vector2(68.0, 14.0)), Color(0.56, 0.7, 0.82), true)
 			for rider_index in range(4):
 				var rider_offset = -24.0 + float(rider_index) * 16.0
-				draw_circle(torso + Vector2(rider_offset, -34.0), 10.0, skin)
-				draw_rect(Rect2(torso + Vector2(rider_offset - 8.0, -18.0), Vector2(16.0, 18.0)), Color(0.68, 0.82, 0.94), true)
-				draw_rect(Rect2(torso + Vector2(rider_offset - 8.0, -44.0), Vector2(16.0, 6.0)), Color(0.18, 0.24, 0.34), true)
+				_draw_ink_disc(torso + Vector2(rider_offset, -34.0), 10.0, skin)
+				_draw_ink_rect(Rect2(torso + Vector2(rider_offset - 8.0, -18.0), Vector2(16.0, 18.0)), Color(0.68, 0.82, 0.94), true)
+				_draw_ink_rect(Rect2(torso + Vector2(rider_offset - 8.0, -44.0), Vector2(16.0, 6.0)), Color(0.18, 0.24, 0.34), true)
 		"nezha":
-			draw_rect(Rect2(torso + Vector2(-18.0, -16.0), Vector2(36.0, 42.0)), Color(0.98, 0.26, 0.18), true)
-			draw_rect(Rect2(torso + Vector2(-14.0, -52.0), Vector2(28.0, 12.0)), Color(0.94, 0.78, 0.24), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -16.0), Vector2(36.0, 42.0)), Color(0.98, 0.26, 0.18), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-14.0, -52.0), Vector2(28.0, 12.0)), Color(0.94, 0.78, 0.24), true)
 			draw_arc(torso + Vector2(0.0, -52.0), 12.0, PI, TAU, 12, Color(1.0, 0.84, 0.28), 3.0)
 			draw_circle(torso + Vector2(-10.0, 28.0), 7.0, Color(1.0, 0.54, 0.18))
 			draw_circle(torso + Vector2(10.0, 28.0), 7.0, Color(1.0, 0.54, 0.18))
 		"nether":
-			draw_rect(Rect2(torso + Vector2(-18.0, -18.0), Vector2(36.0, 46.0)), Color(0.34, 0.3, 0.52), true)
-			draw_rect(Rect2(torso + Vector2(-14.0, -54.0), Vector2(28.0, 12.0)), Color(0.18, 0.18, 0.28), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -18.0), Vector2(36.0, 46.0)), Color(0.34, 0.3, 0.52), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-14.0, -54.0), Vector2(28.0, 12.0)), Color(0.18, 0.18, 0.28), true)
 			draw_circle(torso + Vector2(20.0, -12.0), 7.0, Color(1.0, 0.94, 0.42))
-			draw_circle(torso + Vector2(20.0, -12.0), 12.0, Color(1.0, 0.94, 0.42, 0.18))
+			_draw_ink_disc(torso + Vector2(20.0, -12.0), 12.0, Color(1.0, 0.94, 0.42, 0.18))
 		"farmer":
-			draw_rect(Rect2(torso + Vector2(-19.0, -50.0), Vector2(38.0, 18.0)), Color(0.78, 0.68, 0.24), true)
-			draw_line(torso + Vector2(-14.0, -8.0), torso + Vector2(14.0, -22.0), Color(0.34, 0.24, 0.12), 3.0)
+			_draw_ink_rect(Rect2(torso + Vector2(-19.0, -50.0), Vector2(38.0, 18.0)), Color(0.78, 0.68, 0.24), true)
+			_draw_ink_line(torso + Vector2(-14.0, -8.0), torso + Vector2(14.0, -22.0), Color(0.34, 0.24, 0.12), 3.0)
 		"spear":
-			draw_rect(Rect2(torso + Vector2(-14.0, -50.0), Vector2(28.0, 12.0)), Color(0.66, 0.56, 0.26), true)
-			draw_line(torso + Vector2(-26.0, -14.0), torso + Vector2(30.0, -34.0), Color(0.54, 0.38, 0.18), 4.0)
-			draw_polygon(
+			_draw_ink_rect(Rect2(torso + Vector2(-14.0, -50.0), Vector2(28.0, 12.0)), Color(0.66, 0.56, 0.26), true)
+			_draw_ink_line(torso + Vector2(-26.0, -14.0), torso + Vector2(30.0, -34.0), Color(0.54, 0.38, 0.18), 4.0)
+			_draw_ink_polygon(
 				PackedVector2Array([
 					torso + Vector2(30.0, -34.0),
 					torso + Vector2(20.0, -28.0),
@@ -32790,32 +31954,32 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 				PackedColorArray([Color(0.82, 0.82, 0.84), Color(0.82, 0.82, 0.84), Color(0.82, 0.82, 0.84)])
 			)
 		"kungfu":
-			draw_rect(Rect2(torso + Vector2(-18.0, -12.0), Vector2(36.0, 40.0)), Color(0.72, 0.18, 0.12), true)
-			draw_rect(Rect2(torso + Vector2(-18.0, -52.0), Vector2(36.0, 12.0)), Color(0.12, 0.12, 0.14), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -12.0), Vector2(36.0, 40.0)), Color(0.72, 0.18, 0.12), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-18.0, -52.0), Vector2(36.0, 12.0)), Color(0.12, 0.12, 0.14), true)
 			if float(zombie.get("reflect_timer", 0.0)) > 0.0:
-				draw_circle(torso + Vector2(0.0, -18.0), 34.0, Color(0.66, 0.9, 1.0, 0.18))
+				_draw_ink_disc(torso + Vector2(0.0, -18.0), 34.0, Color(0.66, 0.9, 1.0, 0.18))
 				draw_arc(torso + Vector2(0.0, -18.0), 26.0, level_time * 5.0, level_time * 5.0 + PI * 1.4, 18, Color(0.88, 0.98, 1.0, 0.42), 3.0)
 		"day_boss":
-			draw_rect(Rect2(torso + Vector2(-34.0, -28.0), Vector2(68.0, 68.0)), Color(0.42, 0.18, 0.12), true)
-			draw_rect(Rect2(torso + Vector2(-40.0, -58.0), Vector2(80.0, 20.0)), Color(0.78, 0.52, 0.12), true)
-			draw_circle(torso + Vector2(0.0, -46.0), 22.0, Color(0.82, 0.84, 0.74))
-			draw_circle(torso + Vector2(0.0, -46.0), 28.0, Color(1.0, 0.42, 0.22, 0.1))
+			_draw_ink_rect(Rect2(torso + Vector2(-34.0, -28.0), Vector2(68.0, 68.0)), Color(0.42, 0.18, 0.12), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-40.0, -58.0), Vector2(80.0, 20.0)), Color(0.78, 0.52, 0.12), true)
+			_draw_ink_disc(torso + Vector2(0.0, -46.0), 22.0, Color(0.82, 0.84, 0.74))
+			_draw_ink_disc(torso + Vector2(0.0, -46.0), 28.0, Color(1.0, 0.42, 0.22, 0.1))
 		"night_boss":
-			draw_rect(Rect2(torso + Vector2(-34.0, -30.0), Vector2(68.0, 70.0)), Color(0.16, 0.18, 0.42), true)
-			draw_rect(Rect2(torso + Vector2(-40.0, -60.0), Vector2(80.0, 20.0)), Color(0.04, 0.04, 0.1), true)
-			draw_circle(torso + Vector2(0.0, -46.0), 22.0, Color(0.84, 0.86, 0.92))
+			_draw_ink_rect(Rect2(torso + Vector2(-34.0, -30.0), Vector2(68.0, 70.0)), Color(0.16, 0.18, 0.42), true)
+			_draw_ink_rect(Rect2(torso + Vector2(-40.0, -60.0), Vector2(80.0, 20.0)), Color(0.04, 0.04, 0.1), true)
+			_draw_ink_disc(torso + Vector2(0.0, -46.0), 22.0, Color(0.84, 0.86, 0.92))
 			draw_arc(torso + Vector2(0.0, -46.0), 30.0, level_time * 2.4, level_time * 2.4 + PI * 1.6, 20, Color(0.74, 0.84, 1.0, 0.34), 3.0)
 			draw_circle(torso + Vector2(-20.0, -20.0), 7.0, Color(0.44, 0.74, 1.0, 0.26))
 			draw_circle(torso + Vector2(20.0, -20.0), 7.0, Color(0.7, 0.48, 1.0, 0.22))
 
 	if float(zombie.get("rooted_timer", 0.0)) > 0.0:
-		draw_line(torso + Vector2(-20.0, 24.0), torso + Vector2(18.0, 30.0), Color(0.34, 0.72, 0.2, 0.9), 3.0)
-		draw_line(torso + Vector2(-16.0, 18.0), torso + Vector2(10.0, 36.0), Color(0.24, 0.58, 0.16, 0.9), 2.0)
+		_draw_ink_line(torso + Vector2(-20.0, 24.0), torso + Vector2(18.0, 30.0), Color(0.34, 0.72, 0.2, 0.9), 3.0)
+		_draw_ink_line(torso + Vector2(-16.0, 18.0), torso + Vector2(10.0, 36.0), Color(0.24, 0.58, 0.16, 0.9), 2.0)
 
 	if bool(zombie.get("plant_food_carrier", false)):
 		_draw_plant_food_icon(torso + Vector2(0.0, -56.0), 0.46)
 	if bool(zombie.get("hypnotized", false)):
-		draw_circle(torso + Vector2(0.0, -60.0), 16.0, Color(0.9, 0.42, 1.0, 0.16))
+		_draw_ink_disc(torso + Vector2(0.0, -60.0), 16.0, Color(0.9, 0.42, 1.0, 0.16))
 		draw_arc(torso + Vector2(0.0, -60.0), 11.0, level_time * 4.0, level_time * 4.0 + PI * 1.5, 18, Color(0.96, 0.56, 1.0, 0.52), 2.0)
 
 
@@ -32824,15 +31988,15 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 func _draw_shadow_pea(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.28, 0.12, 0.42, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(-1.0 * size_scale, 33.0 * size_scale), Color(0.14, 0.06, 0.24, alpha), 7.0 * size_scale)
-	draw_circle(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.18, 0.08, 0.32, alpha))
-	draw_circle(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.18, 0.08, 0.32, alpha))
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(-1.0 * size_scale, 33.0 * size_scale), Color(0.14, 0.06, 0.24, alpha), 7.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.18, 0.08, 0.32, alpha))
+	_draw_ink_disc(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.18, 0.08, 0.32, alpha))
 	var head = center + Vector2(-2.0 * size_scale, -10.0 * size_scale)
 	# Shadow aura
-	draw_circle(head, 26.0 * size_scale, Color(0.36, 0.14, 0.56, 0.2 * alpha))
-	draw_circle(head, 20.0 * size_scale, body_color)
+	_draw_ink_disc(head, 26.0 * size_scale, Color(0.36, 0.14, 0.56, 0.2 * alpha))
+	_draw_ink_disc(head, 20.0 * size_scale, body_color)
 	draw_circle(head + Vector2(-6.0 * size_scale, -6.0 * size_scale), 8.0 * size_scale, Color(0.38, 0.18, 0.56, alpha))
-	draw_circle(head + Vector2(24.0 * size_scale, 0.0), 11.0 * size_scale, body_color.darkened(0.06))
+	_draw_ink_disc(head + Vector2(24.0 * size_scale, 0.0), 11.0 * size_scale, body_color.darkened(0.06))
 	draw_circle(head + Vector2(31.0 * size_scale, 0.0), 5.0 * size_scale, Color(0.12, 0.04, 0.2, alpha))
 	# Glowing eye
 	draw_circle(head + Vector2(-6.0 * size_scale, -6.0 * size_scale), 3.0 * size_scale, Color(0.82, 0.4, 1.0, alpha))
@@ -32842,43 +32006,43 @@ func _draw_shadow_pea(center: Vector2, size_scale: float, flash: float, alpha: f
 func _draw_ice_queen(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.56, 0.82, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.36, 0.62, 0.82, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.36, 0.62, 0.82, alpha), 6.0 * size_scale)
 	# Ice crystal crown
 	var crown = center + Vector2(0.0, -24.0 * size_scale)
 	for i in range(5):
 		var angle = -PI * 0.6 + PI * 1.2 * float(i) / 4.0
 		var tip = crown + Vector2(cos(angle), sin(angle) - 0.8) * 18.0 * size_scale
-		draw_line(crown, tip, Color(0.72, 0.92, 1.0, alpha), 2.5 * size_scale)
+		_draw_ink_line(crown, tip, Color(0.72, 0.92, 1.0, alpha), 2.5 * size_scale)
 		draw_circle(tip, 3.0 * size_scale, Color(0.86, 0.96, 1.0, alpha))
 	# Head
-	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 20.0 * size_scale, body_color)
+	_draw_ink_disc(center + Vector2(0.0, -8.0 * size_scale), 20.0 * size_scale, body_color)
 	draw_circle(center + Vector2(-5.0 * size_scale, -14.0 * size_scale), 8.0 * size_scale, Color(0.76, 0.92, 1.0, alpha))
 	# Eyes
 	draw_circle(center + Vector2(-6.0 * size_scale, -10.0 * size_scale), 2.5 * size_scale, Color(0.12, 0.28, 0.56, alpha))
 	draw_circle(center + Vector2(6.0 * size_scale, -10.0 * size_scale), 2.5 * size_scale, Color(0.12, 0.28, 0.56, alpha))
 	# Frost aura
-	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 28.0 * size_scale, Color(0.56, 0.82, 1.0, 0.08 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, -8.0 * size_scale), 28.0 * size_scale, Color(0.56, 0.82, 1.0, 0.08 * alpha))
 
 
 func _draw_vine_emperor(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.22, 0.52, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 16.0 * size_scale, alpha, 36.0 * size_scale)
 	# Thick vine body
-	draw_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.16, 0.42, 0.12, alpha), 10.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.16, 0.42, 0.12, alpha), 10.0 * size_scale)
 	# Thorny whip arms
 	for side in [-1.0, 1.0]:
 		var arm_end = center + Vector2(side * 32.0 * size_scale, 4.0 * size_scale)
-		draw_line(center + Vector2(side * 8.0 * size_scale, 0.0), arm_end, Color(0.18, 0.46, 0.14, alpha), 5.0 * size_scale)
+		_draw_ink_line(center + Vector2(side * 8.0 * size_scale, 0.0), arm_end, Color(0.18, 0.46, 0.14, alpha), 5.0 * size_scale)
 		for t in range(3):
 			var thorn_pos = center.lerp(arm_end, float(t + 1) / 4.0)
 			draw_circle(thorn_pos + Vector2(0.0, -4.0 * size_scale), 3.0 * size_scale, Color(0.42, 0.22, 0.08, alpha))
 	# Head with crown
-	draw_circle(center + Vector2(0.0, -10.0 * size_scale), 22.0 * size_scale, body_color)
+	_draw_ink_disc(center + Vector2(0.0, -10.0 * size_scale), 22.0 * size_scale, body_color)
 	draw_circle(center + Vector2(0.0, -10.0 * size_scale), 16.0 * size_scale, body_color.lightened(0.08))
 	# Crown leaves
 	for i in range(3):
 		var lx = float(i - 1) * 10.0 * size_scale
-		draw_line(center + Vector2(lx, -28.0 * size_scale), center + Vector2(lx, -40.0 * size_scale), Color(0.28, 0.62, 0.22, alpha), 3.0 * size_scale)
+		_draw_ink_line(center + Vector2(lx, -28.0 * size_scale), center + Vector2(lx, -40.0 * size_scale), Color(0.28, 0.62, 0.22, alpha), 3.0 * size_scale)
 	# Eyes
 	draw_circle(center + Vector2(-6.0 * size_scale, -12.0 * size_scale), 2.5 * size_scale, Color(0.86, 0.42, 0.12, alpha))
 	draw_circle(center + Vector2(6.0 * size_scale, -12.0 * size_scale), 2.5 * size_scale, Color(0.86, 0.42, 0.12, alpha))
@@ -32887,7 +32051,7 @@ func _draw_vine_emperor(center: Vector2, size_scale: float, flash: float, alpha:
 func _draw_soul_flower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal_color = Color(0.62, 0.36, 0.82, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.32, 0.18, 0.46, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.32, 0.18, 0.46, alpha), 6.0 * size_scale)
 	# Ghost-like petals
 	var core = center + Vector2(0.0, -8.0 * size_scale)
 	for i in range(8):
@@ -32895,9 +32059,9 @@ func _draw_soul_flower(center: Vector2, size_scale: float, flash: float, alpha: 
 		var petal_pos = core + Vector2(cos(angle), sin(angle)) * 20.0 * size_scale
 		draw_circle(petal_pos, 8.0 * size_scale, Color(petal_color.r, petal_color.g, petal_color.b, 0.5 * alpha))
 	# Ethereal glow
-	draw_circle(core, 24.0 * size_scale, Color(0.62, 0.36, 0.82, 0.1 * alpha))
-	draw_circle(core, 16.0 * size_scale, petal_color)
-	draw_circle(core, 10.0 * size_scale, Color(0.82, 0.62, 1.0, alpha))
+	_draw_ink_disc(core, 24.0 * size_scale, Color(0.62, 0.36, 0.82, 0.1 * alpha))
+	_draw_ink_disc(core, 16.0 * size_scale, petal_color)
+	_draw_ink_disc(core, 10.0 * size_scale, Color(0.82, 0.62, 1.0, alpha))
 	# Soul eyes
 	draw_circle(core + Vector2(-5.0 * size_scale, -2.0 * size_scale), 3.0 * size_scale, Color(0.96, 0.86, 1.0, alpha))
 	draw_circle(core + Vector2(5.0 * size_scale, -2.0 * size_scale), 3.0 * size_scale, Color(0.96, 0.86, 1.0, alpha))
@@ -32908,16 +32072,16 @@ func _draw_soul_flower(center: Vector2, size_scale: float, flash: float, alpha: 
 func _draw_plasma_shooter(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.18, 0.72, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 33.0 * size_scale), Color(0.12, 0.48, 0.62, alpha), 7.0 * size_scale)
-	draw_circle(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.14, 0.56, 0.72, alpha))
-	draw_circle(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.14, 0.56, 0.72, alpha))
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 33.0 * size_scale), Color(0.12, 0.48, 0.62, alpha), 7.0 * size_scale)
+	_draw_ink_disc(center + Vector2(-14.0 * size_scale, 20.0 * size_scale), 9.0 * size_scale, Color(0.14, 0.56, 0.72, alpha))
+	_draw_ink_disc(center + Vector2(16.0 * size_scale, 18.0 * size_scale), 9.0 * size_scale, Color(0.14, 0.56, 0.72, alpha))
 	var head = center + Vector2(-2.0 * size_scale, -10.0 * size_scale)
 	# Electric aura
-	draw_circle(head, 28.0 * size_scale, Color(0.18, 0.72, 0.92, 0.12 * alpha))
-	draw_circle(head, 20.0 * size_scale, body_color)
+	_draw_ink_disc(head, 28.0 * size_scale, Color(0.18, 0.72, 0.92, 0.12 * alpha))
+	_draw_ink_disc(head, 20.0 * size_scale, body_color)
 	draw_circle(head + Vector2(-6.0 * size_scale, -6.0 * size_scale), 8.0 * size_scale, Color(0.36, 0.86, 1.0, alpha))
 	# Plasma barrel
-	draw_circle(head + Vector2(24.0 * size_scale, 0.0), 12.0 * size_scale, body_color.darkened(0.06))
+	_draw_ink_disc(head + Vector2(24.0 * size_scale, 0.0), 12.0 * size_scale, body_color.darkened(0.06))
 	draw_circle(head + Vector2(32.0 * size_scale, 0.0), 6.0 * size_scale, Color(0.56, 0.92, 1.0, alpha))
 	draw_circle(head + Vector2(32.0 * size_scale, 0.0), 3.0 * size_scale, Color(0.86, 1.0, 1.0, alpha))
 	# Electric eye
@@ -32929,8 +32093,8 @@ func _draw_crystal_nut(center: Vector2, size_scale: float, flash: float, ratio: 
 	var shell_color = Color(0.56, 0.78, 0.96, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 18.0 * size_scale, alpha, 36.0 * size_scale)
 	# Crystal facets
-	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 30.0 * size_scale, Color(0.42, 0.68, 0.92, 0.3 * alpha))
-	draw_circle(center + Vector2(0.0, 6.0 * size_scale), 28.0 * size_scale, shell_color)
+	_draw_ink_disc(center + Vector2(0.0, 6.0 * size_scale), 30.0 * size_scale, Color(0.42, 0.68, 0.92, 0.3 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, 6.0 * size_scale), 28.0 * size_scale, shell_color)
 	# Facet highlights
 	draw_circle(center + Vector2(-10.0 * size_scale, -6.0 * size_scale), 10.0 * size_scale, Color(0.76, 0.92, 1.0, 0.5 * alpha))
 	draw_circle(center + Vector2(8.0 * size_scale, 14.0 * size_scale), 6.0 * size_scale, Color(0.86, 0.96, 1.0, 0.3 * alpha))
@@ -32941,22 +32105,22 @@ func _draw_crystal_nut(center: Vector2, size_scale: float, flash: float, ratio: 
 	draw_arc(center + Vector2(0.0, 11.0 * size_scale), 7.0 * size_scale, 0.15, PI - 0.15, 12, Color(0.12, 0.36, 0.62, alpha), 2.0 * size_scale)
 	# Cracks at low health
 	if ratio < 0.5:
-		draw_line(center + Vector2(-6.0 * size_scale, -22.0 * size_scale), center + Vector2(6.0 * size_scale, -2.0 * size_scale), Color(0.28, 0.52, 0.78, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(-6.0 * size_scale, -22.0 * size_scale), center + Vector2(6.0 * size_scale, -2.0 * size_scale), Color(0.28, 0.52, 0.78, alpha), 2.0 * size_scale)
 	if ratio < 0.25:
-		draw_line(center + Vector2(12.0 * size_scale, -12.0 * size_scale), center + Vector2(-4.0 * size_scale, 10.0 * size_scale), Color(0.28, 0.52, 0.78, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(12.0 * size_scale, -12.0 * size_scale), center + Vector2(-4.0 * size_scale, 10.0 * size_scale), Color(0.28, 0.52, 0.78, alpha), 2.0 * size_scale)
 
 
 func _draw_dragon_fruit(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.86, 0.28, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.56, 0.18, 0.12, alpha), 8.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.56, 0.18, 0.12, alpha), 8.0 * size_scale)
 	# Dragon body
 	var head = center + Vector2(0.0, -8.0 * size_scale)
-	draw_circle(head, 22.0 * size_scale, body_color)
+	_draw_ink_disc(head, 22.0 * size_scale, body_color)
 	draw_circle(head + Vector2(-6.0 * size_scale, -6.0 * size_scale), 8.0 * size_scale, Color(0.96, 0.42, 0.28, alpha))
 	# Dragon horns
-	draw_line(head + Vector2(-12.0 * size_scale, -16.0 * size_scale), head + Vector2(-18.0 * size_scale, -30.0 * size_scale), Color(0.72, 0.22, 0.14, alpha), 3.0 * size_scale)
-	draw_line(head + Vector2(12.0 * size_scale, -16.0 * size_scale), head + Vector2(18.0 * size_scale, -30.0 * size_scale), Color(0.72, 0.22, 0.14, alpha), 3.0 * size_scale)
+	_draw_ink_line(head + Vector2(-12.0 * size_scale, -16.0 * size_scale), head + Vector2(-18.0 * size_scale, -30.0 * size_scale), Color(0.72, 0.22, 0.14, alpha), 3.0 * size_scale)
+	_draw_ink_line(head + Vector2(12.0 * size_scale, -16.0 * size_scale), head + Vector2(18.0 * size_scale, -30.0 * size_scale), Color(0.72, 0.22, 0.14, alpha), 3.0 * size_scale)
 	# Fire mouth
 	draw_circle(head + Vector2(18.0 * size_scale, 4.0 * size_scale), 8.0 * size_scale, Color(1.0, 0.62, 0.18, alpha))
 	draw_circle(head + Vector2(18.0 * size_scale, 4.0 * size_scale), 5.0 * size_scale, Color(1.0, 0.86, 0.36, alpha))
@@ -32970,7 +32134,7 @@ func _draw_dragon_fruit(center: Vector2, size_scale: float, flash: float, alpha:
 func _draw_time_rose(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal_color = Color(0.82, 0.56, 0.86, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.42, 0.26, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.28, 0.42, 0.26, alpha), 6.0 * size_scale)
 	# Rose petals (layered)
 	var core = center + Vector2(0.0, -8.0 * size_scale)
 	for layer in range(2):
@@ -32978,24 +32142,24 @@ func _draw_time_rose(center: Vector2, size_scale: float, flash: float, alpha: fl
 		for i in range(6):
 			var angle = TAU * float(i) / 6.0 + offset_angle
 			var dist = (18.0 - float(layer) * 4.0) * size_scale
-			draw_circle(core + Vector2(cos(angle), sin(angle)) * dist, (8.0 - float(layer) * 1.5) * size_scale, petal_color.darkened(float(layer) * 0.08))
-	draw_circle(core, 10.0 * size_scale, Color(0.92, 0.72, 0.96, alpha))
+			_draw_ink_disc(core + Vector2(cos(angle), sin(angle)) * dist, (8.0 - float(layer) * 1.5) * size_scale, petal_color.darkened(float(layer) * 0.08))
+	_draw_ink_disc(core, 10.0 * size_scale, Color(0.92, 0.72, 0.96, alpha))
 	# Clock hands (time theme)
 	var hour_angle = level_time * 0.5
 	var min_angle = level_time * 3.0
-	draw_line(core, core + Vector2(cos(hour_angle), sin(hour_angle)) * 6.0 * size_scale, Color(0.42, 0.22, 0.46, alpha), 2.0 * size_scale)
-	draw_line(core, core + Vector2(cos(min_angle), sin(min_angle)) * 8.0 * size_scale, Color(0.42, 0.22, 0.46, alpha), 1.5 * size_scale)
+	_draw_ink_line(core, core + Vector2(cos(hour_angle), sin(hour_angle)) * 6.0 * size_scale, Color(0.42, 0.22, 0.46, alpha), 2.0 * size_scale)
+	_draw_ink_line(core, core + Vector2(cos(min_angle), sin(min_angle)) * 8.0 * size_scale, Color(0.42, 0.22, 0.46, alpha), 1.5 * size_scale)
 	# Time aura
-	draw_circle(core, 30.0 * size_scale, Color(0.82, 0.56, 0.86, 0.06 * alpha))
+	_draw_ink_disc(core, 30.0 * size_scale, Color(0.82, 0.56, 0.86, 0.06 * alpha))
 
 
 func _draw_galaxy_sunflower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var petal_color = Color(0.92, 0.76, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.18, 0.14, 0.42, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-2.0 * size_scale, 34.0 * size_scale), Color(0.18, 0.14, 0.42, alpha), 6.0 * size_scale)
 	var core = center + Vector2(0.0, -8.0 * size_scale)
 	# Galaxy aura
-	draw_circle(core, 34.0 * size_scale, Color(0.28, 0.18, 0.56, 0.12 * alpha))
+	_draw_ink_disc(core, 34.0 * size_scale, Color(0.28, 0.18, 0.56, 0.12 * alpha))
 	# Cosmic petals
 	for i in range(12):
 		var angle = TAU * float(i) / 12.0 + level_time * 0.2
@@ -33003,8 +32167,8 @@ func _draw_galaxy_sunflower(center: Vector2, size_scale: float, flash: float, al
 		var star_color = petal_color if i % 2 == 0 else Color(0.72, 0.52, 1.0, alpha)
 		draw_circle(petal_pos, 8.0 * size_scale, star_color)
 	# Core (nebula)
-	draw_circle(core, 16.0 * size_scale, Color(0.18, 0.08, 0.36, alpha))
-	draw_circle(core, 12.0 * size_scale, Color(0.28, 0.14, 0.52, alpha))
+	_draw_ink_disc(core, 16.0 * size_scale, Color(0.18, 0.08, 0.36, alpha))
+	_draw_ink_disc(core, 12.0 * size_scale, Color(0.28, 0.14, 0.52, alpha))
 	# Stars in core
 	for i in range(5):
 		var sx = core.x + sin(float(i) * 2.3 + level_time) * 6.0 * size_scale
@@ -33019,15 +32183,15 @@ func _draw_void_shroom(center: Vector2, size_scale: float, flash: float, alpha: 
 	var body_color = Color(0.12, 0.06, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
 	# Stem
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.08, 0.04, 0.14, alpha), 8.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.08, 0.04, 0.14, alpha), 8.0 * size_scale)
 	# Void aura (black hole effect)
 	var core = center + Vector2(0.0, -4.0 * size_scale)
-	draw_circle(core, 32.0 * size_scale, Color(0.08, 0.02, 0.14, 0.15 * alpha))
-	draw_circle(core, 26.0 * size_scale, Color(0.12, 0.04, 0.2, 0.2 * alpha))
+	_draw_ink_disc(core, 32.0 * size_scale, Color(0.08, 0.02, 0.14, 0.15 * alpha))
+	_draw_ink_disc(core, 26.0 * size_scale, Color(0.12, 0.04, 0.2, 0.2 * alpha))
 	# Mushroom cap
-	draw_circle(core, 22.0 * size_scale, body_color)
+	_draw_ink_disc(core, 22.0 * size_scale, body_color)
 	# Event horizon ring
-	draw_circle(core, 22.0 * size_scale, Color(0.52, 0.22, 0.82, 0.4 * alpha), false, 2.5 * size_scale)
+	_draw_ink_disc(core, 22.0 * size_scale, Color(0.52, 0.22, 0.82, 0.4 * alpha), false, 2.5 * size_scale)
 	# Singularity
 	draw_circle(core, 8.0 * size_scale, Color(0.0, 0.0, 0.0, alpha))
 	draw_circle(core, 4.0 * size_scale, Color(0.36, 0.16, 0.56, alpha))
@@ -33042,19 +32206,19 @@ func _draw_phoenix_tree(center: Vector2, size_scale: float, flash: float, alpha:
 	var body_color = Color(0.92, 0.42, 0.12, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	# Trunk
-	draw_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.52, 0.22, 0.08, alpha), 8.0 * size_scale)
-	draw_line(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), center + Vector2(-2.0 * size_scale, 32.0 * size_scale), Color(0.62, 0.28, 0.12, alpha), 3.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 6.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.52, 0.22, 0.08, alpha), 8.0 * size_scale)
+	_draw_ink_line(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), center + Vector2(-2.0 * size_scale, 32.0 * size_scale), Color(0.62, 0.28, 0.12, alpha), 3.0 * size_scale)
 	# Fire crown
 	var crown = center + Vector2(0.0, -10.0 * size_scale)
 	# Flame aura
-	draw_circle(crown, 30.0 * size_scale, Color(1.0, 0.52, 0.12, 0.1 * alpha))
+	_draw_ink_disc(crown, 30.0 * size_scale, Color(1.0, 0.52, 0.12, 0.1 * alpha))
 	# Flame layers
 	for i in range(8):
 		var angle = TAU * float(i) / 8.0 + sin(level_time * 2.0) * 0.2
 		var flame_h = (18.0 + sin(level_time * 4.0 + float(i) * 1.3) * 4.0) * size_scale
 		draw_circle(crown + Vector2(cos(angle), sin(angle)) * flame_h, 8.0 * size_scale, Color(1.0, 0.62, 0.18, 0.6 * alpha))
-	draw_circle(crown, 18.0 * size_scale, body_color)
-	draw_circle(crown, 12.0 * size_scale, Color(1.0, 0.72, 0.28, alpha))
+	_draw_ink_disc(crown, 18.0 * size_scale, body_color)
+	_draw_ink_disc(crown, 12.0 * size_scale, Color(1.0, 0.72, 0.28, alpha))
 	# Phoenix eyes
 	draw_circle(crown + Vector2(-5.0 * size_scale, -2.0 * size_scale), 3.0 * size_scale, Color(1.0, 0.92, 0.42, alpha))
 	draw_circle(crown + Vector2(5.0 * size_scale, -2.0 * size_scale), 3.0 * size_scale, Color(1.0, 0.92, 0.42, alpha))
@@ -33065,24 +32229,24 @@ func _draw_phoenix_tree(center: Vector2, size_scale: float, flash: float, alpha:
 func _draw_thunder_god(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.86, 0.82, 0.22, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.52, 0.48, 0.12, alpha), 8.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.52, 0.48, 0.12, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -8.0 * size_scale)
 	# Thunder aura
-	draw_circle(head, 32.0 * size_scale, Color(0.86, 0.82, 0.22, 0.1 * alpha))
+	_draw_ink_disc(head, 32.0 * size_scale, Color(0.86, 0.82, 0.22, 0.1 * alpha))
 	# Lightning bolts around head
 	for i in range(4):
 		var angle = TAU * float(i) / 4.0 + level_time * 0.8
 		var bolt_start = head + Vector2(cos(angle), sin(angle)) * 22.0 * size_scale
 		var bolt_end = head + Vector2(cos(angle), sin(angle)) * 34.0 * size_scale
-		draw_line(bolt_start, bolt_end, Color(1.0, 1.0, 0.5, 0.6 * alpha), 2.0 * size_scale)
+		_draw_ink_line(bolt_start, bolt_end, Color(1.0, 1.0, 0.5, 0.6 * alpha), 2.0 * size_scale)
 	# Head
-	draw_circle(head, 22.0 * size_scale, body_color)
+	_draw_ink_disc(head, 22.0 * size_scale, body_color)
 	draw_circle(head + Vector2(-6.0 * size_scale, -6.0 * size_scale), 8.0 * size_scale, Color(1.0, 0.96, 0.52, alpha))
 	# Thunder crown
 	for i in range(3):
 		var lx = float(i - 1) * 10.0 * size_scale
-		draw_line(head + Vector2(lx, -18.0 * size_scale), head + Vector2(lx + 4.0 * size_scale, -32.0 * size_scale), Color(1.0, 0.92, 0.28, alpha), 3.0 * size_scale)
-		draw_line(head + Vector2(lx + 4.0 * size_scale, -32.0 * size_scale), head + Vector2(lx - 2.0 * size_scale, -26.0 * size_scale), Color(1.0, 0.92, 0.28, alpha), 2.5 * size_scale)
+		_draw_ink_line(head + Vector2(lx, -18.0 * size_scale), head + Vector2(lx + 4.0 * size_scale, -32.0 * size_scale), Color(1.0, 0.92, 0.28, alpha), 3.0 * size_scale)
+		_draw_ink_line(head + Vector2(lx + 4.0 * size_scale, -32.0 * size_scale), head + Vector2(lx - 2.0 * size_scale, -26.0 * size_scale), Color(1.0, 0.92, 0.28, alpha), 2.5 * size_scale)
 	# Electric eyes
 	draw_circle(head + Vector2(-6.0 * size_scale, -4.0 * size_scale), 3.0 * size_scale, Color(1.0, 1.0, 0.6, alpha))
 	draw_circle(head + Vector2(6.0 * size_scale, -4.0 * size_scale), 3.0 * size_scale, Color(1.0, 1.0, 0.6, alpha))
@@ -33093,18 +32257,18 @@ func _draw_thunder_god(center: Vector2, size_scale: float, flash: float, alpha: 
 func _draw_prism_pea(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.4, 0.8, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.5, 0.2, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.5, 0.2, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Prism crystal body
-	draw_circle(head, 22.0 * size_scale, body_color)
+	_draw_ink_disc(head, 22.0 * size_scale, body_color)
 	# Rainbow refraction petals
 	var colors = [Color(1.0, 0.2, 0.2, 0.7 * alpha), Color(1.0, 0.8, 0.1, 0.7 * alpha), Color(0.2, 1.0, 0.3, 0.7 * alpha), Color(0.2, 0.5, 1.0, 0.7 * alpha), Color(0.8, 0.2, 1.0, 0.7 * alpha)]
 	for i in range(5):
 		var angle = TAU * float(i) / 5.0 + level_time * 0.6
 		var tip = head + Vector2(cos(angle), sin(angle)) * 30.0 * size_scale
-		draw_line(head, tip, colors[i], 2.5 * size_scale)
+		_draw_ink_line(head, tip, colors[i], 2.5 * size_scale)
 	# Crystal facets
-	draw_circle(head, 12.0 * size_scale, Color(0.7, 0.95, 1.0, 0.6 * alpha))
+	_draw_ink_disc(head, 12.0 * size_scale, Color(0.7, 0.95, 1.0, 0.6 * alpha))
 	draw_circle(head, 6.0 * size_scale, Color(1.0, 1.0, 1.0, 0.9 * alpha))
 	# Eyes
 	draw_circle(head + Vector2(-5.0 * size_scale, -2.0 * size_scale), 2.5 * size_scale, Color(0.1, 0.3, 0.6, alpha))
@@ -33114,16 +32278,16 @@ func _draw_prism_pea(center: Vector2, size_scale: float, flash: float, alpha: fl
 func _draw_magnet_daisy(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.8, 0.3, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.25, 0.35, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.25, 0.35, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Magnetic field pulse ring
-	draw_circle(head, 36.0 * size_scale, Color(0.8, 0.3, 1.0, 0.08 * alpha))
+	_draw_ink_disc(head, 36.0 * size_scale, Color(0.8, 0.3, 1.0, 0.08 * alpha))
 	# Petals
 	for i in range(8):
 		var angle = TAU * float(i) / 8.0 + level_time * 0.3
 		var petal = head + Vector2(cos(angle), sin(angle)) * 24.0 * size_scale
 		draw_circle(petal, 7.0 * size_scale, Color(0.6, 0.2, 0.9, 0.8 * alpha))
-	draw_circle(head, 16.0 * size_scale, body_color)
+	_draw_ink_disc(head, 16.0 * size_scale, body_color)
 	# Magnet core — N/S poles
 	draw_circle(head + Vector2(-5.0 * size_scale, 0.0), 5.0 * size_scale, Color(1.0, 0.2, 0.2, alpha))
 	draw_circle(head + Vector2(5.0 * size_scale, 0.0), 5.0 * size_scale, Color(0.2, 0.4, 1.0, alpha))
@@ -33134,16 +32298,16 @@ func _draw_thorn_cactus(center: Vector2, size_scale: float, flash: float, alpha:
 	var body_color = Color(0.3, 0.65, 0.2, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
 	# Thick cactus body
-	draw_rect(Rect2(center + Vector2(-12.0 * size_scale, -10.0 * size_scale), Vector2(24.0 * size_scale, 44.0 * size_scale)), body_color, true)
+	_draw_ink_rect(Rect2(center + Vector2(-12.0 * size_scale, -10.0 * size_scale), Vector2(24.0 * size_scale, 44.0 * size_scale)), body_color, true)
 	# Arms
-	draw_rect(Rect2(center + Vector2(-26.0 * size_scale, 0.0), Vector2(14.0 * size_scale, 20.0 * size_scale)), body_color, true)
-	draw_rect(Rect2(center + Vector2(12.0 * size_scale, 2.0 * size_scale), Vector2(14.0 * size_scale, 18.0 * size_scale)), body_color, true)
+	_draw_ink_rect(Rect2(center + Vector2(-26.0 * size_scale, 0.0), Vector2(14.0 * size_scale, 20.0 * size_scale)), body_color, true)
+	_draw_ink_rect(Rect2(center + Vector2(12.0 * size_scale, 2.0 * size_scale), Vector2(14.0 * size_scale, 18.0 * size_scale)), body_color, true)
 	# Thorns
 	for i in range(6):
 		var tx = -14.0 + float(i % 2) * 28.0
 		var ty = -8.0 + float(i / 2) * 14.0
 		var tdx = -6.0 if float(i % 2) == 0.0 else 6.0
-		draw_line(center + Vector2(tx * size_scale, ty * size_scale), center + Vector2((tx + tdx) * size_scale, (ty - 4.0) * size_scale), Color(0.5, 0.8, 0.3, alpha), 2.5 * size_scale)
+		_draw_ink_line(center + Vector2(tx * size_scale, ty * size_scale), center + Vector2((tx + tdx) * size_scale, (ty - 4.0) * size_scale), Color(0.5, 0.8, 0.3, alpha), 2.5 * size_scale)
 	# Face
 	draw_circle(center + Vector2(-4.0 * size_scale, -2.0 * size_scale), 2.5 * size_scale, Color(0.1, 0.35, 0.05, alpha))
 	draw_circle(center + Vector2(4.0 * size_scale, -2.0 * size_scale), 2.5 * size_scale, Color(0.1, 0.35, 0.05, alpha))
@@ -33153,17 +32317,17 @@ func _draw_bubble_lotus(center: Vector2, size_scale: float, flash: float, alpha:
 	var body_color = Color(0.2, 0.8, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
 	# Lily pad base
-	draw_circle(center + Vector2(0.0, 30.0 * size_scale), 16.0 * size_scale, Color(0.2, 0.6, 0.2, 0.7 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, 30.0 * size_scale), 16.0 * size_scale, Color(0.2, 0.6, 0.2, 0.7 * alpha))
 	var head = center + Vector2(0.0, 2.0 * size_scale)
 	# Bubble shield rings
-	draw_circle(head, 38.0 * size_scale, Color(0.5, 0.9, 1.0, 0.07 * alpha))
-	draw_circle(head, 30.0 * size_scale, Color(0.5, 0.9, 1.0, 0.1 * alpha))
+	_draw_ink_disc(head, 38.0 * size_scale, Color(0.5, 0.9, 1.0, 0.07 * alpha))
+	_draw_ink_disc(head, 30.0 * size_scale, Color(0.5, 0.9, 1.0, 0.1 * alpha))
 	# Petals
 	for i in range(6):
 		var angle = TAU * float(i) / 6.0 + level_time * 0.2
 		var petal = head + Vector2(cos(angle), sin(angle)) * 26.0 * size_scale
 		draw_circle(petal, 8.0 * size_scale, body_color)
-	draw_circle(head, 16.0 * size_scale, Color(0.6, 0.95, 1.0, alpha))
+	_draw_ink_disc(head, 16.0 * size_scale, Color(0.6, 0.95, 1.0, alpha))
 	draw_circle(head, 8.0 * size_scale, Color(1.0, 1.0, 1.0, 0.9 * alpha))
 	# Floating bubbles
 	for i in range(3):
@@ -33181,36 +32345,36 @@ func _draw_spiral_bamboo(center: Vector2, size_scale: float, flash: float, alpha
 	var seg_colors = [Color(0.45, 0.72, 0.18, alpha), Color(0.55, 0.82, 0.22, alpha)]
 	for i in range(4):
 		var seg_y = 34.0 - float(i) * 12.0
-		draw_rect(Rect2(center + Vector2(-7.0 * size_scale, (seg_y - 10.0) * size_scale), Vector2(14.0 * size_scale, 10.0 * size_scale)), seg_colors[i % 2], true)
-		draw_line(center + Vector2(-7.0 * size_scale, seg_y * size_scale), center + Vector2(7.0 * size_scale, seg_y * size_scale), Color(0.3, 0.55, 0.1, alpha), 2.0 * size_scale)
+		_draw_ink_rect(Rect2(center + Vector2(-7.0 * size_scale, (seg_y - 10.0) * size_scale), Vector2(14.0 * size_scale, 10.0 * size_scale)), seg_colors[i % 2], true)
+		_draw_ink_line(center + Vector2(-7.0 * size_scale, seg_y * size_scale), center + Vector2(7.0 * size_scale, seg_y * size_scale), Color(0.3, 0.55, 0.1, alpha), 2.0 * size_scale)
 	var head = center + Vector2(0.0, -14.0 * size_scale)
 	# Spiral leaves
 	for i in range(3):
 		var angle = TAU * float(i) / 3.0 + level_time * 0.4
 		var leaf_tip = head + Vector2(cos(angle) * 18.0 * size_scale, sin(angle) * 12.0 * size_scale)
-		draw_line(head, leaf_tip, body_color, 4.0 * size_scale)
-	draw_circle(head, 10.0 * size_scale, body_color)
+		_draw_ink_line(head, leaf_tip, body_color, 4.0 * size_scale)
+	_draw_ink_disc(head, 10.0 * size_scale, body_color)
 	draw_circle(head, 5.0 * size_scale, Color(0.9, 1.0, 0.6, alpha))
 
 
 func _draw_honey_blossom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.85, 0.1, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.45, 0.35, 0.12, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.45, 0.35, 0.12, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Honey drip glow
-	draw_circle(head, 34.0 * size_scale, Color(1.0, 0.85, 0.1, 0.08 * alpha))
+	_draw_ink_disc(head, 34.0 * size_scale, Color(1.0, 0.85, 0.1, 0.08 * alpha))
 	# Hexagon petals (honeycomb theme)
 	for i in range(6):
 		var angle = TAU * float(i) / 6.0
 		var petal = head + Vector2(cos(angle), sin(angle)) * 22.0 * size_scale
 		draw_circle(petal, 8.0 * size_scale, Color(1.0, 0.75, 0.05, 0.85 * alpha))
-	draw_circle(head, 16.0 * size_scale, body_color)
+	_draw_ink_disc(head, 16.0 * size_scale, body_color)
 	# Honey drop center
 	draw_circle(head, 7.0 * size_scale, Color(1.0, 0.65, 0.0, alpha))
 	# Bee stripes
-	draw_line(head + Vector2(-6.0 * size_scale, 2.0 * size_scale), head + Vector2(6.0 * size_scale, 2.0 * size_scale), Color(0.1, 0.1, 0.1, 0.6 * alpha), 2.0 * size_scale)
-	draw_line(head + Vector2(-6.0 * size_scale, 5.0 * size_scale), head + Vector2(6.0 * size_scale, 5.0 * size_scale), Color(0.1, 0.1, 0.1, 0.6 * alpha), 2.0 * size_scale)
+	_draw_ink_line(head + Vector2(-6.0 * size_scale, 2.0 * size_scale), head + Vector2(6.0 * size_scale, 2.0 * size_scale), Color(0.1, 0.1, 0.1, 0.6 * alpha), 2.0 * size_scale)
+	_draw_ink_line(head + Vector2(-6.0 * size_scale, 5.0 * size_scale), head + Vector2(6.0 * size_scale, 5.0 * size_scale), Color(0.1, 0.1, 0.1, 0.6 * alpha), 2.0 * size_scale)
 	draw_circle(head + Vector2(-5.0 * size_scale, -3.0 * size_scale), 2.5 * size_scale, Color(0.1, 0.08, 0.0, alpha))
 	draw_circle(head + Vector2(5.0 * size_scale, -3.0 * size_scale), 2.5 * size_scale, Color(0.1, 0.08, 0.0, alpha))
 
@@ -33219,18 +32383,18 @@ func _draw_echo_fern(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var body_color = Color(0.5, 0.9, 0.7, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 11.0 * size_scale, alpha, 36.0 * size_scale)
 	# Fern stem
-	draw_line(center + Vector2(0.0, 34.0 * size_scale), center + Vector2(0.0, -20.0 * size_scale), Color(0.3, 0.6, 0.3, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 34.0 * size_scale), center + Vector2(0.0, -20.0 * size_scale), Color(0.3, 0.6, 0.3, alpha), 5.0 * size_scale)
 	# Fronds
 	for i in range(5):
 		var fy = 20.0 - float(i) * 10.0
 		var fl = (5 - i) * 14.0
 		var sign_mult = 1.0 if i % 2 == 0 else -1.0
-		draw_line(center + Vector2(0.0, fy * size_scale), center + Vector2(sign_mult * fl * size_scale, (fy - 8.0) * size_scale), body_color, 4.0 * size_scale)
+		_draw_ink_line(center + Vector2(0.0, fy * size_scale), center + Vector2(sign_mult * fl * size_scale, (fy - 8.0) * size_scale), body_color, 4.0 * size_scale)
 	# Sound wave rings
 	for i in range(3):
 		var ring_alpha = (1.0 - float(i) * 0.3) * 0.3 * alpha
 		var t_offset = fmod(level_time * 1.5 + float(i) * 0.3, 1.0)
-		draw_circle(center + Vector2(0.0, 0.0), (20.0 + float(i) * 12.0 + t_offset * 10.0) * size_scale, Color(0.5, 0.9, 0.7, ring_alpha), false, 2.0 * size_scale)
+		_draw_ink_disc(center + Vector2(0.0, 0.0), (20.0 + float(i) * 12.0 + t_offset * 10.0) * size_scale, Color(0.5, 0.9, 0.7, ring_alpha), false, 2.0 * size_scale)
 
 
 func _draw_glow_ivy(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -33240,10 +32404,10 @@ func _draw_glow_ivy(center: Vector2, size_scale: float, flash: float, alpha: flo
 	for i in range(4):
 		var angle = TAU * float(i) / 4.0 + level_time * 0.25
 		var vine_end = center + Vector2(cos(angle) * 28.0 * size_scale, sin(angle) * 20.0 * size_scale + 10.0 * size_scale)
-		draw_line(center + Vector2(0.0, 10.0 * size_scale), vine_end, Color(0.25, 0.7, 0.35, alpha), 3.5 * size_scale)
+		_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), vine_end, Color(0.25, 0.7, 0.35, alpha), 3.5 * size_scale)
 	# Glowing core
-	draw_circle(center + Vector2(0.0, 0.0), 26.0 * size_scale, Color(0.3, 1.0, 0.6, 0.12 * alpha))
-	draw_circle(center + Vector2(0.0, 0.0), 20.0 * size_scale, body_color)
+	_draw_ink_disc(center + Vector2(0.0, 0.0), 26.0 * size_scale, Color(0.3, 1.0, 0.6, 0.12 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, 0.0), 20.0 * size_scale, body_color)
 	# Bioluminescent spots
 	for i in range(5):
 		var spot_angle = TAU * float(i) / 5.0 + level_time * 0.4
@@ -33258,18 +32422,18 @@ func _draw_glow_ivy(center: Vector2, size_scale: float, flash: float, alpha: flo
 func _draw_laser_lily(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.0, 0.5, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.1, 0.3, alpha), 8.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.1, 0.3, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Energy charge glow
-	draw_circle(head, 30.0 * size_scale, Color(1.0, 0.0, 0.5, 0.1 * alpha))
+	_draw_ink_disc(head, 30.0 * size_scale, Color(1.0, 0.0, 0.5, 0.1 * alpha))
 	# Lily petals pointing forward
 	for i in range(5):
 		var angle = TAU * float(i) / 5.0 - PI * 0.5
 		var petal = head + Vector2(cos(angle), sin(angle)) * 26.0 * size_scale
 		draw_circle(petal, 7.0 * size_scale, Color(0.9, 0.0, 0.4, 0.9 * alpha))
-	draw_circle(head, 16.0 * size_scale, body_color)
+	_draw_ink_disc(head, 16.0 * size_scale, body_color)
 	# Laser core
-	draw_line(head + Vector2(0.0, 0.0), head + Vector2(18.0 * size_scale, 0.0), Color(1.0, 0.5, 0.8, 0.8 * alpha), 3.0 * size_scale)
+	_draw_ink_line(head + Vector2(0.0, 0.0), head + Vector2(18.0 * size_scale, 0.0), Color(1.0, 0.5, 0.8, 0.8 * alpha), 3.0 * size_scale)
 	draw_circle(head, 7.0 * size_scale, Color(1.0, 0.7, 0.9, alpha))
 	draw_circle(head, 3.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
 
@@ -33277,17 +32441,17 @@ func _draw_laser_lily(center: Vector2, size_scale: float, flash: float, alpha: f
 func _draw_rock_armor_fruit(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.65, 0.5, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 16.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.3, 0.2, alpha), 9.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.3, 0.2, alpha), 9.0 * size_scale)
 	var head = center + Vector2(0.0, -2.0 * size_scale)
 	# Rock armor plates
-	draw_circle(head, 28.0 * size_scale, Color(0.5, 0.4, 0.25, 0.4 * alpha))
-	draw_circle(head, 24.0 * size_scale, body_color)
+	_draw_ink_disc(head, 28.0 * size_scale, Color(0.5, 0.4, 0.25, 0.4 * alpha))
+	_draw_ink_disc(head, 24.0 * size_scale, body_color)
 	# Rock texture cracks
 	for i in range(5):
 		var ca = TAU * float(i) / 5.0 + 0.3
 		var c1 = head + Vector2(cos(ca), sin(ca)) * 12.0 * size_scale
 		var c2 = head + Vector2(cos(ca + 0.4), sin(ca + 0.4)) * 22.0 * size_scale
-		draw_line(c1, c2, Color(0.35, 0.25, 0.12, 0.6 * alpha), 1.5 * size_scale)
+		_draw_ink_line(c1, c2, Color(0.35, 0.25, 0.12, 0.6 * alpha), 1.5 * size_scale)
 	# Face
 	draw_circle(head + Vector2(-7.0 * size_scale, -3.0 * size_scale), 4.0 * size_scale, Color(0.2, 0.15, 0.08, alpha))
 	draw_circle(head + Vector2(7.0 * size_scale, -3.0 * size_scale), 4.0 * size_scale, Color(0.2, 0.15, 0.08, alpha))
@@ -33296,25 +32460,25 @@ func _draw_rock_armor_fruit(center: Vector2, size_scale: float, flash: float, al
 	# Leaf crown
 	for i in range(3):
 		var lx = float(i - 1) * 10.0 * size_scale
-		draw_line(head + Vector2(lx, -22.0 * size_scale), head + Vector2(lx + 2.0 * size_scale, -34.0 * size_scale), Color(0.3, 0.6, 0.1, alpha), 4.0 * size_scale)
+		_draw_ink_line(head + Vector2(lx, -22.0 * size_scale), head + Vector2(lx + 2.0 * size_scale, -34.0 * size_scale), Color(0.3, 0.6, 0.1, alpha), 4.0 * size_scale)
 
 
 func _draw_aurora_orchid(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.3, 1.0, 0.8, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.5, 0.4, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.2, 0.5, 0.4, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Aurora shimmer rings
 	for i in range(3):
 		var ring_a = (0.08 - float(i) * 0.02) * alpha
-		draw_circle(head, (38.0 - float(i) * 6.0) * size_scale, Color(0.3, 1.0, 0.8, ring_a))
+		_draw_ink_disc(head, (38.0 - float(i) * 6.0) * size_scale, Color(0.3, 1.0, 0.8, ring_a))
 	# Orchid petals — asymmetric
 	var petal_angles = [-1.2, -0.5, 0.0, 0.5, 1.2]
 	for i in range(5):
 		var angle = petal_angles[i] - PI * 0.5
 		var petal = head + Vector2(cos(angle), sin(angle)) * 26.0 * size_scale
-		draw_circle(petal, 9.0 * size_scale, Color(0.2, 0.9, 0.7, 0.85 * alpha))
-	draw_circle(head, 15.0 * size_scale, body_color)
+		_draw_ink_disc(petal, 9.0 * size_scale, Color(0.2, 0.9, 0.7, 0.85 * alpha))
+	_draw_ink_disc(head, 15.0 * size_scale, body_color)
 	# Bioluminescent spots
 	for i in range(4):
 		var sa = TAU * float(i) / 4.0 + level_time * 0.6
@@ -33325,13 +32489,13 @@ func _draw_aurora_orchid(center: Vector2, size_scale: float, flash: float, alpha
 func _draw_blast_pomegranate(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.85, 0.15, 0.15, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.18, 0.1, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.18, 0.1, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -2.0 * size_scale)
-	draw_circle(head, 22.0 * size_scale, body_color)
+	_draw_ink_disc(head, 22.0 * size_scale, body_color)
 	# Crown
 	for i in range(5):
 		var ca = TAU * float(i) / 5.0 - PI * 0.5
-		draw_line(head + Vector2(cos(ca) * 18.0 * size_scale, sin(ca) * 18.0 * size_scale - 4.0 * size_scale),
+		_draw_ink_line(head + Vector2(cos(ca) * 18.0 * size_scale, sin(ca) * 18.0 * size_scale - 4.0 * size_scale),
 			head + Vector2(cos(ca) * 24.0 * size_scale, sin(ca) * 24.0 * size_scale - 4.0 * size_scale),
 			Color(0.9, 0.3, 0.1, alpha), 3.0 * size_scale)
 	# Seed dots visible through skin
@@ -33339,7 +32503,7 @@ func _draw_blast_pomegranate(center: Vector2, size_scale: float, flash: float, a
 		var sa = TAU * float(i) / 8.0
 		draw_circle(head + Vector2(cos(sa), sin(sa)) * 12.0 * size_scale, 2.5 * size_scale, Color(1.0, 0.7, 0.7, 0.7 * alpha))
 	# Spark fuse on top
-	draw_line(head + Vector2(0.0, -20.0 * size_scale), head + Vector2(4.0 * size_scale, -32.0 * size_scale), Color(0.9, 0.7, 0.1, alpha), 2.5 * size_scale)
+	_draw_ink_line(head + Vector2(0.0, -20.0 * size_scale), head + Vector2(4.0 * size_scale, -32.0 * size_scale), Color(0.9, 0.7, 0.1, alpha), 2.5 * size_scale)
 	draw_circle(head + Vector2(4.0 * size_scale, -32.0 * size_scale), 4.0 * size_scale, Color(1.0, 0.6, 0.1, 0.9 * alpha))
 	draw_circle(head + Vector2(-6.0 * size_scale, -4.0 * size_scale), 2.5 * size_scale, Color(0.5, 0.05, 0.05, alpha))
 	draw_circle(head + Vector2(6.0 * size_scale, -4.0 * size_scale), 2.5 * size_scale, Color(0.5, 0.05, 0.05, alpha))
@@ -33349,48 +32513,48 @@ func _draw_frost_cypress(center: Vector2, size_scale: float, flash: float, alpha
 	var body_color = Color(0.5, 0.85, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 11.0 * size_scale, alpha, 36.0 * size_scale)
 	# Trunk
-	draw_line(center + Vector2(0.0, 34.0 * size_scale), center + Vector2(0.0, -24.0 * size_scale), Color(0.3, 0.45, 0.55, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 34.0 * size_scale), center + Vector2(0.0, -24.0 * size_scale), Color(0.3, 0.45, 0.55, alpha), 6.0 * size_scale)
 	# Layered branches (cypress shape)
 	var widths = [28.0, 22.0, 16.0, 10.0, 6.0]
 	for i in range(5):
 		var by = 20.0 - float(i) * 12.0
 		var bw = widths[i]
-		draw_line(center + Vector2(-bw * size_scale, by * size_scale), center + Vector2(bw * size_scale, by * size_scale), body_color, 7.0 * size_scale)
+		_draw_ink_line(center + Vector2(-bw * size_scale, by * size_scale), center + Vector2(bw * size_scale, by * size_scale), body_color, 7.0 * size_scale)
 	# Ice crystal tips
 	for i in range(3):
 		var tip_x = float(i - 1) * 16.0 * size_scale
-		draw_line(center + Vector2(tip_x, -22.0 * size_scale), center + Vector2(tip_x, -38.0 * size_scale), Color(0.8, 0.95, 1.0, alpha), 3.0 * size_scale)
-		draw_line(center + Vector2(tip_x - 4.0 * size_scale, -28.0 * size_scale), center + Vector2(tip_x + 4.0 * size_scale, -28.0 * size_scale), Color(0.8, 0.95, 1.0, alpha), 2.0 * size_scale)
+		_draw_ink_line(center + Vector2(tip_x, -22.0 * size_scale), center + Vector2(tip_x, -38.0 * size_scale), Color(0.8, 0.95, 1.0, alpha), 3.0 * size_scale)
+		_draw_ink_line(center + Vector2(tip_x - 4.0 * size_scale, -28.0 * size_scale), center + Vector2(tip_x + 4.0 * size_scale, -28.0 * size_scale), Color(0.8, 0.95, 1.0, alpha), 2.0 * size_scale)
 	# Frost aura
-	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 30.0 * size_scale, Color(0.7, 0.95, 1.0, 0.08 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, -4.0 * size_scale), 30.0 * size_scale, Color(0.7, 0.95, 1.0, 0.08 * alpha))
 
 
 func _draw_mirror_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.8, 0.9, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 12.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.42, 0.46, alpha), 7.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.42, 0.46, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Mirror cap (mushroom)
-	draw_circle(head, 24.0 * size_scale, body_color)
+	_draw_ink_disc(head, 24.0 * size_scale, body_color)
 	# Mirror facets
 	for i in range(6):
 		var fa = TAU * float(i) / 6.0 + level_time * 0.15
 		var f1 = head + Vector2(cos(fa) * 10.0 * size_scale, sin(fa) * 10.0 * size_scale)
 		var f2 = head + Vector2(cos(fa + TAU / 12.0) * 22.0 * size_scale, sin(fa + TAU / 12.0) * 22.0 * size_scale)
-		draw_line(f1, f2, Color(0.6, 0.75, 0.9, 0.5 * alpha), 1.5 * size_scale)
+		_draw_ink_line(f1, f2, Color(0.6, 0.75, 0.9, 0.5 * alpha), 1.5 * size_scale)
 	# Reflective center
-	draw_circle(head, 10.0 * size_scale, Color(0.9, 0.95, 1.0, 0.8 * alpha))
+	_draw_ink_disc(head, 10.0 * size_scale, Color(0.9, 0.95, 1.0, 0.8 * alpha))
 	draw_circle(head, 5.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
 	# Highlight dot
 	draw_circle(head + Vector2(-5.0 * size_scale, -5.0 * size_scale), 2.5 * size_scale, Color(1.0, 1.0, 1.0, 0.9 * alpha))
 	# Stem cap ridge
-	draw_circle(head + Vector2(0.0, 18.0 * size_scale), 10.0 * size_scale, Color(0.55, 0.6, 0.65, alpha))
+	_draw_ink_disc(head + Vector2(0.0, 18.0 * size_scale), 10.0 * size_scale, Color(0.55, 0.6, 0.65, alpha))
 
 
 func _draw_chain_lotus(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.2, 0.9, 0.8, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_circle(center + Vector2(0.0, 30.0 * size_scale), 15.0 * size_scale, Color(0.15, 0.55, 0.2, 0.7 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, 30.0 * size_scale), 15.0 * size_scale, Color(0.15, 0.55, 0.2, 0.7 * alpha))
 	var head = center + Vector2(0.0, 2.0 * size_scale)
 	# Chain links around body
 	for i in range(8):
@@ -33403,47 +32567,47 @@ func _draw_chain_lotus(center: Vector2, size_scale: float, flash: float, alpha: 
 		var angle = TAU * float(i) / 6.0 + level_time * 0.15
 		var petal = head + Vector2(cos(angle), sin(angle)) * 18.0 * size_scale
 		draw_circle(petal, 7.0 * size_scale, Color(0.15, 0.75, 0.7, 0.9 * alpha))
-	draw_circle(head, 12.0 * size_scale, body_color)
+	_draw_ink_disc(head, 12.0 * size_scale, body_color)
 	draw_circle(head, 5.0 * size_scale, Color(0.8, 1.0, 0.95, alpha))
 
 
 func _draw_plasma_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.5, 0.2, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.25, 0.1, 0.4, alpha), 8.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.25, 0.1, 0.4, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Plasma corona
 	for i in range(4):
 		var ring_a = (0.12 - float(i) * 0.025) * alpha
-		draw_circle(head, (38.0 - float(i) * 5.0) * size_scale, Color(0.5, 0.2, 1.0, ring_a))
+		_draw_ink_disc(head, (38.0 - float(i) * 5.0) * size_scale, Color(0.5, 0.2, 1.0, ring_a))
 	# Mushroom cap
-	draw_circle(head, 22.0 * size_scale, body_color)
+	_draw_ink_disc(head, 22.0 * size_scale, body_color)
 	# Plasma arcs
 	for i in range(6):
 		var arc_angle = TAU * float(i) / 6.0 + level_time * 1.2
 		var a1 = head + Vector2(cos(arc_angle), sin(arc_angle)) * 14.0 * size_scale
 		var a2 = head + Vector2(cos(arc_angle + 0.5), sin(arc_angle + 0.5)) * 20.0 * size_scale
-		draw_line(a1, a2, Color(0.8, 0.5, 1.0, 0.7 * alpha), 1.5 * size_scale)
-	draw_circle(head, 10.0 * size_scale, Color(0.7, 0.4, 1.0, alpha))
+		_draw_ink_line(a1, a2, Color(0.8, 0.5, 1.0, 0.7 * alpha), 1.5 * size_scale)
+	_draw_ink_disc(head, 10.0 * size_scale, Color(0.7, 0.4, 1.0, alpha))
 	draw_circle(head, 5.0 * size_scale, Color(1.0, 0.9, 1.0, alpha))
-	draw_circle(head + Vector2(0.0, 16.0 * size_scale), 9.0 * size_scale, Color(0.35, 0.15, 0.65, alpha))
+	_draw_ink_disc(head + Vector2(0.0, 16.0 * size_scale), 9.0 * size_scale, Color(0.35, 0.15, 0.65, alpha))
 
 
 func _draw_meteor_flower(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.6, 0.1, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.25, 0.08, alpha), 8.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.4, 0.25, 0.08, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Fire corona
-	draw_circle(head, 36.0 * size_scale, Color(1.0, 0.4, 0.0, 0.07 * alpha))
-	draw_circle(head, 28.0 * size_scale, Color(1.0, 0.6, 0.1, 0.1 * alpha))
+	_draw_ink_disc(head, 36.0 * size_scale, Color(1.0, 0.4, 0.0, 0.07 * alpha))
+	_draw_ink_disc(head, 28.0 * size_scale, Color(1.0, 0.6, 0.1, 0.1 * alpha))
 	# Meteor petals — trailing fire
 	for i in range(8):
 		var angle = TAU * float(i) / 8.0 + level_time * 0.4
 		var petal = head + Vector2(cos(angle), sin(angle)) * 24.0 * size_scale
 		var fire_color = Color(1.0, 0.3 + float(i % 3) * 0.25, 0.0, 0.85 * alpha)
 		draw_circle(petal, 7.0 * size_scale, fire_color)
-	draw_circle(head, 16.0 * size_scale, body_color)
+	_draw_ink_disc(head, 16.0 * size_scale, body_color)
 	# Meteor core with crater
 	draw_circle(head, 8.0 * size_scale, Color(0.85, 0.42, 0.0, alpha))
 	draw_circle(head, 4.0 * size_scale, Color(1.0, 0.9, 0.5, alpha))
@@ -33455,22 +32619,22 @@ func _draw_meteor_flower(center: Vector2, size_scale: float, flash: float, alpha
 func _draw_destiny_tree(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.9, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 15.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.35, 0.1, alpha), 9.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.35, 0.1, alpha), 9.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Divine aura
-	draw_circle(head, 40.0 * size_scale, Color(1.0, 0.9, 0.3, 0.06 * alpha))
+	_draw_ink_disc(head, 40.0 * size_scale, Color(1.0, 0.9, 0.3, 0.06 * alpha))
 	# Branching crown
 	for i in range(5):
 		var angle = TAU * float(i) / 5.0 - PI * 0.5 + level_time * 0.1
 		var branch_end = head + Vector2(cos(angle) * 28.0 * size_scale, sin(angle) * 28.0 * size_scale)
-		draw_line(head, branch_end, Color(0.6, 0.42, 0.12, alpha), 3.5 * size_scale)
+		_draw_ink_line(head, branch_end, Color(0.6, 0.42, 0.12, alpha), 3.5 * size_scale)
 		draw_circle(branch_end, 5.0 * size_scale, Color(1.0, 0.95, 0.45, alpha))
-	draw_circle(head, 18.0 * size_scale, body_color)
+	_draw_ink_disc(head, 18.0 * size_scale, body_color)
 	# Destiny sigil
 	for i in range(5):
 		var sa = TAU * float(i) / 5.0 + level_time * 0.3
 		var sb = TAU * float((i + 2) % 5) / 5.0 + level_time * 0.3
-		draw_line(head + Vector2(cos(sa), sin(sa)) * 10.0 * size_scale, head + Vector2(cos(sb), sin(sb)) * 10.0 * size_scale, Color(1.0, 0.9, 0.5, 0.6 * alpha), 1.5 * size_scale)
+		_draw_ink_line(head + Vector2(cos(sa), sin(sa)) * 10.0 * size_scale, head + Vector2(cos(sb), sin(sb)) * 10.0 * size_scale, Color(1.0, 0.9, 0.5, 0.6 * alpha), 1.5 * size_scale)
 	draw_circle(head, 6.0 * size_scale, Color(1.0, 1.0, 0.8, alpha))
 	draw_circle(head + Vector2(-5.0 * size_scale, -2.0 * size_scale), 2.5 * size_scale, Color(0.5, 0.35, 0.05, alpha))
 	draw_circle(head + Vector2(5.0 * size_scale, -2.0 * size_scale), 2.5 * size_scale, Color(0.5, 0.35, 0.05, alpha))
@@ -33478,17 +32642,17 @@ func _draw_destiny_tree(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_abyss_tentacle(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.1, 0.05, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.1 * alpha))
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.06, 0.03, 0.18, alpha), 9.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.1 * alpha))
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.06, 0.03, 0.18, alpha), 9.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Deep abyss void
-	draw_circle(head, 28.0 * size_scale, Color(0.04, 0.02, 0.1, 0.4 * alpha))
-	draw_circle(head, 22.0 * size_scale, body_color)
+	_draw_ink_disc(head, 28.0 * size_scale, Color(0.04, 0.02, 0.1, 0.4 * alpha))
+	_draw_ink_disc(head, 22.0 * size_scale, body_color)
 	# Tentacles
 	for i in range(6):
 		var angle = TAU * float(i) / 6.0 + level_time * 0.3
 		var tent_end = head + Vector2(cos(angle) * 32.0 * size_scale, sin(angle) * 20.0 * size_scale)
-		draw_line(head + Vector2(cos(angle) * 14.0 * size_scale, sin(angle) * 14.0 * size_scale), tent_end, Color(0.18, 0.08, 0.45, alpha), 3.5 * size_scale)
+		_draw_ink_line(head + Vector2(cos(angle) * 14.0 * size_scale, sin(angle) * 14.0 * size_scale), tent_end, Color(0.18, 0.08, 0.45, alpha), 3.5 * size_scale)
 		draw_circle(tent_end, 3.0 * size_scale, Color(0.5, 0.2, 0.8, 0.8 * alpha))
 	# Eyes — multiple eerie eyes
 	for i in range(3):
@@ -33501,24 +32665,24 @@ func _draw_abyss_tentacle(center: Vector2, size_scale: float, flash: float, alph
 func _draw_solar_emperor(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.9, 0.1, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 16.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.4, 0.1, alpha), 10.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.5, 0.4, 0.1, alpha), 10.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Solar corona
 	for i in range(3):
-		draw_circle(head, (46.0 - float(i) * 6.0) * size_scale, Color(1.0, 0.8, 0.0, (0.06 - float(i) * 0.015) * alpha))
+		_draw_ink_disc(head, (46.0 - float(i) * 6.0) * size_scale, Color(1.0, 0.8, 0.0, (0.06 - float(i) * 0.015) * alpha))
 	# Sun rays
 	for i in range(12):
 		var angle = TAU * float(i) / 12.0 + level_time * 0.2
 		var ray_start = head + Vector2(cos(angle), sin(angle)) * 22.0 * size_scale
 		var ray_end = head + Vector2(cos(angle), sin(angle)) * (32.0 + sin(level_time * 2.0 + float(i)) * 4.0) * size_scale
-		draw_line(ray_start, ray_end, Color(1.0, 0.9, 0.3, 0.8 * alpha), 2.5 * size_scale)
-	draw_circle(head, 22.0 * size_scale, body_color)
+		_draw_ink_line(ray_start, ray_end, Color(1.0, 0.9, 0.3, 0.8 * alpha), 2.5 * size_scale)
+	_draw_ink_disc(head, 22.0 * size_scale, body_color)
 	# Crown
 	for i in range(5):
 		var ca = TAU * float(i) / 5.0 - PI * 0.5
 		var tip = head + Vector2(cos(ca) * 30.0 * size_scale, sin(ca) * 30.0 * size_scale)
 		draw_circle(tip, 5.0 * size_scale, Color(1.0, 0.7, 0.0, alpha))
-	draw_circle(head, 12.0 * size_scale, Color(1.0, 0.95, 0.5, alpha))
+	_draw_ink_disc(head, 12.0 * size_scale, Color(1.0, 0.95, 0.5, alpha))
 	draw_circle(head, 5.0 * size_scale, Color(1.0, 1.0, 0.8, alpha))
 	draw_circle(head + Vector2(-6.0 * size_scale, -3.0 * size_scale), 3.0 * size_scale, Color(0.5, 0.35, 0.0, alpha))
 	draw_circle(head + Vector2(6.0 * size_scale, -3.0 * size_scale), 3.0 * size_scale, Color(0.5, 0.35, 0.0, alpha))
@@ -33526,20 +32690,20 @@ func _draw_solar_emperor(center: Vector2, size_scale: float, flash: float, alpha
 
 func _draw_shadow_assassin(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.1, 0.05, 0.15, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 11.0 * size_scale, Color(0.0, 0.0, 0.0, 0.1 * alpha))
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.08, 0.04, 0.12, alpha), 7.0 * size_scale)
+	_draw_ink_disc(center + Vector2(0.0, 36.0 * size_scale), 11.0 * size_scale, Color(0.0, 0.0, 0.0, 0.1 * alpha))
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.08, 0.04, 0.12, alpha), 7.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Shadow cloak (dark aura)
-	draw_circle(head, 30.0 * size_scale, Color(0.05, 0.02, 0.08, 0.3 * alpha))
-	draw_circle(head, 22.0 * size_scale, body_color)
+	_draw_ink_disc(head, 30.0 * size_scale, Color(0.05, 0.02, 0.08, 0.3 * alpha))
+	_draw_ink_disc(head, 22.0 * size_scale, body_color)
 	# Stealth shimmer
 	for i in range(5):
 		var sa = TAU * float(i) / 5.0 + level_time * 0.8
 		var sp = head + Vector2(cos(sa), sin(sa)) * 18.0 * size_scale
 		draw_circle(sp, 2.5 * size_scale, Color(0.4, 0.2, 0.6, 0.5 * alpha))
 	# Dagger blades
-	draw_line(head + Vector2(-16.0 * size_scale, 4.0 * size_scale), head + Vector2(16.0 * size_scale, -12.0 * size_scale), Color(0.7, 0.7, 0.8, 0.8 * alpha), 2.5 * size_scale)
-	draw_line(head + Vector2(-16.0 * size_scale, -12.0 * size_scale), head + Vector2(16.0 * size_scale, 4.0 * size_scale), Color(0.7, 0.7, 0.8, 0.8 * alpha), 2.5 * size_scale)
+	_draw_ink_line(head + Vector2(-16.0 * size_scale, 4.0 * size_scale), head + Vector2(16.0 * size_scale, -12.0 * size_scale), Color(0.7, 0.7, 0.8, 0.8 * alpha), 2.5 * size_scale)
+	_draw_ink_line(head + Vector2(-16.0 * size_scale, -12.0 * size_scale), head + Vector2(16.0 * size_scale, 4.0 * size_scale), Color(0.7, 0.7, 0.8, 0.8 * alpha), 2.5 * size_scale)
 	# Glowing eyes
 	draw_circle(head + Vector2(-5.0 * size_scale, -3.0 * size_scale), 3.0 * size_scale, Color(0.6, 0.1, 0.9, alpha))
 	draw_circle(head + Vector2(5.0 * size_scale, -3.0 * size_scale), 3.0 * size_scale, Color(0.6, 0.1, 0.9, alpha))
@@ -33550,25 +32714,25 @@ func _draw_shadow_assassin(center: Vector2, size_scale: float, flash: float, alp
 func _draw_core_blossom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.4, 0.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 15.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.35, 0.14, 0.04, alpha), 9.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.35, 0.14, 0.04, alpha), 9.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Magma corona
-	draw_circle(head, 38.0 * size_scale, Color(1.0, 0.2, 0.0, 0.06 * alpha))
-	draw_circle(head, 30.0 * size_scale, Color(1.0, 0.4, 0.0, 0.1 * alpha))
+	_draw_ink_disc(head, 38.0 * size_scale, Color(1.0, 0.2, 0.0, 0.06 * alpha))
+	_draw_ink_disc(head, 30.0 * size_scale, Color(1.0, 0.4, 0.0, 0.1 * alpha))
 	# Lava petals
 	for i in range(6):
 		var angle = TAU * float(i) / 6.0 + level_time * 0.2
 		var petal = head + Vector2(cos(angle), sin(angle)) * 26.0 * size_scale
 		var lava_col = Color(1.0, 0.2 + float(i % 3) * 0.15, 0.0, 0.9 * alpha)
-		draw_circle(petal, 9.0 * size_scale, lava_col)
-	draw_circle(head, 18.0 * size_scale, body_color)
+		_draw_ink_disc(petal, 9.0 * size_scale, lava_col)
+	_draw_ink_disc(head, 18.0 * size_scale, body_color)
 	# Molten core
-	draw_circle(head, 10.0 * size_scale, Color(1.0, 0.7, 0.0, alpha))
+	_draw_ink_disc(head, 10.0 * size_scale, Color(1.0, 0.7, 0.0, alpha))
 	draw_circle(head, 5.0 * size_scale, Color(1.0, 0.95, 0.7, alpha))
 	# Eruption crack lines
 	for i in range(4):
 		var ca = TAU * float(i) / 4.0 + 0.2
-		draw_line(head + Vector2(cos(ca) * 5.0 * size_scale, sin(ca) * 5.0 * size_scale),
+		_draw_ink_line(head + Vector2(cos(ca) * 5.0 * size_scale, sin(ca) * 5.0 * size_scale),
 			head + Vector2(cos(ca) * 14.0 * size_scale, sin(ca) * 14.0 * size_scale),
 			Color(1.0, 0.95, 0.7, 0.7 * alpha), 1.5 * size_scale)
 	draw_circle(head + Vector2(-5.5 * size_scale, -3.0 * size_scale), 2.5 * size_scale, Color(0.4, 0.1, 0.0, alpha))
@@ -33577,12 +32741,12 @@ func _draw_core_blossom(center: Vector2, size_scale: float, flash: float, alpha:
 
 func _draw_holy_lotus(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(1.0, 0.95, 0.7, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
-	draw_circle(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.04 * alpha))
-	draw_circle(center + Vector2(0.0, 30.0 * size_scale), 16.0 * size_scale, Color(0.2, 0.55, 0.2, 0.6 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, 36.0 * size_scale), 14.0 * size_scale, Color(0.0, 0.0, 0.0, 0.04 * alpha))
+	_draw_ink_disc(center + Vector2(0.0, 30.0 * size_scale), 16.0 * size_scale, Color(0.2, 0.55, 0.2, 0.6 * alpha))
 	var head = center + Vector2(0.0, 2.0 * size_scale)
 	# Holy light rings
 	for i in range(3):
-		draw_circle(head, (44.0 - float(i) * 7.0) * size_scale, Color(1.0, 0.95, 0.6, (0.06 - float(i) * 0.015) * alpha))
+		_draw_ink_disc(head, (44.0 - float(i) * 7.0) * size_scale, Color(1.0, 0.95, 0.6, (0.06 - float(i) * 0.015) * alpha))
 	# Lotus petals — two tiers
 	for tier in range(2):
 		for i in range(8):
@@ -33590,11 +32754,11 @@ func _draw_holy_lotus(center: Vector2, size_scale: float, flash: float, alpha: f
 			var dist = (22.0 - float(tier) * 6.0) * size_scale
 			var petal = head + Vector2(cos(angle), sin(angle)) * dist
 			var pcol = Color(1.0, 0.9 - float(tier) * 0.1, 0.6 + float(tier) * 0.2, 0.85 * alpha)
-			draw_circle(petal, (8.0 - float(tier) * 2.0) * size_scale, pcol)
-	draw_circle(head, 12.0 * size_scale, body_color)
+			_draw_ink_disc(petal, (8.0 - float(tier) * 2.0) * size_scale, pcol)
+	_draw_ink_disc(head, 12.0 * size_scale, body_color)
 	draw_circle(head, 6.0 * size_scale, Color(1.0, 1.0, 0.9, alpha))
 	# Halo
-	draw_circle(head + Vector2(0.0, -20.0 * size_scale), 12.0 * size_scale, Color(1.0, 0.9, 0.4, 0.4 * alpha), false, 2.0 * size_scale)
+	_draw_ink_disc(head + Vector2(0.0, -20.0 * size_scale), 12.0 * size_scale, Color(1.0, 0.9, 0.4, 0.4 * alpha), false, 2.0 * size_scale)
 	draw_circle(head + Vector2(-5.0 * size_scale, -1.0 * size_scale), 2.5 * size_scale, Color(0.6, 0.4, 0.1, alpha))
 	draw_circle(head + Vector2(5.0 * size_scale, -1.0 * size_scale), 2.5 * size_scale, Color(0.6, 0.4, 0.1, alpha))
 
@@ -33602,7 +32766,7 @@ func _draw_holy_lotus(center: Vector2, size_scale: float, flash: float, alpha: f
 func _draw_chaos_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var body_color = Color(0.7, 0.2, 0.8, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 36.0 * size_scale)
-	draw_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.1, 0.38, alpha), 8.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.3, 0.1, 0.38, alpha), 8.0 * size_scale)
 	var head = center + Vector2(0.0, -4.0 * size_scale)
 	# Chaos energy swirl
 	for i in range(5):
@@ -33611,7 +32775,7 @@ func _draw_chaos_shroom(center: Vector2, size_scale: float, flash: float, alpha:
 		var sp = head + Vector2(cos(swirl_angle) * swirl_r, sin(swirl_angle) * swirl_r)
 		var chaos_col = Color(float(i) * 0.2, 1.0 - float(i) * 0.18, float(i % 3) * 0.4 + 0.2, 0.7 * alpha)
 		draw_circle(sp, 4.5 * size_scale, chaos_col)
-	draw_circle(head, 20.0 * size_scale, body_color)
+	_draw_ink_disc(head, 20.0 * size_scale, body_color)
 	# Spot pattern
 	for i in range(7):
 		var sa = TAU * float(i) / 7.0
@@ -34527,7 +33691,7 @@ func _draw_cork_plug(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var cork = Color(0.78, 0.54, 0.3, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 30.0 * size_scale)
 	# Body cylinder
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-16.0 * size_scale, -6.0 * size_scale),
 			center + Vector2(16.0 * size_scale, -6.0 * size_scale),
@@ -34538,11 +33702,11 @@ func _draw_cork_plug(center: Vector2, size_scale: float, flash: float, alpha: fl
 	)
 	# Top cap
 	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 17.0 * size_scale, cork.lightened(0.08))
-	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 13.0 * size_scale, cork.darkened(0.1))
+	_draw_ink_disc(center + Vector2(0.0, -8.0 * size_scale), 13.0 * size_scale, cork.darkened(0.1))
 	# Cork grain rings
 	for ring_index in range(3):
 		var ring_y = (-2.0 + float(ring_index) * 8.0) * size_scale
-		draw_line(center + Vector2(-12.0 * size_scale, ring_y), center + Vector2(12.0 * size_scale, ring_y), cork.darkened(0.18), 1.4 * size_scale)
+		_draw_ink_line(center + Vector2(-12.0 * size_scale, ring_y), center + Vector2(12.0 * size_scale, ring_y), cork.darkened(0.18), 1.4 * size_scale)
 	# Sealing glow while freshly placed
 	if flash > 0.02:
 		draw_arc(center + Vector2(0.0, 2.0 * size_scale), 20.0 * size_scale, 0.0, TAU, 20, Color(1.0, 0.6, 0.24, alpha * 0.4), 2.0 * size_scale)
@@ -34560,19 +33724,19 @@ func _draw_dragon_bubble_pult(center: Vector2, size_scale: float, flash: float, 
 	var glass = Color(0.48, 0.92, 1.0, alpha * 0.42)
 	var core = center + Vector2(-5.0 * size_scale, -2.0 * size_scale)
 	# Curved dragon neck / plant body.
-	draw_line(center + Vector2(-3.0 * size_scale, 20.0 * size_scale), core + Vector2(0.0, -10.0 * size_scale), body_dark, 10.0 * size_scale)
-	draw_line(center + Vector2(-3.0 * size_scale, 20.0 * size_scale), core + Vector2(0.0, -10.0 * size_scale), body, 7.0 * size_scale)
-	draw_circle(core + Vector2(-2.0 * size_scale, 2.0 * size_scale), 17.0 * size_scale, body)
-	draw_circle(core + Vector2(-6.0 * size_scale, 6.0 * size_scale), 10.0 * size_scale, Color(0.22, 0.6, 0.48, alpha))
+	_draw_ink_line(center + Vector2(-3.0 * size_scale, 20.0 * size_scale), core + Vector2(0.0, -10.0 * size_scale), body_dark, 10.0 * size_scale)
+	_draw_ink_line(center + Vector2(-3.0 * size_scale, 20.0 * size_scale), core + Vector2(0.0, -10.0 * size_scale), body, 7.0 * size_scale)
+	_draw_ink_disc(core + Vector2(-2.0 * size_scale, 2.0 * size_scale), 17.0 * size_scale, body)
+	_draw_ink_disc(core + Vector2(-6.0 * size_scale, 6.0 * size_scale), 10.0 * size_scale, Color(0.22, 0.6, 0.48, alpha))
 	# Tactical armor plates across the chest.
 	for plate_index in range(3):
 		var plate_y = (-6.0 + float(plate_index) * 7.0) * size_scale
-		draw_line(core + Vector2(-17.0 * size_scale, plate_y), core + Vector2(6.0 * size_scale, plate_y - 2.0 * size_scale), armor.darkened(0.08), 2.4 * size_scale)
+		_draw_ink_line(core + Vector2(-17.0 * size_scale, plate_y), core + Vector2(6.0 * size_scale, plate_y - 2.0 * size_scale), armor.darkened(0.08), 2.4 * size_scale)
 	# Head, horns, and crest.
 	var head = center + Vector2(-4.0 * size_scale, -24.0 * size_scale)
-	draw_circle(head, 15.0 * size_scale, body)
-	draw_circle(head + Vector2(4.0 * size_scale, 3.0 * size_scale), 9.0 * size_scale, Color(0.2, 0.56, 0.46, alpha))
-	draw_polygon(
+	_draw_ink_disc(head, 15.0 * size_scale, body)
+	_draw_ink_disc(head + Vector2(4.0 * size_scale, 3.0 * size_scale), 9.0 * size_scale, Color(0.2, 0.56, 0.46, alpha))
+	_draw_ink_polygon(
 		PackedVector2Array([
 			head + Vector2(-12.0 * size_scale, -11.0 * size_scale),
 			head + Vector2(-22.0 * size_scale, -25.0 * size_scale),
@@ -34580,7 +33744,7 @@ func _draw_dragon_bubble_pult(center: Vector2, size_scale: float, flash: float, 
 		]),
 		PackedColorArray([armor, armor.lightened(0.16), armor.darkened(0.08)])
 	)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			head + Vector2(5.0 * size_scale, -12.0 * size_scale),
 			head + Vector2(11.0 * size_scale, -28.0 * size_scale),
@@ -34593,18 +33757,18 @@ func _draw_dragon_bubble_pult(center: Vector2, size_scale: float, flash: float, 
 	# Focused face, not a cute generic blob.
 	draw_circle(head + Vector2(-5.0 * size_scale, -2.0 * size_scale), 2.2 * size_scale, Color(0.04, 0.08, 0.08, alpha))
 	draw_circle(head + Vector2(5.0 * size_scale, -3.0 * size_scale), 2.2 * size_scale, Color(0.04, 0.08, 0.08, alpha))
-	draw_line(head + Vector2(-8.0 * size_scale, 5.0 * size_scale), head + Vector2(7.0 * size_scale, 4.0 * size_scale), Color(0.04, 0.12, 0.1, alpha), 1.4 * size_scale)
+	_draw_ink_line(head + Vector2(-8.0 * size_scale, 5.0 * size_scale), head + Vector2(7.0 * size_scale, 4.0 * size_scale), Color(0.04, 0.12, 0.1, alpha), 1.4 * size_scale)
 	# Launcher rail and glass bubble chamber.
 	var muzzle = center + Vector2(21.0 * size_scale, -18.0 * size_scale)
-	draw_line(core + Vector2(8.0 * size_scale, 2.0 * size_scale), muzzle, Color(0.08, 0.18, 0.2, alpha), 8.0 * size_scale)
-	draw_line(core + Vector2(8.0 * size_scale, 2.0 * size_scale), muzzle, armor.darkened(0.05), 4.0 * size_scale)
-	draw_circle(muzzle, 14.0 * size_scale, Color(0.1, 0.2, 0.22, alpha))
-	draw_circle(muzzle, 11.0 * size_scale, glass)
+	_draw_ink_line(core + Vector2(8.0 * size_scale, 2.0 * size_scale), muzzle, Color(0.08, 0.18, 0.2, alpha), 8.0 * size_scale)
+	_draw_ink_line(core + Vector2(8.0 * size_scale, 2.0 * size_scale), muzzle, armor.darkened(0.05), 4.0 * size_scale)
+	_draw_ink_disc(muzzle, 14.0 * size_scale, Color(0.1, 0.2, 0.22, alpha))
+	_draw_ink_disc(muzzle, 11.0 * size_scale, glass)
 	draw_circle(muzzle + Vector2(0.0, 1.0 * size_scale), 7.5 * size_scale, magma)
 	draw_circle(muzzle + Vector2(-4.0 * size_scale, -5.0 * size_scale), 3.2 * size_scale, Color(1.0, 0.88, 0.5, alpha))
 	draw_arc(muzzle, 13.0 * size_scale, -0.2, TAU * 0.64, 20, Color(0.86, 1.0, 1.0, alpha * 0.62), 1.6 * size_scale)
 	# Side leaves as dragon wings.
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-17.0 * size_scale, 7.0 * size_scale),
 			center + Vector2(-34.0 * size_scale, -2.0 * size_scale),
@@ -34612,12 +33776,12 @@ func _draw_dragon_bubble_pult(center: Vector2, size_scale: float, flash: float, 
 		]),
 		PackedColorArray([Color(0.18, 0.54, 0.34, alpha), Color(0.32, 0.72, 0.38, alpha), Color(0.12, 0.38, 0.28, alpha)])
 	)
-	draw_line(center + Vector2(-18.0 * size_scale, 8.0 * size_scale), center + Vector2(-31.0 * size_scale, 0.0), Color(0.72, 0.9, 0.46, alpha * 0.75), 1.6 * size_scale)
+	_draw_ink_line(center + Vector2(-18.0 * size_scale, 8.0 * size_scale), center + Vector2(-31.0 * size_scale, 0.0), Color(0.72, 0.9, 0.46, alpha * 0.75), 1.6 * size_scale)
 	# Animated embers inside and above the launcher.
 	for ember_index in range(4):
 		var ember_phase = level_time * 2.8 + float(ember_index) * 1.1
 		var ember_pos = muzzle + Vector2(sin(ember_phase) * 7.0 * size_scale, (-20.0 - float(ember_index) * 3.0 + cos(ember_phase) * 2.0) * size_scale)
-		draw_circle(ember_pos, (1.8 + float(ember_index % 2) * 0.5) * size_scale, Color(1.0, 0.64, 0.22, alpha * 0.62))
+		_draw_ink_disc(ember_pos, (1.8 + float(ember_index % 2) * 0.5) * size_scale, Color(1.0, 0.64, 0.22, alpha * 0.62))
 
 
 func _draw_cyclone_grass(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -34633,7 +33797,7 @@ func _draw_cyclone_grass(center: Vector2, size_scale: float, flash: float, alpha
 	for blade_index in range(6):
 		var blade_angle = spin * -0.5 + float(blade_index) * TAU / 6.0
 		var blade_tip = center + Vector2(cos(blade_angle), sin(blade_angle)) * 16.0 * size_scale + Vector2(0.0, -2.0 * size_scale)
-		draw_line(center + Vector2(0.0, 4.0 * size_scale), blade_tip, blade, 3.0 * size_scale)
+		_draw_ink_line(center + Vector2(0.0, 4.0 * size_scale), blade_tip, blade, 3.0 * size_scale)
 		draw_circle(blade_tip, 3.0 * size_scale, blade.lightened(0.1))
 	# Core
 	draw_circle(center + Vector2(0.0, 4.0 * size_scale), 7.0 * size_scale, Color(0.8, 0.96, 1.0, alpha))
@@ -34646,8 +33810,8 @@ func _draw_sand_lotus(center: Vector2, size_scale: float, flash: float, alpha: f
 	var core_center = center + Vector2(0.0, -6.0 * size_scale)
 	_draw_ground_shadow(center, 14.0 * size_scale, alpha, 30.0 * size_scale)
 	# Sand ring base
-	draw_circle(center + Vector2(0.0, 14.0 * size_scale), 16.0 * size_scale, Color(0.82, 0.7, 0.42, alpha * 0.7))
-	draw_circle(center + Vector2(0.0, 14.0 * size_scale), 11.0 * size_scale, Color(0.9, 0.8, 0.5, alpha * 0.7))
+	_draw_ink_disc(center + Vector2(0.0, 14.0 * size_scale), 16.0 * size_scale, Color(0.82, 0.7, 0.42, alpha * 0.7))
+	_draw_ink_disc(center + Vector2(0.0, 14.0 * size_scale), 11.0 * size_scale, Color(0.9, 0.8, 0.5, alpha * 0.7))
 	# Outer petals
 	for index in range(8):
 		var angle = TAU * float(index) / 8.0 + 0.2
@@ -34657,7 +33821,7 @@ func _draw_sand_lotus(center: Vector2, size_scale: float, flash: float, alpha: f
 		var angle = TAU * float(index) / 8.0
 		draw_circle(core_center + Vector2(cos(angle), sin(angle)) * 12.0 * size_scale, 6.0 * size_scale, petal)
 	# Core
-	draw_circle(core_center, 9.0 * size_scale, Color(0.9, 0.66, 0.22, alpha))
+	_draw_ink_disc(core_center, 9.0 * size_scale, Color(0.9, 0.66, 0.22, alpha))
 	draw_circle(core_center, 6.0 * size_scale, Color(1.0, 0.82, 0.34, alpha))
 	# Eyes
 	draw_circle(core_center + Vector2(-3.0 * size_scale, -2.0 * size_scale), 1.4 * size_scale, Color(0.1, 0.08, 0.06, alpha))
@@ -34669,18 +33833,18 @@ func _draw_frost_boomerang(center: Vector2, size_scale: float, flash: float, alp
 	var body = Color(0.5, 0.86, 0.96, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 32.0 * size_scale)
 	# Stem
-	draw_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(-1.0 * size_scale, 30.0 * size_scale), Color(0.22, 0.56, 0.62, alpha), 6.0 * size_scale)
+	_draw_ink_line(center + Vector2(0.0, 8.0 * size_scale), center + Vector2(-1.0 * size_scale, 30.0 * size_scale), Color(0.22, 0.56, 0.62, alpha), 6.0 * size_scale)
 	# Leaves (frosted)
 	draw_circle(center + Vector2(-13.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.36, 0.74, 0.86, alpha))
 	draw_circle(center + Vector2(13.0 * size_scale, 18.0 * size_scale), 8.0 * size_scale, Color(0.36, 0.74, 0.86, alpha))
 	# Head
-	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 16.0 * size_scale, body)
+	_draw_ink_disc(center + Vector2(0.0, -8.0 * size_scale), 16.0 * size_scale, body)
 	draw_circle(center + Vector2(0.0, -8.0 * size_scale), 11.0 * size_scale, body.lightened(0.1))
 	# Held boomerang blade
 	var held_spin = level_time * 3.0
 	for blade_index in range(2):
 		var blade_angle = held_spin + float(blade_index) * PI
-		draw_line(center + Vector2(0.0, -8.0 * size_scale), center + Vector2(0.0, -8.0 * size_scale) + Vector2(cos(blade_angle), sin(blade_angle)) * 12.0 * size_scale, Color(0.84, 0.98, 1.0, alpha), 3.0 * size_scale)
+		_draw_ink_line(center + Vector2(0.0, -8.0 * size_scale), center + Vector2(0.0, -8.0 * size_scale) + Vector2(cos(blade_angle), sin(blade_angle)) * 12.0 * size_scale, Color(0.84, 0.98, 1.0, alpha), 3.0 * size_scale)
 	# Face
 	draw_circle(center + Vector2(-5.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.1, 0.16, alpha))
 	draw_circle(center + Vector2(5.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.08, 0.1, 0.16, alpha))
@@ -34692,11 +33856,11 @@ func _draw_toxic_gum_pult(center: Vector2, size_scale: float, flash: float, alph
 	var body = Color(0.5, 0.8, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
 	var gum = Color(0.6, 0.9, 0.3, alpha)
 	# Launcher arm
-	draw_line(center + Vector2(2.0 * size_scale, 10.0 * size_scale), center + Vector2(16.0 * size_scale, -12.0 * size_scale), Color(0.28, 0.54, 0.18, alpha), 5.0 * size_scale)
+	_draw_ink_line(center + Vector2(2.0 * size_scale, 10.0 * size_scale), center + Vector2(16.0 * size_scale, -12.0 * size_scale), Color(0.28, 0.54, 0.18, alpha), 5.0 * size_scale)
 	# Leaves
 	draw_circle(center + Vector2(-14.0 * size_scale, 12.0 * size_scale), 8.0 * size_scale, body.darkened(0.1))
 	# Gum wad resting in the cup
-	draw_circle(center + Vector2(16.0 * size_scale, -16.0 * size_scale), 11.0 * size_scale, Color(0.5, 0.86, 0.22, alpha * 0.5))
+	_draw_ink_disc(center + Vector2(16.0 * size_scale, -16.0 * size_scale), 11.0 * size_scale, Color(0.5, 0.86, 0.22, alpha * 0.5))
 	draw_circle(center + Vector2(16.0 * size_scale, -16.0 * size_scale), 8.0 * size_scale, gum)
 	draw_circle(center + Vector2(13.0 * size_scale, -19.0 * size_scale), 3.0 * size_scale, Color(0.8, 1.0, 0.5, alpha))
 	# Drip
@@ -34713,9 +33877,9 @@ func _draw_corn_cannon(center: Vector2, size_scale: float, flash: float, alpha: 
 	var husk = Color(0.5, 0.78, 0.28, alpha)
 	_draw_ground_shadow(center, 18.0 * size_scale, alpha, 32.0 * size_scale)
 	# Base mount
-	draw_rect(Rect2(center + Vector2(-22.0 * size_scale, 14.0 * size_scale), Vector2(44.0 * size_scale, 12.0 * size_scale)), Color(0.4, 0.28, 0.18, alpha), true)
+	_draw_ink_rect(Rect2(center + Vector2(-22.0 * size_scale, 14.0 * size_scale), Vector2(44.0 * size_scale, 12.0 * size_scale)), Color(0.4, 0.28, 0.18, alpha), true)
 	# Cannon barrel (angled cob)
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-14.0 * size_scale, 8.0 * size_scale),
 			center + Vector2(-20.0 * size_scale, -18.0 * size_scale),
@@ -34725,7 +33889,7 @@ func _draw_corn_cannon(center: Vector2, size_scale: float, flash: float, alpha: 
 		PackedColorArray([cob.darkened(0.06), cob, cob.lightened(0.08), cob.darkened(0.06)])
 	)
 	# Husk leaves at the breech
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-14.0 * size_scale, 8.0 * size_scale),
 			center + Vector2(-26.0 * size_scale, 2.0 * size_scale),
@@ -34761,7 +33925,7 @@ func _draw_holy_flower(center: Vector2, size_scale: float, flash: float, alpha: 
 		var angle = TAU * float(index) / 8.0 + 0.2
 		draw_circle(core_center + Vector2(cos(angle), sin(angle)) * 11.0 * size_scale, 6.0 * size_scale, petal)
 	# Core
-	draw_circle(core_center, 9.0 * size_scale, Color(1.0, 0.86, 0.4, alpha))
+	_draw_ink_disc(core_center, 9.0 * size_scale, Color(1.0, 0.86, 0.4, alpha))
 	draw_circle(core_center, 6.0 * size_scale, Color(1.0, 0.96, 0.66, alpha))
 	# Eyes
 	draw_circle(core_center + Vector2(-3.0 * size_scale, -1.0 * size_scale), 1.4 * size_scale, Color(0.2, 0.14, 0.04, alpha))
@@ -34774,7 +33938,7 @@ func _draw_ice_cream(center: Vector2, size_scale: float, flash: float, alpha: fl
 	var cream = Color(0.86, 0.62, 0.86, alpha)
 	_draw_ground_shadow(center, 13.0 * size_scale, alpha, 30.0 * size_scale)
 	# Cone
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-12.0 * size_scale, 0.0 * size_scale),
 			center + Vector2(12.0 * size_scale, 0.0 * size_scale),
@@ -34785,16 +33949,16 @@ func _draw_ice_cream(center: Vector2, size_scale: float, flash: float, alpha: fl
 	# Cone waffle grid
 	for line_index in range(3):
 		var line_y = (4.0 + float(line_index) * 7.0) * size_scale
-		draw_line(center + Vector2(-9.0 * size_scale + float(line_index) * 3.0, line_y), center + Vector2(9.0 * size_scale - float(line_index) * 3.0, line_y), Color(0.6, 0.4, 0.18, alpha), 1.2 * size_scale)
+		_draw_ink_line(center + Vector2(-9.0 * size_scale + float(line_index) * 3.0, line_y), center + Vector2(9.0 * size_scale - float(line_index) * 3.0, line_y), Color(0.6, 0.4, 0.18, alpha), 1.2 * size_scale)
 	# Scoops
-	draw_circle(center + Vector2(0.0, -6.0 * size_scale), 14.0 * size_scale, cream)
-	draw_circle(center + Vector2(-7.0 * size_scale, -12.0 * size_scale), 9.0 * size_scale, scoop)
+	_draw_ink_disc(center + Vector2(0.0, -6.0 * size_scale), 14.0 * size_scale, cream)
+	_draw_ink_disc(center + Vector2(-7.0 * size_scale, -12.0 * size_scale), 9.0 * size_scale, scoop)
 	draw_circle(center + Vector2(7.0 * size_scale, -12.0 * size_scale), 9.0 * size_scale, scoop.lightened(0.06))
 	# Cherry on top
 	draw_circle(center + Vector2(0.0, -22.0 * size_scale), 4.0 * size_scale, Color(0.9, 0.16, 0.2, alpha))
 	# Sparkle while charged
 	if flash > 0.02:
-		draw_circle(center + Vector2(0.0, -10.0 * size_scale), 20.0 * size_scale, Color(0.9, 0.96, 1.0, alpha * 0.2))
+		_draw_ink_disc(center + Vector2(0.0, -10.0 * size_scale), 20.0 * size_scale, Color(0.9, 0.96, 1.0, alpha * 0.2))
 
 
 func _draw_gator_cannon(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -34803,7 +33967,7 @@ func _draw_gator_cannon(center: Vector2, size_scale: float, flash: float, alpha:
 	var belly = Color(0.78, 0.92, 0.5, alpha)
 	_draw_ground_shadow(center, 18.0 * size_scale, alpha, 32.0 * size_scale)
 	# Tail
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(-22.0 * size_scale, 12.0 * size_scale),
 			center + Vector2(-8.0 * size_scale, 4.0 * size_scale),
@@ -34812,10 +33976,10 @@ func _draw_gator_cannon(center: Vector2, size_scale: float, flash: float, alpha:
 		PackedColorArray([body.darkened(0.12), body, body.darkened(0.08)])
 	)
 	# Body
-	draw_circle(center + Vector2(0.0, 8.0 * size_scale), 18.0 * size_scale, body)
-	draw_circle(center + Vector2(0.0, 14.0 * size_scale), 14.0 * size_scale, belly)
+	_draw_ink_disc(center + Vector2(0.0, 8.0 * size_scale), 18.0 * size_scale, body)
+	_draw_ink_disc(center + Vector2(0.0, 14.0 * size_scale), 14.0 * size_scale, belly)
 	# Snout / muzzle
-	draw_polygon(
+	_draw_ink_polygon(
 		PackedVector2Array([
 			center + Vector2(12.0 * size_scale, 0.0 * size_scale),
 			center + Vector2(30.0 * size_scale, -4.0 * size_scale),
@@ -34829,7 +33993,7 @@ func _draw_gator_cannon(center: Vector2, size_scale: float, flash: float, alpha:
 	# Back scales
 	for scale_index in range(3):
 		var scale_x = (-10.0 + float(scale_index) * 8.0) * size_scale
-		draw_polygon(
+		_draw_ink_polygon(
 			PackedVector2Array([
 				center + Vector2(scale_x, -8.0 * size_scale),
 				center + Vector2(scale_x - 4.0 * size_scale, -2.0 * size_scale),
