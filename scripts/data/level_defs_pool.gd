@@ -586,9 +586,9 @@ const LEVELS = [
 			"time_scale": 0.68,
 			"sky_sun_range": Vector2(999.0, 999.0),
 			"node_pos": Vector2(1160.0, 420.0),
-			"mid_boss_kind": "night_boss",
+			"mid_boss_kind": "rumia_boss",
 			"mid_boss_locked_progress": 0.48,
-			"mid_boss_banner": "永夜的暗影先遣者挡住了泳池林道！",
+			"mid_boss_banner": "露米娅从永夜暗处现身，挡住了泳池林道！",
 			"events": [
 				{"time": 5.0, "kind": "snorkel", "row": 2},
 				{"time": 10.0, "kind": "dolphin_rider", "row": 3},

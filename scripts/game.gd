@@ -7265,6 +7265,9 @@ func _update_spawn_director(delta: float) -> void:
 	if frozen_branch_progress_locked and not frozen_branch_midboss_cleared:
 		return
 	if not batch_spawn_queue.is_empty():
+		if _should_hold_final_boss_for_midboss(batch_spawn_queue[0]):
+			spawn_director_timer = maxf(spawn_director_timer, 0.12)
+			return
 		spawn_director_timer -= delta
 		if spawn_director_timer > 0.0:
 			return
@@ -7293,6 +7296,21 @@ func _update_spawn_director(delta: float) -> void:
 		return
 
 	_begin_next_batch()
+
+
+func _should_hold_final_boss_for_midboss(spawn_info: Dictionary) -> bool:
+	return _should_hold_final_boss_kind(String(spawn_info.get("kind", "")))
+
+
+func _should_hold_final_boss_kind(pending_kind: String) -> bool:
+	var midboss_kind = String(current_level.get("mid_boss_kind", ""))
+	if midboss_kind == "" or frozen_branch_midboss_cleared:
+		return false
+	if not _is_boss_kind(pending_kind) or pending_kind == midboss_kind:
+		return false
+	if not frozen_branch_midboss_spawned:
+		_spawn_frozen_branch_midboss()
+	return true
 
 
 func _begin_next_batch() -> void:
@@ -7667,7 +7685,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		TouhouPhaseRuntime.start(boss_unit, current_level)
 		zombies[boss_index] = boss_unit
 		if kind == "rumia_boss":
-			if String(current_level.get("boss_bgm", "")) != "":
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("露米娅出现了！", 2.4)
 		elif kind == "daiyousei_boss":
@@ -7754,6 +7772,10 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("芙兰朵露出现了！", 2.8)
+		elif kind == "wriggle_boss":
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.get("boss_bgm", "")))
+			_show_banner("莉格露·奈特巴格展开永夜虫群！", 2.9)
 	elif kind == "pool_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
@@ -15441,6 +15463,13 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["gargantuar", "wizard_zombie", "subway_zombie", "barrel_screen_zombie", "excavator_zombie", "dragon_dance", "dark_football", "tornado_zombie"],
 			]
 			tint = Color(1.0, 0.38, 0.24, 0.3)
+		"wriggle_boss":
+			pools = [
+				["bee_minion", "bee_minion", "hive_zombie"],
+				["bee_minion", "hive_zombie", "screen_door", "snorkel"],
+				["bee_minion", "hive_zombie", "dark_football", "nether"],
+			]
+			tint = Color(0.46, 1.0, 0.3, 0.28)
 		"pool_boss":
 			pools = [
 				["lifebuoy_normal", "qinghua", "ice_block"],
