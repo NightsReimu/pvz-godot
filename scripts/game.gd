@@ -7042,7 +7042,9 @@ func _handle_almanac_click(mouse_pos: Vector2) -> void:
 
 func _update_spawn_director(delta: float) -> void:
 	var events = current_level["events"]
-	if _is_frozen_branch_level() and frozen_branch_progress_locked:
+	# A midboss gate pauses both new batches and any final-boss event already queued.
+	# This keeps the finale from entering while the road boss is still alive.
+	if frozen_branch_progress_locked and not frozen_branch_midboss_cleared:
 		return
 	if not batch_spawn_queue.is_empty():
 		spawn_director_timer -= delta

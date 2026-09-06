@@ -1475,7 +1475,8 @@ func update_healing_gourd(plant: Dictionary, delta: float, row: int, col: int) -
 		return
 	var data = Defs.PLANTS["healing_gourd"]
 	var heal_amount = float(data["heal_amount"])
-	var heal_radius = float(data["heal_radius"])
+	# 治愈葫芦按棋盘格取 3x3 邻域；不使用固定像素半径，避免缩放后漏掉对角格。
+	var heal_radius = game.CELL_SIZE.length() * 1.5
 	if String(plant.get("plant_food_mode", "")) == "gourd_burst" and float(plant.get("plant_food_timer", 0.0)) > 0.0:
 		heal_amount = float(data["ultimate_heal"])
 		heal_radius += 48.0
@@ -1486,9 +1487,6 @@ func update_healing_gourd(plant: Dictionary, delta: float, row: int, col: int) -
 	var healed := false
 	for other_row in range(max(0, row - 1), min(game.ROWS, row + 2)):
 		for other_col in range(max(0, col - 1), min(game.COLS, col + 2)):
-			var cell_center = game._cell_center(other_row, other_col)
-			if cell_center.distance_to(center) > heal_radius:
-				continue
 			healed = _heal_targetable_plant(other_row, other_col, heal_amount) or healed
 	if healed:
 		game.effects.append({
