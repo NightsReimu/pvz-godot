@@ -14,7 +14,7 @@ func _run() -> void:
 	failed = not _assert_true(String(level.get("terrain", "")) == "mystia_night_food_stand", "3-20 should use the Mystia restaurant terrain") or failed
 	failed = not _assert_true(int(level.get("row_count", 0)) == 6, "3-20 should have six grass rows") or failed
 	failed = not _assert_true(not level.has("water_rows") or Array(level.get("water_rows", [])).is_empty(), "3-20 should not have pool rows") or failed
-	failed = not _assert_true(String(level.get("mid_boss_kind", "")) == "cirno_boss", "3-20 should gate Mystia behind Cirno") or failed
+	failed = not _assert_true(String(level.get("mid_boss_kind", "")) == "", "3-20 should not schedule a separate road boss") or failed
 	failed = not _assert_true(String(level.get("boss_intro_bgm", "")) == "res://audio/th08_mystia_stage.mp3", "3-20 should use the supplied stage BGM") or failed
 	failed = not _assert_true(String(level.get("boss_bgm", "")) == "res://audio/th08_mystia_boss.mp3", "3-20 should use the supplied finale BGM") or failed
 	var finale_count := 0

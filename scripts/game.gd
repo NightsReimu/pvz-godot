@@ -454,6 +454,7 @@ const RAN_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const YUKARI_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const FLANDRE_FRAME_COUNT := TOUHOU_BOSS_FRAME_COUNT
 const WRIGGLE_FRAME_COUNT := 24
+const MYSTIA_FRAME_COUNT := 24
 
 static var shared_audio_stream_cache := {}
 static var shared_sfx_stream_cache := {}
@@ -579,6 +580,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"night_boss",
 	"pool_boss",
 	"wriggle_boss",
+	"mystia_boss",
 	"fog_boss",
 	"roof_boss",
 	"city_boss",
@@ -3121,6 +3123,8 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 			return FLANDRE_FRAME_COUNT
 		"wriggle_boss":
 			return WRIGGLE_FRAME_COUNT
+		"mystia_boss":
+			return MYSTIA_FRAME_COUNT
 		_:
 			return 0
 
@@ -3165,6 +3169,8 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 			return "res://art/flandre"
 		"wriggle_boss":
 			return "res://art/wriggle"
+		"mystia_boss":
+			return "res://art/mystia"
 		_:
 			return ""
 
@@ -3302,6 +3308,8 @@ func _shared_boss_frames_for_kind(kind: String) -> Array:
 			return shared_yuyuko_frames
 		"flandre_boss":
 			return shared_flandre_frames
+		"mystia_boss":
+			return Array(shared_dynamic_boss_frames.get(kind, []))
 		_:
 			return Array(shared_dynamic_boss_frames.get(kind, []))
 
@@ -3340,6 +3348,8 @@ func _shared_boss_frames_face_left_for_kind(kind: String):
 			return shared_yuyuko_frames_face_left
 		"flandre_boss":
 			return shared_flandre_frames_face_left
+		"mystia_boss":
+			return shared_dynamic_boss_frames_face_left.get(kind, null)
 		_:
 			return shared_dynamic_boss_frames_face_left.get(kind, null)
 
@@ -3410,6 +3420,10 @@ func _set_shared_boss_frames_for_kind(kind: String, frames: Array, loaded: bool,
 			shared_flandre_frames = frames
 			shared_flandre_frames_loaded = loaded
 			shared_flandre_frames_face_left = face_left
+		"mystia_boss":
+			shared_dynamic_boss_frames[kind] = frames
+			shared_dynamic_boss_frames_loaded[kind] = loaded
+			shared_dynamic_boss_frames_face_left[kind] = face_left
 		_:
 			if _boss_frame_count_for_kind(kind) > 0:
 				shared_dynamic_boss_frames[kind] = frames
@@ -3451,6 +3465,8 @@ func _instance_boss_frames_for_kind(kind: String) -> Array:
 			return yuyuko_frames
 		"flandre_boss":
 			return flandre_frames
+		"mystia_boss":
+			return Array(dynamic_boss_frames.get(kind, []))
 		_:
 			return Array(dynamic_boss_frames.get(kind, []))
 
@@ -3489,6 +3505,8 @@ func _instance_boss_frames_face_left_for_kind(kind: String):
 			return yuyuko_frames_face_left
 		"flandre_boss":
 			return flandre_frames_face_left
+		"mystia_boss":
+			return dynamic_boss_frames_face_left.get(kind, null)
 		_:
 			return dynamic_boss_frames_face_left.get(kind, null)
 
@@ -3559,6 +3577,10 @@ func _set_instance_boss_frames_for_kind(kind: String, frames: Array, loaded: boo
 			flandre_frames = frames
 			flandre_frames_loaded = loaded
 			flandre_frames_face_left = face_left
+		"mystia_boss":
+			dynamic_boss_frames[kind] = frames
+			dynamic_boss_frames_loaded[kind] = loaded
+			dynamic_boss_frames_face_left[kind] = face_left
 		_:
 			if _boss_frame_count_for_kind(kind) > 0:
 				dynamic_boss_frames[kind] = frames
@@ -3664,7 +3686,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	var target_tab = tab if tab != "" else almanac_tab
 	if target_tab != "zombies":
 		return
-	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "lily_white_boss", "prismriver_boss", "youmu_boss", "yuyuko_boss", "ran_boss", "yukari_boss", "flandre_boss"]:
+	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "lily_white_boss", "prismriver_boss", "youmu_boss", "yuyuko_boss", "ran_boss", "yukari_boss", "flandre_boss", "wriggle_boss", "mystia_boss"]:
 		_queue_boss_frame_set_prewarm(kind)
 
 
@@ -7535,6 +7557,11 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		"rumia_move_from_y": 0.0,
 		"rumia_move_to_y": 0.0,
 		"rumia_reinforcement_timer": 0.0,
+		"mystia_state": "idle",
+		"mystia_cooking_timer": 0.0,
+		"mystia_cooking_row": -1,
+		"mystia_cooking_col": -1,
+		"mystia_food_cooldown": 4.0,
 		"boat_phase": 0,
 		"boat_stride_timer": 0.46 if kind == "dragon_boat" else 0.0,
 		"boat_move_from_x": spawn_x,
@@ -7776,6 +7803,10 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("莉格露·奈特巴格展开永夜虫群！", 2.9)
+		elif kind == "mystia_boss":
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.get("boss_bgm", "")))
+			_show_banner("米斯蒂娅·萝蕾拉端出夜雀食堂！", 3.0)
 	elif kind == "pool_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
@@ -9092,6 +9123,10 @@ func _create_plant(kind: String, row: int, col: int) -> Dictionary:
 		"grave_row": -1,
 		"grave_col": -1,
 		"sleep_timer": 0.0,
+		"mystia_charmed": false,
+		"mystia_charm_attack_timer": 0.0,
+		"mystia_charm_blocked_frame": false,
+		"mystia_being_cooked": false,
 		"rooted_timer": 0.0,
 		"support_timer": 0.0,
 		"contact_timer": 0.0,
@@ -12049,6 +12084,7 @@ func _update_squash_zombie_attack(zombie: Dictionary, delta: float) -> Dictionar
 
 
 func _update_zombies(delta: float) -> void:
+	_update_mystia_food_buffs(delta)
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
 		TouhouPhaseRuntime.guard_health(zombie)
@@ -12499,6 +12535,9 @@ func _update_zombies(delta: float) -> void:
 			zombie["special_pause_timer"] = 0.0
 
 		if _is_boss_zombie(zombie):
+			if String(zombie.get("kind", "")) == "mystia_boss":
+				zombie["mystia_food_cooldown"] = maxf(0.0, float(zombie.get("mystia_food_cooldown", 0.0)) - delta)
+				zombie = _update_mystia_cooking(zombie, delta)
 			zombie = _ensure_zombie_runtime().update_boss(zombie, delta)
 
 		if String(zombie["kind"]) == "dancing":
@@ -12653,7 +12692,7 @@ func _update_zombies(delta: float) -> void:
 			var enemy_target_index = _find_zombie_contact_target(i, int(zombie["row"]), float(zombie["x"]), false)
 			if enemy_target_index != -1:
 				var enemy_zombie = zombies[enemy_target_index]
-				enemy_zombie = _apply_zombie_damage(enemy_zombie, float(zombie["attack_dps"]) * delta, 0.12)
+				enemy_zombie = _apply_zombie_damage(enemy_zombie, _zombie_attack_dps(zombie) * delta, 0.12)
 				zombies[enemy_target_index] = enemy_zombie
 				zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
 			elif float(zombie.get("special_pause_timer", 0.0)) <= 0.0:
@@ -12666,7 +12705,7 @@ func _update_zombies(delta: float) -> void:
 		var hypnotized_target_index = _find_zombie_contact_target(i, int(zombie["row"]), float(zombie["x"]), true)
 		if hypnotized_target_index != -1:
 			var hypnotized_target = zombies[hypnotized_target_index]
-			hypnotized_target = _apply_zombie_damage(hypnotized_target, float(zombie["attack_dps"]) * delta, 0.12)
+			hypnotized_target = _apply_zombie_damage(hypnotized_target, _zombie_attack_dps(zombie) * delta, 0.12)
 			zombies[hypnotized_target_index] = hypnotized_target
 			zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
 			zombies[i] = zombie
@@ -12844,7 +12883,7 @@ func _update_zombies(delta: float) -> void:
 				})
 				zombies[i] = zombie
 				continue
-			var bite_damage = float(zombie["attack_dps"]) * delta
+			var bite_damage = _zombie_attack_dps(zombie) * delta
 			if String(zombie["kind"]) == "saboteur_zombie":
 				bite_damage *= float(Defs.ZOMBIES["saboteur_zombie"].get("sabotage_bite_mult", 1.0))
 			zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
@@ -15470,6 +15509,13 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["bee_minion", "hive_zombie", "dark_football", "nether"],
 			]
 			tint = Color(0.46, 1.0, 0.3, 0.28)
+		"mystia_boss":
+			pools = [
+				["normal", "newspaper", "dancing", "bee_minion"],
+				["screen_door", "dancing", "hive_zombie", "balloon_zombie", "ninja"],
+				["dark_football", "hive_zombie", "wizard_zombie", "gargantuar", "bee_minion"],
+			]
+			tint = Color(1.0, 0.42, 0.68, 0.3)
 		"pool_boss":
 			pools = [
 				["lifebuoy_normal", "qinghua", "ice_block"],
@@ -15650,6 +15696,17 @@ func _update_charmed_plants(delta: float) -> void:
 				var plant: Dictionary = plant_variant
 				var remaining = maxf(0.0, float(plant.get("youmu_charm_timer", 0.0)))
 				plant["youmu_charm_blocked_frame"] = remaining > 0.0
+				if bool(plant.get("mystia_charmed", false)) or bool(plant.get("mystia_being_cooked", false)):
+					plant["mystia_charm_blocked_frame"] = true
+					plant["youmu_charm_blocked_frame"] = false
+					var mystia_timer := float(plant.get("mystia_charm_attack_timer", 0.0)) - delta
+					plant["mystia_charm_attack_timer"] = mystia_timer
+					if bool(plant.get("mystia_charmed", false)) and mystia_timer <= 0.0 and not bool(plant.get("mystia_being_cooked", false)):
+						var target_cell = _find_nearest_plant_cell_to_cell(row, col, true)
+						if target_cell.x >= 0:
+							_damage_plant_cell(target_cell.x, target_cell.y, 34.0, 0.08)
+						plant["mystia_charm_attack_timer"] = 0.72
+					continue
 				if remaining <= 0.0:
 					continue
 				var active_delta = minf(maxf(0.0, delta), remaining)
@@ -15668,7 +15725,7 @@ func _update_charmed_plants(delta: float) -> void:
 
 
 func _plant_charm_blocks_actions(plant: Dictionary) -> bool:
-	return float(plant.get("youmu_charm_timer", 0.0)) > 0.0 or bool(plant.get("youmu_charm_blocked_frame", false))
+	return bool(plant.get("mystia_charmed", false)) or bool(plant.get("mystia_being_cooked", false)) or float(plant.get("youmu_charm_timer", 0.0)) > 0.0 or bool(plant.get("youmu_charm_blocked_frame", false))
 
 
 func _stagger_plants_in_circle(center: Vector2, radius: float, extra_cooldown: float) -> int:
@@ -15940,6 +15997,12 @@ func _apply_touhou_boss_battlefield_skill(zombie: Dictionary) -> Dictionary:
 				_spawn_hover_boss_reinforcement(kind, phase)
 		"flandre_boss":
 			_stagger_plants_in_circle(center, 208.0 + phase * 20.0, 1.1 + phase * 0.16)
+		"mystia_boss":
+			var cycle := int(zombie.get("boss_skill_cycle", 0)) % 6
+			if cycle in [0, 2, 4, 5]:
+				_mystia_song(zombie, phase, 1 + phase + (1 if cycle == 5 else 0))
+			if cycle in [3, 5] and float(zombie.get("mystia_food_cooldown", 0.0)) <= 0.0:
+				_mystia_start_cooking(zombie, phase)
 	return zombie
 
 
@@ -16022,6 +16085,8 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		return _trigger_flandre_boss_skill(zombie)
 	if String(zombie["kind"]) == "wriggle_boss":
 		return _trigger_wriggle_boss_skill(zombie)
+	if String(zombie["kind"]) == "mystia_boss":
+		return _trigger_mystia_boss_skill(zombie)
 	if String(zombie["kind"]) == "night_boss":
 		return _trigger_night_boss_skill(zombie)
 	if String(zombie["kind"]) == "pool_boss":
@@ -17218,6 +17283,13 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		return _trigger_yukari_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "flandre_boss":
 		return _trigger_flandre_boss_phase_shift(zombie, phase)
+	if String(zombie["kind"]) == "mystia_boss":
+		_show_banner("米斯蒂娅进入第 %d 阶段，食堂灯火全开！" % (phase + 1), 2.2)
+		effects.append({"shape": "mystia_crescendo", "position": Vector2(float(zombie.get("x", _boss_anchor_x("mystia_boss"))), _row_center_y(int(zombie.get("row", 2))) - 18.0), "radius": 190.0 + phase * 22.0, "time": 0.62, "duration": 0.62, "anim_speed": 7.4, "color": Color(1.0, 0.26, 0.62, 0.36)})
+		_mystia_song(zombie, phase, 1 + phase)
+		for _i in range(1 + phase):
+			_spawn_hover_boss_reinforcement("mystia_boss", phase)
+		return _set_rumia_state(zombie, "crescendo", 0.82)
 	if String(zombie["kind"]) == "night_boss":
 		return _trigger_night_boss_phase_shift(zombie, phase)
 	if String(zombie["kind"]) == "pool_boss":
@@ -17395,6 +17467,171 @@ func _raise_random_graves(count: int, fx_shape: String = "grave_rise", fx_color:
 	return raised
 
 
+func _mystia_charm_plant_at_cell(row: int, col: int) -> bool:
+	if row < 0 or row >= ROWS or col < 0 or col >= COLS:
+		return false
+	var plant_variant = _targetable_plant_at(row, col)
+	if plant_variant == null or float(plant_variant.get("health", 0.0)) <= 0.0:
+		return false
+	if float(plant_variant.get("holy_invincible_timer", 0.0)) > 0.0:
+		return false
+	var plant: Dictionary = plant_variant
+	plant["mystia_charmed"] = true
+	plant["mystia_charm_attack_timer"] = 0.18
+	plant["mystia_being_cooked"] = false
+	plant["mystia_charm_blocked_frame"] = true
+	plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.24)
+	_set_targetable_plant(row, col, plant)
+	effects.append({
+		"shape": "mystia_song",
+		"position": _cell_center(row, col) + Vector2(0.0, -12.0),
+		"radius": 62.0,
+		"time": 0.72,
+		"duration": 0.72,
+		"anim_speed": 8.0,
+		"color": Color(1.0, 0.3, 0.7, 0.34),
+	})
+	return true
+
+
+func _mystia_song(zombie: Dictionary, phase: int, count: int) -> int:
+	var candidates: Array = []
+	for lane in active_rows:
+		for col in range(COLS):
+			if _targetable_plant_at(int(lane), col) != null:
+				candidates.append(Vector2i(int(lane), col))
+	candidates.shuffle()
+	var affected := 0
+	for candidate_variant in candidates:
+		var cell := Vector2i(candidate_variant)
+		if _mystia_charm_plant_at_cell(cell.x, cell.y):
+			affected += 1
+		if affected >= count:
+			break
+	if affected > 0:
+		_show_banner("歌声永久魅惑了 %d 株植物！" % affected, 1.5)
+	return affected
+
+
+func _mystia_start_cooking(zombie: Dictionary, phase: int) -> bool:
+	if float(zombie.get("mystia_cooking_timer", 0.0)) > 0.0:
+		return false
+	var cells: Array = []
+	for lane in active_rows:
+		for col in range(COLS):
+			if _targetable_plant_at(int(lane), col) != null:
+				cells.append(Vector2i(int(lane), col))
+	if cells.is_empty():
+		return false
+	cells.shuffle()
+	var cell := Vector2i(cells[0])
+	var plant = _targetable_plant_at(cell.x, cell.y)
+	plant["mystia_being_cooked"] = true
+	plant["mystia_charm_blocked_frame"] = true
+	plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.2)
+	_set_targetable_plant(cell.x, cell.y, plant)
+	zombie["mystia_cooking_row"] = cell.x
+	zombie["mystia_cooking_col"] = cell.y
+	zombie["mystia_cooking_timer"] = maxf(2.8, float(Defs.ZOMBIES["mystia_boss"].get("cooking_duration", 6.0)) - phase * 0.45)
+	zombie["mystia_state"] = "cook"
+	effects.append({
+		"shape": "mystia_cooking",
+		"position": _cell_center(cell.x, cell.y) + Vector2(0.0, -16.0),
+		"radius": 70.0,
+		"time": float(zombie["mystia_cooking_timer"]),
+		"duration": float(zombie["mystia_cooking_timer"]),
+		"anim_speed": 4.8,
+		"color": Color(1.0, 0.52, 0.22, 0.32),
+	})
+	_show_banner("夜雀食堂开始料理植物！", 1.6)
+	return true
+
+
+func _mystia_apply_food_buff(duration: float, phase: int) -> int:
+	var data: Dictionary = Defs.ZOMBIES["mystia_boss"]
+	var affected := 0
+	for index in range(zombies.size()):
+		var target: Dictionary = zombies[index]
+		if not _is_enemy_zombie(target) or _is_boss_zombie(target):
+			continue
+		if float(target.get("mystia_food_buff_timer", 0.0)) > 0.0:
+			_mystia_clear_food_buff(target)
+		target["mystia_food_base_max_health"] = float(target.get("max_health", 1.0))
+		target["mystia_food_buff_timer"] = duration + phase * 1.2
+		target["mystia_food_speed_mult"] = float(data.get("food_speed_scale", 1.28)) + phase * 0.04
+		target["mystia_food_attack_mult"] = float(data.get("food_attack_scale", 1.42)) + phase * 0.06
+		target["max_health"] = float(target.get("max_health", 1.0)) * float(data.get("food_health_scale", 1.35))
+		target["health"] = minf(float(target["max_health"]), float(target.get("health", 0.0)) * 1.12)
+		target["flash"] = maxf(float(target.get("flash", 0.0)), 0.2)
+		zombies[index] = target
+		affected += 1
+	return affected
+
+
+func _mystia_clear_food_buff(zombie: Dictionary) -> void:
+	var base_health = float(zombie.get("mystia_food_base_max_health", 0.0))
+	if base_health > 0.0:
+		zombie["max_health"] = base_health
+		zombie["health"] = minf(float(zombie.get("health", 0.0)), base_health)
+	zombie["mystia_food_buff_timer"] = 0.0
+	zombie["mystia_food_speed_mult"] = 1.0
+	zombie["mystia_food_attack_mult"] = 1.0
+	zombie.erase("mystia_food_base_max_health")
+
+
+func _update_mystia_food_buffs(delta: float) -> void:
+	for index in range(zombies.size()):
+		var target: Dictionary = zombies[index]
+		var timer := float(target.get("mystia_food_buff_timer", 0.0))
+		if timer <= 0.0:
+			continue
+		timer -= delta
+		target["mystia_food_buff_timer"] = timer
+		if timer <= 0.0:
+			_mystia_clear_food_buff(target)
+		zombies[index] = target
+
+
+func _update_mystia_cooking(zombie: Dictionary, delta: float) -> Dictionary:
+	var timer := float(zombie.get("mystia_cooking_timer", 0.0))
+	if timer <= 0.0:
+		return zombie
+	var row := int(zombie.get("mystia_cooking_row", -1))
+	var col := int(zombie.get("mystia_cooking_col", -1))
+	zombie["mystia_cooking_timer"] = maxf(0.0, timer - delta)
+	if row >= 0 and col >= 0 and _targetable_plant_at(row, col) != null:
+		var plant = _targetable_plant_at(row, col)
+		plant["mystia_being_cooked"] = true
+		plant["mystia_charm_blocked_frame"] = true
+		_set_targetable_plant(row, col, plant)
+		if fmod(level_time * 4.0, 1.0) < delta:
+			effects.append({"shape": "mystia_cooking", "position": _cell_center(row, col) + Vector2(0.0, -22.0), "radius": 54.0, "time": 0.3, "duration": 0.3, "color": Color(1.0, 0.62, 0.24, 0.28)})
+	if float(zombie.get("mystia_cooking_timer", 0.0)) <= 0.0:
+		if row >= 0 and col >= 0 and _targetable_plant_at(row, col) != null:
+			_clear_targetable_plant(row, col)
+			effects.append({"shape": "mystia_food", "position": _cell_center(row, col), "radius": 90.0, "time": 0.52, "duration": 0.52, "color": Color(1.0, 0.76, 0.28, 0.42)})
+		var boosted := _mystia_apply_food_buff(float(Defs.ZOMBIES["mystia_boss"].get("food_buff_duration", 9.0)), int(zombie.get("boss_phase", 0)))
+		if boosted > 0:
+			_show_banner("夜雀料理完成！僵尸获得美食加成！", 1.7)
+		zombie["mystia_state"] = "idle"
+		zombie["mystia_food_cooldown"] = maxf(2.0, 5.2 - int(zombie.get("boss_phase", 0)) * 0.5)
+		zombie["mystia_cooking_row"] = -1
+		zombie["mystia_cooking_col"] = -1
+	return zombie
+
+
+func _trigger_mystia_boss_skill(zombie: Dictionary) -> Dictionary:
+	var phase := int(zombie.get("boss_phase", 0))
+	var cycle := int(zombie.get("boss_skill_cycle", 0)) % 6
+	if cycle in [0, 2, 4, 5]:
+		_mystia_song(zombie, phase, 1 + phase + (1 if cycle == 5 else 0))
+	if cycle in [3, 5] and float(zombie.get("mystia_food_cooldown", 0.0)) <= 0.0:
+		_mystia_start_cooking(zombie, phase)
+	if cycle == 5:
+		zombie["mystia_state"] = "final"
+	return _ensure_touhou_danmaku().cast(zombie)
+
+
 func _trigger_wriggle_boss_skill(zombie: Dictionary) -> Dictionary:
 	var phase = int(zombie.get("boss_phase", 0))
 	var cycle = int(zombie.get("boss_skill_cycle", 0))
@@ -17489,6 +17726,8 @@ func _damage_front_plant_in_row(row: int, damage: float) -> void:
 
 func _current_zombie_speed(zombie: Dictionary) -> float:
 	var speed = float(zombie["base_speed"])
+	if float(zombie.get("mystia_food_buff_timer", 0.0)) > 0.0:
+		speed *= float(zombie.get("mystia_food_speed_mult", 1.0))
 	if String(zombie.get("kind", "")) == "cinder_runner" and _ensure_volcano_expansion().runner_is_hot(zombie):
 		speed *= 1.8
 	if float(zombie.get("basalt_brace_until", 0.0)) > level_time and not _ensure_volcano_expansion().controlled(zombie):
@@ -17507,6 +17746,13 @@ func _current_zombie_speed(zombie: Dictionary) -> float:
 		if router_count > 0:
 			speed *= pow(float(Defs.ZOMBIES["router_zombie"].get("aura_speed_mult", 1.0)), router_count)
 	return speed
+
+
+func _zombie_attack_dps(zombie: Dictionary) -> float:
+	var damage := float(zombie.get("attack_dps", 0.0))
+	if float(zombie.get("mystia_food_buff_timer", 0.0)) > 0.0:
+		damage *= float(zombie.get("mystia_food_attack_mult", 1.0))
+	return damage
 
 
 func _explode_jack_in_the_box(zombie: Dictionary) -> void:
@@ -17560,7 +17806,7 @@ func _update_reversed_digger(zombie: Dictionary, delta: float) -> Dictionary:
 	if target.y != -1:
 		var plant = _targetable_plant_at(target.x, target.y)
 		if plant != null:
-			var bite_damage = float(zombie["attack_dps"]) * delta
+			var bite_damage = _zombie_attack_dps(zombie) * delta
 			if float(plant.get("armor_health", 0.0)) > 0.0:
 				var armor_left = float(plant["armor_health"]) - bite_damage
 				if armor_left < 0.0:
@@ -18878,6 +19124,10 @@ func _is_mayohiga_house_level() -> bool:
 
 func _is_forest_of_magic_level() -> bool:
 	return String(current_level.get("terrain", "")) == "forest_of_magic" or String(current_level.get("terrain", "")) == "eternal_night_forest"
+
+
+func _is_mystia_night_food_stand_level() -> bool:
+	return String(current_level.get("terrain", "")) == "mystia_night_food_stand"
 
 
 func _is_cloud_sea_level() -> bool:
@@ -21631,6 +21881,11 @@ func _ambient_light_for_level() -> Dictionary:
 		tint_alpha = 0.10
 		shadow_tint = Color(0.14, 0.02, 0.05)
 		shadow_alpha = 0.10
+	elif _is_mystia_night_food_stand_level():
+		tint = Color(0.52, 0.2, 0.42)
+		tint_alpha = 0.08
+		shadow_tint = Color(0.015, 0.006, 0.025)
+		shadow_alpha = 0.12
 	elif _is_blood_toy_roof_level():
 		tint = Color(0.5, 0.16, 0.2)
 		tint_alpha = 0.09
@@ -21968,6 +22223,42 @@ func _draw_battle_background() -> void:
 		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x + board_size.x, BOARD_ORIGIN.y), Vector2(82.0, board_size.y)), Color(0.08, 0.1, 0.18), true)
 		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 22.0, BOARD_ORIGIN.y + 24.0), Vector2(board_size.x + 96.0, 92.0)), Color(0.64, 0.86, 1.0, 0.04), true)
 		draw_rect(Rect2(Vector2(BOARD_ORIGIN.x - 28.0, BOARD_ORIGIN.y + 226.0), Vector2(board_size.x + 108.0, 90.0)), Color(0.0, 0.0, 0.08, 0.1), true)
+		ThemeLib.draw_ambient_particles(self, size, ui_time, "dust_motes", 12)
+	elif _is_mystia_night_food_stand_level():
+		# Night Sparrow's food stall: a dark bamboo forest with warm lanterns and tables.
+		# The scenery stays behind the six-row board so every playable cell remains clear.
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 178.0)), Color(0.008, 0.012, 0.035), Color(0.055, 0.028, 0.09))
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2(0.0, 132.0), Vector2(size.x, size.y - 132.0)), Color(0.06, 0.035, 0.055), Color(0.018, 0.02, 0.028))
+		ThemeLib.draw_glow_circle(self, Vector2(size.x - 150.0, 66.0), 42.0, Color(0.72, 0.38, 0.92), 5)
+		draw_circle(Vector2(size.x - 150.0, 66.0), 30.0, Color(0.7, 0.46, 0.84, 0.16))
+		for star_index in range(34):
+			var star_pos = Vector2(176.0 + float(star_index % 17) * 72.0, 24.0 + float(star_index / 17) * 38.0 + float((star_index * 13) % 16))
+			draw_circle(star_pos, 1.0 + float(star_index % 3) * 0.45, Color(0.86, 0.76, 1.0, 0.24))
+		# Stall roof and counter on the far right.
+		var stall = Rect2(Vector2(BOARD_ORIGIN.x + board_size.x + 18.0, BOARD_ORIGIN.y - 94.0), Vector2(178.0, 136.0))
+		draw_rect(Rect2(stall.position + Vector2(-12.0, -14.0), Vector2(stall.size.x + 24.0, 22.0)), Color(0.14, 0.035, 0.08, 0.94), true)
+		draw_rect(Rect2(stall.position + Vector2(8.0, 14.0), Vector2(stall.size.x - 16.0, 80.0)), Color(0.22, 0.09, 0.1, 0.9), true)
+		draw_rect(Rect2(stall.position + Vector2(8.0, 74.0), Vector2(stall.size.x - 16.0, 24.0)), Color(0.42, 0.2, 0.1, 0.95), true)
+		draw_line(stall.position + Vector2(16.0, 104.0), stall.position + Vector2(16.0, 146.0), Color(0.18, 0.08, 0.06, 0.9), 6.0)
+		draw_line(stall.position + Vector2(stall.size.x - 16.0, 104.0), stall.position + Vector2(stall.size.x - 16.0, 146.0), Color(0.18, 0.08, 0.06, 0.9), 6.0)
+		for lantern_index in range(7):
+			var lx = BOARD_ORIGIN.x + 26.0 + float(lantern_index) * 144.0
+			var ly = BOARD_ORIGIN.y - 22.0 + float(lantern_index % 2) * 22.0
+			draw_line(Vector2(lx, ly - 22.0), Vector2(lx, ly + 8.0), Color(0.3, 0.16, 0.1, 0.7), 1.2)
+			draw_rect(Rect2(Vector2(lx - 7.0, ly + 6.0), Vector2(14.0, 20.0)), Color(0.78, 0.24, 0.22, 0.78), true)
+			draw_circle(Vector2(lx, ly + 16.0), 18.0, Color(1.0, 0.38, 0.2, 0.1))
+			draw_circle(Vector2(lx, ly + 15.0), 4.0 + sin(ui_time * 3.0 + float(lantern_index)) * 0.8, Color(1.0, 0.78, 0.36, 0.92))
+		for table_index in range(4):
+			var tx = BOARD_ORIGIN.x + 92.0 + float(table_index) * 220.0
+			var ty = BOARD_ORIGIN.y + board_size.y + 18.0 + float(table_index % 2) * 8.0
+			draw_rect(Rect2(Vector2(tx - 34.0, ty - 7.0), Vector2(68.0, 10.0)), Color(0.28, 0.12, 0.08, 0.78), true)
+			draw_line(Vector2(tx - 22.0, ty + 3.0), Vector2(tx - 28.0, ty + 28.0), Color(0.18, 0.08, 0.05, 0.76), 4.0)
+			draw_line(Vector2(tx + 22.0, ty + 3.0), Vector2(tx + 28.0, ty + 28.0), Color(0.18, 0.08, 0.05, 0.76), 4.0)
+		for firefly_index in range(24):
+			var firefly_x = BOARD_ORIGIN.x - 20.0 + fmod(ui_time * (12.0 + float(firefly_index % 5) * 3.0) + float(firefly_index * 87), board_size.x + 150.0)
+			var firefly_y = BOARD_ORIGIN.y - 46.0 + float((firefly_index * 43) % int(board_size.y + 116.0)) + sin(ui_time * 1.5 + float(firefly_index)) * 8.0
+			draw_circle(Vector2(firefly_x, firefly_y), 2.0 + float(firefly_index % 2), Color(1.0, 0.7, 0.3, 0.78))
+			draw_circle(Vector2(firefly_x, firefly_y), 9.0, Color(1.0, 0.48, 0.24, 0.12))
 		ThemeLib.draw_ambient_particles(self, size, ui_time, "dust_motes", 12)
 	elif _is_blood_moon_level():
 		# Blood moon sky gradient
@@ -22857,6 +23148,8 @@ func _draw_battle_board() -> void:
 			lane_color = Color(0.2, 0.08, 0.06) if row % 2 == 0 else Color(0.16, 0.06, 0.04)
 		elif _is_forest_of_magic_level():
 			lane_color = Color(0.22, 0.38, 0.28) if row % 2 == 0 else Color(0.18, 0.32, 0.26)
+		elif _is_mystia_night_food_stand_level():
+			lane_color = Color(0.18, 0.3, 0.18) if row % 2 == 0 else Color(0.14, 0.24, 0.16)
 		elif _is_cloud_sea_level():
 			lane_color = Color(0.7, 0.9, 1.0) if row % 2 == 0 else Color(0.58, 0.82, 1.0)
 		elif _is_spiral_staircase_level():
@@ -22928,6 +23221,13 @@ func _draw_battle_board() -> void:
 				var ember_x = lane_rect.position.x + (0.1 + float(ember_index) * 0.18) * lane_rect.size.x + sin(ui_time * 3.0 + float(ember_index)) * 14.0
 				var ember_y = lane_rect.position.y + lane_rect.size.y - ember_t * lane_rect.size.y
 				draw_circle(Vector2(ember_x, ember_y), 1.6, Color(1.0, 0.56, 0.18, (1.0 - ember_t) * 0.5))
+		elif _is_mystia_night_food_stand_level():
+			for grain_index in range(4):
+				var grain_y = lane_rect.position.y + 14.0 + float(grain_index) * 22.0
+				draw_line(Vector2(lane_rect.position.x + 8.0, grain_y), Vector2(lane_rect.end.x - 8.0, grain_y + sin(ui_time * 0.8 + float(row + grain_index)) * 2.0), Color(0.92, 0.62, 0.28, 0.07), 1.4)
+			if (row + int(level_time * 0.8)) % 2 == 0:
+				var sign_pos = lane_rect.position + Vector2(lane_rect.size.x * 0.72, lane_rect.size.y * 0.5)
+				draw_circle(sign_pos, 3.0, Color(1.0, 0.72, 0.32, 0.32))
 		elif _is_forest_of_magic_level():
 			for thread_index in range(4):
 				var thread_y = lane_rect.position.y + 14.0 + float(thread_index) * 20.0
@@ -23005,6 +23305,9 @@ func _draw_battle_board() -> void:
 			elif _is_forest_of_magic_level():
 				tint = Color(0.5, 0.36, 0.78, 0.1) if (row + col) % 2 == 0 else Color(0.02, 0.0, 0.08, 0.12)
 				border_color = Color(0.54, 0.42, 0.92, 0.3)
+			elif _is_mystia_night_food_stand_level():
+				tint = Color(0.32, 0.2, 0.12, 0.16) if (row + col) % 2 == 0 else Color(0.08, 0.04, 0.06, 0.14)
+				border_color = Color(0.72, 0.38, 0.2, 0.32)
 			elif _is_cloud_sea_level():
 				var cloud_terrain = _cell_terrain_kind(row, col)
 				if cloud_terrain == "sky_gap":
@@ -24055,6 +24358,17 @@ func _draw_plants() -> void:
 				var charm_pulse = 0.5 + 0.5 * sin(level_time * 7.0 + float(plant.get("anim_phase", 0.0)))
 				draw_circle(draw_center + Vector2(0.0, -10.0), 34.0 + charm_pulse * 5.0, Color(0.56, 0.84, 1.0, 0.14))
 				draw_arc(draw_center + Vector2(0.0, -10.0), 30.0 + charm_pulse * 4.0, level_time * 2.2, level_time * 2.2 + PI * 1.4, 24, Color(0.86, 1.0, 1.0, 0.35), 1.8)
+			if bool(plant.get("mystia_charmed", false)):
+				var song_pulse = 0.5 + 0.5 * sin(level_time * 5.4 + float(plant.get("anim_phase", 0.0)))
+				draw_circle(draw_center + Vector2(0.0, -12.0), 36.0 + song_pulse * 6.0, Color(1.0, 0.24, 0.68, 0.12))
+				draw_arc(draw_center + Vector2(0.0, -12.0), 34.0 + song_pulse * 5.0, -level_time * 2.4, -level_time * 2.4 + PI * 1.35, 28, Color(1.0, 0.7, 0.9, 0.55), 2.0)
+				for note_i in range(2):
+					var note_pos = draw_center + Vector2(-18.0 + note_i * 34.0, -54.0 - fmod(level_time * 18.0 + float(note_i) * 17.0, 22.0))
+					draw_circle(note_pos, 2.5, Color(1.0, 0.7, 0.9, 0.8))
+			if bool(plant.get("mystia_being_cooked", false)):
+				var cook_pulse = 0.5 + 0.5 * sin(level_time * 6.0 + float(plant.get("anim_phase", 0.0)))
+				draw_circle(draw_center + Vector2(0.0, -10.0), 40.0 + cook_pulse * 5.0, Color(1.0, 0.52, 0.18, 0.14))
+				draw_arc(draw_center + Vector2(0.0, -18.0), 26.0 + cook_pulse * 4.0, level_time * 3.2, level_time * 3.2 + PI * 1.6, 26, Color(1.0, 0.82, 0.32, 0.68), 2.2)
 
 			_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]) * unit_scale)
 			var plant_kind := String(plant["kind"])
@@ -30184,6 +30498,8 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _flandre_frame_index(zombie)
 		"wriggle_boss":
 			return _wriggle_frame_index(zombie)
+		"mystia_boss":
+			return _mystia_frame_index(zombie)
 		_:
 			return 0
 
@@ -30201,6 +30517,22 @@ func _wriggle_frame_index(zombie: Dictionary) -> int:
 		"shift": offset = 3
 	var frame = int(floor(level_time * (8.0 + float(zombie.get("boss_phase", 0)) * 0.7) + phase * 5.0)) % 6
 	return clampi(offset + frame, 0, WRIGGLE_FRAME_COUNT - 1)
+
+
+func _mystia_frame_index(zombie: Dictionary) -> int:
+	var phase = float(zombie.get("anim_phase", 0.0))
+	var state = String(zombie.get("mystia_state", "idle"))
+	var offset := 0
+	match state:
+		"song": offset = 3
+		"wing": offset = 6
+		"crescendo": offset = 9
+		"cook": offset = 12
+		"final": offset = 15
+		"enraged": offset = 18
+		"shift": offset = 21
+	var frame = int(floor(level_time * (7.4 + float(zombie.get("boss_phase", 0)) * 0.55) + phase * 4.0)) % 3
+	return clampi(offset + frame, 0, MYSTIA_FRAME_COUNT - 1)
 
 
 func _rumia_frame_index(zombie: Dictionary) -> int:
@@ -30670,6 +31002,35 @@ func _draw_wriggle_boss(center: Vector2, zombie: Dictionary) -> void:
 		var mote = center + Vector2(cos(angle) * (54.0 + phase * 6.0), -26.0 + sin(angle * 1.7) * 30.0)
 		draw_circle(mote, 3.0 + float(i % 2), Color(0.72, 1.0, 0.34, 0.85))
 		draw_circle(mote, 8.0, Color(0.4, 1.0, 0.26, 0.16))
+
+
+func _ensure_mystia_frames_loaded() -> void:
+	var frames = _instance_boss_frames_for_kind("mystia_boss")
+	if _boss_frame_array_is_complete(frames, MYSTIA_FRAME_COUNT):
+		return
+	frames = _load_boss_frame_set("mystia_boss", false)
+	_set_shared_boss_frames_for_kind("mystia_boss", frames, true, false)
+	_set_instance_boss_frames_for_kind("mystia_boss", frames, true, false)
+
+
+func _draw_mystia_boss(center: Vector2, zombie: Dictionary) -> void:
+	_ensure_mystia_frames_loaded()
+	var frame_index = _mystia_frame_index(zombie)
+	var texture := _try_get_boss_frame_texture("mystia_boss", frame_index)
+	var phase = int(zombie.get("boss_phase", 0))
+	var bob = sin(level_time * 2.4 + float(zombie.get("anim_phase", 0.0))) * 4.0
+	draw_circle(center + Vector2(0.0, 46.0), 52.0 + phase * 5.0, Color(0.07, 0.01, 0.08, 0.28))
+	draw_circle(center + Vector2(0.0, -22.0 + bob), 72.0 + phase * 7.0, Color(1.0, 0.12, 0.6, 0.08 + phase * 0.018))
+	if texture != null:
+		var texture_size = texture.get_size() * (0.7 + phase * 0.03)
+		draw_texture_rect(texture, Rect2(center + Vector2(-texture_size.x * 0.5, -texture_size.y * 0.82 + bob), texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+	else:
+		draw_circle(center + Vector2(0.0, -30.0), 30.0, Color(0.5, 0.08, 0.28))
+	for i in range(6 + phase * 2):
+		var angle = level_time * (1.3 + phase * 0.12) + float(i) * TAU / float(6 + phase * 2)
+		var mote = center + Vector2(cos(angle) * (68.0 + phase * 7.0), -24.0 + sin(angle * 1.7) * 34.0)
+		draw_circle(mote, 3.0 + float(i % 2), Color(1.0, 0.32, 0.78, 0.8))
+		draw_circle(mote, 10.0, Color(1.0, 0.18, 0.66, 0.12))
 
 
 # --- 火山世界 zombie drawing ---
@@ -32140,6 +32501,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "wriggle_boss":
 		_draw_wriggle_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "mystia_boss":
+		_draw_mystia_boss(center + Vector2(0.0, -10.0), zombie)
 		return
 	var base_speed = float(zombie.get("base_speed", Defs.ZOMBIES[kind].get("speed", 18.0)))
 	if float(zombie.get("slow_timer", 0.0)) > 0.0:

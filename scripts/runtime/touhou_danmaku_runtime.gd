@@ -447,6 +447,29 @@ func _emit_wave(c: Dictionary) -> void:
 		"wriggle_final":
 			_ring(c, origin, 56 + wave * 4, turn, 168 + wave * 6, COLORS[2], "butterfly", {"angular_speed": 0.42})
 			_fan(c, origin, 15, aimed, 2.2, 230, COLORS[0], "orb")
+		"mystia_song":
+			# Broad musical waves with a narrow aimed chorus, matching Mystia's song cards.
+			_ring(c, origin, 24 + wave * 2, turn * 0.8, 112 + wave * 5, COLORS[4], "note", {"angular_speed": 0.16})
+			_fan(c, origin, 8 + int(c.phase), aimed, 0.9, 196 + wave * 4, COLORS[0], "note")
+		"mystia_nightblind":
+			for side in [-1, 1]:
+				var emit: Vector2 = origin + Vector2(-46.0, side * (76.0 + wave * 5.0))
+				_fan(c, emit, 12 + wave % 4, (_target(emit) - emit).angle(), 1.3, 152 + wave * 4, COLORS[4], "note", {"angular_speed": side * 0.22})
+			_ring(c, origin, 18, -turn, 132, COLORS[1], "orb")
+		"mystia_flight":
+			var wing_span := 74.0 + 12.0 * sin(float(wave) * 0.7)
+			for side in [-1, 1]:
+				var wing_origin: Vector2 = origin + Vector2(-28.0, side * wing_span)
+				_fan(c, wing_origin, 10 + int(c.phase), (_target(wing_origin) - wing_origin).angle(), 0.78, 178 + wave * 6, COLORS[2], "butterfly")
+			_ring(c, origin, 30, turn, 128, COLORS[3], "butterfly", {"angular_speed": -0.2})
+		"mystia_crescendo":
+			_ring(c, origin, 36 + wave * 3, turn, 148 + wave * 5, COLORS[0], "note", {"angular_speed": 0.28})
+			_ring(c, origin, 24 + wave * 2, -turn * 1.2, 196 + wave * 7, COLORS[4], "butterfly", {"angular_speed": -0.18})
+			_fan(c, origin, 13 + int(c.phase) * 2, aimed, 2.0, 220 + wave * 5, COLORS[2], "note")
+		"mystia_finale":
+			_ring(c, origin, 52 + wave * 4, turn, 164 + wave * 7, COLORS[2], "note", {"angular_speed": 0.36})
+			_ring(c, origin, 42 + wave * 3, -turn, 204 + wave * 8, COLORS[0], "butterfly", {"angular_speed": -0.32})
+			_fan(c, origin, 18 + int(c.phase) * 2, aimed, 2.35, 238 + wave * 4, COLORS[4], "note")
 
 
 func _emit_nonspell(c: Dictionary) -> void:
@@ -515,6 +538,9 @@ func _emit_nonspell(c: Dictionary) -> void:
 		"nonspell_wriggle_night_swarm":
 			_ring(c, origin, 24 + extra * 3, turn, 118 + stage * 16, COLORS[3], "butterfly", {"angular_speed": 0.24})
 			_fan(c, origin, 8 + extra, aim, 1.4, 170 + stage * 12, COLORS[4], "orb")
+		"nonspell_mystia_song":
+			_fan(c, origin, 10 + extra * 2, aim, 1.6, 164 + stage * 12, COLORS[0], "note")
+			_ring(c, origin, 22 + extra * 2, turn, 108 + stage * 12, COLORS[4], "note", {"angular_speed": 0.18})
 
 
 func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary = {}) -> void:

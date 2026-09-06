@@ -124,6 +124,14 @@ const CARDS := {
 		["th08-05", "蠢符「リトルバグ」", "wriggle_little_bug", "swarm"],
 		["th08-06", "終符「永夜蟄居」", "wriggle_final", "final"],
 	],
+	"mystia_boss": [
+		["th08-07", "声符「木菟咆哮」", "mystia_song", "song"],
+		["th08-08", "声符「木菟咆哮」", "mystia_song", "song"],
+		["th08-09", "夜盲「夜雀之歌」", "mystia_nightblind", "song"],
+		["th08-10", "鸟符「飞翔颈木菟」", "mystia_flight", "wing"],
+		["th08-11", "声符「木菟咆哮」", "mystia_crescendo", "crescendo"],
+		["th08-12", "终符「夜雀食堂」", "mystia_finale", "final"],
+	],
 }
 
 const PATCHOULI_EXTRA := [
@@ -158,6 +166,7 @@ const NONSPELLS := {
 	"ran_boss": ["八云蓝", "fox_spiral", "senko"],
 	"yukari_boss": ["八云紫", "gap_crossfire", "boundary"],
 	"wriggle_boss": ["莉格露·奈特巴格", "wriggle_night_swarm", "firefly"],
+	"mystia_boss": ["米斯蒂娅·萝蕾拉", "mystia_song", "song"],
 }
 
 
