@@ -807,6 +807,7 @@ const ENHANCE_EFFECT_KEYS := [
 
 # Base management system
 const BASE_MAX_MORALE := 24.0
+const BASE_ROOM_MAX_LEVEL := 5
 const BASE_OFFLINE_CAP_SECONDS := 8.0 * 3600.0
 const BASE_DRONE_BOOST_SECONDS := 30.0 * 60.0
 const BASE_DRONE_BOOST_COST := 12.0
@@ -4639,7 +4640,7 @@ func _init_base_defaults() -> void:
 		var cleaned: Array = []
 		for plant_variant in Array(base_assignments[room_id]):
 			var plant := String(plant_variant)
-			if Defs.PLANTS.has(plant) and not cleaned.has(plant) and cleaned.size() < int(def.get("slots", 1)):
+			if Defs.PLANTS.has(plant) and not cleaned.has(plant) and cleaned.size() < _base_room_capacity_for_level(room_id, int(room_state.get("level", 1))):
 				cleaned.append(plant)
 		base_assignments[room_id] = cleaned
 	if base_inventory.is_empty():
@@ -4672,7 +4673,15 @@ func _base_assigned_plants(room_id: String) -> Array:
 
 func _base_room_capacity(room_id: String) -> int:
 	var def: Dictionary = BASE_ROOM_DEFS.get(room_id, {})
-	return max(1, int(def.get("slots", 1)))
+	var level := int(Dictionary(base_rooms.get(room_id, {})).get("level", 1))
+	return _base_room_capacity_for_level(room_id, level)
+
+
+func _base_room_capacity_for_level(room_id: String, level: int) -> int:
+	var def: Dictionary = BASE_ROOM_DEFS.get(room_id, {})
+	var base_slots: int = maxi(1, int(def.get("slots", 1)))
+	var slot_bonus: int = mini(2, maxi(0, int(floor(float(level - 1) / 2.0))))
+	return base_slots + slot_bonus
 
 
 func _base_assigned_room_for_plant(kind: String) -> String:
@@ -4743,6 +4752,19 @@ func _base_room_efficiency(room_id: String) -> float:
 	var level_bonus := 1.0 + float(int(Dictionary(base_rooms.get(room_id, {})).get("level", 1)) - 1) * 0.12
 	var global_bonus := _base_global_efficiency_bonus() if room_id != "control" else 1.0
 	return maxf(0.0, slot_ratio * total_bonus * level_bonus * global_bonus)
+
+
+func _base_room_synergy_text(room_id: String) -> String:
+	var assigned := _base_assigned_plants(room_id)
+	if assigned.is_empty():
+		return "协同：等待进驻干员"
+	var parts: Array[String] = []
+	for kind_variant in assigned:
+		var kind := String(kind_variant)
+		var role := String(_plant_enhance_profile(kind).get("name", "干员"))
+		var bonus := int(round(_base_synergy_bonus(room_id, kind) * 100.0))
+		parts.append("%s +%d%%" % [role, bonus])
+	return "协同：" + " / ".join(parts)
 
 
 func _base_assign_plant(room_id: String, kind: String) -> bool:
@@ -4897,6 +4919,64 @@ func _base_boost_room(room_id: String) -> bool:
 	return true
 
 
+func _base_room_upgrade_cost(room_id: String) -> Dictionary:
+	if not BASE_ROOM_DEFS.has(room_id):
+		return {}
+	var level := int(Dictionary(base_rooms.get(room_id, {})).get("level", 1))
+	var room_type := String(Dictionary(BASE_ROOM_DEFS[room_id]).get("type", ""))
+	var material_by_type := {
+		"command": "tempo_coil", "trade": "growth_core", "factory": "growth_core", "power": "assault_chip",
+		"dorm": "support_gel", "workshop": "burst_crystal", "training": "tempo_coil",
+	}
+	return {
+		"level": level,
+		"next_level": mini(BASE_ROOM_MAX_LEVEL, level + 1),
+		"coins": 220 + level * 180,
+		"material": String(material_by_type.get(room_type, "growth_core")),
+		"material_amount": 2 + level,
+	}
+
+
+func _base_can_upgrade_room(room_id: String) -> bool:
+	if not BASE_ROOM_DEFS.has(room_id):
+		return false
+	var level := int(Dictionary(base_rooms.get(room_id, {})).get("level", 1))
+	if level >= BASE_ROOM_MAX_LEVEL:
+		return false
+	var cost := _base_room_upgrade_cost(room_id)
+	return coins_total >= int(cost.get("coins", 0)) and int(enhance_materials.get(String(cost.get("material", "")), 0)) >= int(cost.get("material_amount", 0))
+
+
+func _base_upgrade_room(room_id: String) -> bool:
+	_init_base_defaults()
+	if not BASE_ROOM_DEFS.has(room_id):
+		return false
+	var room_state: Dictionary = base_rooms.get(room_id, {})
+	var level := int(room_state.get("level", 1))
+	if level >= BASE_ROOM_MAX_LEVEL:
+		_show_toast("房间已达最高等级")
+		return false
+	var cost := _base_room_upgrade_cost(room_id)
+	var material := String(cost.get("material", "growth_core"))
+	var material_amount := int(cost.get("material_amount", 0))
+	if coins_total < int(cost.get("coins", 0)):
+		_show_toast("金币不足")
+		return false
+	if int(enhance_materials.get(material, 0)) < material_amount:
+		_show_toast("升级材料不足")
+		return false
+	coins_total -= int(cost.get("coins", 0))
+	enhance_materials[material] = int(enhance_materials.get(material, 0)) - material_amount
+	room_state["level"] = level + 1
+	base_rooms[room_id] = room_state
+	_base_spawn_fx("room_pulse", _base_fx_anchor(room_id, "room"), _base_fx_anchor(room_id, "room"), Color(0.98, 0.78, 0.34, 0.9), 0.85, {"room_id": room_id, "size": 1.45})
+	_base_spawn_fx("chip_sweep", _base_fx_anchor(room_id, "slot"), _base_fx_anchor(room_id, "detail"), Color(0.46, 0.9, 1.0, 0.82), 0.62, {"room_id": room_id, "size": 1.05})
+	_mark_save_dirty(true)
+	_show_toast("%s升级至 Lv.%d" % [String(BASE_ROOM_DEFS[room_id].get("name", room_id)), level + 1])
+	queue_redraw()
+	return true
+
+
 func _base_workshop_convert(material: String) -> bool:
 	_init_base_defaults()
 	if not ENHANCE_MATERIAL_DEFS.has(material):
@@ -5000,7 +5080,8 @@ func _merge_base_progress(existing_save: Dictionary, candidate_save: Dictionary)
 			var assigned := Array(merged_assignments[room_id])
 			for kind_variant in Array(Dictionary(source).get(room_id, [])):
 				var kind := String(kind_variant)
-				if seen_plants.has(kind) or not Defs.PLANTS.has(kind) or assigned.size() >= _base_room_capacity(room_id):
+				var merged_level := int(Dictionary(merged_rooms.get(room_id, {})).get("level", 1))
+				if seen_plants.has(kind) or not Defs.PLANTS.has(kind) or assigned.size() >= _base_room_capacity_for_level(room_id, merged_level):
 					continue
 				seen_plants[kind] = true
 				assigned.append(kind)
@@ -5061,6 +5142,11 @@ func _base_collect_rect() -> Rect2:
 func _base_boost_rect() -> Rect2:
 	var detail := _base_detail_rect()
 	return Rect2(detail.position + Vector2(244.0, detail.size.y - 76.0), Vector2(192.0, 54.0))
+
+
+func _base_upgrade_rect() -> Rect2:
+	var detail := _base_detail_rect()
+	return Rect2(detail.position + Vector2(28.0, detail.size.y - 140.0), Vector2(detail.size.x - 56.0, 54.0))
 
 
 func _base_roster_layout() -> Dictionary:
@@ -5404,6 +5490,9 @@ func _handle_base_click(mouse_pos: Vector2) -> void:
 	if room_hit != "":
 		base_selected_room = room_hit
 		queue_redraw()
+		return
+	if _base_upgrade_rect().has_point(mouse_pos):
+		_base_upgrade_room(base_selected_room)
 		return
 	if _base_collect_rect().has_point(mouse_pos):
 		_base_collect_all()
@@ -19633,7 +19722,8 @@ func _draw_base_detail_panel() -> void:
 	_draw_base_asset_panel("detail_panel", detail, Color(0.058, 0.075, 0.088, 0.98), Color(accent.r, accent.g, accent.b, 0.5))
 	var title_rect := _base_detail_title_text_rect()
 	_draw_base_room_icon(detail.position + Vector2(44.0, 47.0), room_id, accent, 1.05)
-	_draw_text(String(def.get("name", room_id)), title_rect.position + Vector2(0.0, 34.0), 31, Color(0.96, 0.99, 1.0))
+	var room_level := int(room_state.get("level", 1))
+	_draw_text("%s  Lv.%d" % [String(def.get("name", room_id)), room_level], title_rect.position + Vector2(0.0, 34.0), 31, Color(0.96, 0.99, 1.0))
 	_draw_text("效率 %.0f%%   心情 %.0f/24" % [_base_room_efficiency(room_id) * 100.0, _base_room_morale_average(room_id)], title_rect.position + Vector2(2.0, 58.0), 15, Color(0.7, 0.9, 0.94))
 	draw_rect(Rect2(detail.position + Vector2(28.0, 96.0), Vector2(detail.size.x - 56.0, 1.0)), Color(accent.r, accent.g, accent.b, 0.28), true)
 	_draw_text_block(String(def.get("desc", "")), Rect2(detail.position + Vector2(28.0, 108.0), Vector2(detail.size.x - 56.0, 44.0)), 17, Color(0.78, 0.88, 0.9), 4.0, 2)
@@ -19652,6 +19742,7 @@ func _draw_base_detail_panel() -> void:
 			_draw_text("%.0f/24" % float(base_morale.get(kind, BASE_MAX_MORALE)), slot_rect.position + Vector2(62.0, 52.0), 13, Color(0.56, 0.9, 0.64))
 		else:
 			_draw_text("空槽", slot_rect.position + Vector2(42.0, 44.0), 16, Color(0.45, 0.56, 0.6))
+	_draw_text(_base_room_synergy_text(room_id), detail.position + Vector2(30.0, 270.0), 14, Color(0.64, 0.86, 0.74))
 	var room_type := String(def.get("type", ""))
 	if room_type == "factory" or room_type == "workshop":
 		_draw_text("材料目标", detail.position + Vector2(30.0, 304.0), 16, Color(0.6, 0.72, 0.76))
@@ -19675,6 +19766,11 @@ func _draw_base_detail_panel() -> void:
 	var summary := _base_resource_summary()
 	draw_rect(Rect2(detail.position + Vector2(28.0, 424.0), Vector2(detail.size.x - 56.0, 1.0)), Color(accent.r, accent.g, accent.b, 0.24), true)
 	_draw_text("待领取：金币 %d   材料 %d   碎片 %d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], detail.position + Vector2(30.0, 456.0), 17, Color(0.9, 0.94, 0.84))
+	var upgrade_cost := _base_room_upgrade_cost(room_id)
+	var upgrade_ready := _base_can_upgrade_room(room_id)
+	var upgrade_label := "最高等级" if room_level >= BASE_ROOM_MAX_LEVEL else "升级至 Lv.%d  ·  %d 金 / 材料 %d" % [room_level + 1, int(upgrade_cost.get("coins", 0)), int(upgrade_cost.get("material_amount", 0))]
+	_draw_base_asset_panel("button_blue", _base_upgrade_rect(), Color(0.22, 0.48, 0.58), Color(0.18, 0.32, 0.38), Color(1.0, 1.0, 1.0, 1.0) if upgrade_ready else Color(0.52, 0.58, 0.6, 0.78))
+	_draw_text(upgrade_label, _base_upgrade_rect().position + Vector2(18.0, 34.0), 15, Color(0.88, 0.98, 1.0) if upgrade_ready else Color(0.56, 0.66, 0.7))
 	_draw_base_asset_panel("button_gold", _base_collect_rect(), Color(0.88, 0.6, 0.2), Color(0.4, 0.24, 0.08))
 	_draw_text("领取收益", _base_collect_rect().position + Vector2(56.0, 34.0), 20, Color(1.0, 0.95, 0.82))
 	var boost_tint := Color(1.0, 1.0, 1.0, 1.0) if base_drones >= BASE_DRONE_BOOST_COST else Color(0.56, 0.62, 0.65, 0.72)

@@ -23,6 +23,7 @@ func _run() -> void:
 	failed = not _test_base_assignment_and_selection_spawn_feedback_fx() or failed
 	failed = not _test_base_fx_particles_are_bounded() or failed
 	failed = not _test_base_fx_anchors_stay_inside_layout_rects() or failed
+	failed = not _test_base_room_upgrade_and_capacity() or failed
 	failed = not _test_base_save_merge_preserves_progress() or failed
 	quit(1 if failed else 0)
 
@@ -138,6 +139,35 @@ func _test_base_collect_all_transfers_rewards_to_existing_currencies() -> bool:
 		passed = _assert_true(int(game.enhance_materials.get("growth_core", 0)) == 3, "base collect should transfer pending materials") and passed
 		passed = _assert_true(int(game.plant_fragments.get("peashooter", 0)) == 2, "base collect should transfer pending plant fragments") and passed
 		passed = _assert_true(float(game.base_inventory.get("coins", -1.0)) == 0.0, "base collect should clear pending coins") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_base_room_upgrade_and_capacity() -> bool:
+	var game := _base_ready_game()
+	var passed := _assert_true(game.has_method("_base_room_upgrade_cost"), "base should expose room upgrade costs") \
+		and _assert_true(game.has_method("_base_can_upgrade_room"), "base should validate room upgrades") \
+		and _assert_true(game.has_method("_base_upgrade_room"), "base should upgrade rooms") \
+		and _assert_true(game.has_method("_base_upgrade_rect"), "base should expose an upgrade button rect")
+	if passed:
+		var cost: Dictionary = game.call("_base_room_upgrade_cost", "power")
+		game.coins_total = int(cost.get("coins", 0)) + 100
+		game.enhance_materials = {String(cost.get("material", "growth_core")): int(cost.get("material_amount", 0)) + 2}
+		var before_level := int(game.base_rooms["power"].get("level", 1))
+		var before_capacity := int(game.call("_base_room_capacity", "power"))
+		var upgraded := bool(game.call("_base_upgrade_room", "power"))
+		var after_level := int(game.base_rooms["power"].get("level", 1))
+		var after_capacity := int(game.call("_base_room_capacity", "power"))
+		passed = _assert_true(upgraded, "power room should upgrade with sufficient resources") and passed
+		passed = _assert_true(after_level == before_level + 1, "room upgrade should increase room level") and passed
+		passed = _assert_true(after_capacity == before_capacity, "capacity should remain stable until a slot milestone") and passed
+		var viewport_rect := Rect2(Vector2.ZERO, GameScript.BASE_VIEWPORT_SIZE)
+		var detail_rect: Rect2 = game.call("_base_detail_rect")
+		var upgrade_rect: Rect2 = game.call("_base_upgrade_rect")
+		passed = _assert_true(detail_rect.encloses(upgrade_rect), "upgrade button should stay inside detail panel") and passed
+		passed = _assert_true(not upgrade_rect.intersects(Rect2(game.call("_base_collect_rect"))), "upgrade button should not overlap collect") and passed
+		passed = _assert_true(not upgrade_rect.intersects(Rect2(game.call("_base_boost_rect"))), "upgrade button should not overlap boost") and passed
+		passed = _assert_true(viewport_rect.encloses(upgrade_rect), "upgrade button should stay inside viewport") and passed
 	_free_game(game)
 	return passed
 
