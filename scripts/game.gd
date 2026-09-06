@@ -13,6 +13,7 @@ const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
 const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
 const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const TouhouDanmakuRuntime = preload("res://scripts/runtime/touhou_danmaku_runtime.gd")
+const TouhouPhaseRuntime = preload("res://scripts/runtime/touhou_phase_runtime.gd")
 const ObjectiveRuntime = preload("res://scripts/runtime/objective_runtime.gd")
 const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
@@ -7440,6 +7441,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		boss_unit["hover_shift_timer"] = _roll_hover_shift_interval(kind, 0)
 		boss_unit["sakuya_time_stop_charge"] = 0.0
 		boss_unit["sakuya_mark_timer"] = 0.0
+		TouhouPhaseRuntime.start(boss_unit, current_level)
 		zombies[boss_index] = boss_unit
 		if kind == "rumia_boss":
 			if String(current_level.get("boss_bgm", "")) != "":
@@ -11776,6 +11778,7 @@ func _update_squash_zombie_attack(zombie: Dictionary, delta: float) -> Dictionar
 func _update_zombies(delta: float) -> void:
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
+		TouhouPhaseRuntime.guard_health(zombie)
 		if float(zombie.get("health", 0.0)) <= 0.0:
 			continue
 		if boss_time_stop_timer > 0.0 and String(zombie.get("kind", "")) != "sakuya_boss":
@@ -12999,6 +13002,7 @@ func _spawn_kite_trap_from(_zombie: Dictionary) -> void:
 func _cleanup_dead_zombies() -> void:
 	for i in range(zombies.size() - 1, -1, -1):
 		var zombie = zombies[i]
+		TouhouPhaseRuntime.guard_health(zombie)
 		if bool(zombie.get("touhou_invulnerable", false)) and float(zombie.get("touhou_survival_timer", 0.0)) > 0.0:
 			zombie["health"] = maxf(1.0, float(zombie.get("health", 0.0)))
 		if float(zombie["health"]) > 0.0:
@@ -14518,6 +14522,7 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 
 	if remaining_damage > 0.0:
 		zombie["health"] -= remaining_damage
+		TouhouPhaseRuntime.guard_health(zombie)
 
 	zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), flash_amount)
 	zombie["impact_timer"] = maxf(float(zombie.get("impact_timer", 0.0)), 0.16)
@@ -15478,7 +15483,7 @@ func _remilia_primary_target_cell(row: int) -> Vector2i:
 
 
 func _heal_hover_boss(zombie: Dictionary, amount: float) -> Dictionary:
-	zombie["health"] = minf(float(zombie.get("max_health", 0.0)), float(zombie.get("health", 0.0)) + amount)
+	zombie["health"] = minf(TouhouPhaseRuntime.health_ceiling(zombie), float(zombie.get("health", 0.0)) + amount)
 	zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.08)
 	return zombie
 
@@ -15595,7 +15600,7 @@ func _apply_touhou_boss_battlefield_skill(zombie: Dictionary) -> Dictionary:
 			var stop_duration = 1.05 + phase * 0.2
 			boss_time_stop_timer = maxf(boss_time_stop_timer, stop_duration)
 			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.48)
-			zombie["sakuya_relocations_remaining"] = maxi(int(zombie.get("sakuya_relocations_remaining", 0)), 2 + phase)
+			zombie["sakuya_relocations_remaining"] = maxi(int(zombie.get("sakuya_relocations_remaining", 0)), mini(3, 2 + phase))
 			zombie["sakuya_relocate_interval"] = 0.28 - minf(0.08, phase * 0.02)
 			zombie["sakuya_relocate_timer"] = 0.08
 			effects.append({"shape": "sakuya_time_grid", "position": center, "radius": 220.0 + phase * 24.0, "width": board_size.y * 0.44, "time": stop_duration, "duration": stop_duration, "anim_speed": 8.6, "color": Color(0.82, 0.9, 1.0, 0.3)})
@@ -15681,6 +15686,8 @@ func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
+	if zombie.has("touhou_encounter") and String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")).begins_with("nonspell_"):
+		return _ensure_touhou_danmaku().cast(zombie)
 	if String(zombie["kind"]) == "volcano_boss":
 		return _ensure_volcano_expansion().boss_skill(zombie)
 	if String(zombie["kind"]) == "rumia_boss":
@@ -16527,7 +16534,7 @@ func _trigger_ran_boss_successor(zombie: Dictionary) -> Dictionary:
 		touhou_danmaku.clear_owner(int(zombie.touhou_owner))
 	var data = Dictionary(Defs.ZOMBIES.get("yukari_boss", {}))
 	var successor = zombie.duplicate(true)
-	for key in ["touhou_owner", "touhou_card", "touhou_invulnerable", "touhou_survival_timer", "touhou_cast_remaining", "touhou_cast_duration"]:
+	for key in ["touhou_owner", "touhou_card", "touhou_invulnerable", "touhou_survival_timer", "touhou_cast_remaining", "touhou_cast_duration", "touhou_encounter"]:
 		successor.erase(key)
 	var row = clampi(int(zombie.get("row", 2)), 0, ROWS - 1)
 	var center = Vector2(float(zombie.get("x", _boss_anchor_x("ran_boss"))), _row_center_y(row) - 28.0)
@@ -16536,6 +16543,7 @@ func _trigger_ran_boss_successor(zombie: Dictionary) -> Dictionary:
 	successor["x"] = _boss_anchor_x("yukari_boss")
 	successor["health"] = float(data.get("health", 42800.0))
 	successor["max_health"] = float(data.get("health", 42800.0))
+	TouhouPhaseRuntime.start(successor, current_level)
 	successor["base_speed"] = 0.0
 	successor["attack_dps"] = 0.0
 	successor["boss_phase"] = 0
@@ -23466,7 +23474,7 @@ func _current_active_boss() -> Dictionary:
 	return {}
 
 
-func _boss_health_bar_layout(_boss: Dictionary) -> Dictionary:
+func _boss_health_bar_layout(boss: Dictionary) -> Dictionary:
 	var safe_rect = _viewport_safe_rect()
 	var bar_width = minf(clampf(board_size.x + 42.0, 780.0, 1080.0), safe_rect.size.x - 48.0)
 	var bar_height = 20.0
@@ -23476,7 +23484,7 @@ func _boss_health_bar_layout(_boss: Dictionary) -> Dictionary:
 	return {
 		"rect": rect,
 		"rect_y": rect.position.y,
-		"segments": 5,
+		"segments": 1 if boss.has("touhou_encounter") else 5,
 		"name_rect": Rect2(rect.position + Vector2(0.0, -24.0), Vector2(bar_width * 0.27, 22.0)),
 		"status_rect": Rect2(rect.position + Vector2(bar_width * 0.27 + 8.0, -24.0), Vector2(bar_width * 0.53 - 16.0, 22.0)),
 		"health_rect": Rect2(rect.position + Vector2(bar_width * 0.8, -24.0), Vector2(bar_width * 0.2, 22.0)),
@@ -23494,20 +23502,38 @@ func _draw_boss_health_bar() -> void:
 	var health = maxf(0.0, float(boss.get("health", 0.0)))
 	var max_health = maxf(1.0, float(boss.get("max_health", 1.0)))
 	var trail_health = maxf(health, float(boss.get("boss_hud_trail", health / max_health)) * max_health)
+	var phase_label := "阶段 %d" % (int(boss.get("boss_phase", 0)) + 1)
+	var survival := bool(boss.get("yuyuko_revived", false))
+	if boss.has("touhou_encounter"):
+		var encounter: Dictionary = boss.touhou_encounter
+		var phase_count := TouhouSpellDefs.phase_count(String(boss.kind), current_level)
+		phase_label = "%d / %d 阶段" % [phase_count if survival else int(encounter.index) + 1, phase_count]
+		health = maxf(0.0, health - float(encounter.floor))
+		trail_health = maxf(health, trail_health - float(encounter.floor))
+		max_health = maxf(1.0, float(encounter.ceiling) - float(encounter.floor))
+	if survival:
+		health = maxf(0.0, float(boss.get("touhou_survival_timer", 0.0)))
+		max_health = maxf(1.0, float(boss.get("touhou_cast_duration", 24.0)))
+		trail_health = health
 	var tint = _hover_boss_effect_tint(String(boss["kind"]))
 	tint.a = 1.0
 	var segment_gap = 6.0
 	var segment_width = (rect.size.x - segment_gap * float(segments - 1)) / float(max(segments, 1))
 	var label_band = Rect2(rect.position + Vector2(-8.0, -26.0), Vector2(rect.size.x + 16.0, 26.0))
 	draw_rect(label_band, Color(0.04, 0.055, 0.055, 0.9))
-	_draw_text_block("%s  /  阶段 %d" % [String(Defs.ZOMBIES[String(boss["kind"])]["name"]), int(boss.get("boss_phase", 0)) + 1], layout["name_rect"], 16, Color(0.96, 0.97, 0.94), 0.0, 1)
+	var name_text := "%s  %s" % [String(Defs.ZOMBIES[String(boss["kind"])]["name"]), phase_label]
+	var name_size := 16
+	while name_size > 10 and ui_font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, name_size).x > layout.name_rect.size.x:
+		name_size -= 1
+	_draw_text_block(name_text, layout["name_rect"], name_size, Color(0.96, 0.97, 0.94), 0.0, 1)
 	var status = _boss_cast_status(boss)
 	var status_size := 15
 	while status_size > 11 and ui_font.get_string_size(String(status.text), HORIZONTAL_ALIGNMENT_LEFT, -1.0, status_size).x > layout.status_rect.size.x:
 		status_size -= 1
 	_draw_text_block(String(status["text"]), layout["status_rect"], status_size, Color(status["color"]), 0.0, 1)
 	var health_rect: Rect2 = layout["health_rect"]
-	draw_string(ui_font, health_rect.position + Vector2(0.0, 17.0), "%d / %d" % [ceili(health), ceili(max_health)], HORIZONTAL_ALIGNMENT_RIGHT, health_rect.size.x, 14, Color(0.92, 0.94, 0.9))
+	var health_text := "%.1f s" % health if survival else "%d / %d" % [ceili(health), ceili(max_health)]
+	draw_string(ui_font, health_rect.position + Vector2(0.0, 17.0), health_text, HORIZONTAL_ALIGNMENT_RIGHT, health_rect.size.x, 14, Color(0.92, 0.94, 0.9))
 	ThemeLib.draw_rounded_panel(self, rect, Color(0.06, 0.07, 0.08, 0.96), tint.darkened(0.5), 4.0, 0.1, 0.04)
 	for segment_index in range(segments):
 		var x = rect.position.x + float(segment_index) * (segment_width + segment_gap)
@@ -23531,7 +23557,7 @@ func _draw_boss_health_bar() -> void:
 				var pulse_alpha = 0.12 + 0.08 * sin(level_time * 4.0)
 				draw_line(Vector2(edge_x, segment_rect.position.y), Vector2(edge_x, segment_rect.position.y + segment_rect.size.y), Color(1.0, 0.6, 0.5, pulse_alpha), 3.0)
 		draw_rect(segment_rect, tint.darkened(0.45), false, 1.0)
-	for threshold in [0.2, 0.45, 0.72]:
+	for threshold in ([] if boss.has("touhou_encounter") else [0.2, 0.45, 0.72]):
 		var marker_x = rect.position.x + threshold * (rect.size.x - segment_gap * (segments - 1)) + floorf(threshold * segments) * segment_gap
 		draw_line(Vector2(marker_x, rect.position.y - 2.0), Vector2(marker_x, rect.end.y + 1.0), Color(1.0, 0.96, 0.82, 0.8), 1.5)
 	var cast_rect: Rect2 = layout["cast_rect"]
@@ -23548,6 +23574,8 @@ func _boss_cast_status(boss: Dictionary) -> Dictionary:
 		var label: String = ["熔炉落石", "火口共鸣", "炉卫集结"][cycle % 3]
 		return {"text": "%s  %s" % [label, "收招" if recovering else ("蓄力 %.1fs" % remaining if casting else "%.1fs" % remaining)], "progress": clampf(1.0 - remaining / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0) if casting else 0.0, "color": Color("#ffce76") if casting else Color("#d2e5dc")}
 	if TouhouSpellDefs.CARDS.has(String(boss.get("kind", ""))):
+		if boss.has("touhou_encounter") and String(boss.get("rumia_state", "")) == "phase" and float(boss.get("rumia_state_timer", 0.0)) > 0.0:
+			return {"text": "阶段转换", "progress": 0.0, "color": Color(0.72, 0.91, 1.0)}
 		var active = float(boss.get("touhou_cast_remaining", 0.0)) > 0.0
 		var card: Dictionary = boss.get("touhou_card", {}) if active else TouhouSpellDefs.card_for(boss, current_level)
 		var remaining_time = float(boss.get("touhou_cast_remaining", 0.0)) if active else float(boss.get("boss_skill_timer", 0.0))
@@ -32993,6 +33021,8 @@ func _zombie_almanac_stats(kind: String) -> Array:
 	]
 	if data.has("shield_health"):
 		stats.append("护具：%d" % int(data["shield_health"]))
+	if TouhouSpellDefs.CARDS.has(kind):
+		stats.append("阶段：%d" % TouhouSpellDefs.phase_count(kind))
 	match kind:
 		"ducky_tube", "lifebuoy_normal":
 			stats.append("特性：水路常规推进")

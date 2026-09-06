@@ -10,6 +10,7 @@ func _run() -> void:
 	root.mode = Window.MODE_WINDOWED
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
+	var encounter_mode := OS.get_cmdline_user_args().has("encounters")
 	var cases := [
 		["cirno_boss", 1], ["sakuya_boss", 2], ["flandre_boss", 2],
 		["flandre_boss", 6], ["yukari_boss", 10], ["youmu_boss", 5], ["yuyuko_boss", 0],
@@ -20,17 +21,22 @@ func _run() -> void:
 	for kind in GameScript.TouhouSpellDefs.CARDS:
 		if not ["cirno_boss", "sakuya_boss", "flandre_boss", "yukari_boss", "youmu_boss", "yuyuko_boss"].has(kind):
 			cases.append([kind, 0])
-	for viewport in [Vector2i(1600, 900), Vector2i(1365, 768), Vector2i(2000, 900)]:
+	if encounter_mode:
+		cases = [["sakuya_boss", 3], ["remilia_boss", 4], ["youmu_boss", 5], ["yuyuko_boss", 0], ["flandre_boss", 9], ["ran_boss", 9], ["yukari_boss", 10], ["sakuya_boss", -1]]
+	var viewports := [Vector2i(1600, 900), Vector2i(1365, 768), Vector2i(2000, 900)]
+	if encounter_mode:
+		viewports = [Vector2i(1600, 900), Vector2i(1000, 450), Vector2i(844, 390)]
+	for viewport in viewports:
 		root.size = viewport
 		root.content_scale_size = viewport
 		for spec in cases:
-			if viewport.x != 1600 and not String(spec[0]) in ["flandre_boss", "yukari_boss", "youmu_boss", "alice_boss", "ran_boss", "prismriver_boss"]:
+			if not encounter_mode and viewport.x != 1600 and not String(spec[0]) in ["flandre_boss", "yukari_boss", "youmu_boss", "alice_boss", "ran_boss", "prismriver_boss"]:
 				continue
 			root.mode = Window.MODE_WINDOWED
 			root.size = viewport
 			var game := PreviewGame.new()
 			game.size = Vector2(viewport)
-			game.mobile_runtime_override = 1 if viewport.x == 2000 else 0
+			game.mobile_runtime_override = 1 if viewport.x == 2000 or viewport.y < 600 else 0
 			root.add_child(game)
 			game._begin_level(-1, ["sunflower", "peashooter", "snow_pea", "repeater", "wallnut", "cherry_bomb"], {
 				"id": "canon-preview", "title": "", "terrain": "day", "start_sun": 450,
@@ -50,8 +56,7 @@ func _run() -> void:
 			game._spawn_zombie_at(String(spec[0]), 2, game._boss_anchor_x(String(spec[0])), true)
 			var boss: Dictionary = game.zombies.back()
 			boss["spawn_time"] = 0.0
-			boss["boss_skill_cycle"] = int(spec[1])
-			boss["boss_phase"] = 1
+			_select_preview_card(game, boss, int(spec[1]))
 			boss["hover_shift_timer"] = 100.0
 			boss["rumia_reinforcement_timer"] = 100.0
 			game.level_time = 10.0
@@ -67,7 +72,7 @@ func _run() -> void:
 					game.banner_label.visible = false
 					await _capture(game, "touhou-%dx%d-youmu-focus" % [viewport.x, viewport.y])
 			game.banner_label.visible = false
-			var suffix = "-midboss" if spec.size() > 2 else ""
+			var suffix = "-midboss" if spec.size() > 2 else ("-encounter" if encounter_mode else "")
 			await _capture(game, "touhou-%dx%d-%s-%d%s" % [viewport.x, viewport.y, spec[0], spec[1], suffix])
 			if String(spec[0]) == "youmu_boss" and int(spec[1]) == 5:
 				game._charm_plant_at_cell(2, 2, 4.4)
@@ -76,6 +81,20 @@ func _run() -> void:
 			game.save_dirty = false
 			game.free()
 	quit()
+
+
+func _select_preview_card(game: Control, boss: Dictionary, cycle: int) -> void:
+	var encounter: Dictionary = boss.touhou_encounter
+	if cycle >= 0:
+		var entry: Array = GameScript.TouhouSpellDefs.cards_for(String(boss.kind), game.current_level)[cycle]
+		for index in range(encounter.phases.size()):
+			for attack in range(encounter.phases[index].size()):
+				if encounter.phases[index][attack][0] == entry[0]:
+					encounter.index = index
+					encounter.attack = attack
+	GameScript.TouhouPhaseRuntime._set_bounds(boss)
+	boss.health = lerpf(float(encounter.floor), float(encounter.ceiling), 0.72)
+	boss.boss_hud_trail = float(boss.health) / float(boss.max_health)
 
 
 func _capture(game: Control, label: String) -> void:

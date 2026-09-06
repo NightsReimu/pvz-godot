@@ -132,6 +132,52 @@ const CHEN_EXTRA := [
 ]
 const REBIRTH := ["th07-114", "「反魂蝶 -三分咲-」", "resurrection_butterfly", "resurrection"]
 
+# Unnamed attacks are tower-defense adaptations, never invented named spell cards.
+const NONSPELLS := {
+	"rumia_boss": ["露米娅", "dark_fan", "bird"],
+	"cirno_boss": ["琪露诺", "ice_fan", "icicle"],
+	"meiling_boss": ["红美铃", "rainbow_spiral", "rainbow"],
+	"patchouli_boss": ["帕秋莉", "element_orbits", "metal"],
+	"sakuya_boss": ["十六夜咲夜", "knife_fan", "knives"],
+	"remilia_boss": ["蕾米莉亚", "scarlet_crossfire", "scarlet"],
+	"flandre_boss": ["芙兰朵露", "crystal_fan", "crystal"],
+	"letty_boss": ["蕾蒂", "snow_curtain", "lingering"],
+	"chen_boss": ["橙", "shikigami_crossfire", "shikigami"],
+	"alice_boss": ["爱丽丝", "doll_fan", "marionette"],
+	"prismriver_boss": ["骚灵三姐妹", "note_crossfire", "concerto"],
+	"youmu_boss": ["魂魄妖梦", "sword_fan", "slash"],
+	"yuyuko_boss": ["西行寺幽幽子", "butterfly_fan", "butterfly"],
+	"ran_boss": ["八云蓝", "fox_spiral", "senko"],
+	"yukari_boss": ["八云紫", "gap_crossfire", "boundary"],
+}
+
+
+static func phases_for(kind: String, level: Dictionary = {}) -> Array:
+	var phases: Array = []
+	var originals: Array = []
+	for entry in cards_for(kind, level):
+		if String(entry[0]).begins_with("original-"):
+			originals.append(entry)
+			continue
+		var attacks: Array = []
+		if NONSPELLS.has(kind) and not String(entry[0]).ends_with("nonspell"):
+			var opening: Array = NONSPELLS[kind]
+			attacks.append(["adapted-%s-nonspell" % kind, "非符 · %s" % opening[0], "nonspell_" + opening[1], opening[2]])
+		attacks.append(entry)
+		phases.append(attacks)
+	if not originals.is_empty() and not phases.is_empty():
+		# Youmu's original charm follows the third sword, preserving the last sword's finale.
+		phases[mini(2, phases.size() - 1)].append_array(originals)
+	return phases
+
+
+static func phase_count(kind: String, level: Dictionary = {}) -> int:
+	return phases_for(kind, level).size() + (1 if kind == "yuyuko_boss" else 0)
+
+
+static func card_from_entry(entry: Array) -> Dictionary:
+	return {"id": entry[0], "name": entry[1], "pattern": entry[2], "pose": entry[3], "origin": "original" if String(entry[0]).begins_with("original-") else ("nonspell" if String(entry[0]).ends_with("nonspell") else "canon")}
+
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
 	if String(level.get("mid_boss_kind", "")) == kind:
@@ -150,9 +196,14 @@ static func cards_for(kind: String, level: Dictionary = {}) -> Array:
 
 static func card_for(boss: Dictionary, level: Dictionary = {}) -> Dictionary:
 	var kind = String(boss.get("kind", ""))
+	if kind == "yuyuko_boss" and bool(boss.get("yuyuko_revived", false)):
+		return card_from_entry(REBIRTH)
+	if boss.has("touhou_encounter"):
+		var encounter: Dictionary = boss.touhou_encounter
+		var attacks: Array = encounter.phases[int(encounter.index)]
+		return card_from_entry(attacks[int(encounter.attack)])
 	var cards = cards_for(kind, level)
 	if cards.is_empty():
 		return {}
 	var index = posmod(int(boss.get("boss_skill_cycle", 0)), cards.size())
-	var entry: Array = REBIRTH if kind == "yuyuko_boss" and bool(boss.get("yuyuko_revived", false)) else cards[index]
-	return {"id": entry[0], "name": entry[1], "pattern": entry[2], "pose": entry[3], "origin": "original" if String(entry[0]).begins_with("original-") else ("nonspell" if String(entry[0]).ends_with("nonspell") else "canon")}
+	return card_from_entry(cards[index])

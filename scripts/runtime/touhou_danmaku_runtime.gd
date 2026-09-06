@@ -51,6 +51,10 @@ func cast(boss: Dictionary) -> Dictionary:
 	clear_owner(owner)
 	var pattern = String(card.pattern)
 	var duration := 3.4
+	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
+		duration = 2.2
+	if boss.has("touhou_encounter"):
+		boss.touhou_encounter.casting = true
 	if pattern in ["and_then_none", "life_death"]:
 		duration = 9.0
 	if pattern == "resurrection_butterfly":
@@ -61,7 +65,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	boss["touhou_cast_remaining"] = duration
 	boss["touhou_cast_duration"] = duration
 	var center = Vector2(float(boss.get("x", game._boss_anchor_x(String(boss.kind)))), game._row_center_y(int(boss.get("row", 2))) - 12.0)
-	var session := {"owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "actors": []}
+	var session := {"owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
 	casts.append(session)
 	game._show_banner(String(card.name), 1.8)
 	game.effects.append({"shape": String(boss.kind).trim_suffix("_boss") + "_spell_seal", "position": center, "radius": 72.0, "time": 0.45, "duration": 0.45, "color": Color(0.9, 0.86, 1.0, 0.25)})
@@ -71,7 +75,6 @@ func cast(boss: Dictionary) -> Dictionary:
 	if pattern in ["luna_clock", "clock_corpse"]:
 		game.boss_time_stop_timer = 2.2
 		game.boss_time_stop_flash_timer = 0.5
-		boss["sakuya_relocations_remaining"] = 0
 	_update_actors(session)
 	_emit_wave(session)
 	session.wave = 1
@@ -110,6 +113,8 @@ func _tick(delta: float) -> void:
 			boss["touhou_survival_timer"] = boss.touhou_cast_remaining
 		if float(session.age) >= float(session.duration):
 			boss["touhou_invulnerable"] = false
+			if String(session.pattern) == "and_then_none" and boss.has("touhou_encounter"):
+				boss.touhou_encounter.depleted = true
 			if String(session.pattern) == "resurrection_butterfly":
 				boss["health"] = 0.0
 			if String(session.pattern) in ["and_then_none", "resurrection_butterfly"]:
@@ -190,7 +195,7 @@ func _actor(c: Dictionary, index: int, kind: String, position: Vector2, pose: St
 func _update_actors(c: Dictionary) -> void:
 	var turn = float(c.age) * 0.25 / 0.62
 	match String(c.pattern):
-		"france", "holland", "london", "shanghai":
+		"france", "holland", "london", "shanghai", "nonspell_doll_fan":
 			for i in range(5):
 				_actor(c, i, "alice_doll_zombie", _point(0.72 + 0.12 * sin(i + turn), 0.12 + i * 0.19))
 		"shikigami_chen", "shikigami_ran":
@@ -205,6 +210,9 @@ func _update_actors(c: Dictionary) -> void:
 
 func _emit_wave(c: Dictionary) -> void:
 	var p = String(c.pattern)
+	if p.begins_with("nonspell_"):
+		_emit_nonspell(c)
+		return
 	var origin = Vector2(c.center)
 	var wave = int(c.wave)
 	var turn = float(wave) * 0.25
@@ -426,6 +434,71 @@ func _emit_wave(c: Dictionary) -> void:
 				_fan(c, butterfly_origin, 24, PI + side * turn, 2.4, 145, violet if side < 0 else blue, "butterfly", {"angular_speed": side * 0.24})
 			if p == "zen_butterfly":
 				_beam(c, origin, origin + Vector2.from_angle(PI + turn * 0.6) * game.board_size.x, red, 0.85)
+
+
+func _emit_nonspell(c: Dictionary) -> void:
+	var origin := Vector2(c.center)
+	var wave := int(c.wave)
+	var stage := int(c.get("stage", 0))
+	var turn := wave * 0.22 + stage * 0.17
+	var aim := (_target(origin) - origin).angle()
+	var extra := mini(4, stage)
+	match String(c.pattern):
+		"nonspell_dark_fan":
+			for side in [-1, 1]:
+				_fan(c, origin + Vector2(0, side * 32), 7 + extra, aim + side * 0.25, 0.75, 140, COLORS[0] if side < 0 else COLORS[1])
+		"nonspell_ice_fan":
+			for layer in range(3):
+				_fan(c, origin, 5 + extra, PI + sin(turn) * 0.35, 1.4, 110 + layer * 30, COLORS[1], "ice")
+		"nonspell_rainbow_spiral":
+			for petal in range(6):
+				_fan(c, origin, 3 + extra, turn + petal * TAU / 6, 0.28, 145, COLORS[petal])
+		"nonspell_element_orbits":
+			for element in range(5):
+				var emit := origin + Vector2.from_angle(turn + element * TAU / 5) * 56
+				_fan(c, emit, 4 + extra, (_target(emit) - emit).angle(), 0.65, 125 + element * 12, COLORS[element])
+		"nonspell_knife_fan":
+			for side in [-1, 1]:
+				_fan(c, origin + Vector2(-20, side * 50), 9 + extra, aim + side * sin(turn) * 0.3, 1.1, 205, COLORS[1], "knife", {"redirect_at": 0.75, "aim_point": _target(origin)})
+		"nonspell_scarlet_crossfire":
+			for side in [-1, 1]:
+				var emit := origin + Vector2(-55, side * (65 + wave * 12))
+				_fan(c, emit, 10 + extra, (_target(emit) - emit).angle(), 1.4, 180, COLORS[0], "orb", {"radius": 7.0})
+			if stage >= 2:
+				_fan(c, origin, 5, aim, 0.5, 230, COLORS[1])
+		"nonspell_crystal_fan":
+			for layer in range(3):
+				_fan(c, origin, 9 + extra, PI + sin(turn + layer) * 0.32, 1.9, 130 + layer * 35, COLORS[(stage + layer) % 6], "star")
+		"nonspell_snow_curtain":
+			for i in range(12 + extra):
+				_bullet(c, _point(0.15 + i * 0.05, 0.02), PI * 0.5 + sin(i + turn) * 0.22, 100 + (i % 3) * 20, COLORS[1], "ice")
+			_fan(c, origin, 7, aim, 0.7, 145, COLORS[4])
+		"nonspell_shikigami_crossfire":
+			for side in [-1, 1]:
+				var emit := origin + Vector2(-40 - wave * 14, side * 85)
+				_fan(c, emit, 8 + extra, PI + side * (0.4 + sin(turn) * 0.2), 1.15, 175, COLORS[0] if side < 0 else COLORS[1], "ofuda")
+		"nonspell_doll_fan":
+			for actor in c.actors:
+				var emit := Vector2(actor.position)
+				_fan(c, emit, 3 + extra, PI + sin(turn) * 0.2, 0.65, 140, COLORS[1])
+		"nonspell_note_crossfire":
+			for voice in range(3):
+				_fan(c, _point(0.8, 0.2 + voice * 0.3), 7 + extra, PI + sin(turn + voice) * 0.25, 1.2, 130 + voice * 28, COLORS[voice], "note", {"angular_speed": (voice - 1) * 0.12})
+		"nonspell_sword_fan":
+			_fan(c, origin, 14 + extra, aim, 1.7, 175, COLORS[1], "rice")
+			_fan(c, origin + Vector2(10, -48), 7 + extra, aim + sin(turn) * 0.4, 0.9, 125, COLORS[3])
+		"nonspell_butterfly_fan":
+			for side in [-1, 1]:
+				_fan(c, origin + Vector2(0, side * 30), 12 + extra, PI + side * 0.35, 1.7, 125, COLORS[0] if side < 0 else COLORS[1], "butterfly", {"angular_speed": side * 0.2})
+		"nonspell_fox_spiral":
+			for tail in range(9):
+				_fan(c, origin, 3 + extra, turn + tail * TAU / 9, 0.16, 165, COLORS[2], "ofuda", {"angular_speed": 0.16})
+		"nonspell_gap_crossfire":
+			for side in [-1, 1]:
+				var emit := _point(0.62, 0.12 if side < 0 else 0.88)
+				_fan(c, emit, 12 + extra, (_target(emit) - emit).angle(), 1.4, 160, COLORS[4], "ofuda", {"angular_speed": side * 0.22})
+			if stage >= 4 and wave % 2 == 0:
+				_beam(c, origin, _target(origin), COLORS[0], 0.9, 9)
 
 
 func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary = {}) -> void:

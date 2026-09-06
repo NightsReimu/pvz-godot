@@ -9,6 +9,7 @@ class_name ZombieRuntime
 # Owns spawn selection and shared boss timing; individual spells remain in game.gd.
 
 const BOSS_WINDUP := 0.85
+const TouhouPhases = preload("res://scripts/runtime/touhou_phase_runtime.gd")
 
 var game: Control
 
@@ -103,6 +104,8 @@ func random_normal_zombie_spawn_x() -> float:
 
 
 func update_boss(zombie: Dictionary, delta: float) -> Dictionary:
+	if TouhouPhases.update_progress(game, zombie):
+		return zombie
 	if float(zombie.get("health", 0.0)) <= 0.0:
 		return zombie
 	var kind := String(zombie["kind"])
@@ -110,7 +113,7 @@ func update_boss(zombie: Dictionary, delta: float) -> Dictionary:
 		zombie = game._update_boss_reinforcements(zombie, delta)
 		return tick_hover_pose(zombie, delta)
 	var phase: int = game._boss_phase_from_ratio(float(zombie["health"]) / maxf(float(zombie["max_health"]), 1.0))
-	if phase > int(zombie.get("boss_phase", 0)):
+	if not zombie.has("touhou_encounter") and phase > int(zombie.get("boss_phase", 0)):
 		zombie["boss_phase"] = phase
 		zombie["boss_cast_pending"] = false
 		zombie = game._trigger_boss_phase_shift(zombie, phase)

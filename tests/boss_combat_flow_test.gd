@@ -99,6 +99,7 @@ func _test_hover_preserves_spell_and_expires_pose() -> bool:
 
 func _test_defeated_boss_cannot_cast() -> bool:
 	var game := _make_game()
+	game.zombies[0].touhou_encounter.complete = true
 	game.zombies[0]["health"] = 0.0
 	game.zombies[0]["boss_skill_timer"] = 0.0
 	game.effects.clear()
@@ -228,12 +229,14 @@ func _test_pose_groups_play_complete_sequences() -> bool:
 
 func _test_phase_cancels_pending_spell() -> bool:
 	var game := _make_game()
-	game.zombies[0]["health"] = float(game.zombies[0]["max_health"]) * 0.7
+	var encounter: Dictionary = game.zombies[0].touhou_encounter
+	encounter.completed = encounter.phases[0].size()
+	game.zombies[0]["health"] = float(encounter.floor)
 	game.zombies[0]["boss_cast_pending"] = true
 	game.zombies[0]["boss_skill_timer"] = 0.01
 	game._update_zombies(0.2)
 	var boss: Dictionary = game.zombies[0]
-	var passed := _check(int(boss["boss_phase"]) == 1 and not bool(boss["boss_cast_pending"]), "phase transition must interrupt the old pending spell")
+	var passed := _check(int(boss.touhou_encounter.index) == 1 and not bool(boss["boss_cast_pending"]), "phase transition must interrupt the old pending spell")
 	passed = _check(int(boss["boss_skill_cycle"]) == 0 and String(boss["rumia_state"]) == "phase", "phase transition must play before the next spell") and passed
 	_free_game(game)
 	return passed

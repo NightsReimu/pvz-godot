@@ -29,6 +29,8 @@ func make_game(kind: String = "cirno_boss", cycle: int = 0) -> Control:
 		game.support_grid.append(cells.duplicate())
 	game.rng.seed = 906
 	game._spawn_zombie_at(kind, 2, game._boss_anchor_x(kind), true)
+	# These isolate individual cards; encounter ordering has its own end-to-end test.
+	game.zombies[0].erase("touhou_encounter")
 	game.zombies[0]["boss_skill_cycle"] = cycle
 	game.zombies[0]["hover_shift_timer"] = 100.0
 	game.zombies[0]["rumia_reinforcement_timer"] = 100.0
