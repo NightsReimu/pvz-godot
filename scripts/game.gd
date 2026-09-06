@@ -186,8 +186,9 @@ const PREP_BACK_RECT := Rect2(874.0, 642.0, 122.0, 44.0)
 const PREP_START_RECT := Rect2(1010.0, 642.0, 148.0, 44.0)
 const PREP_POOL_COLUMNS := 6
 const PREP_POOL_STEP := Vector2(110.0, 118.0)
-const MAP_ALMANAC_BUTTON_RECT := Rect2(1190.0, 64.0, 100.0, 40.0)
-const MAP_WORLD_BACK_RECT := Rect2(892.0, 64.0, 108.0, 40.0)
+const MAP_ALMANAC_BUTTON_RECT := Rect2(1440.0, 34.0, 100.0, 44.0)
+const MAP_WORLD_BACK_RECT := Rect2(1312.0, 34.0, 108.0, 44.0)
+const MAP_COIN_RECT := Rect2(1100.0, 34.0, 192.0, 44.0)
 const ALMANAC_BOOK_RECT := Rect2(74.0, 94.0, 1148.0, 614.0)
 const ALMANAC_CLOSE_RECT := Rect2(1098.0, 114.0, 96.0, 40.0)
 const ALMANAC_PLANT_TAB_RECT := Rect2(116.0, 114.0, 112.0, 44.0)
@@ -212,8 +213,8 @@ const DAILY_STAGE_PANEL_RECT := Rect2(472.0, 128.0, 1074.0, 704.0)
 const DAILY_SERIES_CARD_STEP := 126.0
 const DAILY_STAGE_CARD_STEP := 116.0
 const MAP_VIEW_RECT := Rect2(120.0, 138.0, 716.0, 548.0)
-const MAP_SCROLL_LEFT_RECT := Rect2(1080.0, 32.0, 44.0, 44.0)
-const MAP_SCROLL_RIGHT_RECT := Rect2(1132.0, 32.0, 44.0, 44.0)
+const MAP_SCROLL_LEFT_RECT := Rect2(944.0, 34.0, 44.0, 44.0)
+const MAP_SCROLL_RIGHT_RECT := Rect2(1000.0, 34.0, 44.0, 44.0)
 const WORLD_CARD_SPACING := 470.0
 const TOUCH_DRAG_THRESHOLD := 18.0
 const TOUCH_PRIORITY_CLICK_THRESHOLD := 34.0
@@ -853,6 +854,7 @@ var glow_primitives: Array = []
 var glow_layer: Control
 var glow_draw_offset := Vector2.ZERO
 var glow_draw_scale := Vector2.ONE
+var menu_draw_transform := Transform2D.IDENTITY
 var sky_sun_cooldown := 0.0
 var batch_spawn_remaining := 0
 var batch_spawn_queue: Array = []
@@ -962,6 +964,7 @@ var home_ui_texture_cache := {}
 var world_ui_texture_cache := {}
 var base_ui_texture_cache := {}
 var gacha_ui_texture_cache := {}
+var ui_texture_bounds := {}
 var update_manager := UpdateManagerLib.new()
 var update_check_request: HTTPRequest
 var update_download_request: HTTPRequest
@@ -1163,7 +1166,7 @@ func _uses_mobile_fill_ui_scaling(_target_mode: String = mode) -> bool:
 func _should_show_mobile_rotate_prompt(target_mode: String = mode) -> bool:
 	if not _is_mobile_runtime():
 		return false
-	if not _uses_legacy_landscape_ui_mode(target_mode):
+	if not _uses_legacy_landscape_ui_mode(target_mode) and target_mode not in [MODE_SELECTION, MODE_BATTLE, MODE_ENDLESS]:
 		return false
 	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
 	return viewport.y > viewport.x
@@ -1171,6 +1174,10 @@ func _should_show_mobile_rotate_prompt(target_mode: String = mode) -> bool:
 
 func _mode_mobile_prompt_title(target_mode: String) -> String:
 	match target_mode:
+		MODE_BATTLE, MODE_ENDLESS:
+			return "战斗"
+		MODE_SELECTION:
+			return "选卡"
 		MODE_HOME:
 			return "主界面"
 		MODE_WORLD_SELECT:
@@ -1194,48 +1201,19 @@ func _mode_mobile_prompt_title(target_mode: String) -> String:
 func _draw_mobile_rotate_prompt(target_mode: String = mode) -> void:
 	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
 	var safe_rect = _viewport_safe_rect()
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, viewport), Color(0.08, 0.05, 0.06), Color(0.14, 0.08, 0.12))
-	for i in range(6):
-		var orbit = ui_time * (0.18 + float(i) * 0.03) + float(i) * 0.9
-		var glow_center = viewport * 0.5 + Vector2(cos(orbit) * (54.0 + float(i) * 18.0), sin(orbit * 1.12) * (82.0 + float(i) * 12.0))
-		draw_circle(glow_center, 46.0 + float(i) * 10.0, Color(0.92, 0.18 + float(i) * 0.05, 0.22, 0.04))
-	var panel_size = Vector2(
-		clampf(safe_rect.size.x - 32.0, 280.0, 560.0),
-		clampf(safe_rect.size.y - 64.0, 280.0, 420.0)
-	)
-	var panel_rect = Rect2(safe_rect.get_center() - panel_size * 0.5, panel_size)
-	_draw_panel_shell(panel_rect, Color(0.16, 0.11, 0.12, 0.96), Color(0.78, 0.32, 0.28), 0.22, 0.14)
-	var phone_rect = Rect2(panel_rect.position + Vector2(panel_rect.size.x * 0.5 - 48.0, 42.0), Vector2(96.0, 146.0))
-	draw_set_transform(phone_rect.get_center(), -PI * 0.5, Vector2.ONE)
-	_draw_panel_shell(Rect2(Vector2(-48.0, -73.0), phone_rect.size), Color(0.11, 0.1, 0.12), Color(0.96, 0.76, 0.54), 0.12, 0.08)
-	draw_rect(Rect2(Vector2(-36.0, -58.0), Vector2(72.0, 104.0)), Color(0.26, 0.18, 0.22), true)
-	draw_circle(Vector2(0.0, 56.0), 5.0, Color(0.94, 0.84, 0.66))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	var arrow_center = phone_rect.get_center() + Vector2(0.0, 6.0)
-	var arrow_radius = 72.0
-	draw_arc(arrow_center, arrow_radius, -0.25 * PI, 0.85 * PI, 40, Color(1.0, 0.66, 0.28, 0.86), 5.0)
-	var arrow_tip = arrow_center + Vector2(cos(0.85 * PI), sin(0.85 * PI)) * arrow_radius
-	draw_polygon(PackedVector2Array([
-		arrow_tip,
-		arrow_tip + Vector2(-14.0, -6.0),
-		arrow_tip + Vector2(-2.0, -18.0),
-	]), PackedColorArray([
-		Color(1.0, 0.74, 0.34, 0.96),
-		Color(1.0, 0.74, 0.34, 0.96),
-		Color(1.0, 0.74, 0.34, 0.96),
-	]))
-	var title = "请横屏体验%s" % _mode_mobile_prompt_title(target_mode)
-	_draw_text(title, panel_rect.position + Vector2(32.0, 234.0), 34, Color(1.0, 0.95, 0.9))
-	_draw_text_block(
-		"当前手机竖屏会压缩旧版横向菜单布局。旋转设备后继续，可以获得正常的关卡地图、图鉴和按钮命中区域。",
-		Rect2(panel_rect.position + Vector2(32.0, 256.0), Vector2(panel_rect.size.x - 64.0, 92.0)),
-		20,
-		Color(0.95, 0.87, 0.82),
-		7.0
-	)
-	var hint_rect = Rect2(panel_rect.position + Vector2(32.0, panel_rect.size.y - 76.0), Vector2(panel_rect.size.x - 64.0, 42.0))
-	_draw_panel_shell(hint_rect, Color(0.28, 0.16, 0.12, 0.94), Color(0.94, 0.56, 0.24), 0.1, 0.06)
-	_draw_text("横屏后自动恢复，无需重启游戏。", hint_rect.position + Vector2(22.0, 28.0), 18, Color(1.0, 0.94, 0.84))
+	draw_rect(Rect2(Vector2.ZERO, viewport), Color("#172924"))
+	var content := Rect2(safe_rect.position + Vector2(24, 0), Vector2(maxf(1, safe_rect.size.x - 48), safe_rect.size.y))
+	var center := content.get_center() - Vector2(0, 64)
+	var phone := Rect2(center - Vector2(66, 40), Vector2(132, 80))
+	_draw_panel_shell(phone, Color("#34594b"), Color("#91d7af"), 0.12, 0.06)
+	draw_rect(phone.grow(-10), Color("#203c32"))
+	draw_circle(phone.end - Vector2(6, 40), 2, Color("#d5edcb"))
+	draw_arc(center, 94, -PI * 0.5, PI * 0.65, 40, Color("#efc65d"), 3, true)
+	var tip := center + Vector2.from_angle(PI * 0.65) * 94
+	draw_line(tip, tip + Vector2(14, 0), Color("#efc65d"), 3, true)
+	draw_line(tip, tip + Vector2(3, -14), Color("#efc65d"), 3, true)
+	ThemeLib.draw_label(self, ui_font, Rect2(Vector2(content.position.x, center.y + 116), Vector2(content.size.x, 42)), "请横屏体验%s" % _mode_mobile_prompt_title(target_mode), 28, Color("#f3f8ef"), HORIZONTAL_ALIGNMENT_CENTER)
+	ThemeLib.draw_label(self, ui_font, Rect2(Vector2(content.position.x, center.y + 162), Vector2(content.size.x, 30)), "旋转设备后继续", 18, Color("#b7ccbf"), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _ui_scale() -> float:
@@ -1276,20 +1254,27 @@ func _scene_local_position(raw_position: Vector2) -> Vector2:
 
 
 func _refresh_battle_layout() -> void:
+	if _should_show_mobile_rotate_prompt(MODE_BATTLE):
+		return
 	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
 	var is_mobile = _is_mobile_runtime()
 	var safe_rect = _viewport_safe_rect()
+	var compact_hud: bool = safe_rect.size.x < 1200.0
 	var left_margin = safe_rect.position.x + clampf(safe_rect.size.x * (0.035 if is_mobile else 0.09), 18.0 if is_mobile else 128.0, 64.0 if is_mobile else 188.0)
 	var right_margin = (viewport.x - safe_rect.end.x) + clampf(safe_rect.size.x * (0.018 if is_mobile else 0.08), 12.0 if is_mobile else 96.0, 38.0 if is_mobile else 176.0)
 	var hud_top = safe_rect.position.y + (14.0 if is_mobile else BASE_SEED_BANK_RECT.position.y)
 	var hud_left = safe_rect.position.x + (16.0 if is_mobile else BASE_SEED_BANK_RECT.position.x)
 	var hud_bottom = hud_top + BASE_SEED_BANK_RECT.size.y + 16.0
 	var top_margin = maxf(hud_bottom, clampf(safe_rect.size.y * (0.16 if is_mobile else 0.18), 108.0 if is_mobile else 120.0, 176.0 if is_mobile else 182.0) + safe_rect.position.y)
+	if compact_hud:
+		top_margin = hud_top + 148.0
 	if not Dictionary(current_level.get("objective", {})).is_empty():
 		top_margin += 32.0
 	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 64.0, 82.0 if is_mobile else 112.0)
-	var available_w = maxf(640.0, viewport.x - left_margin - right_margin)
-	var available_h = maxf(420.0, viewport.y - top_margin - bottom_margin)
+	if safe_rect.size.y < 600.0:
+		bottom_margin = 42.0
+	var available_w = maxf(1.0, viewport.x - left_margin - right_margin)
+	var available_h = maxf(1.0, safe_rect.end.y - top_margin - bottom_margin)
 	var width_fit_scale = available_w / (float(COLS) * BASE_CELL_SIZE.x)
 	var height_fit_scale = available_h / (float(board_rows) * BASE_CELL_SIZE.y)
 	var base_fit_scale = minf(width_fit_scale, height_fit_scale)
@@ -1298,10 +1283,10 @@ func _refresh_battle_layout() -> void:
 	var max_height_scale = 1.3 if is_mobile else 1.16
 	var width_scale = clampf(width_fit_scale, maxf(min_scale, base_fit_scale * 0.94), max_width_scale)
 	var height_scale = clampf(height_fit_scale, maxf(min_scale, base_fit_scale * 0.92), max_height_scale)
-	var cell_width = BASE_CELL_SIZE.x * width_scale
+	var cell_width = BASE_CELL_SIZE.x * minf(width_scale, width_fit_scale)
 	# Six-row boards must fit above the boss footer even below the usual minimum scale.
 	var cell_height = BASE_CELL_SIZE.y * minf(height_scale, height_fit_scale)
-	CELL_SIZE = Vector2(round(cell_width), floor(cell_height))
+	CELL_SIZE = Vector2(floor(cell_width), floor(cell_height))
 	var next_board_size = Vector2(COLS * CELL_SIZE.x, board_rows * CELL_SIZE.y)
 	var horizontal_slack = maxf(0.0, available_w - next_board_size.x)
 	var vertical_slack = maxf(0.0, available_h - next_board_size.y)
@@ -1322,6 +1307,15 @@ func _refresh_battle_layout() -> void:
 	BACK_BUTTON_RECT = Rect2(rail_right - BASE_BACK_BUTTON_RECT.size.x, button_row_y, BASE_BACK_BUTTON_RECT.size.x, BASE_BACK_BUTTON_RECT.size.y)
 	PAUSE_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_PAUSE_BUTTON_RECT.size.x - 14.0, button_row_y, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
 	COIN_METER_RECT = Rect2(PAUSE_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, button_row_y + (BASE_COIN_METER_RECT.position.y - BASE_PAUSE_BUTTON_RECT.position.y), BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
+	if compact_hud:
+		SEED_BANK_RECT = Rect2(hud_left, hud_top, safe_rect.end.x - hud_left - 16, 84)
+		SUN_METER_RECT = Rect2(hud_left + 6, hud_top + 6, 80, 72)
+		var controls_y: float = hud_top + 92
+		PLANT_FOOD_RECT = Rect2(hud_left, controls_y, 96, 44)
+		WAVE_BAR_RECT = Rect2(PLANT_FOOD_RECT.end.x + 10, controls_y + 8, minf(300, SEED_BANK_RECT.size.x - 472), 28)
+		COIN_METER_RECT = Rect2(WAVE_BAR_RECT.end.x + 10, controls_y, 148, 44)
+		PAUSE_BUTTON_RECT = Rect2(COIN_METER_RECT.end.x + 10, controls_y, 80, 44)
+		BACK_BUTTON_RECT = Rect2(PAUSE_BUTTON_RECT.end.x + 10, controls_y, 108, 44)
 
 
 func _reset_touch_navigation() -> void:
@@ -1539,8 +1533,7 @@ func _draw_gacha_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.
 func _draw_gacha_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
 	var texture := _gacha_ui_texture(asset_key)
 	if texture != null:
-		_draw_gacha_asset_shadow(texture, rect, 0.24)
-		draw_texture_rect(texture, rect, false, tint)
+		_draw_ui_panel_texture(texture, rect, tint)
 	else:
 		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.22, 0.13)
 
@@ -1877,24 +1870,18 @@ func _restart_current_battle() -> void:
 
 
 func _battle_pause_menu_rect() -> Rect2:
-	return Rect2(size * 0.5 - Vector2(182.0, 208.0), Vector2(364.0, 416.0))
+	var safe_rect := _viewport_safe_rect().grow(-16)
+	var panel_size := Vector2(minf(364, safe_rect.size.x), minf(384, safe_rect.size.y))
+	return Rect2(safe_rect.get_center() - panel_size * 0.5, panel_size)
 
 
 func _battle_pause_button_rect(action: String) -> Rect2:
 	var panel_rect = _battle_pause_menu_rect()
-	var base_x = panel_rect.position.x + 46.0
-	var width = panel_rect.size.x - 92.0
-	match action:
-		"resume":
-			return Rect2(base_x, panel_rect.position.y + 118.0, width, 54.0)
-		"restart":
-			return Rect2(base_x, panel_rect.position.y + 184.0, width, 54.0)
-		"almanac":
-			return Rect2(base_x, panel_rect.position.y + 250.0, width, 54.0)
-		"map":
-			return Rect2(base_x, panel_rect.position.y + 316.0, width, 54.0)
-		_:
-			return Rect2()
+	var index := ["resume", "restart", "almanac", "map"].find(action)
+	if index < 0:
+		return Rect2()
+	var button_height := minf(54, (panel_rect.size.y - 116) / 4.0)
+	return Rect2(panel_rect.position + Vector2(32, 72 + index * (button_height + 10)), Vector2(panel_rect.size.x - 64, button_height))
 
 
 func _handle_battle_pause_click(mouse_pos: Vector2) -> void:
@@ -1916,6 +1903,9 @@ func _handle_battle_pause_click(mouse_pos: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	ui_time += delta
+	if mode in [MODE_BATTLE, MODE_ENDLESS] and _should_show_mobile_rotate_prompt():
+		queue_redraw()
+		return
 	_update_firing_sfx_throttle(delta)
 	if glow_layer != null:
 		glow_layer.queue_redraw()
@@ -4480,9 +4470,9 @@ func _selection_selected_panel_rect() -> Rect2:
 	var rect = PREP_SELECTED_PANEL_RECT
 	if is_mobile:
 		rect.position.x = safe_rect.position.x + 16.0
-		rect.position.y = safe_rect.position.y + clampf(safe_rect.size.y * 0.055, 18.0, 54.0)
+		rect.position.y = safe_rect.position.y + 52.0
 		rect.size.x = maxf(320.0, safe_rect.size.x - 32.0)
-		rect.size.y = clampf(safe_rect.size.y * 0.2, 92.0, 132.0)
+		rect.size.y = 80.0 if safe_rect.size.y < 380.0 else (92.0 if safe_rect.size.y < 460.0 else 132.0)
 		return rect
 	rect.position.y = maxf(rect.position.y, 150.0)
 	rect.size.x = maxf(760.0, minf(maxf(rect.size.x, size.x - rect.position.x - 24.0), size.x - rect.position.x - 24.0))
@@ -4497,7 +4487,8 @@ func _selection_zombie_panel_rect() -> Rect2:
 	rect.position.x = _selection_selected_panel_rect().position.x
 	rect.size.x = _selection_selected_panel_rect().size.x
 	if is_mobile:
-		rect.size.y = clampf(_viewport_safe_rect().size.y * 0.072, 40.0, 56.0)
+		rect.position.y = _selection_selected_panel_rect().end.y + 6.0
+		rect.size.y = clampf(_viewport_safe_rect().size.y * 0.072, 30.0, 56.0)
 	return rect
 
 
@@ -4510,7 +4501,8 @@ func _selection_pool_panel_rect() -> Rect2:
 	rect.size.x = _selection_selected_panel_rect().size.x
 	var max_height = safe_rect.end.y - rect.position.y - (12.0 if is_mobile else 24.0)
 	if is_mobile:
-		rect.size.y = clampf(max_height, 124.0, 520.0)
+		rect.position.y = _selection_zombie_panel_rect().end.y + 8.0
+		rect.size.y = minf(520.0, safe_rect.end.y - rect.position.y - 10.0)
 	else:
 		rect.size.y = clampf(max_height, 188.0, 420.0)
 	return rect
@@ -4520,7 +4512,7 @@ func _selection_footer_rect() -> Rect2:
 	var pool_panel_rect = _selection_pool_panel_rect()
 	return Rect2(
 		pool_panel_rect.position.x + 18.0,
-		pool_panel_rect.end.y - 56.0,
+		pool_panel_rect.end.y - (52.0 if _is_mobile_runtime() else 56.0),
 		pool_panel_rect.size.x - 36.0,
 		40.0
 	)
@@ -5215,6 +5207,9 @@ func _draw_base_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.2
 func _draw_base_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
 	var texture := _base_ui_texture(asset_key)
 	if texture != null:
+		if asset_key in ["grid_panel", "detail_panel", "roster_panel"]:
+			_draw_ui_panel_texture(texture, rect, tint)
+			return
 		_draw_base_asset_shadow(texture, rect, 0.24)
 		draw_texture_rect(texture, rect, false, tint)
 	else:
@@ -5612,11 +5607,12 @@ func _offer_endless_bonus_choices() -> void:
 
 
 func _endless_bonus_card_rect(index: int) -> Rect2:
-	var card_size := Vector2(292.0, 188.0)
-	var gap := 24.0
+	var safe_rect := _viewport_safe_rect().grow(-24)
+	var gap := 16.0
+	var card_size := Vector2(minf(292, (safe_rect.size.x - gap * 2) / 3.0), 188.0)
 	var total_width = card_size.x * 3.0 + gap * 2.0
-	var start_x = maxf(24.0, (size.x - total_width) * 0.5)
-	var y = clampf(size.y * 0.5 - card_size.y * 0.5 + 36.0, 160.0, maxf(160.0, size.y - card_size.y - 42.0))
+	var start_x = safe_rect.get_center().x - total_width * 0.5
+	var y = minf(safe_rect.get_center().y - card_size.y * 0.5 + 36, safe_rect.end.y - card_size.y)
 	return Rect2(Vector2(start_x + float(index) * (card_size.x + gap), y), card_size)
 
 
@@ -6483,15 +6479,14 @@ func _draw_enhance_portrait_panel(kind: String, panel_rect: Rect2) -> void:
 	draw_rect(top_band, Color(role_color.r, role_color.g, role_color.b, 0.12), true)
 	draw_rect(top_band, Color(role_color.r, role_color.g, role_color.b, 0.42), false, 1.0)
 	_draw_text("OPERATOR", top_band.position + Vector2(22.0, 30.0), 15, Color(0.64, 0.76, 0.82))
-	_draw_text(String(data.get("name", kind)), top_band.position + Vector2(20.0, 68.0), 34, Color(0.94, 0.98, 1.0))
-	_draw_text("%s  %s" % [String(profile.get("name", "")), rarity_label], top_band.position + Vector2(top_band.size.x - 198.0, 68.0), 18, role_color.lightened(0.14))
+	ThemeLib.draw_label(self, ui_font, Rect2(top_band.position + Vector2(20, 38), Vector2(top_band.size.x - 40, 48)), String(data.get("name", kind)), 32, Color(0.94, 0.98, 1.0))
+	ThemeLib.draw_label(self, ui_font, Rect2(top_band.position + Vector2(152, 8), Vector2(top_band.size.x - 172, 30)), "%s  %s" % [String(profile.get("name", "")), rarity_label], 16, role_color.lightened(0.14), HORIZONTAL_ALIGNMENT_RIGHT)
 	var circle_center = panel_rect.position + Vector2(panel_rect.size.x * 0.5, 350.0)
 	for ring in range(4):
 		var radius = 104.0 + float(ring) * 46.0
 		draw_arc(circle_center, radius, 0.0, TAU, 96, Color(role_color.r, role_color.g, role_color.b, 0.16 - float(ring) * 0.028), 2.0)
 	draw_circle(circle_center + Vector2(0.0, 122.0), 122.0, Color(0.0, 0.0, 0.0, 0.22))
-	_draw_plant_preview(kind, circle_center + Vector2(0.0, 58.0))
-	_draw_card_icon(kind, circle_center + Vector2(0.0, 24.0))
+	_draw_unified_plant(circle_center + Vector2(0.0, 24.0), kind, {}, 3.4)
 	var level_rect = Rect2(panel_rect.position + Vector2(52.0, 564.0), Vector2(panel_rect.size.x - 104.0, 76.0))
 	_draw_panel_shell(level_rect, Color(0.02, 0.032, 0.04, 0.86), role_color.darkened(0.12), 0.08, 0.04)
 	_draw_text("强化等级", level_rect.position + Vector2(22.0, 30.0), 16, Color(0.64, 0.76, 0.82))
@@ -6690,9 +6685,9 @@ func _draw_enhance_scene() -> void:
 
 	var resource_rect = Rect2(BASE_VIEWPORT_SIZE.x - 500.0, 30.0, 452.0, 48.0)
 	_draw_panel_shell(resource_rect, Color(0.12, 0.18, 0.2, 0.95), Color(0.36, 0.5, 0.56), 0.12, 0.08)
-	_draw_text("金币 %d" % coins_total, resource_rect.position + Vector2(22.0, 31.0), 18, Color(0.96, 0.82, 0.34))
-	_draw_text("催化剂 %d" % enhance_stones, resource_rect.position + Vector2(174.0, 31.0), 18, Color(0.86, 0.92, 1.0))
-	_draw_text("植物 %d" % _enhance_owned_plants().size(), resource_rect.position + Vector2(332.0, 31.0), 18, Color(0.72, 0.86, 0.76))
+	ThemeLib.draw_label(self, ui_font, Rect2(resource_rect.position + Vector2(14, 4), Vector2(166, 40)), "金币 %d" % coins_total, 18, Color(0.96, 0.82, 0.34))
+	ThemeLib.draw_label(self, ui_font, Rect2(resource_rect.position + Vector2(192, 4), Vector2(142, 40)), "催化剂 %d" % enhance_stones, 18, Color(0.86, 0.92, 1.0))
+	ThemeLib.draw_label(self, ui_font, Rect2(resource_rect.position + Vector2(346, 4), Vector2(92, 40)), "植物 %d" % _enhance_owned_plants().size(), 18, Color(0.72, 0.86, 0.76))
 
 	var roster_panel = _enhance_roster_panel_rect()
 	_draw_panel_shell(roster_panel, Color(0.075, 0.102, 0.12, 0.96), Color(0.28, 0.42, 0.48), 0.16, 0.1)
@@ -6725,12 +6720,12 @@ func _draw_enhance_scene() -> void:
 			draw_rect(draw_cell.grow(-3.0), Color(role_color.r, role_color.g, role_color.b, 0.18), false, 1.0)
 		_draw_card_icon(pk, draw_cell.position + Vector2(34.0, 38.0))
 		var elevel = int(plant_enhance_levels.get(pk, 0))
-		_draw_text(String(Defs.PLANTS[pk].get("name", pk)), draw_cell.position + Vector2(68.0, 28.0), 14, Color(0.9, 0.94, 0.96))
-		_draw_text(String(profile.get("name", "")), draw_cell.position + Vector2(68.0, 49.0), 12, role_color.lightened(0.12))
+		ThemeLib.draw_label(self, ui_font, Rect2(draw_cell.position + Vector2(68, 8), Vector2(draw_cell.size.x - 144, 24)), String(Defs.PLANTS[pk].get("name", pk)), 14, Color(0.9, 0.94, 0.96), HORIZONTAL_ALIGNMENT_LEFT, 10)
+		ThemeLib.draw_label(self, ui_font, Rect2(draw_cell.position + Vector2(68, 33), Vector2(draw_cell.size.x - 144, 24)), String(profile.get("name", "")), 12, role_color.lightened(0.12), HORIZONTAL_ALIGNMENT_LEFT, 10)
 		var level_chip = Rect2(draw_cell.end - Vector2(64.0, 46.0), Vector2(46.0, 28.0))
 		draw_rect(level_chip, Color(0.0, 0.0, 0.0, 0.28), true)
 		draw_rect(level_chip, Color(1.0, 0.86, 0.34, 0.38), false, 1.0)
-		_draw_text("+%d" % elevel, level_chip.position + Vector2(10.0, 21.0), 15, Color(1.0, 0.86, 0.34))
+		ThemeLib.draw_label(self, ui_font, level_chip.grow(-3), "+%d" % elevel, 15, Color(1.0, 0.86, 0.34), HORIZONTAL_ALIGNMENT_CENTER)
 	ThemeLib.draw_scroll_mask(self, roster_panel.grow(-8.0), view_rect, Color(0.075, 0.102, 0.12, 0.98), Color(0.26, 0.4, 0.46))
 	if _enhance_max_scroll() > 0.0:
 		var track_rect = Rect2(view_rect.end - Vector2(10.0, view_rect.size.y), Vector2(6.0, view_rect.size.y))
@@ -7036,7 +7031,7 @@ func _handle_almanac_click(mouse_pos: Vector2) -> void:
 	var view_rect = _almanac_list_view_rect()
 	for i in range(entries.size()):
 		var rect = _almanac_item_rect(i)
-		if view_rect.intersects(rect) and rect.has_point(mouse_pos):
+		if view_rect.encloses(rect) and rect.has_point(mouse_pos):
 			almanac_selected_kind = String(entries[i])
 			queue_redraw()
 			return
@@ -17916,15 +17911,14 @@ func _shovel_rect() -> Rect2:
 	var card_gap = _seed_bank_card_gap()
 	var start_x = SUN_METER_RECT.position.x + SUN_METER_RECT.size.x + 12.0
 	var x = start_x + active_cards.size() * (card_size.x + card_gap) + 12.0
-	return Rect2(x, SEED_BANK_RECT.position.y + 4.0, 84.0, 92.0)
+	return Rect2(x, SEED_BANK_RECT.position.y + 4.0, 54.0 if _viewport_safe_rect().size.x < 1200 else 84.0, card_size.y)
 
 
 func _seed_bank_card_size() -> Vector2:
-	if active_cards.size() >= 10:
-		return Vector2(68.0, 92.0)
-	if active_cards.size() >= 9:
-		return Vector2(74.0, 92.0)
-	return CARD_SIZE
+	var compact := _viewport_safe_rect().size.x < 1200
+	var available := SEED_BANK_RECT.end.x - SUN_METER_RECT.end.x - 36 - (54 if compact else 84)
+	var width := floorf(available / float(maxi(active_cards.size(), 1)) - _seed_bank_card_gap())
+	return Vector2(minf(CARD_SIZE.x, maxf(24, width)), SEED_BANK_RECT.size.y - 8)
 
 
 func _seed_bank_card_gap() -> float:
@@ -17939,10 +17933,10 @@ func _selection_slot_rect(index: int) -> Rect2:
 	var selected_panel_rect = _selection_selected_panel_rect()
 	var step = (selected_panel_rect.size.x - 40.0) / float(MAX_SEED_SLOTS)
 	var slot_max_width = 104.0 if _is_mobile_runtime() else 88.0
-	var width = maxf(68.0, minf(slot_max_width, step - 8.0))
+	var width = minf(slot_max_width, step - 8.0)
 	# Header row (label + progress) takes ~52px at the top; card slots fill the rest below it.
-	var header_h = 52.0
-	var height = clampf(selected_panel_rect.size.y - header_h - 14.0, 62.0, 92.0)
+	var header_h = 28.0 if _is_mobile_runtime() else 40.0
+	var height = minf(92.0, selected_panel_rect.size.y - header_h - 10.0)
 	var y_offset = header_h
 	return Rect2(
 		Vector2(selected_panel_rect.position.x + 20.0 + index * step, selected_panel_rect.position.y + y_offset),
@@ -17964,7 +17958,7 @@ func _selection_pool_columns() -> int:
 		return 3
 	if view_width < 700.0:
 		return 4
-	return 5
+	return maxi(5, int(floor(view_width / 110.0)))
 
 
 func _selection_pool_step() -> Vector2:
@@ -17990,7 +17984,7 @@ func _selection_pool_card_size() -> Vector2:
 	var gap_x = 12.0
 	var width = floor((view_rect.size.x - float(max(columns - 1, 0)) * gap_x - 8.0) / float(columns))
 	width = clampf(width, 88.0, 116.0)
-	var height = clampf(width * 1.1, 98.0, 126.0)
+	var height = minf(clampf(width * 1.1, 76.0, 126.0), view_rect.size.y)
 	return Vector2(width, height)
 
 
@@ -18001,8 +17995,11 @@ func _selection_pool_rect(index: int) -> Rect2:
 	var pool_card_size = _selection_pool_card_size()
 	var col = index % pool_columns
 	var row = int(floor(float(index) / float(pool_columns)))
+	var visible_scroll = selection_pool_scroll
+	if view_rect.size.y < pool_step.y * 2.0:
+		visible_scroll = floor(selection_pool_scroll / pool_step.y) * pool_step.y
 	return Rect2(
-		Vector2(view_rect.position.x + col * pool_step.x, view_rect.position.y + row * pool_step.y - selection_pool_scroll),
+		Vector2(view_rect.position.x + col * pool_step.x, view_rect.position.y + row * pool_step.y - visible_scroll),
 		pool_card_size
 	)
 
@@ -18027,7 +18024,7 @@ func _selection_pool_index_at(mouse_pos: Vector2) -> int:
 		return -1
 	for i in range(selection_pool_cards.size()):
 		var rect = _selection_pool_rect(i)
-		if view_rect.intersects(rect) and rect.has_point(mouse_pos):
+		if view_rect.encloses(rect) and rect.has_point(mouse_pos):
 			return i
 	return -1
 
@@ -18035,9 +18032,10 @@ func _selection_pool_index_at(mouse_pos: Vector2) -> int:
 func _selection_pool_view_rect() -> Rect2:
 	var pool_panel_rect = _selection_pool_panel_rect()
 	var footer_rect = _selection_footer_rect()
+	var header_height := 34.0 if _is_mobile_runtime() else 40.0
 	return Rect2(
-		pool_panel_rect.position + Vector2(18.0, 40.0),
-		Vector2(pool_panel_rect.size.x - 62.0, maxf(72.0, footer_rect.position.y - pool_panel_rect.position.y - 56.0))
+		pool_panel_rect.position + Vector2(18.0, header_height),
+		Vector2(pool_panel_rect.size.x - 62.0, maxf(1.0, footer_rect.position.y - pool_panel_rect.position.y - header_height - 8.0))
 	)
 
 
@@ -18243,6 +18241,8 @@ func _visible_level_indices(world_key: String = current_world_key) -> Array:
 
 func _map_mode_title_for_world(world_key: String) -> String:
 	match world_key:
+		"volcano":
+			return "火山冒险"
 		"city":
 			return "城市冒险"
 		"night":
@@ -18404,11 +18404,25 @@ func _almanac_item_size() -> Vector2:
 
 
 func _level_node_at(mouse_pos: Vector2) -> int:
+	if not MAP_VIEW_RECT.has_point(mouse_pos):
+		return -1
 	for index in _visible_level_indices():
 		var node_pos = _map_node_position(int(index))
-		if mouse_pos.distance_to(node_pos) <= 34.0:
+		if _map_node_visible(node_pos) and mouse_pos.distance_to(node_pos) <= 34.0:
 			return int(index)
 	return -1
+
+
+func _map_node_visible(node_pos: Vector2) -> bool:
+	return node_pos.x >= MAP_VIEW_RECT.position.x + 36.0 and node_pos.x <= MAP_VIEW_RECT.end.x - 36.0
+
+
+func _draw_map_path(points: PackedVector2Array, color: Color, width: float) -> void:
+	var clip_rect := MAP_VIEW_RECT.grow(-width * 0.5)
+	var polygon := PackedVector2Array([clip_rect.position, Vector2(clip_rect.end.x, clip_rect.position.y), clip_rect.end, Vector2(clip_rect.position.x, clip_rect.end.y)])
+	for segment in Geometry2D.intersect_polyline_with_polygon(points, polygon):
+		if segment.size() >= 2:
+			draw_polyline(segment, color, width, true)
 
 
 func _mouse_to_cell(mouse_pos: Vector2) -> Vector2i:
@@ -19091,26 +19105,19 @@ func _draw() -> void:
 
 
 func _draw_startup_loading_scene() -> void:
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.08, 0.05, 0.02), Color(0.18, 0.04, 0.04))
-	for i in range(7):
-		var seed = float(i) * 31.0
-		var orbit = ui_time * (0.3 + float(i) * 0.05) + seed
-		var center = size * 0.5 + Vector2(cos(orbit) * (180.0 + float(i) * 24.0), sin(orbit * 0.7) * (82.0 + float(i) * 14.0))
-		draw_circle(center, 48.0 + float(i) * 10.0, Color(0.7, 0.14 + float(i) * 0.05, 0.16 + float(i) * 0.03, 0.05))
-	var panel_rect = Rect2(size * 0.5 - Vector2(340.0, 176.0), Vector2(680.0, 352.0))
-	_draw_panel_shell(panel_rect, Color(0.16, 0.1, 0.08, 0.94), Color(0.62, 0.22, 0.18), 0.12, 0.08)
-	_draw_text("正在加载庭院", panel_rect.position + Vector2(192.0, 72.0), 36, Color(1.0, 0.94, 0.88))
-	_draw_text("预热 Boss 立绘、图鉴和 BGM，避免进图和翻页时卡顿。", panel_rect.position + Vector2(72.0, 118.0), 21, Color(0.96, 0.86, 0.78))
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.065, 0.12, 0.1), true)
+	var safe_rect := _viewport_safe_rect().grow(-24)
+	var content_size := Vector2(minf(560, safe_rect.size.x), minf(260, safe_rect.size.y))
+	var content := Rect2(safe_rect.get_center() - content_size * 0.5, content_size)
+	_draw_unified_plant(content.get_center() + Vector2(0, -74), "sunflower", {}, 1.2)
+	ThemeLib.draw_label(self, ui_font, Rect2(content.position + Vector2(0, 100), Vector2(content.size.x, 48)), "正在加载庭院", 32, Color(0.94, 0.98, 0.9), HORIZONTAL_ALIGNMENT_CENTER)
 	var progress = 1.0
 	if startup_loading_total_tasks > 0:
 		progress = clampf(float(startup_loading_completed_tasks) / float(startup_loading_total_tasks), 0.0, 1.0)
-	var bar_rect = Rect2(panel_rect.position + Vector2(72.0, 180.0), Vector2(536.0, 26.0))
-	_draw_panel_shell(bar_rect, Color(0.22, 0.14, 0.12, 0.96), Color(0.42, 0.18, 0.16), 0.1, 0.08)
-	draw_rect(Rect2(bar_rect.position + Vector2(4.0, 4.0), Vector2((bar_rect.size.x - 8.0) * progress, bar_rect.size.y - 8.0)), Color(0.94, 0.34, 0.24, 0.96), true)
-	_draw_text("已处理 %d / %d 项资源" % [startup_loading_completed_tasks, max(startup_loading_total_tasks, 1)], panel_rect.position + Vector2(178.0, 244.0), 20, Color(0.98, 0.92, 0.86))
-	for dot_index in range(3):
-		var pulse = 0.45 + 0.55 * sin(ui_time * 5.2 + float(dot_index) * 0.8)
-		draw_circle(panel_rect.position + Vector2(302.0 + float(dot_index) * 34.0, 292.0), 8.0 + pulse * 4.0, Color(1.0, 0.84, 0.52, 0.35 + pulse * 0.45))
+	var bar_rect := Rect2(content.position + Vector2(12, 174), Vector2(content.size.x - 24, 10))
+	draw_rect(bar_rect, Color(0.18, 0.28, 0.23), true)
+	draw_rect(ThemeLib.progress_fill_rect(bar_rect, progress), Color(0.82, 0.86, 0.36), true)
+	ThemeLib.draw_label(self, ui_font, Rect2(content.position + Vector2(0, 200), Vector2(content.size.x, 32)), "%d%%" % roundi(progress * 100), 18, Color(0.7, 0.82, 0.74), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _draw_menu_backdrop_fill(draw_mode: String) -> void:
@@ -19149,6 +19156,7 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 		draw_set_transform(battle_offset, 0.0, Vector2.ONE)
 		glow_draw_offset = battle_offset
 		glow_draw_scale = Vector2.ONE
+	menu_draw_transform = Transform2D(0.0, glow_draw_scale, 0.0, glow_draw_offset)
 	if draw_mode == MODE_HOME:
 		_draw_home_scene()
 	elif draw_mode == MODE_WORLD_SELECT:
@@ -19172,6 +19180,7 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 	else:
 		_draw_battle_scene()
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	menu_draw_transform = Transform2D.IDENTITY
 
 
 func _draw_gacha_scene() -> void:
@@ -19205,21 +19214,20 @@ func _draw_gacha_scene() -> void:
 	var title_rect := _gacha_title_rect()
 	_draw_gacha_asset_panel("title_frame", title_rect, Color(0.26, 0.12, 0.34, 0.92), Color(0.94, 0.72, 0.34, 0.92))
 	var title := "幻想召唤"
-	var title_width := ui_font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 42).x
-	ThemeLib.draw_text_with_shadow(self, ui_font, title_rect.position + Vector2((title_rect.size.x - title_width) * 0.5, 66.0), title, 42, Color(1.0, 0.92, 0.76), Vector2(1.5, 3.0), 0.35)
+	ThemeLib.draw_label(self, ui_font, Rect2(title_rect.position + Vector2(56, 24), Vector2(title_rect.size.x - 112, 44)), title, 32, Color(1.0, 0.92, 0.76), HORIZONTAL_ALIGNMENT_CENTER)
 	var subtitle := "东方风角色 / 植物契约"
-	var subtitle_width := ui_font.get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15).x
-	ThemeLib.draw_text_with_shadow(self, ui_font, title_rect.position + Vector2((title_rect.size.x - subtitle_width) * 0.5, 91.0), subtitle, 15, Color(0.86, 0.76, 0.96), Vector2(1.0, 2.0), 0.28)
+	ThemeLib.draw_label(self, ui_font, Rect2(title_rect.position + Vector2(56, 68), Vector2(title_rect.size.x - 112, 24)), subtitle, 15, Color(0.86, 0.76, 0.96), HORIZONTAL_ALIGNMENT_CENTER)
 
 	var coin_rect := _gacha_coin_rect()
 	_draw_gacha_asset_panel("coin_chip", coin_rect, Color(0.24, 0.12, 0.25, 0.94), Color(0.98, 0.78, 0.32, 0.9))
-	_draw_coin_icon(coin_rect.position + Vector2(38.0, coin_rect.size.y * 0.5), 0.75)
-	ThemeLib.draw_text_with_shadow(self, ui_font, coin_rect.position + Vector2(70.0, 40.0), "%d" % coins_total, 23, Color(1.0, 0.9, 0.45), Vector2(1.0, 2.0), 0.3)
-	ThemeLib.draw_text_with_shadow(self, ui_font, coin_rect.position + Vector2(204.0, 39.0), "保底 %d/50" % gacha_pity_counter, 16, Color(0.92, 0.84, 1.0), Vector2(1.0, 2.0), 0.24)
+	if _gacha_ui_texture("coin_chip") == null:
+		_draw_coin_icon(coin_rect.position + Vector2(38.0, coin_rect.size.y * 0.5), 0.75)
+	ThemeLib.draw_label(self, ui_font, Rect2(coin_rect.position + Vector2(66, 10), Vector2(126, coin_rect.size.y - 20)), str(coins_total), 23, Color(1.0, 0.9, 0.45))
+	ThemeLib.draw_label(self, ui_font, Rect2(coin_rect.position + Vector2(204, 10), Vector2(coin_rect.size.x - 228, coin_rect.size.y - 20)), "保底 %d/50" % gacha_pity_counter, 16, Color(0.92, 0.84, 1.0))
 
 	var back_rect := _gacha_back_rect()
 	_draw_gacha_asset_panel("back_button", back_rect, Color(0.24, 0.18, 0.28, 0.94), Color(0.74, 0.62, 0.86, 0.9))
-	ThemeLib.draw_text_with_shadow(self, ui_font, back_rect.position + Vector2(58.0, 43.0), "返回", 23, Color(0.98, 0.94, 1.0), Vector2(1.0, 2.0), 0.28)
+	ThemeLib.draw_label(self, ui_font, Rect2(back_rect.position + Vector2(44, 12), Vector2(back_rect.size.x - 64, back_rect.size.y - 24)), "返回", 23, Color(0.98, 0.94, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
 
 	_draw_gacha_draw_button("common_single", "普通单抽", "50 金", "button_common", Color(0.34, 0.56, 0.46, 0.95), Color(0.78, 0.96, 0.72, 0.92))
 	_draw_gacha_draw_button("premium_single", "高级单抽", "200 金", "button_premium", Color(0.44, 0.24, 0.7, 0.95), Color(0.96, 0.78, 1.0, 0.92))
@@ -19240,8 +19248,8 @@ func _draw_gacha_scene() -> void:
 
 	var collection_panel := _gacha_collection_panel_rect()
 	_draw_gacha_asset_panel("collection_panel", collection_panel, Color(0.09, 0.055, 0.14, 0.96), Color(0.74, 0.58, 0.86, 0.7))
-	ThemeLib.draw_text_with_shadow(self, ui_font, collection_panel.position + Vector2(38.0, 48.0), "植物收藏", 26, Color(1.0, 0.94, 0.86), Vector2(1.0, 2.0), 0.3)
-	ThemeLib.draw_text_with_shadow(self, ui_font, collection_panel.position + Vector2(174.0, 46.0), "已获得 %d / %d" % [plant_stars.size(), Defs.PLANTS.size()], 16, Color(0.82, 0.74, 0.94), Vector2(1.0, 1.5), 0.24)
+	ThemeLib.draw_label(self, ui_font, Rect2(collection_panel.position + Vector2(58, 38), Vector2(140, 30)), "植物收藏", 24, Color(1.0, 0.94, 0.86))
+	ThemeLib.draw_label(self, ui_font, Rect2(collection_panel.position + Vector2(216, 38), Vector2(220, 30)), "已获得 %d / %d" % [plant_stars.size(), Defs.PLANTS.size()], 16, Color(0.88, 0.8, 0.98))
 	var view_rect := _gacha_collection_view_rect()
 	draw_rect(view_rect, Color(0.04, 0.02, 0.065, 0.54), true)
 	draw_rect(view_rect, Color(0.92, 0.72, 1.0, 0.16), false, 1.0)
@@ -19300,11 +19308,9 @@ func _draw_gacha_result_card(card_rect: Rect2, result: Dictionary, revealed: boo
 	var result_type := String(result.get("type", "plant"))
 	if result_type == "plant" and Defs.PLANTS.has(String(result.get("kind", ""))):
 		var kind := String(result["kind"])
-		_draw_card_icon(kind, card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.52))
+		_draw_card_icon(kind, card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.56), 0.8)
 		var pname := String(Defs.PLANTS[kind].get("name", kind))
-		if pname.length() > 4:
-			pname = pname.left(4)
-		_draw_text(pname, card_rect.position + Vector2(8.0, 20.0), 12, Color(0.2, 0.12, 0.25))
+		ThemeLib.draw_label(self, ui_font, Rect2(card_rect.position + Vector2(7, 12), Vector2(card_rect.size.x - 14, 18)), pname, 12, Color(0.2, 0.12, 0.25), HORIZONTAL_ALIGNMENT_CENTER, 9)
 	elif result_type == "item":
 		draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.5), 16.0, Color(1.0, 0.76, 0.28, 0.9))
 		draw_circle(card_rect.position + Vector2(card_rect.size.x * 0.5, card_rect.size.y * 0.5), 9.0, Color(1.0, 0.94, 0.58, 0.9))
@@ -19318,10 +19324,8 @@ func _draw_gacha_result_card(card_rect: Rect2, result: Dictionary, revealed: boo
 	var rarity_labels := {"common": "普通", "rare": "稀有", "purple": "紫", "orange": "橙", "gold": "金", "legendary": "传说", "epic": "史诗", "junk": "杂物"}
 	var rarity_label := String(rarity_labels.get(rarity, "普通"))
 	draw_rect(Rect2(card_rect.position + Vector2(0.0, card_rect.size.y - 22.0), Vector2(card_rect.size.x, 22.0)), Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.78), true)
-	_draw_text(rarity_label, card_rect.position + Vector2(8.0, card_rect.size.y - 5.0), 13, Color(1.0, 1.0, 1.0))
-	if bool(result.get("is_new", false)):
-		draw_rect(Rect2(card_rect.position + Vector2(card_rect.size.x - 34.0, 5.0), Vector2(30.0, 17.0)), Color(0.95, 0.24, 0.32, 0.92), true)
-		_draw_text("NEW", card_rect.position + Vector2(card_rect.size.x - 32.0, 19.0), 9, Color.WHITE)
+	var footer_label := rarity_label + (" 新" if bool(result.get("is_new", false)) else "")
+	ThemeLib.draw_label(self, ui_font, Rect2(card_rect.position + Vector2(4, card_rect.size.y - 22), Vector2(card_rect.size.x - 8, 22)), footer_label, 13, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 10)
 
 
 func _draw_gacha_collection_card(cell_rect: Rect2, plant_kind: String) -> void:
@@ -19330,7 +19334,7 @@ func _draw_gacha_collection_card(cell_rect: Rect2, plant_kind: String) -> void:
 	var rarity_color := _gacha_rarity_color(rarity)
 	if has_plant:
 		_draw_gacha_asset_panel("result_card", cell_rect, Color(0.9, 0.84, 0.92, 0.94), Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.76))
-		_draw_card_icon(plant_kind, cell_rect.position + Vector2(cell_rect.size.x * 0.5, 50.0))
+		_draw_card_icon(plant_kind, cell_rect.position + Vector2(cell_rect.size.x * 0.5, 58.0))
 		var stars := int(plant_stars.get(plant_kind, 1))
 		for s in range(mini(stars, 5)):
 			draw_circle(cell_rect.position + Vector2(14.0 + float(s) * 13.0, cell_rect.size.y - 10.0), 4.2, Color(1.0, 0.84, 0.24, 0.94))
@@ -19341,9 +19345,7 @@ func _draw_gacha_collection_card(cell_rect: Rect2, plant_kind: String) -> void:
 		_draw_text("?", cell_rect.position + Vector2((cell_rect.size.x - mark_width) * 0.5, 60.0), 28, Color(0.62, 0.52, 0.72))
 	if Defs.PLANTS.has(plant_kind):
 		var pname := String(Defs.PLANTS[plant_kind].get("name", plant_kind))
-		if pname.length() > 4:
-			pname = pname.left(4)
-		_draw_text(pname, cell_rect.position + Vector2(7.0, 19.0), 10, Color(0.96, 0.92, 1.0) if has_plant else Color(0.5, 0.44, 0.58))
+		ThemeLib.draw_label(self, ui_font, Rect2(cell_rect.position + Vector2(9, 14), Vector2(cell_rect.size.x - 18, 20)), pname, 14, Color(0.2, 0.12, 0.25) if has_plant else Color(0.76, 0.7, 0.84), HORIZONTAL_ALIGNMENT_CENTER, 10)
 
 
 func _base_resource_summary() -> Dictionary:
@@ -19378,7 +19380,7 @@ func _draw_base_chip(rect: Rect2, label: String, value: String, accent: Color) -
 		draw_line(icon_center + Vector2(0.0, -12.0), icon_center + Vector2(12.0, 8.0), accent.lightened(0.2), 4.0)
 		draw_circle(icon_center + Vector2(0.0, 8.0), 6.0, Color(0.84, 1.0, 0.78, 0.82))
 	_draw_text(label, rect.position + Vector2(58.0, 21.0), 13, Color(0.72, 0.82, 0.86))
-	_draw_text(value, rect.position + Vector2(58.0, 48.0), 23, Color(0.96, 0.99, 1.0))
+	ThemeLib.draw_label(self, ui_font, Rect2(rect.position + Vector2(58, 26), Vector2(rect.size.x - 70, 30)), value, 23, Color(0.96, 0.99, 1.0))
 
 
 func _draw_base_room_idle_fx(room_id: String, rect: Rect2, accent: Color, efficiency: float, index: int) -> void:
@@ -19563,10 +19565,7 @@ func _draw_base_roster() -> void:
 		draw_rect(Rect2(rect.position + Vector2(10.0, 7.0), Vector2(rect.size.x - 20.0, 5.0)), Color(role_color.r, role_color.g, role_color.b, 0.72), true)
 		_draw_card_icon(kind, rect.position + Vector2(rect.size.x * 0.5, 58.0))
 		var name := String(Defs.PLANTS[kind].get("name", kind))
-		if name.length() > 4:
-			name = name.left(4)
-		var name_width := ui_font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12).x
-		_draw_text(name, rect.position + Vector2((rect.size.x - name_width) * 0.5, 23.0), 12, Color(0.92, 0.98, 1.0))
+		ThemeLib.draw_label(self, ui_font, Rect2(rect.position + Vector2(8, 14), Vector2(rect.size.x - 16, 22)), name, 12, Color(0.92, 0.98, 1.0), HORIZONTAL_ALIGNMENT_CENTER, 10)
 		var role_text := String(_plant_enhance_profile(kind).get("name", ""))
 		if role_text.length() > 3:
 			role_text = role_text.left(3)
@@ -19576,7 +19575,7 @@ func _draw_base_roster() -> void:
 		draw_rect(bar, Color(0.0, 0.0, 0.0, 0.38), true)
 		draw_rect(ThemeLib.progress_fill_rect(bar, morale_ratio), Color(0.44, 0.88, 0.56) if morale_ratio > 0.35 else Color(0.9, 0.42, 0.3), true)
 		if room != "":
-			var tag_rect := Rect2(rect.position + Vector2(8.0, 12.0), Vector2(42.0, 18.0))
+			var tag_rect := Rect2(rect.position + Vector2(rect.size.x - 50.0, 62.0), Vector2(42.0, 18.0))
 			ThemeLib.draw_rounded_panel(self, tag_rect, Color(0.0, 0.0, 0.0, 0.32), Color(role_color.r, role_color.g, role_color.b, 0.36), 4.0, 0.0, 0.0)
 			_draw_text(String(Dictionary(BASE_ROOM_DEFS.get(room, {})).get("name", room)).left(3), tag_rect.position + Vector2(4.0, 14.0), 10, Color(0.9, 0.96, 1.0))
 		if disabled:
@@ -19584,7 +19583,8 @@ func _draw_base_roster() -> void:
 	if _base_max_roster_scroll() > 0.0:
 		var track := Rect2(view.position + Vector2(0.0, view.size.y + 8.0), Vector2(view.size.x, 5.0))
 		draw_rect(track, Color(0.0, 0.0, 0.0, 0.35), true)
-		draw_rect(ThemeLib.scroll_knob_rect(track, view.size.x, _base_roster_content_width(), base_roster_scroll, 80.0), Color(0.54, 0.78, 0.88, 0.8), true)
+		var vertical_knob := ThemeLib.scroll_knob_rect(Rect2(0, 0, track.size.y, track.size.x), view.size.x, _base_roster_content_width(), base_roster_scroll, 80.0)
+		draw_rect(Rect2(track.position + Vector2(vertical_knob.position.y, 0), Vector2(vertical_knob.size.y, track.size.y)), Color(0.54, 0.78, 0.88, 0.8), true)
 
 
 func _draw_base_transient_fx() -> void:
@@ -19709,9 +19709,28 @@ func _draw_world_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.
 		draw_texture_rect(texture, shadow_rect, false, Color(0.0, 0.0, 0.0, alpha * (1.0 - t * 0.46)))
 
 
+func _draw_ui_panel_texture(texture: Texture2D, rect: Rect2, tint: Color = Color.WHITE) -> void:
+	# Generated UI sheets can contain large transparent gutters. Align the
+	# visible panel with the same rectangle used by text and click targets.
+	var key := texture.get_instance_id()
+	if not ui_texture_bounds.has(key):
+		var image := texture.get_image()
+		var region := Rect2(Vector2.ZERO, texture.get_size())
+		if image != null and not image.is_empty():
+			var used := image.get_used_rect()
+			if used.has_area():
+				region = Rect2(used)
+		ui_texture_bounds[key] = region
+	draw_texture_rect_region(texture, Rect2(rect.position + Vector2(0, 3), rect.size), ui_texture_bounds[key], Color(0, 0, 0, 0.12))
+	draw_texture_rect_region(texture, rect, ui_texture_bounds[key], tint)
+
+
 func _draw_world_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
 	var texture := _world_ui_texture(asset_key)
 	if texture != null:
+		if asset_key in ["title_panel", "dock_panel", "button_primary", "button_blue"]:
+			_draw_ui_panel_texture(texture, rect, tint)
+			return
 		_draw_world_asset_shadow(texture, rect, 0.24)
 		draw_texture_rect(texture, rect, false, tint)
 	else:
@@ -19725,8 +19744,7 @@ func _draw_world_image_button(rect: Rect2, asset_key: String, label: String, fon
 		draw_rect_local.position.y -= 2.0
 	var tint := Color(1.065, 1.055, 1.0, 1.0) if hovered else Color.WHITE
 	_draw_world_asset_panel(asset_key, draw_rect_local, fallback_fill, fallback_border, tint)
-	var label_width := ui_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
-	ThemeLib.draw_text_with_shadow(self, ui_font, draw_rect_local.position + Vector2((draw_rect_local.size.x - label_width) * 0.5, draw_rect_local.size.y * 0.58), label, font_size, text_color, Vector2(1.0, 2.0), 0.28)
+	ThemeLib.draw_label(self, ui_font, draw_rect_local.grow_individual(-12, -6, -12, -6), label, font_size, text_color, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _rect_grow_xy(rect: Rect2, grow_by: Vector2) -> Rect2:
@@ -19876,9 +19894,9 @@ func _draw_home_scene() -> void:
 	var drone_text_rect := _home_resource_drone_text_rect()
 	_draw_home_asset_panel("resource_bar", resource_rect, Color(0.1, 0.16, 0.12, 0.78), Color(0.5, 0.74, 0.42, 0.8))
 	_draw_coin_icon(resource_rect.position + Vector2(44.0, 37.0), 0.9)
-	ThemeLib.draw_text_with_shadow(self, ui_font, coin_text_rect.position + Vector2(0.0, 24.0), "金币 %d" % coins_total, 20, Color(1.0, 0.9, 0.46), Vector2(1.0, 2.0), 0.28)
-	ThemeLib.draw_text_with_shadow(self, ui_font, drone_text_rect.position + Vector2(0.0, 23.0), "基建无人机 %.0f" % base_drones, 19, Color(0.7, 0.95, 1.0), Vector2(1.0, 2.0), 0.28)
-	ThemeLib.draw_text_with_shadow(self, ui_font, status_rect.position + Vector2(0.0, 18.0), _home_update_status_line(), 13, Color(0.82, 0.9, 0.78), Vector2(1.0, 1.5), 0.22)
+	ThemeLib.draw_label(self, ui_font, coin_text_rect, "金币 %d" % coins_total, 20, Color(1.0, 0.9, 0.46))
+	ThemeLib.draw_label(self, ui_font, drone_text_rect, "基建无人机 %.0f" % base_drones, 19, Color(0.7, 0.95, 1.0))
+	ThemeLib.draw_label(self, ui_font, status_rect, _home_update_status_line(), 13, Color(0.82, 0.9, 0.78))
 	var settings_center := resource_rect.position + Vector2(resource_rect.size.x - 28.0, resource_rect.size.y * 0.5)
 	draw_circle(settings_center, 13.0, Color(0.73, 0.9, 0.92, 0.18))
 	for spoke in range(8):
@@ -20045,6 +20063,8 @@ func _draw_world_select_scene() -> void:
 		var title_color := Color(0.96, 0.98, 1.0) if dark_card else Color(0.28, 0.22, 0.08)
 		var body_color := Color(0.84, 0.92, 1.0) if dark_card else Color(0.34, 0.26, 0.12)
 		var subtitle_fill := Color(accent.r, accent.g, accent.b, 0.76)
+		if dark_card:
+			draw_rect(Rect2(text_rect.position, Vector2(text_rect.size.x, 170 * scale)).grow(6 * scale), Color(0.04, 0.065, 0.06, 0.78), true)
 		ThemeLib.draw_text_with_shadow(self, ui_font, text_rect.position + Vector2(0.0, 42.0 * scale), String(world["title"]), int(round(34.0 * scale)), title_color, Vector2(1.0, 2.5) * scale, 0.28)
 		var subtitle_rect := Rect2(text_rect.position + Vector2(0.0, 58.0 * scale), Vector2(250.0, 28.0) * scale)
 		ThemeLib.draw_rounded_panel(self, subtitle_rect, subtitle_fill, Color(1.0, 1.0, 1.0, 0.28), 10.0 * scale, 0.04, 0.04)
@@ -20062,12 +20082,10 @@ func _draw_world_select_scene() -> void:
 			_draw_world_asset_panel("plant_slot", chip_rect, Color(0.98, 0.95, 0.88, 0.94), Color(world["accent_dark"]))
 			_draw_card_icon(String(preview_plants[plant_index]), chip_rect.position + Vector2(chip_rect.size.x * 0.5, 56.0 * scale))
 			var plant_name := String(Defs.PLANTS[String(preview_plants[plant_index])]["name"])
-			if plant_name.length() > 4:
-				plant_name = plant_name.left(4)
-			_draw_text(plant_name, chip_rect.position + Vector2(9.0, 21.0) * scale, int(round(12.0 * scale)), Color(0.24, 0.16, 0.06))
+			ThemeLib.draw_label(self, ui_font, Rect2(chip_rect.position + Vector2(10, 14) * scale, Vector2(chip_rect.size.x - 20 * scale, 24 * scale)), plant_name, 12, Color(0.24, 0.16, 0.06), HORIZONTAL_ALIGNMENT_CENTER, 9)
 
 		var progress_label = "已解锁 %d/%d 关" % [_visible_unlocked_count(String(world["key"])), _visible_level_indices(String(world["key"])).size()]
-		ThemeLib.draw_text_with_shadow(self, ui_font, card_rect.position + Vector2(72.0, card_rect.size.y - 38.0) * scale, progress_label, int(round(19.0 * scale)), title_color, Vector2(1.0, 2.0) * scale, 0.28)
+		ThemeLib.draw_label(self, ui_font, Rect2(Vector2(card_rect.position.x + 72 * scale, card_rect.end.y - 62 * scale), Vector2(card_rect.size.x - 144 * scale, 30 * scale)), progress_label, 19, title_color)
 		if not unlocked:
 			draw_rect(card_rect, Color(0.0, 0.0, 0.0, 0.26), true)
 			ThemeLib.draw_text_with_shadow(self, ui_font, card_rect.position + Vector2(52.0, card_rect.size.y - 22.0), "通关前置世界后解锁", 18, Color(1.0, 0.96, 0.86), Vector2(1.0, 2.0), 0.32)
@@ -20082,21 +20100,20 @@ func _draw_world_select_scene() -> void:
 	var action_rects = _world_select_action_rects()
 	var dock_rect = _world_select_command_dock_rect()
 	_draw_world_asset_panel("dock_panel", dock_rect, Color(0.98, 0.92, 0.78, 0.94), Color(0.54, 0.4, 0.16))
-	ThemeLib.draw_text_with_shadow(self, ui_font, dock_rect.position + Vector2(80.0, 58.0), "作战终端", 27, Color(0.42, 0.28, 0.12), Vector2(1.0, 2.0), 0.22)
-	ThemeLib.draw_text_with_shadow(self, ui_font, dock_rect.position + Vector2(84.0, 108.0), "世界 %d/%d" % [world_select_index + 1, WorldDataLib.all().size()], 19, Color(0.5, 0.38, 0.18), Vector2(1.0, 1.5), 0.2)
+	ThemeLib.draw_label(self, ui_font, Rect2(dock_rect.position + Vector2(180, 42), Vector2(230, 42)), "作战终端", 27, Color(0.42, 0.28, 0.12))
+	ThemeLib.draw_label(self, ui_font, Rect2(dock_rect.position + Vector2(180, 90), Vector2(230, 30)), "世界 %d/%d" % [world_select_index + 1, WorldDataLib.all().size()], 19, Color(0.5, 0.38, 0.18))
 	if not unlocked_world:
 		enter_fill = Color(0.44, 0.46, 0.52)
 	var enter_rect = Rect2(action_rects["enter"])
-	_draw_world_image_button(_rect_grow_xy(enter_rect, Vector2(44.0, 13.0)), "button_primary", "进入", 28, Color(0.28, 0.2, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96), enter_fill, Color(0.18, 0.22, 0.16))
-	_draw_world_image_button(_rect_grow_xy(Rect2(action_rects["home"]), Vector2(32.0, 5.0)), "button_blue", "主页", 19, Color(0.95, 0.98, 1.0), Color(0.28, 0.38, 0.44), Color(0.54, 0.7, 0.78))
+	_draw_world_image_button(enter_rect, "button_primary", "进入", 28, Color(0.28, 0.2, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96), enter_fill, Color(0.18, 0.22, 0.16))
+	_draw_world_image_button(Rect2(action_rects["home"]), "button_blue", "主页", 19, Color(0.95, 0.98, 1.0), Color(0.28, 0.38, 0.44), Color(0.54, 0.7, 0.78))
 
-	_draw_world_image_button(_rect_grow_xy(Rect2(action_rects["update"]), Vector2(14.0, 10.0)), "button_blue", _update_action_text(), 16, Color(0.95, 0.98, 1.0), _update_badge_fill(), Color(0.18, 0.22, 0.28))
+	_draw_world_image_button(Rect2(action_rects["update"]), "button_blue", _update_action_text(), 16, Color(0.95, 0.98, 1.0), _update_badge_fill(), Color(0.18, 0.22, 0.28))
 	var update_info_rect = Rect2(action_rects["update_info"])
 	ThemeLib.draw_rounded_panel(self, update_info_rect, Color(0.92, 0.84, 0.68, 0.54), Color(0.66, 0.48, 0.22, 0.36), 8.0, 0.02, 0.03)
-	_draw_text("自动更新", update_info_rect.position + Vector2(14.0, 17.0), 13, Color(0.42, 0.3, 0.14))
-	_draw_text(_update_status_line(), update_info_rect.position + Vector2(86.0, 17.0), 11, Color(0.44, 0.36, 0.2))
+	ThemeLib.draw_label(self, ui_font, update_info_rect.grow_individual(-12, -3, -12, -3), _update_status_line(), 13, Color(0.34, 0.26, 0.12))
 	if update_state == "downloading":
-		var bar_rect = Rect2(update_info_rect.position + Vector2(156.0, 13.0), Vector2(104.0, 12.0))
+		var bar_rect = Rect2(update_info_rect.position + Vector2(12.0, update_info_rect.size.y - 5.0), Vector2(update_info_rect.size.x - 24.0, 3.0))
 		draw_rect(bar_rect, Color(0.08, 0.1, 0.12, 0.82), true)
 		draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * clampf(update_download_progress, 0.0, 1.0), bar_rect.size.y)), Color(0.92, 0.66, 0.22, 0.94), true)
 		draw_rect(bar_rect, Color(0.94, 0.96, 1.0, 0.24), false, 1.0)
@@ -20104,7 +20121,7 @@ func _draw_world_select_scene() -> void:
 	var coin_rect = Rect2(1212.0, 818.0, 190.0, 34.0)
 	ThemeLib.draw_rounded_panel(self, coin_rect, Color(1.0, 0.86, 0.32, 0.88), Color(0.72, 0.48, 0.08, 0.74), 10.0, 0.04, 0.04)
 	_draw_coin_icon(coin_rect.position + Vector2(26.0, 17.0), 0.52)
-	_draw_text("金币 %d" % coins_total, coin_rect.position + Vector2(48.0, 24.0), 16, Color(0.33, 0.21, 0.04))
+	ThemeLib.draw_label(self, ui_font, Rect2(coin_rect.position + Vector2(48, 3), Vector2(coin_rect.size.x - 60, 28)), str(coins_total), 16, Color(0.33, 0.21, 0.04))
 
 
 func _draw_map_scene() -> void:
@@ -20117,7 +20134,7 @@ func _draw_map_scene() -> void:
 		draw_circle(header_rect.position + Vector2(42.0, 38.0), 18.0, Color(0.18, 0.22, 0.34, 0.94))
 	else:
 		draw_circle(header_rect.position + Vector2(36.0, 44.0), 30.0, Color(1.0, 0.92, 0.34, 0.12))
-	var control_rect = Rect2(876.0, 20.0, 366.0, 96.0)
+	var control_rect = Rect2(876.0, 20.0, 678.0, 82.0)
 	_draw_panel_shell(control_rect, Color(0.95, 0.91, 0.8, 0.94) if not is_night_world else Color(0.18, 0.22, 0.34, 0.94), Color(0.48, 0.35, 0.16) if not is_night_world else Color(0.52, 0.62, 0.82), 0.14, 0.08)
 	_draw_panel_shell(MAP_VIEW_RECT, Color(1.0, 1.0, 1.0, 0.06), Color(0.4, 0.28, 0.14, 0.2), 0.04, 0.03)
 
@@ -20135,8 +20152,8 @@ func _draw_map_scene() -> void:
 
 	for i in range(mainline_nodes.size() - 1):
 		var mid = _path_midpoint(mainline_nodes[i], mainline_nodes[i + 1], i)
-		draw_polyline(PackedVector2Array([mainline_nodes[i], mid, mainline_nodes[i + 1]]), Color(0.44, 0.34, 0.2, 0.8), 16.0)
-		draw_polyline(PackedVector2Array([mainline_nodes[i], mid, mainline_nodes[i + 1]]), Color(0.82, 0.71, 0.42), 8.0)
+		_draw_map_path(PackedVector2Array([mainline_nodes[i], mid, mainline_nodes[i + 1]]), Color(0.44, 0.34, 0.2, 0.8), 16.0)
+		_draw_map_path(PackedVector2Array([mainline_nodes[i], mid, mainline_nodes[i + 1]]), Color(0.82, 0.71, 0.42), 8.0)
 		# flowing spark traveling along the path segment, looping with map_time
 		var seg_a = mainline_nodes[i].distance_to(mid)
 		var seg_b = mid.distance_to(mainline_nodes[i + 1])
@@ -20147,8 +20164,9 @@ func _draw_map_scene() -> void:
 			spark_pos = mainline_nodes[i].lerp(mid, t * seg_total / maxf(seg_a, 1.0))
 		else:
 			spark_pos = mid.lerp(mainline_nodes[i + 1], (t * seg_total - seg_a) / maxf(seg_b, 1.0))
-		draw_circle(spark_pos, 7.0, Color(1.0, 0.94, 0.56, 0.16))
-		draw_circle(spark_pos, 3.5, Color(1.0, 0.98, 0.74, 0.7))
+		if MAP_VIEW_RECT.grow(-7).has_point(spark_pos):
+			draw_circle(spark_pos, 7.0, Color(1.0, 0.94, 0.56, 0.16))
+			draw_circle(spark_pos, 3.5, Color(1.0, 0.98, 0.74, 0.7))
 
 	# Branch fork paths: a separate short dashed-feel line from each branch
 	# level's branch_from source node out to the branch node.
@@ -20166,7 +20184,7 @@ func _draw_map_scene() -> void:
 		var to_pos = _map_node_position(int(index))
 		# teal-tinted fork to read as an optional side path
 		var fork_mid = (from_pos + to_pos) * 0.5 + Vector2(0.0, -10.0)
-		draw_polyline(PackedVector2Array([from_pos, fork_mid, to_pos]), Color(0.24, 0.4, 0.34, 0.7), 12.0)
+		_draw_map_path(PackedVector2Array([from_pos, fork_mid, to_pos]), Color(0.24, 0.4, 0.34, 0.7), 12.0)
 		# dashed highlight along the fork
 		var seg_count := 6
 		for d in range(seg_count):
@@ -20174,24 +20192,21 @@ func _draw_map_scene() -> void:
 				continue
 			var a := from_pos.lerp(to_pos, float(d) / float(seg_count))
 			var b := from_pos.lerp(to_pos, float(d + 1) / float(seg_count))
-			draw_line(a, b, Color(0.62, 0.92, 0.78, 0.85), 5.0)
+			_draw_map_path(PackedVector2Array([a, b]), Color(0.62, 0.92, 0.78, 0.85), 5.0)
 
 	for index in visible_indices:
 		_draw_level_node(int(index))
 
-	_draw_text(_map_mode_title_for_world(current_world_key), Vector2(70.0, 58.0), 36, Color(0.95, 0.95, 0.98) if is_night_world else Color(0.23, 0.15, 0.05))
-	_draw_text("点击灯泡进入关卡，超过 10 张植物时先进入选卡。", Vector2(70.0, 90.0), 18, Color(0.88, 0.9, 0.96) if is_night_world else Color(0.26, 0.18, 0.08))
-	_draw_text("世界地图", control_rect.position + Vector2(16.0, 24.0), 18, Color(0.22, 0.16, 0.08) if not is_night_world else Color(0.9, 0.94, 1.0))
+	ThemeLib.draw_label(self, ui_font, Rect2(96, 28, 420, 46), _map_mode_title_for_world(current_world_key), 34, Color(0.95, 0.95, 0.98) if is_night_world else Color(0.23, 0.15, 0.05))
+	ThemeLib.draw_label(self, ui_font, Rect2(96, 74, 420, 26), "已解锁 %d/%d 关" % [_visible_unlocked_count(current_world_key), _visible_level_indices().size()], 18, Color(0.88, 0.9, 0.96) if is_night_world else Color(0.26, 0.18, 0.08))
+	ThemeLib.draw_label(self, ui_font, Rect2(890, 34, 42, 44), "地图", 18, Color(0.22, 0.16, 0.08) if not is_night_world else Color(0.9, 0.94, 1.0))
 	_draw_panel_shell(MAP_SCROLL_LEFT_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.08, 0.04)
 	_draw_panel_shell(MAP_SCROLL_RIGHT_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.08, 0.04)
 	draw_polyline(PackedVector2Array([MAP_SCROLL_LEFT_RECT.get_center() + Vector2(8.0, -10.0), MAP_SCROLL_LEFT_RECT.get_center() + Vector2(-6.0, 0.0), MAP_SCROLL_LEFT_RECT.get_center() + Vector2(8.0, 10.0)]), Color(0.28, 0.18, 0.08), 4.0)
 	draw_polyline(PackedVector2Array([MAP_SCROLL_RIGHT_RECT.get_center() + Vector2(-8.0, -10.0), MAP_SCROLL_RIGHT_RECT.get_center() + Vector2(6.0, 0.0), MAP_SCROLL_RIGHT_RECT.get_center() + Vector2(-8.0, 10.0)]), Color(0.28, 0.18, 0.08), 4.0)
-	var scroll_hint = "左右拖动地图或点箭头查看右侧支线" if _map_scroll_bounds_for_world(current_world_key).y > 0.0 else "当前世界地图已完整显示"
-	_draw_text(scroll_hint, control_rect.position + Vector2(16.0, 68.0), 14, Color(0.28, 0.18, 0.08) if not is_night_world else Color(0.86, 0.92, 0.98))
-
-	_draw_panel_shell(COIN_METER_RECT, Color(0.97, 0.89, 0.44), Color(0.48, 0.36, 0.09), 0.14, 0.08)
-	_draw_coin_icon(COIN_METER_RECT.position + Vector2(22.0, 20.0), 1.0)
-	_draw_text(str(coins_total), COIN_METER_RECT.position + Vector2(44.0, 27.0), 22, Color(0.31, 0.2, 0.05))
+	_draw_panel_shell(MAP_COIN_RECT, Color(0.97, 0.89, 0.44), Color(0.48, 0.36, 0.09), 0.14, 0.08)
+	_draw_coin_icon(MAP_COIN_RECT.position + Vector2(22.0, 22.0), 0.8)
+	ThemeLib.draw_label(self, ui_font, Rect2(MAP_COIN_RECT.position + Vector2(44, 4), Vector2(MAP_COIN_RECT.size.x - 56, 36)), str(coins_total), 22, Color(0.31, 0.2, 0.05))
 	_draw_fancy_button(MAP_WORLD_BACK_RECT, "世界页", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 	_draw_panel_shell(MAP_ALMANAC_BUTTON_RECT, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.1, 0.06)
 	_draw_fancy_button(MAP_ALMANAC_BUTTON_RECT, "图鉴", Color(0.94, 0.9, 0.82), Color(0.42, 0.3, 0.14), 18)
@@ -20206,7 +20221,6 @@ func _draw_almanac_scene() -> void:
 	draw_line(ALMANAC_BOOK_RECT.position + Vector2(ALMANAC_BOOK_RECT.size.x * 0.38, 18.0), ALMANAC_BOOK_RECT.position + Vector2(ALMANAC_BOOK_RECT.size.x * 0.38, ALMANAC_BOOK_RECT.size.y - 18.0), Color(0.78, 0.68, 0.52), 3.0)
 
 	_draw_text("图鉴", Vector2(106.0, 72.0), 34, Color(0.24, 0.16, 0.06))
-	_draw_text("像原版 Almanac 一样查看植物和僵尸资料。", Vector2(106.0, 102.0), 18, Color(0.28, 0.2, 0.08))
 
 	var plant_tab_color = Color(0.96, 0.92, 0.78) if almanac_tab == "plants" else Color(0.84, 0.8, 0.72)
 	var zombie_tab_color = Color(0.96, 0.92, 0.78) if almanac_tab == "zombies" else Color(0.84, 0.8, 0.72)
@@ -20227,7 +20241,7 @@ func _draw_almanac_scene() -> void:
 	var hover_rect = _almanac_list_hover_rect()
 	for i in range(entries.size()):
 		var rect = _almanac_item_rect(i)
-		if view_rect.intersects(rect):
+		if view_rect.encloses(rect):
 			var allow_hover = hover_rect.encloses(rect)
 			_draw_almanac_entry(String(entries[i]), rect, String(entries[i]) == almanac_selected_kind, almanac_tab == "plants", allow_hover)
 
@@ -20255,6 +20269,8 @@ func _draw_level_node(level_index: int) -> void:
 	var world_levels = _visible_level_indices(_world_key_for_level(level))
 	var world_order = max(0, world_levels.find(level_index)) + 1
 	var node_pos = _map_node_position(level_index)
+	if not _map_node_visible(node_pos):
+		return
 	var unlocked = _is_level_unlocked(level_index)
 	var completed = bool(completed_levels[level_index])
 	var hovered = level_index == hovered_level_index
@@ -20367,7 +20383,7 @@ func _draw_map_info_panel() -> void:
 		info_index = int(world_levels[fallback_idx])
 
 	var level = Defs.LEVELS[info_index]
-	var panel_rect = Rect2(892.0, 122.0, 392.0, 152.0)
+	var panel_rect = Rect2(892.0, 138.0, 648.0, 330.0)
 	_draw_panel_shell(panel_rect, Color(0.95, 0.9, 0.76), Color(0.48, 0.35, 0.16), 0.14, 0.08)
 
 	var status_text = "已解锁"
@@ -20376,9 +20392,9 @@ func _draw_map_info_panel() -> void:
 	elif bool(completed_levels[info_index]):
 		status_text = "已完成"
 
-	_draw_text(String(level["title"]), panel_rect.position + Vector2(18.0, 34.0), 28, Color(0.24, 0.16, 0.06))
-	_draw_text("状态：%s" % status_text, panel_rect.position + Vector2(18.0, 64.0), 18, Color(0.28, 0.2, 0.08))
-	_draw_text_block(String(level["description"]), Rect2(panel_rect.position + Vector2(18.0, 72.0), Vector2(180.0, 52.0)), 16, Color(0.3, 0.22, 0.1), 3.0, 2)
+	ThemeLib.draw_label(self, ui_font, Rect2(panel_rect.position + Vector2(24, 14), Vector2(panel_rect.size.x - 148, 44)), String(level["title"]), 28, Color(0.24, 0.16, 0.06))
+	ThemeLib.draw_label(self, ui_font, Rect2(panel_rect.position + Vector2(panel_rect.size.x - 104, 20), Vector2(80, 32)), status_text, 18, Color(0.18, 0.38, 0.16), HORIZONTAL_ALIGNMENT_RIGHT)
+	_draw_text_block(String(level["description"]), Rect2(panel_rect.position + Vector2(24, 70), Vector2(panel_rect.size.x - 48, 76)), 18, Color(0.3, 0.22, 0.1), 6.0, 3)
 
 	var unlock_text = "最终关"
 	var unlock_color = Color(0.42, 0.2, 0.08)
@@ -20399,24 +20415,18 @@ func _draw_map_info_panel() -> void:
 		if requirements is Array and not requirements.is_empty():
 			unlock_text = "解锁条件：" + ", ".join(requirements)
 			unlock_color = Color(0.64, 0.12, 0.12)
-	_draw_text_block(unlock_text, Rect2(panel_rect.position + Vector2(18.0, 118.0), Vector2(184.0, 32.0)), 18, unlock_color, 2.0, 1)
+	ThemeLib.draw_label(self, ui_font, Rect2(panel_rect.position + Vector2(24, 152), Vector2(panel_rect.size.x - 48, 34)), unlock_text, 18, unlock_color)
 
 	var plants = level["available_plants"]
 	var plant_preview_count = min(plants.size(), 8)
 	for i in range(plant_preview_count):
-		var chip_x = panel_rect.position.x + 216.0 + float(i % 4) * 42.0
-		var chip_y = panel_rect.position.y + 30.0 + floor(float(i) / 4.0) * 54.0
-		var chip_rect = Rect2(chip_x, chip_y, 38.0, 48.0)
+		var chip_x = panel_rect.position.x + 26.0 + float(i) * 72.0
+		var chip_y = panel_rect.position.y + 208.0
+		var chip_rect = Rect2(chip_x, chip_y, 62.0, 62.0)
 		_draw_panel_shell(chip_rect, Color(0.97, 0.94, 0.86), Color(0.48, 0.35, 0.16), 0.08, 0.04)
-		_draw_card_icon(String(plants[i]), chip_rect.position + Vector2(chip_rect.size.x * 0.5, 24.0))
+		_draw_card_icon(String(plants[i]), chip_rect.get_center())
 	if plants.size() > plant_preview_count:
-		_draw_text("+%d" % (plants.size() - plant_preview_count), panel_rect.position + Vector2(338.0, 136.0), 16, Color(0.24, 0.16, 0.06))
-
-	if _is_level_unlocked(info_index):
-		var prompt = "点击灯泡选植物" if _requires_seed_selection(level) else "点击灯泡开始"
-		_draw_text(prompt, panel_rect.position + Vector2(238.0, 136.0), 16, Color(0.3, 0.22, 0.1))
-	else:
-		_draw_text("先满足解锁条件", panel_rect.position + Vector2(232.0, 136.0), 16, Color(0.42, 0.18, 0.1))
+		ThemeLib.draw_label(self, ui_font, Rect2(panel_rect.position + Vector2(24, 282), Vector2(panel_rect.size.x - 48, 30)), "另有 %d 种可选植物" % (plants.size() - plant_preview_count), 16, Color(0.3, 0.22, 0.1))
 
 
 func _selection_preview_color(value, fallback: Color, alpha_scale: float = 1.0) -> Color:
@@ -20916,16 +20926,15 @@ func _draw_seed_selection_scene() -> void:
 	_draw_panel_shell(pool_panel_rect, Color(0.95, 0.92, 0.84, 0.9), Color(0.48, 0.35, 0.16, 0.82), 0.14, 0.08)
 	var required_count = _required_seed_count(current_level)
 
-	var title_x = selected_panel_rect.position.x
-	_draw_text(String(current_level["title"]), Vector2(title_x, 56.0), 34, Color(0.23, 0.15, 0.05))
-	_draw_text("植物超过 10 张时必须先选满 %d 张再开战" % max(required_count, 1), Vector2(title_x, 88.0), 18, Color(0.26, 0.18, 0.08))
-	_draw_text_block(String(current_level["description"]), Rect2(Vector2(title_x, 98.0), Vector2(minf(selected_panel_rect.size.x, 980.0), 38.0)), 15, Color(0.32, 0.24, 0.1), 3.0, 2)
-	_draw_text("已选 %d/10" % selection_cards.size(), selected_panel_rect.position + Vector2(20.0, 30.0), 24, Color(0.2, 0.32, 0.08))
-	_draw_text("本关僵尸", zombie_panel_rect.position + Vector2(18.0, 32.0), 18, Color(0.24, 0.16, 0.06))
+	var title_rect = Rect2(selected_panel_rect.position.x, _viewport_safe_rect().position.y + 2.0, selected_panel_rect.size.x, 28.0 if is_mobile else 48.0)
+	draw_rect(Rect2(Vector2(0, _viewport_safe_rect().position.y), Vector2(size.x, title_rect.size.y + (24.0 if is_mobile else 34.0))), Color(0.055, 0.11, 0.1, 0.88), true)
+	ThemeLib.draw_label(self, ui_font, title_rect, String(current_level["title"]), 24 if is_mobile else 34, Color(0.98, 0.98, 0.92))
+	ThemeLib.draw_label(self, ui_font, Rect2(title_rect.position + Vector2(0, title_rect.size.y), Vector2(title_rect.size.x, 22)), String(current_level["description"]), 13 if is_mobile else 16, Color(0.92, 0.94, 0.9))
+	ThemeLib.draw_label(self, ui_font, Rect2(selected_panel_rect.position + Vector2(16, 3), Vector2(180, 24 if is_mobile else 32)), "已选 %d/%d" % [selection_cards.size(), required_count], 18 if is_mobile else 22, Color(0.2, 0.32, 0.08))
+	ThemeLib.draw_label(self, ui_font, Rect2(zombie_panel_rect.position + Vector2(12, 0), Vector2(96, zombie_panel_rect.size.y)), "本关僵尸", 16, Color(0.24, 0.16, 0.06))
 	_draw_text("可选植物", pool_panel_rect.position + Vector2(18.0, 30.0), 22, Color(0.24, 0.16, 0.06))
-	_draw_text("点选下方卡牌加入上方卡槽，选满后右下角按钮高亮。", selected_panel_rect.position + Vector2(188.0, 28.0), 16, Color(0.28, 0.22, 0.1))
 	# Progress bar sits in the header row (right side), clear of the card slots below.
-	var selection_progress_rect = Rect2(selected_panel_rect.position + Vector2(selected_panel_rect.size.x * 0.42, 30.0), Vector2(selected_panel_rect.size.x * 0.55, 16.0))
+	var selection_progress_rect = Rect2(selected_panel_rect.position + Vector2(selected_panel_rect.size.x * 0.42, 11.0), Vector2(selected_panel_rect.size.x * 0.55, 8.0))
 	draw_rect(selection_progress_rect, Color(0.34, 0.24, 0.12, 0.22), true)
 	var selection_fill = ThemeLib.progress_fill_rect(selection_progress_rect, float(selection_cards.size()) / float(max(required_count, 1)))
 	draw_rect(selection_fill, Color(0.52, 0.8, 0.26, 0.84), true)
@@ -20938,13 +20947,14 @@ func _draw_seed_selection_scene() -> void:
 		if i < selection_cards.size():
 			_draw_selection_card(String(selection_cards[i]), slot_rect, true, false)
 		else:
-			_draw_text(str(i + 1), slot_rect.position + Vector2(34.0, 62.0), 28, Color(0.46, 0.36, 0.22, 0.28))
+			ThemeLib.draw_label(self, ui_font, slot_rect, str(i + 1), 24, Color(0.46, 0.36, 0.22, 0.4), HORIZONTAL_ALIGNMENT_CENTER)
 
 	var zombie_kinds = _selection_zombie_kinds()
+	var chip_width = (zombie_panel_rect.size.x - 120.0) / maxf(1.0, zombie_kinds.size())
 	for i in range(zombie_kinds.size()):
-		var chip_rect = Rect2(zombie_panel_rect.position + Vector2(126.0 + i * 138.0, 8.0), Vector2(124.0, 34.0))
+		var chip_rect = Rect2(zombie_panel_rect.position + Vector2(112.0 + i * chip_width, 6.0), Vector2(chip_width - 6.0, zombie_panel_rect.size.y - 12.0))
 		_draw_panel_shell(chip_rect, Color(0.87, 0.9, 0.84), Color(0.42, 0.35, 0.2), 0.05, 0.04)
-		_draw_text(String(Defs.ZOMBIES[String(zombie_kinds[i])]["name"]), chip_rect.position + Vector2(12.0, 22.0), 15, Color(0.22, 0.16, 0.08))
+		ThemeLib.draw_label(self, ui_font, chip_rect.grow(-4), String(Defs.ZOMBIES[String(zombie_kinds[i])]["name"]), 15, Color(0.22, 0.16, 0.08), HORIZONTAL_ALIGNMENT_CENTER, 10)
 
 	var pool_view_rect = _selection_pool_view_rect()
 	var pool_hover_rect = _selection_pool_hover_rect()
@@ -20963,7 +20973,7 @@ func _draw_seed_selection_scene() -> void:
 	)
 	_draw_scroll_mask(pool_content_rect, pool_view_rect, Color(0.95, 0.92, 0.84, 0.9), Color(0.58, 0.46, 0.24, 0.82))
 	_draw_panel_shell(footer_rect, Color(0.88, 0.84, 0.76, 0.9), Color(0.42, 0.3, 0.14), 0.06, 0.04)
-	_draw_text("选满后即可开始", footer_rect.position + Vector2(18.0, 26.0), 16, Color(0.28, 0.2, 0.08))
+	ThemeLib.draw_label(self, ui_font, Rect2(footer_rect.position + Vector2(12, 0), Vector2(maxf(0, preview_rect.position.x - footer_rect.position.x - 24), footer_rect.size.y)), "%d / %d" % [selection_cards.size(), required_count], 16, Color(0.28, 0.2, 0.08))
 
 	var track_rect = _selection_pool_track_rect()
 	_draw_panel_shell(track_rect, Color(0.84, 0.8, 0.72), Color(0.42, 0.3, 0.14), 0.05, 0.03)
@@ -20995,15 +21005,16 @@ func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: b
 		var pulse = 0.72 + 0.28 * sin(ui_time * 6.0 + rect.position.x * 0.02)
 		draw_rect(card_rect_draw.grow(6.0), Color(1.0, 0.9, 0.3, 0.08 * pulse), true)
 		draw_rect(card_rect_draw.grow(-1.0), Color(0.94, 0.84, 0.24), false, 3.0)
-	_draw_card_icon(kind, card_rect_draw.position + Vector2(card_rect_draw.size.x * 0.5, card_rect_draw.size.y * 0.53))
-	_draw_text(String(Defs.PLANTS[kind]["name"]), card_rect_draw.position + Vector2(8.0, 18.0), 12, Color(0.28, 0.18, 0.06))
-	_draw_text(str(Defs.PLANTS[kind]["cost"]), card_rect_draw.position + Vector2(10.0, card_rect_draw.size.y - 10.0), 16, Color(0.28, 0.18, 0.06))
+	var label_height := 16.0 if card_rect_draw.size.y < 64.0 else 20.0
+	_draw_card_icon(kind, card_rect_draw.get_center(), clampf((card_rect_draw.size.y - label_height * 2.0) / 52.0, 0.2, 1.0))
+	ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(5, 2), Vector2(card_rect_draw.size.x - 10, label_height)), String(Defs.PLANTS[kind]["name"]), 13, Color(0.14, 0.23, 0.16), HORIZONTAL_ALIGNMENT_CENTER, 9)
+	ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(8, card_rect_draw.size.y - label_height - 2), Vector2(card_rect_draw.size.x - 16, label_height)), str(Defs.PLANTS[kind]["cost"]), 16, Color(0.28, 0.18, 0.06))
 	if disabled:
 		draw_rect(card_rect_draw, Color(0.0, 0.0, 0.0, 0.16), true)
 
 
 func _draw_almanac_entry(kind: String, rect: Rect2, selected: bool, is_plant: bool, allow_hover: bool = true) -> void:
-	var mouse_pos = get_local_mouse_position()
+	var mouse_pos = _pointer_local_position()
 	var hovered = allow_hover and rect.has_point(mouse_pos)
 	var card_rect_draw = rect.grow(2.0 if hovered else 0.0)
 	card_rect_draw.position.y -= 3.0 if hovered else 0.0
@@ -21016,30 +21027,31 @@ func _draw_almanac_entry(kind: String, rect: Rect2, selected: bool, is_plant: bo
 		draw_rect(card_rect_draw.grow(-1.0), Color(0.96, 0.84, 0.24), false, 3.0)
 	if is_plant:
 		_draw_card_icon(kind, card_rect_draw.position + Vector2(card_rect_draw.size.x * 0.5, 46.0))
-		_draw_text(String(Defs.PLANTS[kind]["name"]), card_rect_draw.position + Vector2(4.0, 18.0), 11, Color(0.28, 0.18, 0.06))
+		ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(4, 2), Vector2(card_rect_draw.size.x - 8, 23)), String(Defs.PLANTS[kind]["name"]), 12, Color(0.28, 0.18, 0.06), HORIZONTAL_ALIGNMENT_CENTER, 9)
 	else:
 		_draw_zombie_icon(kind, card_rect_draw.position + Vector2(card_rect_draw.size.x * 0.5, 58.0), 0.72)
-		_draw_text(String(Defs.ZOMBIES[kind]["name"]), card_rect_draw.position + Vector2(4.0, 18.0), 11, Color(0.28, 0.18, 0.06))
+		ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(4, 2), Vector2(card_rect_draw.size.x - 8, 23)), String(Defs.ZOMBIES[kind]["name"]), 12, Color(0.28, 0.18, 0.06), HORIZONTAL_ALIGNMENT_CENTER, 9)
 
 
 func _draw_almanac_plant_detail(kind: String) -> void:
 	var data = Defs.PLANTS[kind]
 	var icon_center = ALMANAC_DETAIL_RECT.position + Vector2(114.0, 112.0)
 	_draw_panel_shell(Rect2(ALMANAC_DETAIL_RECT.position + Vector2(36.0, 46.0), Vector2(156.0, 170.0)), Color(0.98, 0.95, 0.88), Color(0.46, 0.34, 0.16), 0.08, 0.06)
-	_draw_card_icon(kind, icon_center)
-	_draw_text(String(data["name"]), ALMANAC_DETAIL_RECT.position + Vector2(214.0, 54.0), 32, Color(0.24, 0.16, 0.06))
+	_draw_card_icon(kind, icon_center, 2.2)
+	ThemeLib.draw_label(self, ui_font, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(214, 14), Vector2(390, 50)), String(data["name"]), 32, Color(0.24, 0.16, 0.06))
 	var stats = _plant_almanac_stats(kind)
 	for i in range(stats.size()):
 		var chip_rect = Rect2(ALMANAC_DETAIL_RECT.position + Vector2(206.0, 76.0 + i * 32.0), Vector2(378.0, 26.0))
 		_draw_panel_shell(chip_rect, Color(0.98, 0.95, 0.88), Color(0.52, 0.4, 0.22), 0.04, 0.04)
-		_draw_text(String(stats[i]), chip_rect.position + Vector2(12.0, 19.0), 18, Color(0.28, 0.2, 0.08))
+		ThemeLib.draw_label(self, ui_font, chip_rect.grow_individual(-10, -2, -10, -2), String(stats[i]), 18, Color(0.28, 0.2, 0.08))
 	var lines = _plant_almanac_lines(kind)
 	var plant_text := ""
 	for i in range(lines.size()):
 		if i > 0:
 			plant_text += "\n"
 		plant_text += String(lines[i])
-	_draw_text_block(plant_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44.0, 224.0), Vector2(564.0, 196.0)), 20, Color(0.26, 0.18, 0.08), 8.0, 5)
+	var text_top := maxf(224, 76 + stats.size() * 32 + 12)
+	_draw_text_block(plant_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44, text_top), Vector2(564, ALMANAC_DETAIL_RECT.size.y - text_top - 28)), 20, Color(0.26, 0.18, 0.08), 8.0, 5)
 
 
 func _draw_almanac_zombie_detail(kind: String) -> void:
@@ -21047,19 +21059,20 @@ func _draw_almanac_zombie_detail(kind: String) -> void:
 	var icon_center = ALMANAC_DETAIL_RECT.position + Vector2(122.0, 136.0)
 	_draw_panel_shell(Rect2(ALMANAC_DETAIL_RECT.position + Vector2(36.0, 46.0), Vector2(172.0, 196.0)), Color(0.98, 0.95, 0.88), Color(0.46, 0.34, 0.16), 0.08, 0.06)
 	_draw_zombie_icon(kind, icon_center, 1.18)
-	_draw_text(String(data["name"]), ALMANAC_DETAIL_RECT.position + Vector2(224.0, 54.0), 32, Color(0.24, 0.16, 0.06))
+	ThemeLib.draw_label(self, ui_font, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(224, 14), Vector2(380, 50)), String(data["name"]), 32, Color(0.24, 0.16, 0.06))
 	var stats = _zombie_almanac_stats(kind)
 	for i in range(stats.size()):
 		var chip_rect = Rect2(ALMANAC_DETAIL_RECT.position + Vector2(216.0, 76.0 + i * 32.0), Vector2(378.0, 26.0))
 		_draw_panel_shell(chip_rect, Color(0.98, 0.95, 0.88), Color(0.52, 0.4, 0.22), 0.04, 0.04)
-		_draw_text(String(stats[i]), chip_rect.position + Vector2(12.0, 19.0), 18, Color(0.28, 0.2, 0.08))
+		ThemeLib.draw_label(self, ui_font, chip_rect.grow_individual(-10, -2, -10, -2), String(stats[i]), 18, Color(0.28, 0.2, 0.08))
 	var lines = _zombie_almanac_lines(kind)
 	var zombie_text := ""
 	for i in range(lines.size()):
 		if i > 0:
 			zombie_text += "\n"
 		zombie_text += String(lines[i])
-	_draw_text_block(zombie_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44.0, 240.0), Vector2(564.0, 188.0)), 20, Color(0.26, 0.18, 0.08), 8.0, 5)
+	var text_top := maxf(254, 76 + stats.size() * 32 + 12)
+	_draw_text_block(zombie_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44, text_top), Vector2(564, ALMANAC_DETAIL_RECT.size.y - text_top - 28)), 20, Color(0.26, 0.18, 0.08), 8.0, 5)
 
 
 func _ease_out_back(t: float) -> float:
@@ -21587,10 +21600,8 @@ func _draw_battle_pause_overlay() -> void:
 	ThemeLib.draw_gradient_rect_v(self, halo_rect, Color(0.14, 0.08, 0.02, 0.02), Color(0.0, 0.0, 0.0, 0.0))
 	draw_rect(halo_rect, Color(0.0, 0.0, 0.0, 0.04 + pulse * 0.04), false, 2.0)
 	_draw_panel_shell(panel_rect, Color(0.88, 0.76, 0.48, 0.96), Color(0.4, 0.24, 0.08), 0.2, 0.12)
-	var title_rect = Rect2(panel_rect.position + Vector2(46.0, 28.0), Vector2(panel_rect.size.x - 92.0, 54.0))
-	_draw_panel_shell(title_rect, Color(0.5, 0.28, 0.08, 0.92), Color(0.28, 0.14, 0.04), 0.1, 0.06)
-	_draw_text("游戏暂停", title_rect.position + Vector2(86.0, 34.0), 28, Color(1.0, 0.96, 0.9))
-	_draw_text("查看图鉴、重新布阵，或者直接返回地图。", panel_rect.position + Vector2(54.0, 104.0), 18, Color(0.32, 0.2, 0.08))
+	var title_rect = Rect2(panel_rect.position + Vector2(24, 12), Vector2(panel_rect.size.x - 48, 46))
+	ThemeLib.draw_label(self, ui_font, title_rect, "游戏暂停", 28, Color(0.24, 0.2, 0.12), HORIZONTAL_ALIGNMENT_CENTER)
 	var button_specs = [
 		{"action": "resume", "label": "继续游戏", "fill": Color(0.5, 0.72, 0.32, 0.96), "border": Color(0.22, 0.36, 0.12)},
 		{"action": "restart", "label": "重新开始", "fill": Color(0.9, 0.66, 0.22, 0.96), "border": Color(0.52, 0.32, 0.08)},
@@ -21626,8 +21637,8 @@ func _draw_endless_bonus_overlay() -> void:
 		_draw_panel_shell(rect, fill, accent, 0.24, 0.16)
 		draw_rect(Rect2(rect.position + Vector2(14.0, 14.0), Vector2(52.0, 52.0)), Color(accent.r, accent.g, accent.b, 0.18), true)
 		draw_circle(rect.position + Vector2(40.0, 40.0), 18.0 + 2.0 * sin(ui_time * 4.0 + float(index)), Color(accent.r, accent.g, accent.b, 0.28), false, 3.0)
-		_draw_text(String(def.get("name", bonus_id)), rect.position + Vector2(78.0, 34.0), 24, Color(0.96, 0.98, 1.0))
-		_draw_text(String(def.get("subtitle", "")), rect.position + Vector2(20.0, 88.0), 18, Color(accent.r, accent.g, accent.b, 0.96))
+		ThemeLib.draw_label(self, ui_font, Rect2(rect.position + Vector2(78, 14), Vector2(rect.size.x - 94, 40)), String(def.get("name", bonus_id)), 24, Color(0.96, 0.98, 1.0))
+		ThemeLib.draw_label(self, ui_font, Rect2(rect.position + Vector2(20, 68), Vector2(rect.size.x - 40, 32)), String(def.get("subtitle", "")), 18, Color(accent.r, accent.g, accent.b, 0.96))
 		_draw_text_block(String(def.get("desc", "")), Rect2(rect.position + Vector2(20.0, 108.0), Vector2(rect.size.x - 40.0, 46.0)), 14, Color(0.78, 0.84, 0.86), 4.0, 2)
 		var stack = _endless_bonus_stack(bonus_id)
 		if stack > 0:
@@ -22607,7 +22618,7 @@ func _draw_battle_background() -> void:
 
 	_draw_panel_shell(COIN_METER_RECT, Color(0.97, 0.89, 0.44), Color(0.48, 0.36, 0.09), 0.12, 0.06)
 	_draw_coin_icon(COIN_METER_RECT.position + Vector2(22.0, 20.0), 1.0)
-	_draw_text(str(coins_total), COIN_METER_RECT.position + Vector2(44.0, 27.0), 22, Color(0.31, 0.2, 0.05))
+	ThemeLib.draw_label(self, ui_font, Rect2(COIN_METER_RECT.position + Vector2(44, 4), Vector2(COIN_METER_RECT.size.x - 52, COIN_METER_RECT.size.y - 8)), str(coins_total), 22, Color(0.31, 0.2, 0.05))
 
 	_draw_fancy_button(BACK_BUTTON_RECT, "返回地图", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 
@@ -23112,8 +23123,8 @@ func _draw_seed_bank() -> void:
 	var value_font_size = 20 if _is_conveyor_level() else 28
 	while value_font_size > 12 and ui_font.get_string_size(meter_value, HORIZONTAL_ALIGNMENT_LEFT, -1.0, value_font_size).x > SUN_METER_RECT.size.x - 12.0:
 		value_font_size -= 1
-	draw_string(ui_font, SUN_METER_RECT.position + Vector2(6.0, 24.0), meter_label, HORIZONTAL_ALIGNMENT_CENTER, SUN_METER_RECT.size.x - 12.0, 18, Color(0.33, 0.21, 0.04))
-	draw_string(ui_font, SUN_METER_RECT.position + Vector2(6.0, 62.0), meter_value, HORIZONTAL_ALIGNMENT_CENTER, SUN_METER_RECT.size.x - 12.0, value_font_size, Color(0.33, 0.21, 0.04))
+	ThemeLib.draw_label(self, ui_font, Rect2(SUN_METER_RECT.position + Vector2(6, 4), Vector2(SUN_METER_RECT.size.x - 12, 26)), meter_label, 18, Color(0.33, 0.21, 0.04), HORIZONTAL_ALIGNMENT_CENTER)
+	ThemeLib.draw_label(self, ui_font, Rect2(SUN_METER_RECT.position + Vector2(6, 32), Vector2(SUN_METER_RECT.size.x - 12, SUN_METER_RECT.size.y - 36)), meter_value, value_font_size, Color(0.33, 0.21, 0.04), HORIZONTAL_ALIGNMENT_CENTER)
 
 	var mouse_pos = get_local_mouse_position()
 	for index in range(active_cards.size()):
@@ -23145,7 +23156,7 @@ func _draw_seed_bank() -> void:
 			draw_rect(draw_rect_local.grow(6.0), Color(1.0, 0.92, 0.22, 0.08 * card_pulse), true)
 			draw_rect(draw_rect_local.grow(2.0), Color(1.0, 0.9, 0.18), false, 4.0)
 
-		_draw_card_icon(kind, draw_rect_local.position + Vector2(draw_rect_local.size.x * 0.5, 46.0))
+		_draw_card_icon(kind, draw_rect_local.get_center(), minf(1, (draw_rect_local.size.y - 36) / 52.0))
 
 		if not _is_conveyor_level() and not affordable and float(card_cooldowns[kind]) <= 0.01:
 			draw_rect(draw_rect_local, Color(0.0, 0.0, 0.0, 0.24), true)
@@ -23159,42 +23170,33 @@ func _draw_seed_bank() -> void:
 			draw_rect(ThemeLib.progress_fill_rect(recharge_rect, 1.0 - cooling_ratio), Color(0.86, 0.96, 0.62, 0.82), true)
 
 		# Draw name and cost AFTER overlays so they're always visible
-		var name_font_size = 10 if draw_rect_local.size.x < 76.0 else 12
-		var cost_x = 6.0 if draw_rect_local.size.x < 76.0 else 8.0
 		var plant_name = String(data["name"])
-		# Truncate long names for narrow cards
-		if draw_rect_local.size.x < 76.0 and plant_name.length() > 3:
-			plant_name = plant_name.left(3) + "…"
-		elif draw_rect_local.size.x < 82.0 and plant_name.length() > 4:
-			plant_name = plant_name.left(4) + "…"
 		# Name backing strip for readability
 		draw_rect(Rect2(draw_rect_local.position + Vector2(0.0, 2.0), Vector2(draw_rect_local.size.x, 18.0)), Color(card_color.r, card_color.g, card_color.b, 0.88), true)
-		_draw_text(plant_name, draw_rect_local.position + Vector2(5.0, 18.0), name_font_size, Color(0.0, 0.0, 0.0, 0.12))
-		_draw_text(plant_name, draw_rect_local.position + Vector2(4.0, 17.0), name_font_size, Color(0.29, 0.17, 0.05))
+		ThemeLib.draw_label(self, ui_font, Rect2(draw_rect_local.position + Vector2(4, 2), Vector2(draw_rect_local.size.x - 8, 18)), plant_name, 12, Color(0.29, 0.17, 0.05), HORIZONTAL_ALIGNMENT_CENTER, 8)
 		if not _is_conveyor_level():
 			# Cost backing strip
 			draw_rect(Rect2(draw_rect_local.position + Vector2(0.0, draw_rect_local.size.y - 20.0), Vector2(draw_rect_local.size.x, 20.0)), Color(card_color.r, card_color.g, card_color.b, 0.82), true)
-			_draw_text(str(draw_cost), draw_rect_local.position + Vector2(cost_x + 1.0, 85.0), 16, Color(0.0, 0.0, 0.0, 0.12))
-			_draw_text(str(draw_cost), draw_rect_local.position + Vector2(cost_x, 84.0), 16, Color(0.29, 0.17, 0.05))
+			ThemeLib.draw_label(self, ui_font, Rect2(draw_rect_local.position + Vector2(4, draw_rect_local.size.y - 20), Vector2(draw_rect_local.size.x * 0.55, 18)), str(draw_cost), 16, Color(0.29, 0.17, 0.05), HORIZONTAL_ALIGNMENT_LEFT, 10)
 		# Star indicator if plant has stars
 		if plant_stars.has(kind) and int(plant_stars[kind]) > 0:
 			var star_count = int(plant_stars[kind])
 			for star_i in range(mini(star_count, 3)):
-				draw_circle(draw_rect_local.position + Vector2(draw_rect_local.size.x - 10.0 - float(star_i) * 10.0, 12.0), 4.0, Color(1.0, 0.86, 0.2, 0.9))
+				draw_circle(draw_rect_local.position + Vector2(draw_rect_local.size.x - 5.0 - float(star_i) * 5.0, draw_rect_local.size.y - 10.0), 2.0, Color(0.72, 0.52, 0.06, 0.9))
 
 	if _is_whack_level():
 		var hammer_rect = _shovel_rect()
 		_draw_panel_shell(hammer_rect, Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 0.08, 0.05)
 		_draw_mallet_icon(hammer_rect.position + Vector2(36.0, 36.0))
-		_draw_text("木槌", hammer_rect.position + Vector2(24.0, 82.0), 18, Color(0.26, 0.19, 0.08))
+		ThemeLib.draw_label(self, ui_font, Rect2(hammer_rect.position + Vector2(4, hammer_rect.size.y - 23), Vector2(hammer_rect.size.x - 8, 20)), "木槌", 16, Color(0.26, 0.19, 0.08), HORIZONTAL_ALIGNMENT_CENTER)
 		return
 
 	var shovel_rect = _shovel_rect()
 	_draw_panel_shell(shovel_rect, Color(0.91, 0.88, 0.79), Color(0.38, 0.28, 0.16), 0.08, 0.04)
 	if selected_tool == "shovel":
 		draw_rect(shovel_rect.grow(2.0), Color(1.0, 0.9, 0.18), false, 4.0)
-	_draw_shovel_icon(shovel_rect.position + shovel_rect.size * 0.5)
-	_draw_text("铲子", shovel_rect.position + Vector2(20.0, 82.0), 18, Color(0.26, 0.19, 0.08))
+	_draw_shovel_icon(shovel_rect.get_center() + Vector2(0, -8))
+	ThemeLib.draw_label(self, ui_font, Rect2(shovel_rect.position + Vector2(4, shovel_rect.size.y - 23), Vector2(shovel_rect.size.x - 8, 20)), "铲子", 16, Color(0.26, 0.19, 0.08), HORIZONTAL_ALIGNMENT_CENTER)
 
 	_draw_panel_shell(PLANT_FOOD_RECT, Color(0.84, 0.96, 0.76), Color(0.2, 0.54, 0.14), 0.08, 0.05)
 	if selected_tool == "plant_food":
@@ -23778,7 +23780,12 @@ func _draw_hover() -> void:
 		_draw_plant_preview(selected_tool, _cell_center(cell.x, cell.y))
 
 
+func _battle_unit_scale() -> float:
+	return minf(1.0, minf(CELL_SIZE.x / BASE_CELL_SIZE.x, CELL_SIZE.y / BASE_CELL_SIZE.y))
+
+
 func _draw_plants() -> void:
+	var unit_scale := _battle_unit_scale()
 	for row in range(ROWS):
 		for col in range(COLS):
 			var support_variant = support_grid[row][col]
@@ -23787,17 +23794,17 @@ func _draw_plants() -> void:
 			var support = support_variant
 			if _cell_terrain_kind(row, col) == "lava":
 				continue
-			var support_center = _cell_center(row, col) + Vector2(0.0, 16.0)
+			var support_center = _cell_center(row, col) + Vector2(0.0, 16.0 * unit_scale)
 			var support_motion = _plant_draw_motion(support, support_center)
 			var support_draw_center = Vector2(support_motion["center"])
-			_set_combat_transform(support_draw_center, float(support_motion["rotation"]), Vector2(support_motion["scale"]))
+			_set_combat_transform(support_draw_center, float(support_motion["rotation"]), Vector2(support_motion["scale"]) * unit_scale)
 			var support_kind := String(support["kind"])
 			if UNIFIED_COMBAT_VISUALS:
 				_draw_unified_plant(Vector2.ZERO, support_kind, support, 0.9, 1.0, float(support.get("flash", 0.0)))
 				_set_combat_transform()
 				if grid[row][col] == null:
 					_draw_click_ultimate_indicator(support_draw_center, support)
-					_draw_health_bar(support_draw_center + Vector2(0.0, -26.0), 48.0, clampf(float(support["health"]) / float(support["max_health"]), 0.0, 1.0), Color(0.24, 0.82, 0.28))
+					_draw_health_bar(support_draw_center + Vector2(0.0, -26.0 * unit_scale), 48.0 * unit_scale, clampf(float(support["health"]) / float(support["max_health"]), 0.0, 1.0), Color(0.24, 0.82, 0.28))
 				continue
 			_draw_ground_shadow(Vector2.ZERO, 24.0, 0.8, 30.0)
 			var support_drawn_with_image2 := _try_draw_image2_plant(support_kind, Vector2.ZERO, 1.0, float(support.get("flash", 0.0)))
@@ -23840,7 +23847,7 @@ func _draw_plants() -> void:
 				draw_circle(draw_center + Vector2(0.0, -10.0), 34.0 + charm_pulse * 5.0, Color(0.56, 0.84, 1.0, 0.14))
 				draw_arc(draw_center + Vector2(0.0, -10.0), 30.0 + charm_pulse * 4.0, level_time * 2.2, level_time * 2.2 + PI * 1.4, 24, Color(0.86, 1.0, 1.0, 0.35), 1.8)
 
-			_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
+			_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]) * unit_scale)
 			var plant_kind := String(plant["kind"])
 			if UNIFIED_COMBAT_VISUALS:
 				_draw_unified_plant(Vector2.ZERO, plant_kind, plant, 1.0, 1.0, flash)
@@ -23848,7 +23855,7 @@ func _draw_plants() -> void:
 				_draw_enhancement_aura(draw_center, plant_kind)
 				_draw_click_ultimate_indicator(draw_center, plant)
 				if plant_kind != "cherry_bomb" and plant_kind != "jalapeno":
-					_draw_health_bar(draw_center + Vector2(0.0, -42.0), 58.0, clampf(float(plant["health"]) / float(plant["max_health"]), 0.0, 1.0), Color(0.32, 0.86, 0.24))
+					_draw_health_bar(draw_center + Vector2(0.0, -42.0 * unit_scale), 58.0 * unit_scale, clampf(float(plant["health"]) / float(plant["max_health"]), 0.0, 1.0), Color(0.32, 0.86, 0.24))
 				continue
 			_draw_ground_shadow(Vector2.ZERO, 29.0, 1.0, 34.0)
 			var plant_drawn_with_image2 := _try_draw_image2_plant(plant_kind, Vector2.ZERO, 1.0, flash)
@@ -24465,6 +24472,7 @@ func _draw_projectiles() -> void:
 
 func _draw_zombies() -> void:
 	var hud_boss = _current_active_boss()
+	var unit_scale := _battle_unit_scale()
 	for zombie in zombies:
 		if _is_fog_level() and _is_enemy_zombie(zombie):
 			var fog_position = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
@@ -24475,7 +24483,7 @@ func _draw_zombies() -> void:
 		var draw_center = Vector2(motion["center"])
 		if _is_boss_zombie(zombie):
 			_draw_boss_cast_cue(draw_center, zombie)
-		_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]))
+		_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]) * unit_scale)
 		_draw_zombie(Vector2.ZERO, zombie)
 		_set_combat_transform()
 		if _is_whack_level():
@@ -24487,14 +24495,14 @@ func _draw_zombies() -> void:
 			continue
 		if float(zombie.get("shield_health", 0.0)) > 0.0 and float(zombie.get("max_shield_health", 0.0)) > 0.0:
 			_draw_health_bar(
-				draw_center + Vector2(0.0, -64.0),
-				58.0,
+				draw_center + Vector2(0.0, -64.0 * unit_scale),
+				58.0 * unit_scale,
 				clampf(float(zombie["shield_health"]) / float(zombie["max_shield_health"]), 0.0, 1.0),
 				Color(0.62, 0.8, 0.96)
 			)
 		_draw_health_bar(
-			draw_center + Vector2(0.0, -56.0),
-			58.0,
+			draw_center + Vector2(0.0, -56.0 * unit_scale),
+			58.0 * unit_scale,
 			clampf(float(zombie["health"]) / float(zombie["max_health"]), 0.0, 1.0),
 			Color(0.92, 0.28, 0.22)
 		)
@@ -26848,9 +26856,9 @@ func _draw_mowers() -> void:
 			draw_line(center + Vector2(16.0, -12.0), center + Vector2(34.0, -28.0), Color(0.28, 0.28, 0.28), 3.0)
 
 
-func _draw_card_icon(kind: String, center: Vector2) -> void:
+func _draw_card_icon(kind: String, center: Vector2, portrait_scale: float = 1.0) -> void:
 	if UNIFIED_COMBAT_VISUALS:
-		_draw_unified_plant(center + Vector2(0.0, 6.0), kind, {}, 0.52, 1.0, 0.0)
+		_draw_unified_plant(center + Vector2(0.0, 6.0) * portrait_scale, kind, {}, 0.52 * portrait_scale, 1.0, 0.0)
 		return
 	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
 		_ensure_volcano_expansion().draw_plant(kind, center + Vector2(0.0, 6.0), 0.58)
@@ -29165,8 +29173,12 @@ func _draw_plant_food_icon(center: Vector2, size_scale: float) -> void:
 	draw_line(center + Vector2(-4.0 * size_scale, -5.0 * size_scale), center + Vector2(4.0 * size_scale, 5.0 * size_scale), Color(0.82, 1.0, 0.68), 2.0 * size_scale)
 
 
+func _menu_icon_transform(center: Vector2, size_scale: float) -> Transform2D:
+	return menu_draw_transform * Transform2D(0.0, Vector2(size_scale, size_scale), 0.0, center)
+
+
 func _draw_zombie_icon(kind: String, center: Vector2, size_scale: float) -> void:
-	draw_set_transform(center, 0.0, Vector2(size_scale, size_scale))
+	draw_set_transform_matrix(_menu_icon_transform(center, size_scale))
 	# Show the zombie with full accessories (shield) so the almanac icon
 	# displays the cone/bucket/helmet, not just the bare head.
 	var icon_shield = float(Defs.ZOMBIES.get(kind, {}).get("shield_health", 0.0))
@@ -29187,7 +29199,7 @@ func _draw_zombie_icon(kind: String, center: Vector2, size_scale: float) -> void
 			"enraged": icon_enraged,
 		}
 	)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_set_transform_matrix(menu_draw_transform)
 
 
 func _draw_bungee_zombie(center: Vector2, zombie: Dictionary) -> void:

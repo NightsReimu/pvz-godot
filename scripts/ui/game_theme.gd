@@ -25,7 +25,7 @@ static func scroll_knob_rect(track_rect: Rect2, view_length: float, content_leng
 	if content_length <= 0.0 or view_length <= 0.0 or content_length <= view_length:
 		return track_rect
 	var max_scroll = maxf(content_length - view_length, 0.001)
-	var knob_length = maxf(min_length, track_rect.size.y * (view_length / content_length))
+	var knob_length = minf(track_rect.size.y, maxf(min_length, track_rect.size.y * (view_length / content_length)))
 	var ratio = clampf(scroll / max_scroll, 0.0, 1.0)
 	return Rect2(
 		Vector2(track_rect.position.x, track_rect.position.y + (track_rect.size.y - knob_length) * ratio),
@@ -33,7 +33,38 @@ static func scroll_knob_rect(track_rect: Rect2, view_length: float, content_leng
 	)
 
 
-# --- Gradient & Color Helpers ---
+# --- Measured Labels ---
+
+static func fit_label(font: Font, label: String, available: Vector2, preferred_size: int = 20, min_size: int = 12) -> Dictionary:
+	var font_size := maxi(1, preferred_size)
+	var text := label
+	var floor_size := clampi(min_size, 1, font_size)
+	while font_size > floor_size and (font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > available.x or font.get_height(font_size) > available.y):
+		font_size -= 1
+	while font_size > 1 and font.get_height(font_size) > available.y:
+		font_size -= 1
+	if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > available.x:
+		while not text.is_empty() and font.get_string_size(text + "...", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > available.x:
+			text = text.left(text.length() - 1)
+		text += "..."
+		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > available.x:
+			text = ""
+	return {"text": text, "font_size": font_size, "size": Vector2(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x, font.get_height(font_size))}
+
+
+static func draw_label(canvas: CanvasItem, font: Font, rect: Rect2, label: String, font_size: int, color: Color, alignment: int = HORIZONTAL_ALIGNMENT_LEFT, min_size: int = 12) -> void:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return
+	var layout := fit_label(font, label, rect.size, font_size, min_size)
+	var draw_size := int(layout.font_size)
+	var x := rect.position.x
+	if alignment == HORIZONTAL_ALIGNMENT_CENTER:
+		x += (rect.size.x - Vector2(layout.size).x) * 0.5
+	elif alignment == HORIZONTAL_ALIGNMENT_RIGHT:
+		x += rect.size.x - Vector2(layout.size).x
+	var baseline := Vector2(x, rect.position.y + (rect.size.y - font.get_height(draw_size)) * 0.5 + font.get_ascent(draw_size))
+	canvas.draw_string(font, baseline, String(layout.text), HORIZONTAL_ALIGNMENT_LEFT, -1, draw_size, color)
+
 
 static func draw_gradient_rect_v(canvas: CanvasItem, rect: Rect2, top_color: Color, bottom_color: Color) -> void:
 	canvas.draw_polygon(
@@ -73,34 +104,23 @@ static func draw_glow_circle(canvas: CanvasItem, center: Vector2, radius: float,
 
 # --- Rounded Panel (improved draw_panel_shell) ---
 
-static func draw_rounded_panel(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, corner_radius: float = 12.0, shadow_alpha: float = 0.22, accent_alpha: float = 0.16) -> void:
+static func draw_rounded_panel(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, _corner_radius: float = 8.0, shadow_alpha: float = 0.22, accent_alpha: float = 0.16) -> void:
 	# Soft shadow
-	draw_soft_shadow(canvas, rect, Color(0.0, 0.0, 0.0, shadow_alpha), 3, 12.0, 8.0)
+	draw_soft_shadow(canvas, rect, Color(0.0, 0.0, 0.0, shadow_alpha * 0.45), 1, 2.0, 2.0)
 	# Main fill with gradient
-	var top_color = fill_color.lerp(Color.WHITE, 0.08)
-	var bottom_color = fill_color.darkened(0.08)
+	var top_color = fill_color.lerp(Color.WHITE, 0.015)
+	var bottom_color = fill_color.darkened(0.025)
 	draw_gradient_rect_v(canvas, rect, top_color, bottom_color)
 	# Top highlight band
-	var highlight_rect = Rect2(rect.position + Vector2(3.0, 3.0), Vector2(maxf(0.0, rect.size.x - 6.0), maxf(6.0, rect.size.y * 0.12)))
+	var highlight_rect = Rect2(rect.position + Vector2(3.0, 3.0), Vector2(maxf(0.0, rect.size.x - 6.0), 1.0))
 	canvas.draw_rect(highlight_rect, Color(1.0, 1.0, 1.0, accent_alpha * 0.6), true)
 	# Bottom darkened band
-	var bottom_band = Rect2(rect.position + Vector2(0.0, rect.size.y * 0.78), Vector2(rect.size.x, rect.size.y * 0.22))
+	var bottom_band = Rect2(rect.position + Vector2(0.0, rect.size.y - 1.0), Vector2(rect.size.x, 1.0))
 	canvas.draw_rect(bottom_band, Color(0.0, 0.0, 0.0, 0.06), true)
 	# Inner glow line
 	canvas.draw_rect(rect.grow(-2.0), Color(1.0, 1.0, 1.0, accent_alpha * 0.12), false, 1.0)
 	# Border
 	canvas.draw_rect(rect, border_color, false, 2.0)
-	# Corner accents (simulate rounded feel with small circles at corners)
-	var cr = minf(corner_radius, minf(rect.size.x, rect.size.y) * 0.3)
-	if cr > 4.0:
-		var corners = [
-			rect.position + Vector2(cr, cr),
-			rect.position + Vector2(rect.size.x - cr, cr),
-			rect.position + Vector2(rect.size.x - cr, rect.size.y - cr),
-			rect.position + Vector2(cr, rect.size.y - cr),
-		]
-		for c in corners:
-			canvas.draw_circle(c, cr * 0.3, Color(1.0, 1.0, 1.0, accent_alpha * 0.08))
 
 
 # --- Legacy panel shell (kept for compatibility, delegates to rounded) ---
@@ -128,9 +148,9 @@ static func draw_fancy_button(canvas: CanvasItem, rect: Rect2, label: String, fo
 		draw_rect.position.y += lift
 
 	# Soft drop shadow (weaker when pressed, stronger when hovered)
-	var shadow_offset_y = 6.0 if not pressed else 2.0
-	var shadow_alpha = 0.26 if hovered else (0.12 if pressed else 0.2)
-	draw_soft_shadow(canvas, draw_rect, Color(0.0, 0.0, 0.0, shadow_alpha), 4, 11.0, shadow_offset_y)
+	var shadow_offset_y = 3.0 if not pressed else 1.0
+	var shadow_alpha = 0.12 if hovered else 0.08
+	draw_soft_shadow(canvas, draw_rect, Color(0.0, 0.0, 0.0, shadow_alpha), 1, 2.0, shadow_offset_y)
 
 	# Hover halo glow ring
 	if hovered and not pressed:
@@ -140,14 +160,14 @@ static func draw_fancy_button(canvas: CanvasItem, rect: Rect2, label: String, fo
 			canvas.draw_rect(draw_rect.grow(2.0 + gt * 4.0), Color(1.0, 0.96, 0.72, 0.05 * glow_pulse * (1.0 - gt)), false, 2.0)
 
 	# Fill: vertical gradient (top brighter, bottom darker) — press darkens whole thing
-	var bright = 0.14 if hovered and not pressed else (0.02 if pressed else 0.08)
-	var dark_amt = 0.16 if not pressed else 0.32
+	var bright = 0.08 if hovered and not pressed else 0.02
+	var dark_amt = 0.04 if not pressed else 0.14
 	var top = fill_color.lerp(Color.WHITE, bright)
 	var bottom = fill_color.darkened(dark_amt)
 	draw_gradient_rect_v(canvas, draw_rect, top, bottom)
 
 	# Top glossy highlight band (rounded feel) — dimmer when pressed
-	var gloss_h = maxf(8.0, draw_rect.size.y * 0.4)
+	var gloss_h = 2.0
 	var gloss_rect = Rect2(draw_rect.position + Vector2(3.0, 2.0), Vector2(maxf(0.0, draw_rect.size.x - 6.0), gloss_h))
 	var gloss_alpha = 0.22 if hovered and not pressed else (0.10 if pressed else 0.16)
 	canvas.draw_rect(gloss_rect, Color(1.0, 1.0, 1.0, gloss_alpha), true)
@@ -166,23 +186,11 @@ static func draw_fancy_button(canvas: CanvasItem, rect: Rect2, label: String, fo
 	var border_w = 2.4 if hovered else 2.0
 	canvas.draw_rect(draw_rect, border_color, false, border_w)
 
-	# Corner softening (simulate rounded corners with translucent discs)
-	var cr = minf(8.0, minf(draw_rect.size.x, draw_rect.size.y) * 0.22)
-	if cr > 3.0:
-		for corner in [draw_rect.position + Vector2(cr, cr), draw_rect.position + Vector2(draw_rect.size.x - cr, cr), draw_rect.position + Vector2(draw_rect.size.x - cr, draw_rect.size.y - cr), draw_rect.position + Vector2(cr, draw_rect.size.y - cr)]:
-			canvas.draw_circle(corner, cr * 0.5, Color(1.0, 1.0, 1.0, 0.05))
-
-	# Centered label with shadow — slightly offset down when pressed
+	# Fit text to the button's padded content area.
 	var text_color = Color(0.97, 0.97, 0.93) if fill_color.v < 0.6 else fill_color.darkened(0.62)
 	if pressed:
 		text_color = text_color.darkened(0.18)
-	var text_w = font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1.0, font_size).x
-	var text_pos = draw_rect.position + Vector2((draw_rect.size.x - text_w) * 0.5, (draw_rect.size.y + font_size) * 0.5 - 2.0)
-	if pressed:
-		text_pos.y += 1.0
-	# text shadow
-	canvas.draw_string(font, text_pos + Vector2(1.0, 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, Color(0.0, 0.0, 0.0, 0.34 if not pressed else 0.22))
-	canvas.draw_string(font, text_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, text_color)
+	draw_label(canvas, font, draw_rect.grow_individual(-10, -4, -10, -4), label, font_size, text_color, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 # --- Grass Detail ---
