@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.100** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.101** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -27,7 +27,7 @@
 | 僵尸与 Boss 定义 | 111 |
 | 关卡定义 | 184 |
 | 主世界 | 7 |
-| 自动测试入口 | 89 |
+| 自动测试入口 | 91 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
 
@@ -104,6 +104,8 @@ The original source code is available under the MIT License. Bundled artwork, au
 ## 东方 Boss 支线
 
 项目目前包含三组主要东方主题支线。Boss 技能参考角色设定和对应原作关卡的符卡主题重新设计，并适配植物防守玩法；不是对原作弹幕的逐帧复制。
+
+点击已解锁的东方关卡后选择难度。常规东方关卡提供 **Easy / Normal / Hard / Lunatic**；芙兰 EX 和蓝紫终幕提供 **EX / EX+**。Easy 与 EX 沿用旧版战斗，较高档增加 Boss 生命、阶段、追击招式、弹幕密度和小怪波次。Lunatic 与 EX+ 先自选植物，再以正常阳光费用和冷却作战；其余档使用传送带。重开保留难度与选卡，通关按关卡和难度分别记录。
 
 ### 红魔乡主题
 

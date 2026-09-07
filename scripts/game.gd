@@ -15,6 +15,8 @@ const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const TouhouDanmakuRuntime = preload("res://scripts/runtime/touhou_danmaku_runtime.gd")
 const TouhouPhaseRuntime = preload("res://scripts/runtime/touhou_phase_runtime.gd")
 const KeineBossRuntime = preload("res://scripts/runtime/keine_boss_runtime.gd")
+const TouhouDifficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
+const TouhouDifficultyMenu = preload("res://scripts/runtime/touhou_difficulty_menu.gd")
 const ObjectiveRuntime = preload("res://scripts/runtime/objective_runtime.gd")
 const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
@@ -636,6 +638,10 @@ var board_size := Vector2(COLS * CELL_SIZE.x, DEFAULT_BOARD_ROWS * CELL_SIZE.y)
 
 var map_time := 0.0
 var selected_level_index := -1
+var touhou_difficulty_menu: RefCounted
+var touhou_difficulty_choices: Dictionary = {}
+var touhou_difficulty_clears: Dictionary = {}
+var battle_seed_cards: Array = []
 var hovered_level_index := -1
 var unlocked_levels := 1
 var completed_levels: Array = []
@@ -1878,6 +1884,9 @@ func _toggle_battle_pause() -> void:
 
 func _restart_current_battle() -> void:
 	_set_battle_paused(false)
+	if current_level.has("touhou_difficulty"):
+		_begin_level(selected_level_index, battle_seed_cards, current_level)
+		return
 	if _is_endless_level():
 		_enter_endless_mode()
 		return
@@ -2101,6 +2110,9 @@ func _update_page_transition(delta: float) -> void:
 
 
 func _handle_primary_click(mouse_pos: Vector2) -> void:
+	if _touhou_difficulty_is_open():
+		touhou_difficulty_menu.click(mouse_pos)
+		return
 	if mode == MODE_HOME:
 		_handle_home_click(mouse_pos)
 		return
@@ -2194,6 +2206,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_reset_touch_navigation()
 		if event is InputEventScreenTouch and event.pressed:
 			_suppress_touch_generated_mouse()
+		return
+	if _touhou_difficulty_is_open():
+		touhou_difficulty_menu.input(event)
 		return
 
 	var mouse_pos = _event_local_position(event)
@@ -3227,6 +3242,10 @@ func _boss_skill_cycle_length(kind: String) -> int:
 
 
 func _boss_skill_interval(kind: String, phase: int) -> float:
+	return _base_boss_skill_interval(kind, phase) * (float(TouhouDifficulty.profile(current_level).cadence) if TouhouSpellDefs.CARDS.has(kind) else 1.0)
+
+
+func _base_boss_skill_interval(kind: String, phase: int) -> float:
 	var data = Dictionary(Defs.ZOMBIES.get(kind, {}))
 	if data.has("skill_interval_base"):
 		var base = float(data.get("skill_interval_base", 7.6))
@@ -3251,6 +3270,10 @@ func _boss_skill_interval(kind: String, phase: int) -> float:
 
 
 func _boss_reinforcement_interval(kind: String, phase: int) -> float:
+	return _base_boss_reinforcement_interval(kind, phase) * (float(TouhouDifficulty.profile(current_level).cadence) if TouhouSpellDefs.CARDS.has(kind) else 1.0)
+
+
+func _base_boss_reinforcement_interval(kind: String, phase: int) -> float:
 	var data = Dictionary(Defs.ZOMBIES.get(kind, {}))
 	if data.has("reinforcement_interval_base"):
 		var base = float(data.get("reinforcement_interval_base", 4.8))
@@ -4033,6 +4056,8 @@ func _handle_daily_click(mouse_pos: Vector2) -> void:
 
 
 func _enter_map_mode(animated: bool = false) -> void:
+	if touhou_difficulty_menu != null:
+		touhou_difficulty_menu.close()
 	battle_state = BATTLE_PLAYING
 	battle_paused = false
 	board_rows = DEFAULT_BOARD_ROWS
@@ -5575,11 +5600,48 @@ func _handle_base_click(mouse_pos: Vector2) -> void:
 func _start_level(level_index: int) -> void:
 	selected_level_index = level_index
 	var level = Defs.LEVELS[level_index]
+	if TouhouDifficulty.is_touhou(level):
+		_open_touhou_difficulty(level_index)
+		return
 	_queue_level_boss_asset_prewarm(level)
 	if _requires_seed_selection(level):
 		_enter_seed_selection(level_index)
 		return
 	_begin_level(level_index, _default_level_cards(level))
+
+
+func _touhou_difficulty_is_open() -> bool:
+	return touhou_difficulty_menu != null and int(touhou_difficulty_menu.level_index) >= 0
+
+
+func _open_touhou_difficulty(level_index: int) -> void:
+	_enter_map_mode()
+	selected_level_index = level_index
+	_reset_touch_navigation()
+	if touhou_difficulty_menu == null:
+		touhou_difficulty_menu = TouhouDifficultyMenu.new(self)
+	touhou_difficulty_menu.open(level_index)
+
+
+func _start_touhou_difficulty(level_index: int, choice: String) -> void:
+	var base: Dictionary = Defs.LEVELS[level_index]
+	if not TouhouDifficulty.options(base).has(choice):
+		return
+	var level := TouhouDifficulty.build_level(base, choice)
+	touhou_difficulty_choices[String(base.id)] = choice
+	save_dirty = true
+	if _requires_seed_selection(level):
+		_enter_seed_selection(level_index, level)
+	else:
+		_begin_level(level_index, _default_level_cards(level), level)
+
+
+func _touhou_difficulty_cleared(level_index: int, choice: String) -> bool:
+	var level: Dictionary = Defs.LEVELS[level_index]
+	var key := "%s:%s" % [level.id, choice]
+	if bool(touhou_difficulty_clears.get(key, false)):
+		return true
+	return int(TouhouDifficulty.PROFILES[choice].rank) == 0 and level_index < completed_levels.size() and bool(completed_levels[level_index])
 
 
 func _enter_almanac_mode(initial_tab: String = "plants") -> void:
@@ -6286,9 +6348,9 @@ func _enter_daily_challenge(series_id: String = "", stage_index: int = 0) -> voi
 	queue_redraw()
 
 
-func _enter_seed_selection(level_index: int) -> void:
+func _enter_seed_selection(level_index: int, level_override: Dictionary = {}) -> void:
 	selected_level_index = level_index
-	current_level = Defs.LEVELS[level_index]
+	current_level = level_override.duplicate(true) if not level_override.is_empty() else Defs.LEVELS[level_index]
 	_queue_level_boss_asset_prewarm(current_level)
 	mode = MODE_SELECTION
 	battle_state = BATTLE_PLAYING
@@ -7005,6 +7067,9 @@ func _draw_enhance_scene() -> void:
 
 
 func _begin_level(level_index: int, chosen_cards: Array, level_override: Dictionary = {}) -> void:
+	battle_seed_cards = chosen_cards.duplicate()
+	if touhou_difficulty_menu != null:
+		touhou_difficulty_menu.close()
 	if keine_runtime != null:
 		keine_runtime.reset()
 	selected_level_index = level_index
@@ -7187,7 +7252,9 @@ func _handle_selection_click(mouse_pos: Vector2) -> void:
 
 	var back_rect = _selection_back_rect()
 	if back_rect.has_point(mouse_pos):
-		if bool(current_level.get("custom_level", false)):
+		if current_level.has("touhou_difficulty"):
+			_open_touhou_difficulty(selected_level_index)
+		elif bool(current_level.get("custom_level", false)):
 			_enter_home_mode()
 		else:
 			_enter_map_mode()
@@ -7202,7 +7269,7 @@ func _handle_selection_click(mouse_pos: Vector2) -> void:
 		if bool(current_level.get("custom_level", false)):
 			_begin_level(-1, selection_cards, current_level)
 		else:
-			_begin_level(selected_level_index, selection_cards)
+			_begin_level(selected_level_index, selection_cards, current_level)
 		return
 
 	var selected_index = _selection_slot_at(mouse_pos)
@@ -7729,6 +7796,9 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		boss_unit["hover_shift_timer"] = _roll_hover_shift_interval(kind, 0)
 		boss_unit["sakuya_time_stop_charge"] = 0.0
 		boss_unit["sakuya_mark_timer"] = 0.0
+		var difficulty_health := float(TouhouDifficulty.profile(current_level).health)
+		boss_unit.health *= difficulty_health
+		boss_unit.max_health *= difficulty_health
 		TouhouPhaseRuntime.start(boss_unit, current_level)
 		zombies[boss_index] = boss_unit
 		if kind == "rumia_boss":
@@ -13789,6 +13859,8 @@ func _win_level() -> void:
 	var first_clear = not custom_level and selected_level_index >= 0 and selected_level_index < completed_levels.size() and not bool(completed_levels[selected_level_index])
 	if not custom_level and selected_level_index >= 0 and selected_level_index < completed_levels.size():
 		completed_levels[selected_level_index] = true
+		if current_level.has("touhou_difficulty"):
+			touhou_difficulty_clears["%s:%s" % [current_level.id, current_level.touhou_difficulty]] = true
 	if not current_level.is_empty():
 		current_world_key = _world_key_for_level(current_level)
 
@@ -13889,7 +13961,7 @@ func _show_message(text: String, action: String, button_text: String) -> void:
 func _on_message_button_pressed() -> void:
 	match panel_action:
 		"retry":
-			_start_level(selected_level_index)
+			_restart_current_battle()
 		"retry_endless":
 			_enter_endless_mode()
 		"retry_daily":
@@ -16087,6 +16159,8 @@ func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
+	if String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")).begins_with("pressure_"):
+		return _ensure_touhou_danmaku().cast(zombie)
 	if String(zombie.kind) == "keine_boss":
 		zombie = _ensure_touhou_danmaku().cast(zombie)
 		_ensure_keine_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
@@ -18705,6 +18779,8 @@ func _set_selection_pool_scroll(value: float) -> void:
 
 
 func _requires_seed_selection(level: Dictionary) -> bool:
+	if bool(level.get("touhou_seed_selection", false)):
+		return true
 	var mode_name = String(level.get("mode", ""))
 	if mode_name == "conveyor" or mode_name == "bowling" or mode_name == "whack" or mode_name == "vasebreaker":
 		return false
@@ -18731,6 +18807,16 @@ func _default_level_cards(level: Dictionary) -> Array:
 
 
 func _available_seed_cards_for_level(level: Dictionary) -> Array:
+	if bool(level.get("touhou_seed_selection", false)):
+		var pool := _player_plant_collection()
+		var essentials: Array = ["sunflower", "sun_shroom"]
+		for kind in ["lily_pad", "flower_pot", "cotton_candy"]:
+			if level.get("available_plants", []).has(kind):
+				essentials.append(kind)
+		for kind in essentials:
+			if not pool.has(kind):
+				pool.append(kind)
+		return pool
 	var mode_name = String(level.get("mode", ""))
 	if mode_name == "conveyor" or mode_name == "bowling" or mode_name == "whack" or mode_name == "vasebreaker":
 		return level.get("available_plants", []).duplicate()
@@ -19124,6 +19210,8 @@ func _is_storm_fog_level() -> bool:
 
 
 func _level_has_sky_sun() -> bool:
+	if bool(current_level.get("touhou_seed_selection", false)):
+		return true
 	if current_level.is_empty():
 		return true
 	return not _is_night_level() and not _is_fog_level()
@@ -19740,6 +19828,8 @@ func _draw() -> void:
 		ThemeLib.draw_gradient_rect_h(self, Rect2(Vector2(size.x - 80.0, 0.0), Vector2(80.0, size.y)), Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, fade_alpha * 0.6))
 		return
 	_draw_mode_scene(mode, Vector2.ZERO)
+	if _touhou_difficulty_is_open():
+		touhou_difficulty_menu.draw()
 
 
 func _draw_startup_loading_scene() -> void:
@@ -21640,7 +21730,7 @@ func _draw_seed_selection_scene() -> void:
 	var back_color = Color(0.88, 0.84, 0.76)
 	var start_color = Color(0.42, 0.76, 0.24) if selection_cards.size() >= required_count else Color(0.62, 0.62, 0.62)
 	_draw_fancy_button(preview_rect, "预览背景", Color(0.72, 0.86, 0.9), Color(0.28, 0.46, 0.52), 17)
-	_draw_fancy_button(back_rect, "返回地图", back_color, Color(0.42, 0.3, 0.14), 18)
+	_draw_fancy_button(back_rect, "返回难度" if current_level.has("touhou_difficulty") else "返回地图", back_color, Color(0.42, 0.3, 0.14), 18)
 	_draw_fancy_button(start_rect, "开始战斗", start_color, Color(0.22, 0.36, 0.12), 20)
 	_draw_selection_background_preview_overlay()
 
@@ -24183,6 +24273,8 @@ func _draw_wave_bar() -> void:	# Endless mode: show wave counter instead of prog
 		)
 
 	var wave_status = "最终推进" if progress_ratio >= 0.96 else ("尸潮逼近" if progress_ratio >= 0.72 else "防线稳定")
+	if current_level.has("touhou_difficulty"):
+		wave_status = String(TouhouDifficulty.profile(current_level).name)
 	wave_status = "%s  %s" % [String(current_level["id"]), wave_status]
 	# Text with shadow
 	_draw_text(wave_status, WAVE_BAR_RECT.position + Vector2(11.0, 17.0), 14, Color(0.0, 0.0, 0.0, 0.3))
@@ -34456,6 +34548,11 @@ func _merge_save_data_preserving_progress(existing_save: Dictionary, candidate_s
 	var existing = _save_progress_snapshot(existing_save)
 	var candidate = _save_progress_snapshot(candidate_save)
 	var merged = candidate_save.duplicate(true)
+	var cleared: Dictionary = Dictionary(existing_save.get("touhou_difficulty_clears", {})).duplicate()
+	for key in Dictionary(candidate_save.get("touhou_difficulty_clears", {})):
+		if bool(candidate_save.touhou_difficulty_clears[key]):
+			cleared[key] = true
+	merged["touhou_difficulty_clears"] = cleared
 	var merged_ids: Array = []
 	var seen := {}
 	for level_id in existing.get("completed_ids", []):
@@ -34546,6 +34643,8 @@ func _save_game() -> void:
 		"unlocked_levels": unlocked_levels,
 		"completed_levels": completed_levels,
 		"completed_level_ids": _completed_level_ids(),
+		"touhou_difficulty_choices": touhou_difficulty_choices,
+		"touhou_difficulty_clears": touhou_difficulty_clears,
 		"coins_total": coins_total,
 		"last_level_index": selected_level_index,
 		"current_world_key": current_world_key,
@@ -34605,6 +34704,18 @@ func _should_recover_inconsistent_blank_save(save_version: int, completed_count:
 
 
 func _apply_loaded_save_data(save_data: Dictionary) -> bool:
+	touhou_difficulty_choices.clear()
+	touhou_difficulty_clears.clear()
+	var saved_choices: Dictionary = save_data.get("touhou_difficulty_choices", {}) if save_data.get("touhou_difficulty_choices", {}) is Dictionary else {}
+	var saved_clears: Dictionary = save_data.get("touhou_difficulty_clears", {}) if save_data.get("touhou_difficulty_clears", {}) is Dictionary else {}
+	for level in Defs.LEVELS:
+		var options := TouhouDifficulty.options(level)
+		if options.has(saved_choices.get(String(level.id), "")):
+			touhou_difficulty_choices[String(level.id)] = saved_choices[String(level.id)]
+		for choice in options:
+			var key := "%s:%s" % [level.id, choice]
+			if saved_clears.get(key, false) is bool and bool(saved_clears.get(key, false)):
+				touhou_difficulty_clears[key] = true
 	var save_version = int(save_data.get("version", 1))
 	var migrated := false
 	unlocked_levels = clampi(int(save_data.get("unlocked_levels", 1)), 1, Defs.LEVELS.size())

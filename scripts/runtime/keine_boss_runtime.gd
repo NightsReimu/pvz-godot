@@ -174,6 +174,7 @@ func update_bamboo(unit: Dictionary, delta: float) -> void:
 
 
 func _hit_segment(from: Vector2, to: Vector2, radius: float, damage: float, hits: Array, sleep: float = 0.0, first_only: bool = true) -> bool:
+	damage *= float(game.TouhouDifficulty.profile(game.current_level).damage)
 	var candidates: Array[Dictionary] = []
 	for row in game.active_rows:
 		for col in range(game.COLS):

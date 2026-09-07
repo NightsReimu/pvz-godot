@@ -510,6 +510,8 @@ const ZOMBIES: Dictionary = {
 	},
 	"keine_bamboo": {
 		"name": "逆心竹灵",
+		"non_mainline_special": true,
+		"boss_summon": true,
 		"health": 460.0,
 		"speed": 0.0,
 		"attack_dps": 0.0,

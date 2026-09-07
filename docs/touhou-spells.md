@@ -82,6 +82,36 @@
 
 ## 验证
 
+### v1.0.101 难度规则
+
+当前 15 个常规东方关卡提供 Easy、Normal、Hard、Lunatic；1-23 芙兰 Extra 与 2-31 蓝/紫合并终幕提供 EX、EX+。点击地图关卡后选择，已解锁关卡的全部档位可直接挑战。EX+ 是本作原创挑战档，不对应官方额外难度；现有关卡内蓝与紫的交接保持不变。
+
+| 难度 | Boss 生命 | 弹幕伤害 | 弹幕数量 | 弹速 | 施法/援军间隔 | 追加阶段 | 追加道中波 | 供卡 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Easy / EX | x1 | x1 | x1 | x1 | x1 | 0 | 0 | 原传送带 |
+| Normal | x1.4 | x1.12 | x1.15 | x1.07 | x0.90 | 1 | 2 | 传送带 |
+| Hard | x1.9 | x1.28 | x1.30 | x1.14 | x0.80 | 2 | 4 | 传送带 |
+| Lunatic | x2.6 | x1.46 | x1.50 | x1.22 | x0.70 | 3 | 6 | 自选 |
+| EX+ | x2.2 | x1.40 | x1.45 | x1.20 | x0.72 | 2 | 6 | 自选 |
+
+Easy/EX 是旧版兼容基线，保留此前已实现的符卡与数值，不把本作旧版直接等同于原作 Easy。高难追加阶段放在各 Boss 既有终末之前，道中门槛、反魂蝶耐久与蓝紫交接仍使用共享流程。新攻击的编号为 `original-difficulty-*`：各角色分别使用夜幕、冰棱、虹彩、七曜、定时飞刀、红枪、人偶、音符、剑气、蝶群、隙间、虫群、史书等弹型，三个追击等级改变发射点、弹层和组合。它们是塔防追加招式，不是官方符卡。
+
+2026-09-07 对照以下原作资料，在 Hard/Lunatic 使用相应变体：
+
+- [红魔乡六面](https://en.touhouwiki.net/wiki/Embodiment_of_Scarlet_Devil/Spell_Cards/Stage_6)：蕾米莉亚改用 47–51「年幼的恶魔领主」「千根针的针山」「吸血鬼幻想」「Scarlet Meister」「红色的幻想乡」，具有独立弹型。
+- [妖妖梦六面](https://en.touhouwiki.net/wiki/Perfect_Cherry_Blossom/Spell_Cards/Stage_6)：幽幽子切换相应 Hard/Lunatic 的亡我乡、死蝶、华灵、弘川、墨染樱及反魂蝶五分咲/八分咲。沿用各符卡的塔防弹型，通过密度、弹速及节奏表达难度。
+- [永夜抄三面](https://en.touhouwiki.net/wiki/Imperishable_Night/Spell_Cards/Stage_3)：慧音改用义满/GHQ危机、神器镜/乡、幻想乡传说以及对应高天原版本；Last Spell 前不额外插入非符。危机、镜与传说具有独立弹型。
+
+其他 Boss 保留已核对的角色符卡主题，通过原创追击阶段和弹幕强度扩展难度，不宣称每个难度都是原作完整路线。最高档使用已获得植物的选卡池，补充基本阳光植物和该关所需睡莲/花盆/棉花糖，起始 350 阳光，包含夜关在内每 7–10 秒有自然阳光；这些经济规则为塔防适配。难度设置在关卡副本中计算，不修改注册关卡，重开也不重复叠加波次或倍率。
+
+`godot --headless --path . --script tests/touhou_difficulty_test.gd`
+
+`godot --headless --path . --script tests/touhou_difficulty_flow_test.gd`
+
+`godot --path . --script scripts/tools/capture_touhou_difficulty.gd`
+
+验证全部 17 关的分档、全部 21 个角色的高难阶段推进、追加攻击的真实碰撞、强度递增、自选种植费用、触屏选择、重开/返回、分档通关记录与存档合并。截图覆盖桌面与 844×390、568×320 小屏。
+
 ### 永夜抄三面 / 3-21
 
 2026-09-07 核对 [Touhou Wiki 永夜抄三面符卡列表](https://en.touhouwiki.net/wiki/Imperishable_Night/Spell_Cards/Stage_3)。采用 Normal 终末路线，不将不同难度的神器和危机系列堆叠成同一条原作路线：

@@ -2,6 +2,7 @@ extends RefCounted
 class_name TouhouDanmakuRuntime
 
 const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
+const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MAX_BULLETS := 640
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
@@ -78,7 +79,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	_update_actors(session)
 	_emit_wave(session)
 	session.wave = 1
-	session.next_wave = maxf(float(session.next_wave), 0.62)
+	session.next_wave = maxf(float(session.next_wave), 0.62 * float(Difficulty.profile(game.current_level).cadence))
 	return game._set_rumia_state(boss, String(card.pose), duration)
 
 
@@ -129,7 +130,7 @@ func _tick(delta: float) -> void:
 			var interval := 0.62
 			if String(session.pattern) in ["qed", "izuna"]:
 				interval = lerpf(0.68, 0.24, float(session.age) / float(session.duration))
-			session.next_wave += interval
+			session.next_wave += interval * float(Difficulty.profile(game.current_level).cadence)
 		if float(session.get("focus_until", 0.0)) > float(session.age):
 			focused_owners[owner] = true
 	_tick_bullets(delta, owners, focused_owners)
@@ -161,15 +162,19 @@ func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: 
 	var intensity = 1.0 + minf(0.3, float(c.get("wave", 0)) * 0.018) + float(c.get("phase", 0)) * 0.05
 	var b := {"owner": int(c.owner), "kind": String(c.kind), "position": origin, "velocity": Vector2.from_angle(angle) * speed * intensity, "age": 0.0, "life": 7.0, "radius": DANMAKU_BASE_RADIUS, "damage": DANMAKU_BASE_DAMAGE + float(c.get("phase", 0)) * DANMAKU_PHASE_DAMAGE, "color": color, "shape": shape}
 	b.merge(extra, true)
+	b.velocity *= float(Difficulty.profile(game.current_level).speed)
+	b.damage *= float(Difficulty.profile(game.current_level).damage)
 	bullets.append(b)
 
 
 func _fan(c: Dictionary, origin: Vector2, count: int, angle: float, spread: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
+	count = ceili(count * float(Difficulty.profile(game.current_level).density))
 	for i in range(count):
 		_bullet(c, origin, angle + (float(i) / maxf(1.0, count - 1) - 0.5) * spread, speed, color, shape, extra)
 
 
 func _ring(c: Dictionary, origin: Vector2, count: int, rotation: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
+	count = ceili(count * float(Difficulty.profile(game.current_level).density))
 	for i in range(count):
 		_bullet(c, origin, rotation + TAU * i / count, speed, color, shape, extra)
 
@@ -178,6 +183,7 @@ func _beam(c: Dictionary, from: Vector2, to: Vector2, color: Color, delay: float
 	if beams.size() < MAX_BEAMS:
 		var beam := {"owner": int(c.owner), "kind": String(c.kind), "from": from, "to": to, "color": color, "age": 0.0, "delay": delay, "duration": 0.38, "width": width, "damage": 68.0 + float(c.phase) * 8.0, "hits": []}
 		beam.merge(extra, true)
+		beam.damage *= float(Difficulty.profile(game.current_level).damage)
 		beams.append(beam)
 
 
@@ -195,7 +201,7 @@ func _actor(c: Dictionary, index: int, kind: String, position: Vector2, pose: St
 func _update_actors(c: Dictionary) -> void:
 	var turn = float(c.age) * 0.25 / 0.62
 	match String(c.pattern):
-		"france", "holland", "london", "shanghai", "nonspell_doll_fan":
+		"france", "holland", "london", "shanghai", "nonspell_doll_fan", "pressure_dolls":
 			for i in range(5):
 				_actor(c, i, "alice_doll_zombie", _point(0.72 + 0.12 * sin(i + turn), 0.12 + i * 0.19))
 		"shikigami_chen", "shikigami_ran":
@@ -210,6 +216,9 @@ func _update_actors(c: Dictionary) -> void:
 
 func _emit_wave(c: Dictionary) -> void:
 	var p = String(c.pattern)
+	if p.begins_with("pressure_"):
+		_emit_pressure(c)
+		return
 	if p.begins_with("nonspell_"):
 		_emit_nonspell(c)
 		return
@@ -223,6 +232,30 @@ func _emit_wave(c: Dictionary) -> void:
 	var green = COLORS[3]
 	var violet = COLORS[4]
 	match p:
+		"young_demon_lord":
+			for side in [-1, 1]:
+				_fan(c, origin + Vector2(-24, side * 80), 19, PI + side * sin(turn) * 0.5, 1.9, 160, red, "rice")
+		"thousand_needles":
+			for needle in range(6):
+				_fan(c, _point(0.96, (needle + 0.5) / 6.0), 7, PI + sin(turn + needle) * 0.2, 0.55, 180, red, "knife")
+		"vampire_illusion":
+			for side in [-1, 1]:
+				_ring(c, origin + Vector2(-80, side * 85), 22, turn * side, 140, red if side < 0 else blue, "orb", {"angular_speed": side * 0.3})
+		"scarlet_meister":
+			for layer in range(4):
+				_fan(c, origin, 13, PI + sin(turn * 2) * 0.55, 2.2, 100 + layer * 35, red, "orb", {"radius": 8.0 if layer == 0 else 5.0})
+		"scarlet_gensokyo":
+			_ring(c, origin, 40, turn * 0.7, 150, red, "rice")
+			_fan(c, origin, 9, aimed, 0.7, 205, Color("b77ded"), "orb", {"radius": 10.0, "redirect_at": 0.7, "aim_point": _target(origin)})
+		"keine_crisis":
+			for side in [-1, 1]:
+				_fan(c, _point(0.86, 0.5 + side * 0.32), 18, PI + side * (0.5 + sin(turn) * 0.35), 1.6, 165, blue if side < 0 else red, "rice")
+		"keine_mirror":
+			for side in [-1, 1]:
+				_ring(c, origin + Vector2(-70, side * 80), 20, side * turn, 130, blue if side < 0 else green, "orb", {"bounces": 1, "angular_speed": side * 0.24})
+		"keine_legend":
+			for line in range(4):
+				_fan(c, _point(0.85, (line + 0.5) / 4.0), 13, PI + sin(turn + line) * 0.3, 1.3, 145, gold if line % 2 == 0 else red, "ofuda")
 		"night_bird":
 			_ring(c, origin, 28, turn, 120, red)
 			_fan(c, origin, 7, aimed, 0.5, 205, blue)
@@ -574,6 +607,84 @@ func _emit_nonspell(c: Dictionary) -> void:
 		"nonspell_mystia_song":
 			_fan(c, origin, 10 + extra * 2, aim, 1.6, 164 + stage * 12, COLORS[0], "note")
 			_ring(c, origin, 22 + extra * 2, turn, 108 + stage * 12, COLORS[4], "note", {"angular_speed": 0.18})
+
+
+func _emit_pressure(c: Dictionary) -> void:
+	var tier := int(c.card.get("pressure_tier", 1))
+	var wave := int(c.wave)
+	var turn := float(c.age) * (0.65 + tier * 0.17)
+	var origin := Vector2(c.center)
+	var aim := (_target(origin) - origin).angle()
+	match String(c.pattern):
+		"pressure_dark":
+			for lane in range(7):
+				if lane == (wave + tier) % 7:
+					continue
+				_fan(c, _point(0.93, (lane + 0.5) / 7.0), 3 + tier, PI + sin(turn) * 0.2, 0.28, 145, COLORS[4], "orb")
+		"pressure_fairy", "pressure_spring":
+			for wing in range(2 + tier):
+				var emitter := origin + Vector2.from_angle(turn + wing * TAU / (2 + tier)) * 70
+				_fan(c, emitter, 9, PI + sin(turn + wing) * 0.4, 1.0, 140, COLORS[3] if c.pattern == "pressure_fairy" else COLORS[0], "rice")
+		"pressure_ice":
+			for layer in range(1 + tier):
+				_fan(c, origin, 17, PI + (layer - tier * 0.5) * 0.25, 2.2, 145 + layer * 22, COLORS[1], "ice", {"freeze_at": 0.35, "thaw_at": 1.15, "thaw_angle": sin(turn) * 0.4})
+		"pressure_rainbow":
+			for petal in range(6):
+				_fan(c, origin, 3 + tier * 2, turn + petal * TAU / 6, 0.28 + tier * 0.1, 155, COLORS[petal], "rice", {"angular_speed": 0.23 * (-1 if wave % 2 else 1)})
+		"pressure_books", "pressure_elements":
+			for element in range(3 + tier):
+				var emitter := origin + Vector2.from_angle(turn + element * TAU / (3 + tier)) * 88
+				_fan(c, emitter, 7, PI, 1.6, 120 + element * 16, COLORS[element % 6], "ofuda")
+			if c.pattern == "pressure_elements" and wave % 3 == 0:
+				_beam(c, _point(0.9, 0.12), _point(0.1, 0.88), COLORS[2], 1.05, 9)
+		"pressure_knives":
+			for side in [-1, 1]:
+				_fan(c, origin + Vector2(-50, side * 80), 10 + tier * 3, aim + side * 0.4, 1.5, 210, COLORS[1], "knife", {"freeze_at": 0.2, "thaw_at": 0.95, "redirect_at": 0.96, "aim_point": _target(origin)})
+		"pressure_scarlet":
+			for spear in range(2 + tier):
+				var y := fmod(0.12 + spear * 0.21 + wave * 0.09, 0.88)
+				_beam(c, _point(0.96, y), _point(0.14, 1.0 - y), COLORS[0], 1.0, 10)
+			_fan(c, origin, 16, aim, 1.4, 160, COLORS[0], "rice")
+		"pressure_crystal":
+			for side in [-1, 1]:
+				_fan(c, origin, 9 + tier * 2, PI + side * (0.6 + sin(turn) * 0.2), 0.8, 205, COLORS[4], "orb", {"bounces": 2, "radius": 8.0})
+		"pressure_snow":
+			for flake in range(5 + tier):
+				_fan(c, _point(0.8, (flake + 0.5) / (5 + tier)), 5, PI + cos(turn + flake) * 0.35, 0.7, 105 + flake * 12, COLORS[1], "ice", {"angular_speed": sin(turn) * 0.25})
+		"pressure_shikigami", "pressure_fox":
+			for seal in range(3 + tier):
+				_fan(c, _point(0.83, 0.5 + sin(turn + seal * 2) * 0.38), 8, PI + sin(turn) * 0.6, 0.8, 185, COLORS[2], "ofuda", {"bounces": 1, "angular_speed": 0.16 if c.pattern == "pressure_fox" else 0.0})
+		"pressure_dolls":
+			for actor in c.actors:
+				var emitter := Vector2(actor.position)
+				_fan(c, emitter, 4 + tier, (_target(emitter) - emitter).angle(), 0.6, 145, COLORS[0], "rice")
+				if tier >= 2 and wave % 3 == 0:
+					_beam(c, emitter, _target(emitter), COLORS[1], 1.05, 7)
+		"pressure_music":
+			for voice in range(3):
+				_fan(c, _point(0.88, 0.2 + voice * 0.3), 8 + tier * 2, PI + sin(turn + voice) * 0.4, 1.3, 125 + voice * 35, COLORS[voice], "note", {"angular_speed": (voice - 1) * 0.32})
+		"pressure_sword":
+			for slash in range(1 + tier):
+				var y := fmod(0.15 + slash * 0.26 + wave * 0.12, 0.85)
+				_beam(c, _point(0.94, y), _point(0.12, 1.0 - y), COLORS[1], 0.9, 8)
+			_fan(c, origin + Vector2(-35, -45), 13, aim, 1.2, 180, COLORS[3], "rice")
+		"pressure_butterfly":
+			for wing in [-1, 1]:
+				_fan(c, origin + Vector2(-45, wing * 70), 12 + tier * 3, PI + wing * 0.4, 2.0, 120, COLORS[0] if wing < 0 else COLORS[4], "butterfly", {"angular_speed": wing * (0.18 + tier * 0.08)})
+		"pressure_boundary":
+			for gate in range(2 + tier):
+				var emitter := _point(0.65 + 0.15 * cos(turn + gate), 0.13 + gate * 0.72 / (1 + tier))
+				_fan(c, emitter, 10, (_target(emitter) - emitter).angle(), 1.1, 165, COLORS[4], "ofuda", {"redirect_at": 0.65, "aim_point": _target(emitter)})
+		"pressure_insects":
+			for insect in range(3 + tier):
+				var emitter := _point(0.87, 0.5 + sin(turn + insect * 2) * 0.35)
+				_ring(c, emitter, 12, turn, 105, COLORS[3], "orb", {"angular_speed": 0.45 if insect % 2 else -0.45, "radius": 4.0})
+		"pressure_song":
+			for chorus in range(2 + tier):
+				_fan(c, origin + Vector2(-chorus * 22, sin(turn + chorus) * 70), 12, PI + sin(turn) * 0.25, 1.8, 125 + chorus * 20, COLORS[0] if chorus % 2 else COLORS[2], "note")
+		"pressure_history":
+			for scroll in range(2 + tier):
+				_fan(c, _point(0.91, (scroll + 0.5) / (2 + tier)), 11, PI + sin(turn + scroll) * 0.25, 1.3, 145, COLORS[0] if scroll % 2 else COLORS[1], "ofuda", {"angular_speed": 0.15 if scroll % 2 else -0.15})
 
 
 func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary = {}) -> void:

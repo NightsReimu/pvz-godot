@@ -1,6 +1,8 @@
 extends RefCounted
 class_name TouhouSpellDefs
 
+const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
+
 # TH06/TH07 Normal routes, followed by Extra/Phantasm where specified.
 # Columns: reference ID, display name, pattern, animation pose.
 # Sources and the tower-defense adaptations are documented in docs/touhou-spells.md.
@@ -184,12 +186,13 @@ const NONSPELLS := {
 static func phases_for(kind: String, level: Dictionary = {}) -> Array:
 	var phases: Array = []
 	var originals: Array = []
-	for entry in cards_for(kind, level):
+	for base_entry in cards_for(kind, level):
+		var entry: Array = Difficulty.spell_variant(kind, level, base_entry)
 		if String(entry[0]).begins_with("original-"):
 			originals.append(entry)
 			continue
 		var attacks: Array = []
-		if NONSPELLS.has(kind) and not String(entry[0]).ends_with("nonspell") and String(entry[0]) != "th08-052":
+		if NONSPELLS.has(kind) and not String(entry[0]).ends_with("nonspell") and String(entry[2]) != "keine_takamagahara":
 			var opening: Array = NONSPELLS[kind]
 			attacks.append(["adapted-%s-nonspell" % kind, "非符 · %s" % opening[0], "nonspell_" + opening[1], opening[2]])
 		attacks.append(entry)
@@ -197,7 +200,7 @@ static func phases_for(kind: String, level: Dictionary = {}) -> Array:
 	if not originals.is_empty() and not phases.is_empty():
 		# Original interludes follow phase three, preserving the canonical finale.
 		phases[mini(2, phases.size() - 1)].append_array(originals)
-	return phases
+	return Difficulty.extend_phases(kind, level, phases)
 
 
 static func phase_count(kind: String, level: Dictionary = {}) -> int:
@@ -205,7 +208,10 @@ static func phase_count(kind: String, level: Dictionary = {}) -> int:
 
 
 static func card_from_entry(entry: Array) -> Dictionary:
-	return {"id": entry[0], "name": entry[1], "pattern": entry[2], "pose": entry[3], "origin": "original" if String(entry[0]).begins_with("original-") else ("nonspell" if String(entry[0]).ends_with("nonspell") else "canon")}
+	var card := {"id": entry[0], "name": entry[1], "pattern": entry[2], "pose": entry[3], "origin": "original" if String(entry[0]).begins_with("original-") else ("nonspell" if String(entry[0]).ends_with("nonspell") else "canon")}
+	if entry.size() > 4:
+		card.merge(entry[4])
+	return card
 
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
@@ -226,7 +232,7 @@ static func cards_for(kind: String, level: Dictionary = {}) -> Array:
 static func card_for(boss: Dictionary, level: Dictionary = {}) -> Dictionary:
 	var kind = String(boss.get("kind", ""))
 	if kind == "yuyuko_boss" and bool(boss.get("yuyuko_revived", false)):
-		return card_from_entry(REBIRTH)
+		return card_from_entry(Difficulty.spell_variant(kind, level, REBIRTH))
 	if boss.has("touhou_encounter"):
 		var encounter: Dictionary = boss.touhou_encounter
 		var attacks: Array = encounter.phases[int(encounter.index)]
