@@ -14,6 +14,7 @@ const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
 const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const TouhouDanmakuRuntime = preload("res://scripts/runtime/touhou_danmaku_runtime.gd")
 const TouhouPhaseRuntime = preload("res://scripts/runtime/touhou_phase_runtime.gd")
+const KeineBossRuntime = preload("res://scripts/runtime/keine_boss_runtime.gd")
 const ObjectiveRuntime = preload("res://scripts/runtime/objective_runtime.gd")
 const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
@@ -581,6 +582,8 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"pool_boss",
 	"wriggle_boss",
 	"mystia_boss",
+	"keine_boss",
+	"keine_bamboo",
 	"fog_boss",
 	"roof_boss",
 	"city_boss",
@@ -938,6 +941,7 @@ var plant_runtime: PlantRuntime
 var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
 var touhou_danmaku: TouhouDanmakuRuntime
+var keine_runtime: RefCounted
 var zombie_runtime: ZombieRuntime
 var objective_runtime: ObjectiveRuntime
 var save_dirty := false
@@ -1105,12 +1109,14 @@ func _is_mobile_runtime() -> bool:
 
 func _viewport_safe_rect() -> Rect2:
 	var viewport = size if size.x > 0.0 and size.y > 0.0 else BASE_VIEWPORT_SIZE
-	if not _is_mobile_runtime():
+	if not _is_mobile_runtime() or not (OS.has_feature("android") or OS.has_feature("ios")):
 		return Rect2(Vector2.ZERO, viewport)
 	var safe_area := DisplayServer.get_display_safe_area()
+	var window_size := Vector2(DisplayServer.window_get_size())
+	var safe_scale: Vector2 = viewport / window_size if window_size.x > 0 and window_size.y > 0 else Vector2.ONE
 	var safe_rect := Rect2(
-		Vector2(float(safe_area.position.x), float(safe_area.position.y)),
-		Vector2(float(safe_area.size.x), float(safe_area.size.y))
+		Vector2(float(safe_area.position.x), float(safe_area.position.y)) * safe_scale,
+		Vector2(float(safe_area.size.x), float(safe_area.size.y)) * safe_scale
 	)
 	if safe_rect.size.x <= 1.0 or safe_rect.size.y <= 1.0:
 		return Rect2(Vector2.ZERO, viewport)
@@ -1270,14 +1276,19 @@ func _refresh_battle_layout() -> void:
 	var is_mobile = _is_mobile_runtime()
 	var safe_rect = _viewport_safe_rect()
 	var compact_hud: bool = safe_rect.size.x < 1200.0
+	var short_hud: bool = compact_hud and safe_rect.size.y < 500.0
 	var left_margin = safe_rect.position.x + clampf(safe_rect.size.x * (0.035 if is_mobile else 0.09), 18.0 if is_mobile else 128.0, 64.0 if is_mobile else 188.0)
 	var right_margin = (viewport.x - safe_rect.end.x) + clampf(safe_rect.size.x * (0.018 if is_mobile else 0.08), 12.0 if is_mobile else 96.0, 38.0 if is_mobile else 176.0)
+	if short_hud and _is_keine_moonlit_forest_level():
+		right_margin = maxf(right_margin, safe_rect.size.x * 0.15)
 	var hud_top = safe_rect.position.y + (14.0 if is_mobile else BASE_SEED_BANK_RECT.position.y)
+	if short_hud:
+		hud_top = safe_rect.position.y + 6.0
 	var hud_left = safe_rect.position.x + (16.0 if is_mobile else BASE_SEED_BANK_RECT.position.x)
 	var hud_bottom = hud_top + BASE_SEED_BANK_RECT.size.y + 16.0
 	var top_margin = maxf(hud_bottom, clampf(safe_rect.size.y * (0.16 if is_mobile else 0.18), 108.0 if is_mobile else 120.0, 176.0 if is_mobile else 182.0) + safe_rect.position.y)
 	if compact_hud:
-		top_margin = hud_top + 148.0
+		top_margin = hud_top + (124.0 if short_hud else 148.0)
 	if not Dictionary(current_level.get("objective", {})).is_empty():
 		top_margin += 32.0
 	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 64.0, 82.0 if is_mobile else 112.0)
@@ -1318,9 +1329,9 @@ func _refresh_battle_layout() -> void:
 	PAUSE_BUTTON_RECT = Rect2(BACK_BUTTON_RECT.position.x - BASE_PAUSE_BUTTON_RECT.size.x - 14.0, button_row_y, BASE_PAUSE_BUTTON_RECT.size.x, BASE_PAUSE_BUTTON_RECT.size.y)
 	COIN_METER_RECT = Rect2(PAUSE_BUTTON_RECT.position.x - BASE_COIN_METER_RECT.size.x - 14.0, button_row_y + (BASE_COIN_METER_RECT.position.y - BASE_PAUSE_BUTTON_RECT.position.y), BASE_COIN_METER_RECT.size.x, BASE_COIN_METER_RECT.size.y)
 	if compact_hud:
-		SEED_BANK_RECT = Rect2(hud_left, hud_top, safe_rect.end.x - hud_left - 16, 84)
-		SUN_METER_RECT = Rect2(hud_left + 6, hud_top + 6, 80, 72)
-		var controls_y: float = hud_top + 92
+		SEED_BANK_RECT = Rect2(hud_left, hud_top, safe_rect.end.x - hud_left - 16, 62 if short_hud else 84)
+		SUN_METER_RECT = Rect2(hud_left + 6, hud_top + 6, 80, 50 if short_hud else 72)
+		var controls_y: float = hud_top + (70 if short_hud else 92)
 		PLANT_FOOD_RECT = Rect2(hud_left, controls_y, 96, 44)
 		WAVE_BAR_RECT = Rect2(PLANT_FOOD_RECT.end.x + 10, controls_y + 8, minf(300, SEED_BANK_RECT.size.x - 472), 28)
 		COIN_METER_RECT = Rect2(WAVE_BAR_RECT.end.x + 10, controls_y, 148, 44)
@@ -2033,6 +2044,8 @@ func _process(delta: float) -> void:
 	_update_zombies(delta)
 	if touhou_danmaku != null:
 		touhou_danmaku.update(delta)
+	if keine_runtime != null:
+		keine_runtime.update(delta)
 	if volcano_expansion != null or _is_volcano_level():
 		_ensure_volcano_expansion().update_world(delta)
 	_update_lava_cells(delta)
@@ -3085,6 +3098,8 @@ func _should_use_image2_zombie_texture(kind: String) -> bool:
 
 func _boss_frame_count_for_kind(kind: String) -> int:
 	match kind:
+		"keine_boss":
+			return 24
 		"rumia_boss":
 			return RUMIA_FRAME_COUNT
 		"daiyousei_boss":
@@ -3131,6 +3146,8 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 
 func _boss_frame_folder_for_kind(kind: String) -> String:
 	match kind:
+		"keine_boss":
+			return "res://art/keine"
 		"rumia_boss":
 			return "res://art/rumia"
 		"daiyousei_boss":
@@ -3686,6 +3703,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	var target_tab = tab if tab != "" else almanac_tab
 	if target_tab != "zombies":
 		return
+	_queue_boss_frame_set_prewarm("keine_boss")
 	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "lily_white_boss", "prismriver_boss", "youmu_boss", "yuyuko_boss", "ran_boss", "yukari_boss", "flandre_boss", "wriggle_boss", "mystia_boss"]:
 		_queue_boss_frame_set_prewarm(kind)
 
@@ -6987,6 +7005,8 @@ func _draw_enhance_scene() -> void:
 
 
 func _begin_level(level_index: int, chosen_cards: Array, level_override: Dictionary = {}) -> void:
+	if keine_runtime != null:
+		keine_runtime.reset()
 	selected_level_index = level_index
 	if not level_override.is_empty():
 		current_level = level_override.duplicate(true)
@@ -7807,6 +7827,11 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("米斯蒂娅·萝蕾拉端出夜雀食堂！", 3.0)
+		elif kind == "keine_boss":
+			_ensure_keine_runtime()
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.boss_bgm))
+			_show_banner("上白泽慧音封存了林间的历史！", 2.8)
 	elif kind == "pool_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
@@ -9363,6 +9388,12 @@ func _ensure_touhou_danmaku() -> TouhouDanmakuRuntime:
 	if touhou_danmaku == null:
 		touhou_danmaku = TouhouDanmakuRuntime.new(self)
 	return touhou_danmaku
+
+
+func _ensure_keine_runtime() -> RefCounted:
+	if keine_runtime == null:
+		keine_runtime = KeineBossRuntime.new(self)
+	return keine_runtime
 
 
 func _ensure_objective_runtime() -> ObjectiveRuntime:
@@ -12123,6 +12154,10 @@ func _update_zombies(delta: float) -> void:
 			zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), 0.45)
 		if float(zombie.get("corrode_timer", 0.0)) > 0.0 and float(zombie.get("corrode_dps", 0.0)) > 0.0:
 			zombie = _apply_zombie_damage(zombie, float(zombie["corrode_dps"]) * delta, 0.04)
+		if String(zombie.kind) == "keine_bamboo":
+			_ensure_keine_runtime().update_bamboo(zombie, delta)
+			zombies[i] = zombie
+			continue
 		if float(zombie.get("reflect_timer", 0.0)) > 0.0:
 			zombie["reflect_timer"] = maxf(0.0, float(zombie["reflect_timer"]) - delta)
 		elif String(zombie["kind"]) == "kungfu":
@@ -13334,6 +13369,8 @@ func _cleanup_dead_zombies() -> void:
 			continue
 		if touhou_danmaku != null and zombie.has("touhou_owner"):
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
+		if keine_runtime != null and String(zombie.kind) == "keine_boss":
+			keine_runtime.clear_owner(int(zombie.get("uid", -1)))
 		if String(zombie.get("kind", "")) == "yuyuko_boss" and bool(Defs.ZOMBIES["yuyuko_boss"].get("revive_once", false)) and not bool(zombie.get("yuyuko_revived", false)):
 			zombies[i] = _trigger_yuyuko_boss_revival(zombie)
 			continue
@@ -15516,6 +15553,13 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["dark_football", "hive_zombie", "wizard_zombie", "gargantuar", "bee_minion"],
 			]
 			tint = Color(1.0, 0.42, 0.68, 0.3)
+		"keine_boss":
+			pools = [
+				["conehead", "newspaper", "screen_door", "ninja"],
+				["buckethead", "nether", "football", "shade_zombie"],
+				["dark_football", "wizard_zombie", "ninja", "screen_door"],
+			]
+			tint = Color(0.65, 0.88, 0.71, 0.3)
 		"pool_boss":
 			pools = [
 				["lifebuoy_normal", "qinghua", "ice_block"],
@@ -16043,6 +16087,10 @@ func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
+	if String(zombie.kind) == "keine_boss":
+		zombie = _ensure_touhou_danmaku().cast(zombie)
+		_ensure_keine_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
+		return zombie
 	if zombie.has("touhou_encounter") and String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")).begins_with("nonspell_"):
 		return _ensure_touhou_danmaku().cast(zombie)
 	if String(zombie["kind"]) == "volcano_boss":
@@ -17239,6 +17287,8 @@ func _trigger_flandre_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 
 
 func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
+	if String(zombie.kind) == "keine_boss" and keine_runtime != null:
+		keine_runtime.cancel_cast(int(zombie.get("uid", -1)))
 	if TouhouSpellDefs.CARDS.has(String(zombie.get("kind", ""))):
 		if touhou_danmaku != null and zombie.has("touhou_owner"):
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
@@ -19128,6 +19178,10 @@ func _is_forest_of_magic_level() -> bool:
 
 func _is_mystia_night_food_stand_level() -> bool:
 	return String(current_level.get("terrain", "")) == "mystia_night_food_stand"
+
+
+func _is_keine_moonlit_forest_level() -> bool:
+	return String(current_level.get("terrain", "")) == "keine_moonlit_forest"
 
 
 func _is_cloud_sea_level() -> bool:
@@ -21881,6 +21935,11 @@ func _ambient_light_for_level() -> Dictionary:
 		tint_alpha = 0.10
 		shadow_tint = Color(0.14, 0.02, 0.05)
 		shadow_alpha = 0.10
+	elif _is_keine_moonlit_forest_level():
+		tint = Color(0.48, 0.7, 0.65)
+		tint_alpha = 0.065
+		shadow_tint = Color(0.01, 0.015, 0.025)
+		shadow_alpha = 0.14
 	elif _is_mystia_night_food_stand_level():
 		tint = Color(0.52, 0.2, 0.42)
 		tint_alpha = 0.08
@@ -22004,6 +22063,8 @@ func _draw_battle_scene() -> void:
 	glow_draw_offset = combat_draw_offset
 	_set_combat_transform()
 	_draw_battle_board()
+	if _is_keine_moonlit_forest_level():
+		_ensure_keine_runtime().draw_ground()
 	_draw_hover()
 	_draw_mowers()
 	_draw_lane_obstacles()
@@ -22020,6 +22081,8 @@ func _draw_battle_scene() -> void:
 	_draw_effects()
 	if touhou_danmaku != null:
 		touhou_danmaku.draw()
+	if keine_runtime != null:
+		keine_runtime.draw_overlay()
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
 	combat_draw_offset = Vector2.ZERO
@@ -22105,7 +22168,9 @@ func _draw_endless_bonus_overlay() -> void:
 
 
 func _draw_battle_background() -> void:
-	if _is_hakugyokurou_border_level():
+	if _is_keine_moonlit_forest_level():
+		_ensure_keine_runtime().draw_background()
+	elif _is_hakugyokurou_border_level():
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, Vector2(size.x, 176.0)), Color(0.015, 0.02, 0.09), Color(0.13, 0.09, 0.24))
 		ThemeLib.draw_glow_circle(self, Vector2(122.0, 70.0), 42.0, Color(1.0, 0.94, 0.72), 6)
 		draw_circle(Vector2(122.0, 70.0), 30.0, Color(1.0, 0.97, 0.84, 0.88))
@@ -23132,7 +23197,9 @@ func _draw_battle_board() -> void:
 			continue
 
 		var lane_color := Color(0.39, 0.75, 0.31) if row % 2 == 0 else Color(0.34, 0.68, 0.26)
-		if _is_blood_moon_level():
+		if _is_keine_moonlit_forest_level():
+			lane_color = Color("284c36") if row % 2 == 0 else Color("23432f")
+		elif _is_blood_moon_level():
 			lane_color = Color(0.46, 0.08, 0.12) if row % 2 == 0 else Color(0.38, 0.05, 0.08)
 		elif _is_blood_library_level():
 			lane_color = Color(0.34, 0.06, 0.12) if row % 2 == 0 else Color(0.28, 0.04, 0.1)
@@ -23271,7 +23338,10 @@ func _draw_battle_board() -> void:
 			var tile = _cell_rect(row, col).grow(-2.0)
 			var tint = Color(1.0, 1.0, 1.0, 0.03) if (row + col) % 2 == 0 else Color(0.0, 0.0, 0.0, 0.02)
 			var border_color = Color(0.16, 0.35, 0.12, 0.22)
-			if _is_blood_moon_level():
+			if _is_keine_moonlit_forest_level():
+				tint = Color(0.65, 0.78, 0.51, 0.04) if (row + col) % 2 == 0 else Color(0, 0.05, 0.02, 0.08)
+				border_color = Color(0.65, 0.78, 0.6, 0.15)
+			elif _is_blood_moon_level():
 				tint = Color(1.0, 0.22, 0.28, 0.04) if (row + col) % 2 == 0 else Color(0.0, 0.0, 0.0, 0.06)
 				border_color = Color(0.44, 0.08, 0.08, 0.24)
 			elif _is_blood_library_level():
@@ -23629,8 +23699,9 @@ func _draw_seed_bank() -> void:
 	var value_font_size = 20 if _is_conveyor_level() else 28
 	while value_font_size > 12 and ui_font.get_string_size(meter_value, HORIZONTAL_ALIGNMENT_LEFT, -1.0, value_font_size).x > SUN_METER_RECT.size.x - 12.0:
 		value_font_size -= 1
-	ThemeLib.draw_label(self, ui_font, Rect2(SUN_METER_RECT.position + Vector2(6, 4), Vector2(SUN_METER_RECT.size.x - 12, 26)), meter_label, 18, Color(0.33, 0.21, 0.04), HORIZONTAL_ALIGNMENT_CENTER)
-	ThemeLib.draw_label(self, ui_font, Rect2(SUN_METER_RECT.position + Vector2(6, 32), Vector2(SUN_METER_RECT.size.x - 12, SUN_METER_RECT.size.y - 36)), meter_value, value_font_size, Color(0.33, 0.21, 0.04), HORIZONTAL_ALIGNMENT_CENTER)
+	var meter_half: float = (SUN_METER_RECT.size.y - 8) * 0.5
+	ThemeLib.draw_label(self, ui_font, Rect2(SUN_METER_RECT.position + Vector2(6, 4), Vector2(SUN_METER_RECT.size.x - 12, meter_half)), meter_label, 18, Color(0.33, 0.21, 0.04), HORIZONTAL_ALIGNMENT_CENTER)
+	ThemeLib.draw_label(self, ui_font, Rect2(SUN_METER_RECT.position + Vector2(6, 4 + meter_half), Vector2(SUN_METER_RECT.size.x - 12, meter_half)), meter_value, value_font_size, Color(0.33, 0.21, 0.04), HORIZONTAL_ALIGNMENT_CENTER)
 
 	var mouse_pos = get_local_mouse_position()
 	for index in range(active_cards.size()):
@@ -23662,7 +23733,7 @@ func _draw_seed_bank() -> void:
 			draw_rect(draw_rect_local.grow(6.0), Color(1.0, 0.92, 0.22, 0.08 * card_pulse), true)
 			draw_rect(draw_rect_local.grow(2.0), Color(1.0, 0.9, 0.18), false, 4.0)
 
-		_draw_card_icon(kind, draw_rect_local.get_center(), minf(1, (draw_rect_local.size.y - 36) / 52.0))
+		_draw_card_icon(kind, draw_rect_local.get_center() + Vector2(0, 5 if _is_conveyor_level() else 0), minf(1, (draw_rect_local.size.y - (24 if _is_conveyor_level() else 36)) / 52.0))
 
 		if not _is_conveyor_level() and not affordable and float(card_cooldowns[kind]) <= 0.01:
 			draw_rect(draw_rect_local, Color(0.0, 0.0, 0.0, 0.24), true)
@@ -23705,7 +23776,10 @@ func _draw_seed_bank() -> void:
 	_draw_panel_shell(shovel_rect, Color(0.91, 0.88, 0.79), Color(0.38, 0.28, 0.16), 0.08, 0.04)
 	if selected_tool == "shovel":
 		draw_rect(shovel_rect.grow(2.0), Color(1.0, 0.9, 0.18), false, 4.0)
-	_draw_shovel_icon(shovel_rect.get_center() + Vector2(0, -8))
+	var shovel_scale := minf(1.0, (shovel_rect.size.y - 24) / 62.0)
+	_set_combat_transform(shovel_rect.position + Vector2(shovel_rect.size.x * 0.5, (shovel_rect.size.y - 20) * 0.5), 0, Vector2.ONE * shovel_scale)
+	_draw_shovel_icon(Vector2.ZERO)
+	_set_combat_transform()
 	ThemeLib.draw_label(self, ui_font, Rect2(shovel_rect.position + Vector2(4, shovel_rect.size.y - 23), Vector2(shovel_rect.size.x - 8, 20)), "铲子", 16, Color(0.26, 0.19, 0.08), HORIZONTAL_ALIGNMENT_CENTER)
 
 	_draw_panel_shell(PLANT_FOOD_RECT, Color(0.84, 0.96, 0.76), Color(0.2, 0.54, 0.14), 0.08, 0.05)
@@ -30500,8 +30574,14 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _wriggle_frame_index(zombie)
 		"mystia_boss":
 			return _mystia_frame_index(zombie)
+		"keine_boss":
+			return _keine_frame_index(zombie)
 		_:
 			return 0
+
+
+func _keine_frame_index(zombie: Dictionary) -> int:
+	return _ensure_keine_runtime().frame_index(zombie)
 
 
 func _wriggle_frame_index(zombie: Dictionary) -> int:
@@ -30521,7 +30601,9 @@ func _wriggle_frame_index(zombie: Dictionary) -> int:
 
 func _mystia_frame_index(zombie: Dictionary) -> int:
 	var phase = float(zombie.get("anim_phase", 0.0))
-	var state = String(zombie.get("mystia_state", "idle"))
+	var state = String(zombie.get("rumia_state", zombie.get("mystia_state", "idle")))
+	if float(zombie.get("mystia_cooking_timer", 0.0)) > 0.0:
+		state = "cook"
 	var offset := 0
 	match state:
 		"song": offset = 3
@@ -32504,6 +32586,12 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "mystia_boss":
 		_draw_mystia_boss(center + Vector2(0.0, -10.0), zombie)
+		return
+	if kind == "keine_boss":
+		_ensure_keine_runtime().draw_boss(center, zombie)
+		return
+	if kind == "keine_bamboo":
+		_ensure_keine_runtime().draw_bamboo(center, zombie)
 		return
 	var base_speed = float(zombie.get("base_speed", Defs.ZOMBIES[kind].get("speed", 18.0)))
 	if float(zombie.get("slow_timer", 0.0)) > 0.0:

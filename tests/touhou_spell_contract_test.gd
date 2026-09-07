@@ -114,7 +114,8 @@ func _test_every_spell_has_live_pattern() -> void:
 			game.zombies[0] = game._trigger_boss_skill(game.zombies[0])
 			var runtime = game.touhou_danmaku
 			check(runtime != null and runtime.casts.size() == 1, "%s/%d must use the live spell runtime" % [kind, cycle])
-			check(not runtime.bullets.is_empty() or not runtime.beams.is_empty() or game.zombies.size() > 1, "%s/%d must emit bullets, beams or the original wraith entities" % [kind, cycle])
+			var warned_attack: bool = game.keine_runtime != null and not game.keine_runtime.attacks.is_empty()
+			check(not runtime.bullets.is_empty() or not runtime.beams.is_empty() or game.zombies.size() > 1 or warned_attack, "%s/%d must emit bullets, beams, summons or a collision-bearing attack telegraph" % [kind, cycle])
 			check(float(game.grid[2][3].health) == hp, "%s/%d must not deal invisible instant area damage on declaration" % [kind, cycle])
 			check(String(game._boss_cast_status(game.zombies[0]).text).contains(String(game.zombies[0].touhou_card.name)), "HUD must show the same card that is executing")
 			runtime.update(0.12)

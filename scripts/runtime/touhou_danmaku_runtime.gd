@@ -229,6 +229,36 @@ func _emit_wave(c: Dictionary) -> void:
 		"demarcation":
 			for side in [-1, 1]:
 				_fan(c, origin + Vector2(0, side * 44), 17, PI + side * 0.42, 1.3, 160, red if side < 0 else blue)
+		"keine_ephemerality":
+			# Expanding, staggered red/blue rings evoke the brief imperial history.
+			for layer in range(3):
+				_ring(c, origin, 18, turn * 0.35 + layer * 0.065, 90 + layer * 32, red if layer % 2 == 0 else blue, "orb", {"radius": 5.0})
+		"keine_masakado":
+			for side in [-1, 1]:
+				var emitter: Vector2 = origin + Vector2(-35 - wave * 10, side * (60 + wave * 9))
+				_fan(c, emitter, 14, PI + side * (0.34 + turn * 0.12), 1.0, 175, blue if side < 0 else red, "rice")
+		"keine_treasures":
+			for jewel in range(3):
+				var emitter: Vector2 = origin + Vector2.from_angle(turn + jewel * TAU / 3.0) * 72
+				for strand in range(3):
+					_fan(c, emitter, 8, PI + sin(turn + jewel * 2) * 0.6, 1.9, 92 + strand * 27, green if strand % 2 == 0 else blue, "orb", {"angular_speed": 0.32 if jewel % 2 == 0 else -0.32, "radius": 5.0})
+		"keine_emperor":
+			_ring(c, origin, 36, turn * 0.45, 110, gold, "rice")
+			for light in range(5):
+				var emitter: Vector2 = origin + Vector2(-26, (light - 2) * 25)
+				_fan(c, emitter, 7, PI + sin(turn + light * 0.18) * 0.32, 1.5, 125 + light * 14, red if light % 2 == 0 else gold, "ofuda")
+		"keine_takamagahara":
+			# Delayed intersecting light pillars with changing gaps between volleys.
+			if wave % 2 == 0:
+				for pillar in range(5):
+					var x := 0.13 + pillar * 0.17 + (0.055 if wave % 4 == 2 else 0.0)
+					_beam(c, _point(x, 0.02), _point(x - 0.06, 0.98), blue if pillar % 2 == 0 else gold, 1.1, 11, {"damage": 74.0})
+				_fan(c, origin, 21, PI, 2.1, 145, gold, "ofuda")
+			else:
+				_ring(c, origin, 30, turn, 128, red, "rice")
+		"keine_whip", "keine_piano", "keine_bamboo":
+			# Gameplay and telegraphs for these original attacks live in Keine's runtime.
+			pass
 		"fairy_aim", "spring_nonspell":
 			_fan(c, origin, 15 if p == "spring_nonspell" else 9, aimed, 1.4, 175, gold if p == "spring_nonspell" else green)
 			if p == "spring_nonspell":
@@ -483,6 +513,9 @@ func _emit_nonspell(c: Dictionary) -> void:
 		"nonspell_dark_fan":
 			for side in [-1, 1]:
 				_fan(c, origin + Vector2(0, side * 32), 7 + extra, aim + side * 0.25, 0.75, 140, COLORS[0] if side < 0 else COLORS[1])
+		"nonspell_keine_scrolls":
+			for side in [-1, 1]:
+				_fan(c, origin + Vector2(0, side * 45), 9 + extra, PI + side * (0.24 + sin(turn) * 0.18), 1.5, 150 + stage * 8, COLORS[0] if side < 0 else COLORS[1], "ofuda")
 		"nonspell_ice_fan":
 			for layer in range(3):
 				_fan(c, origin, 5 + extra, PI + sin(turn) * 0.35, 1.4, 110 + layer * 30, COLORS[1], "ice")

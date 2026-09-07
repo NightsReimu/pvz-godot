@@ -132,6 +132,16 @@ const CARDS := {
 		["th08-11", "声符「木菟咆哮」", "mystia_crescendo", "crescendo"],
 		["th08-12", "终符「夜雀食堂」", "mystia_finale", "final"],
 	],
+	"keine_boss": [
+		["th08-037", "始符「短命的137」", "keine_ephemerality", "history"],
+		["th08-041", "野符「将门危机」", "keine_masakado", "edict"],
+		["th08-045", "国符「三种神器·玉」", "keine_treasures", "treasures"],
+		["th08-049", "终符「幻想天皇」", "keine_emperor", "emperor"],
+		["th08-052", "未来「高天原」", "keine_takamagahara", "final"],
+		["original-keine-whip", "教令「环身戒鞭」", "keine_whip", "whip"],
+		["original-keine-piano", "夜课「月下琴律」", "keine_piano", "piano"],
+		["original-keine-bamboo", "改史「逆心竹阵」", "keine_bamboo", "bamboo"],
+	],
 }
 
 const PATCHOULI_EXTRA := [
@@ -167,6 +177,7 @@ const NONSPELLS := {
 	"yukari_boss": ["八云紫", "gap_crossfire", "boundary"],
 	"wriggle_boss": ["莉格露·奈特巴格", "wriggle_night_swarm", "firefly"],
 	"mystia_boss": ["米斯蒂娅·萝蕾拉", "mystia_song", "song"],
+	"keine_boss": ["上白泽慧音", "keine_scrolls", "history"],
 }
 
 
@@ -178,13 +189,13 @@ static func phases_for(kind: String, level: Dictionary = {}) -> Array:
 			originals.append(entry)
 			continue
 		var attacks: Array = []
-		if NONSPELLS.has(kind) and not String(entry[0]).ends_with("nonspell"):
+		if NONSPELLS.has(kind) and not String(entry[0]).ends_with("nonspell") and String(entry[0]) != "th08-052":
 			var opening: Array = NONSPELLS[kind]
 			attacks.append(["adapted-%s-nonspell" % kind, "非符 · %s" % opening[0], "nonspell_" + opening[1], opening[2]])
 		attacks.append(entry)
 		phases.append(attacks)
 	if not originals.is_empty() and not phases.is_empty():
-		# Youmu's original charm follows the third sword, preserving the last sword's finale.
+		# Original interludes follow phase three, preserving the canonical finale.
 		phases[mini(2, phases.size() - 1)].append_array(originals)
 	return phases
 

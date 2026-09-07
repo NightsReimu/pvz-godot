@@ -58,6 +58,8 @@ func _run() -> void:
 			battle._refresh_battle_layout()
 			var safe: Rect2 = battle._viewport_safe_rect()
 			check(safe.encloses(Rect2(battle.BOARD_ORIGIN, battle.board_size)), "All %d battle rows must fit at %s" % [row_count, viewport])
+			if viewport.y <= 450:
+				check(battle.board_size.y >= viewport.y * 0.5, "Small landscape boards must retain at least half the viewport for gameplay")
 			for index in range(10):
 				check(battle.SEED_BANK_RECT.encloses(battle._card_rect(index)), "Every battle card must stay inside the seed bank")
 			check(battle.SEED_BANK_RECT.encloses(battle._shovel_rect()), "Shovel must remain inside the seed bank")
