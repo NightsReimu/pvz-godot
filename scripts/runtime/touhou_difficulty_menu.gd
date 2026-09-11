@@ -150,7 +150,7 @@ func draw() -> void:
 			attacks += 1
 	var info_y := panel.end.y - 104
 	_label(Rect2(Vector2(panel.position.x + 24, info_y), Vector2(panel.size.x - 48, 24)), "终末 %d 阶段 · %d 招式    Boss 生命 x%.1f    追加 %d 波" % [phases, attacks, float(settings.health), int(settings.waves)], 16, Color("dce5dc"))
-	_label(Rect2(Vector2(panel.position.x + 24, info_y + 25), Vector2(panel.size.x - 48, 20)), "弹幕密度 x%.2f    弹幕伤害 x%.2f" % [float(settings.density), float(settings.damage)], 14, Color("a9bfb0"))
+	_label(Rect2(Vector2(panel.position.x + 24, info_y + 25), Vector2(panel.size.x - 48, 20)), "弹幕密度 x%.2f    Boss伤害 x%.2f" % [float(settings.density), Difficulty.boss_damage_multiplier(chosen)], 14, Color("a9bfb0"))
 	var start := start_rect()
 	game.draw_rect(start, Color(settings.color))
 	_label(start.grow(-10), "选择植物" if settings.select else "开始战斗", 18, Color("17231d"))

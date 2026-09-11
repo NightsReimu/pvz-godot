@@ -4,6 +4,7 @@ const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 
 
 func _run() -> void:
+	_test_boss_damage_scaling()
 	_test_level_overrides()
 	for kind in Difficulty.EXTENSIONS:
 		_test_higher_route(kind)
@@ -12,6 +13,14 @@ func _run() -> void:
 	_test_pressure_scaling()
 	print("Touhou difficulty routes, immutable levels and live attacks: %d failure(s)" % failures)
 	quit(1 if failures else 0)
+
+
+func _test_boss_damage_scaling() -> void:
+	var expected := {"easy": 0.70, "normal": 0.78, "hard": 0.90, "lunatic": 1.02, "extra": 0.70, "extra_plus": 0.98}
+	for choice in expected:
+		var level := {"events": [{"kind": "rumia_boss"}], "touhou_difficulty": choice}
+		check(is_equal_approx(float(Difficulty.boss_damage_multiplier(level)), float(expected[choice])), "%s must use the reduced, displayed Touhou Boss damage multiplier" % choice)
+	check(is_equal_approx(float(Difficulty.boss_damage_multiplier({"events": [{"kind": "basic"}]})), 1.0), "Non-Touhou levels must retain their damage values")
 
 
 func _test_level_overrides() -> void:

@@ -163,7 +163,7 @@ func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: 
 	var b := {"owner": int(c.owner), "kind": String(c.kind), "position": origin, "velocity": Vector2.from_angle(angle) * speed * intensity, "age": 0.0, "life": 7.0, "radius": DANMAKU_BASE_RADIUS, "damage": DANMAKU_BASE_DAMAGE + float(c.get("phase", 0)) * DANMAKU_PHASE_DAMAGE, "color": color, "shape": shape}
 	b.merge(extra, true)
 	b.velocity *= float(Difficulty.profile(game.current_level).speed)
-	b.damage *= float(Difficulty.profile(game.current_level).damage)
+	b.damage *= Difficulty.boss_damage_multiplier(game.current_level)
 	bullets.append(b)
 
 
@@ -183,7 +183,7 @@ func _beam(c: Dictionary, from: Vector2, to: Vector2, color: Color, delay: float
 	if beams.size() < MAX_BEAMS:
 		var beam := {"owner": int(c.owner), "kind": String(c.kind), "from": from, "to": to, "color": color, "age": 0.0, "delay": delay, "duration": 0.38, "width": width, "damage": 68.0 + float(c.phase) * 8.0, "hits": []}
 		beam.merge(extra, true)
-		beam.damage *= float(Difficulty.profile(game.current_level).damage)
+		beam.damage *= Difficulty.boss_damage_multiplier(game.current_level)
 		beams.append(beam)
 
 
@@ -774,13 +774,13 @@ func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float
 			if closest.distance_squared_to(center) > pow(radius + minf(game.CELL_SIZE.x, game.CELL_SIZE.y) * 0.22, 2):
 				continue
 			if not stop_at_first:
-				game._damage_plant_cell(cell.x, cell.y, damage)
+				game._damage_plant_cell(cell.x, cell.y, damage, 0.0, true)
 				hit_cells.append(cell)
 			elif from.distance_squared_to(center) < distance:
 				distance = from.distance_squared_to(center)
 				nearest = cell
 	if nearest.x >= 0:
-		game._damage_plant_cell(nearest.x, nearest.y, damage)
+		game._damage_plant_cell(nearest.x, nearest.y, damage, 0.0, true)
 		return true
 	return not hit_cells.is_empty()
 

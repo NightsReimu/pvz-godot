@@ -174,7 +174,7 @@ func update_bamboo(unit: Dictionary, delta: float) -> void:
 
 
 func _hit_segment(from: Vector2, to: Vector2, radius: float, damage: float, hits: Array, sleep: float = 0.0, first_only: bool = true) -> bool:
-	damage *= float(game.TouhouDifficulty.profile(game.current_level).damage)
+	damage *= float(game.TouhouDifficulty.boss_damage_multiplier(game.current_level))
 	var candidates: Array[Dictionary] = []
 	for row in game.active_rows:
 		for col in range(game.COLS):
@@ -189,7 +189,7 @@ func _hit_segment(from: Vector2, to: Vector2, radius: float, damage: float, hits
 	candidates.sort_custom(func(a, b): return float(a.distance) < float(b.distance))
 	for candidate in candidates:
 		var cell := Vector2i(candidate.cell)
-		game._damage_plant_cell(cell.x, cell.y, damage, 0.8 if sleep == 0.0 else sleep)
+		game._damage_plant_cell(cell.x, cell.y, damage, 0.8 if sleep == 0.0 else sleep, true)
 		var plant = game._targetable_plant_at(cell.x, cell.y)
 		if sleep > 0.0 and plant != null and float(plant.get("holy_invincible_timer", 0.0)) <= 0.0:
 			plant["sleep_timer"] = maxf(float(plant.get("sleep_timer", 0.0)), sleep)

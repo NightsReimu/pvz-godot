@@ -15700,6 +15700,8 @@ func _update_boss_reinforcements(zombie: Dictionary, delta: float) -> Dictionary
 
 
 func _damage_plants_in_row_segment(row: int, min_x: float, max_x: float, damage: float) -> bool:
+	if current_level.has("touhou_difficulty"):
+		damage *= TouhouDifficulty.boss_damage_multiplier(current_level)
 	var hit := false
 	for col in range(COLS):
 		var plant_variant = _targetable_plant_at(row, col)
@@ -15726,7 +15728,9 @@ func _damage_plants_in_row_segment(row: int, min_x: float, max_x: float, damage:
 	return hit
 
 
-func _damage_plant_cell(row: int, col: int, damage: float, extra_cooldown: float = 0.0) -> bool:
+func _damage_plant_cell(row: int, col: int, damage: float, extra_cooldown: float = 0.0, damage_already_scaled: bool = false) -> bool:
+	if not damage_already_scaled and current_level.has("touhou_difficulty"):
+		damage *= TouhouDifficulty.boss_damage_multiplier(current_level)
 	var plant_variant = _targetable_plant_at(row, col)
 	if plant_variant == null:
 		return false
@@ -17835,6 +17839,8 @@ func _trigger_night_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 
 
 func _damage_front_plant_in_row(row: int, damage: float) -> void:
+	if current_level.has("touhou_difficulty"):
+		damage *= TouhouDifficulty.boss_damage_multiplier(current_level)
 	for col in range(COLS - 1, -1, -1):
 		var plant = _targetable_plant_at(row, col)
 		if plant == null:
@@ -18380,6 +18386,8 @@ func _damage_obstacles_in_circle(center: Vector2, radius: float, damage: float) 
 
 
 func _damage_plants_in_circle(center: Vector2, radius: float, damage: float) -> bool:
+	if current_level.has("touhou_difficulty"):
+		damage *= TouhouDifficulty.boss_damage_multiplier(current_level)
 	var hit := false
 	for row in range(ROWS):
 		for col in range(COLS):
