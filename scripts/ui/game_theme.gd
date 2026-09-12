@@ -104,26 +104,17 @@ static func draw_glow_circle(canvas: CanvasItem, center: Vector2, radius: float,
 
 # --- Rounded Panel (improved draw_panel_shell) ---
 
-static func draw_rounded_panel(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, _corner_radius: float = 8.0, shadow_alpha: float = 0.22, accent_alpha: float = 0.16) -> void:
-	# Soft shadow
-	draw_soft_shadow(canvas, rect, Color(0.0, 0.0, 0.0, shadow_alpha * 0.45), 1, 2.0, 2.0)
-	# Main fill with gradient
-	var top_color = fill_color.lerp(Color.WHITE, 0.015)
-	var bottom_color = fill_color.darkened(0.025)
-	draw_gradient_rect_v(canvas, rect, top_color, bottom_color)
-	# Top highlight band
-	var highlight_rect = Rect2(rect.position + Vector2(3.0, 3.0), Vector2(maxf(0.0, rect.size.x - 6.0), 1.0))
-	canvas.draw_rect(highlight_rect, Color(1.0, 1.0, 1.0, accent_alpha * 0.6), true)
-	# Bottom darkened band
-	var bottom_band = Rect2(rect.position + Vector2(0.0, rect.size.y - 1.0), Vector2(rect.size.x, 1.0))
-	canvas.draw_rect(bottom_band, Color(0.0, 0.0, 0.0, 0.06), true)
-	# Inner glow line
-	canvas.draw_rect(rect.grow(-2.0), Color(1.0, 1.0, 1.0, accent_alpha * 0.12), false, 1.0)
-	# Border
-	canvas.draw_rect(rect, border_color, false, 2.0)
+static func draw_rounded_panel(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, corner_radius: float = 8.0, shadow_alpha: float = 0.22, _accent_alpha: float = 0.16) -> void:
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = fill_color
+	panel.border_color = Color(border_color, border_color.a * 0.55)
+	panel.set_border_width_all(1)
+	panel.set_corner_radius_all(roundi(minf(corner_radius, minf(rect.size.x, rect.size.y) * 0.5)))
+	panel.shadow_color = Color(0.015, 0.035, 0.025, shadow_alpha * 0.65)
+	panel.shadow_size = 5 if shadow_alpha > 0.05 else 0
+	panel.shadow_offset = Vector2(0, 3)
+	canvas.draw_style_box(panel, rect)
 
-
-# --- Legacy panel shell (kept for compatibility, delegates to rounded) ---
 
 static func draw_panel_shell(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, shadow_alpha: float = 0.22, accent_alpha: float = 0.16) -> void:
 	draw_rounded_panel(canvas, rect, fill_color, border_color, 10.0, shadow_alpha, accent_alpha)
@@ -132,68 +123,13 @@ static func draw_panel_shell(canvas: CanvasItem, rect: Rect2, fill_color: Color,
 # --- Fancy Button (glossy, with hover/press states) ---
 
 static func draw_fancy_button(canvas: CanvasItem, rect: Rect2, label: String, font: Font, fill_color: Color, border_color: Color, hovered: bool = false, pressed: bool = false, font_size: int = 22) -> void:
-	# Pressed: sink down + darken + shrink. Hover: lift up + brighten + grow.
-	var draw_rect = rect
-	var lift = 0.0
-	var scale_adjust = 0.0
-	if pressed:
-		lift = 2.0  # sink down
-		scale_adjust = -2.0  # shrink
-		draw_rect = rect.grow_individual(scale_adjust, scale_adjust, scale_adjust, scale_adjust)
-		draw_rect.position.y += lift
-	elif hovered:
-		lift = -2.0  # lift up
-		scale_adjust = 1.0  # grow
-		draw_rect = rect.grow_individual(scale_adjust, scale_adjust, scale_adjust, scale_adjust)
-		draw_rect.position.y += lift
+	var surface := rect
+	surface.position.y += 1.0 if pressed else (-2.0 if hovered else 0.0)
+	var fill := fill_color.darkened(0.08) if pressed else fill_color.lightened(0.065 if hovered else 0.0)
+	draw_rounded_panel(canvas, surface, fill, border_color, 12.0, 0.12 if hovered else 0.08)
+	var text_color := Color("f6f3e8") if fill_color.get_luminance() < 0.4 else fill_color.darkened(0.72)
+	draw_label(canvas, font, surface.grow_individual(-12, -4, -12, -4), label, font_size, text_color, HORIZONTAL_ALIGNMENT_CENTER)
 
-	# Soft drop shadow (weaker when pressed, stronger when hovered)
-	var shadow_offset_y = 3.0 if not pressed else 1.0
-	var shadow_alpha = 0.12 if hovered else 0.08
-	draw_soft_shadow(canvas, draw_rect, Color(0.0, 0.0, 0.0, shadow_alpha), 1, 2.0, shadow_offset_y)
-
-	# Hover halo glow ring
-	if hovered and not pressed:
-		var glow_pulse = 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.005)
-		for gi in range(3):
-			var gt = float(gi + 1) / 3.0
-			canvas.draw_rect(draw_rect.grow(2.0 + gt * 4.0), Color(1.0, 0.96, 0.72, 0.05 * glow_pulse * (1.0 - gt)), false, 2.0)
-
-	# Fill: vertical gradient (top brighter, bottom darker) — press darkens whole thing
-	var bright = 0.08 if hovered and not pressed else 0.02
-	var dark_amt = 0.04 if not pressed else 0.14
-	var top = fill_color.lerp(Color.WHITE, bright)
-	var bottom = fill_color.darkened(dark_amt)
-	draw_gradient_rect_v(canvas, draw_rect, top, bottom)
-
-	# Top glossy highlight band (rounded feel) — dimmer when pressed
-	var gloss_h = 2.0
-	var gloss_rect = Rect2(draw_rect.position + Vector2(3.0, 2.0), Vector2(maxf(0.0, draw_rect.size.x - 6.0), gloss_h))
-	var gloss_alpha = 0.22 if hovered and not pressed else (0.10 if pressed else 0.16)
-	canvas.draw_rect(gloss_rect, Color(1.0, 1.0, 1.0, gloss_alpha), true)
-
-	# Gloss fade line under highlight
-	canvas.draw_line(
-		draw_rect.position + Vector2(4.0, gloss_h + 2.0),
-		draw_rect.position + Vector2(draw_rect.size.x - 4.0, gloss_h + 2.0),
-		Color(1.0, 1.0, 1.0, 0.08 if not pressed else 0.04), 1.0)
-
-	# Inner highlight border (light, inset) — darker when pressed
-	var inner_alpha = 0.14 if hovered and not pressed else (0.06 if pressed else 0.1)
-	canvas.draw_rect(draw_rect.grow(-1.0), Color(1.0, 1.0, 1.0, inner_alpha), false, 1.0)
-
-	# Outer border — thicker when hovered, same when pressed
-	var border_w = 2.4 if hovered else 2.0
-	canvas.draw_rect(draw_rect, border_color, false, border_w)
-
-	# Fit text to the button's padded content area.
-	var text_color = Color(0.97, 0.97, 0.93) if fill_color.v < 0.6 else fill_color.darkened(0.62)
-	if pressed:
-		text_color = text_color.darkened(0.18)
-	draw_label(canvas, font, draw_rect.grow_individual(-10, -4, -10, -4), label, font_size, text_color, HORIZONTAL_ALIGNMENT_CENTER)
-
-
-# --- Grass Detail ---
 
 static func draw_grass_tufts(canvas: CanvasItem, rect: Rect2, ui_time: float, density: int = 6, color: Color = Color(0.36, 0.62, 0.22)) -> void:
 	var step = rect.size.x / float(maxf(density, 1))
@@ -429,28 +365,12 @@ static func draw_text_with_shadow(canvas: CanvasItem, font: Font, pos: Vector2, 
 
 # --- Unified Progress Bar (glossy with inner glow) ---
 
-static func draw_progress_bar(canvas: CanvasItem, rect: Rect2, ratio: float, fill_color: Color, bg_color: Color, border_color: Color, show_glow: bool = true) -> void:
-	var clamped_ratio = clampf(ratio, 0.0, 1.0)
-	# Background track
-	canvas.draw_rect(rect, bg_color, true)
-	# Filled portion with gradient
-	if clamped_ratio > 0.001:
-		var fill_rect = Rect2(rect.position, Vector2(rect.size.x * clamped_ratio, rect.size.y))
-		var top_color = fill_color.lerp(Color.WHITE, 0.18)
-		var bottom_color = fill_color.darkened(0.12)
-		draw_gradient_rect_v(canvas, fill_rect, top_color, bottom_color)
-		# Inner glow at fill edge
-		if show_glow and clamped_ratio < 0.98:
-			var glow_x = fill_rect.end.x
-			for i in range(3):
-				var glow_w = 3.0 + float(i) * 2.0
-				var glow_alpha = 0.16 - float(i) * 0.05
-				canvas.draw_rect(Rect2(Vector2(glow_x - glow_w, rect.position.y + 1.0), Vector2(glow_w, rect.size.y - 2.0)), Color(1.0, 1.0, 1.0, glow_alpha), true)
-	# Border
-	canvas.draw_rect(rect, border_color, false, 1.5)
+static func draw_progress_bar(canvas: CanvasItem, rect: Rect2, ratio: float, fill_color: Color, bg_color: Color, border_color: Color, _show_glow: bool = true) -> void:
+	draw_rounded_panel(canvas, rect, bg_color, border_color, rect.size.y * 0.5, 0.0)
+	var fill := progress_fill_rect(rect, ratio)
+	if fill.size.x > 0.5:
+		draw_rounded_panel(canvas, fill, fill_color, Color.TRANSPARENT, rect.size.y * 0.5, 0.0)
 
-
-# --- Disabled Overlay (lock indicator) ---
 
 static func draw_disabled_overlay(canvas: CanvasItem, rect: Rect2, show_lock_icon: bool = true) -> void:
 	# Semi-transparent desaturated overlay

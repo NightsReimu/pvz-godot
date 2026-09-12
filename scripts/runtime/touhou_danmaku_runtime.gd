@@ -6,6 +6,7 @@ const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
 const ExtraDanmaku = preload("res://scripts/runtime/touhou_extra_danmaku.gd")
+const DeclarationFX = preload("res://scripts/runtime/spell_declaration_fx.gd")
 const MAX_BULLETS := 480
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
@@ -73,7 +74,8 @@ func cast(boss: Dictionary) -> Dictionary:
 	var center = Vector2(float(boss.get("x", game._boss_anchor_x(String(boss.kind)))), game._row_center_y(int(boss.get("row", 2))) - 12.0)
 	var session := {"owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
 	casts.append(session)
-	game._show_banner(String(card.name), 1.8)
+	if String(card.origin) == "nonspell":
+		game._show_banner(String(card.name), 1.8)
 	if String(boss.kind) not in ["reimu_boss", "marisa_boss"]:
 		game.effects.append({"shape": String(boss.kind).trim_suffix("_boss") + "_spell_seal", "position": center, "radius": 72.0, "time": 0.45, "duration": 0.45, "color": Color(0.9, 0.86, 1.0, 0.25)})
 	if pattern == "wraith_charm":
@@ -832,6 +834,7 @@ func draw() -> void:
 	var crowded := bullets.size() >= 300
 	var outline = PackedVector2Array([board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)])
 	for c in casts:
+		DeclarationFX.draw(game, c)
 		var cast_age = float(c.age)
 		var cue_scale: float = game._battle_unit_scale() if String(c.kind) in ["reimu_boss", "marisa_boss"] else 1.0
 		var pulse_window = clampf(1.0 - (float(c.next_wave) - cast_age) / 0.38, 0.0, 1.0)

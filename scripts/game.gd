@@ -2,6 +2,7 @@ extends Control
 
 const Defs = preload("res://scripts/game_defs.gd")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
+const GardenMenus = preload("res://scripts/ui/garden_menus.gd")
 const WindowModeLib = preload("res://scripts/system/window_mode.gd")
 const UpdateManagerLib = preload("res://scripts/system/update_manager.gd")
 const WorldDataLib = preload("res://scripts/data/world_data.gd")
@@ -153,6 +154,7 @@ const GACHA_UI_ASSETS := {
 }
 const WORLD_UI_ASSETS := {
 	"background": "res://art/world_ui/world_background.png",
+	"scene_atlas": "res://art/world_ui/world_scene_atlas.png",
 	"title_panel": "res://art/world_ui/world_title_panel.png",
 	"dock_panel": "res://art/world_ui/world_dock_panel.png",
 	"button_primary": "res://art/world_ui/world_button_primary.png",
@@ -196,16 +198,16 @@ const PREP_POOL_STEP := Vector2(110.0, 118.0)
 const MAP_ALMANAC_BUTTON_RECT := Rect2(1440.0, 34.0, 100.0, 44.0)
 const MAP_WORLD_BACK_RECT := Rect2(1312.0, 34.0, 108.0, 44.0)
 const MAP_COIN_RECT := Rect2(1100.0, 34.0, 192.0, 44.0)
-const ALMANAC_BOOK_RECT := Rect2(74.0, 94.0, 1148.0, 614.0)
-const ALMANAC_CLOSE_RECT := Rect2(1098.0, 114.0, 96.0, 40.0)
-const ALMANAC_PLANT_TAB_RECT := Rect2(116.0, 114.0, 112.0, 44.0)
-const ALMANAC_ZOMBIE_TAB_RECT := Rect2(236.0, 114.0, 112.0, 44.0)
-const ALMANAC_LIST_RECT := Rect2(108.0, 176.0, 404.0, 494.0)
-const ALMANAC_DETAIL_RECT := Rect2(530.0, 176.0, 648.0, 494.0)
-const ALMANAC_GRID_COLUMNS := 4
+const ALMANAC_BOOK_RECT := Rect2(72, 170, 1444, 660)
+const ALMANAC_CLOSE_RECT := Rect2(72, 76, 112, 56)
+const ALMANAC_PLANT_TAB_RECT := Rect2(96, 190, 136, 44)
+const ALMANAC_ZOMBIE_TAB_RECT := Rect2(244, 190, 136, 44)
+const ALMANAC_LIST_RECT := Rect2(96, 248, 504, 558)
+const ALMANAC_DETAIL_RECT := Rect2(624, 248, 868, 558)
+const ALMANAC_GRID_COLUMNS := 5
 const ALMANAC_GRID_STEP := Vector2(94.0, 106.0)
-const WORLD_SELECT_ARROW_LEFT_RECT := Rect2(74.0, 390.0, 58.0, 150.0)
-const WORLD_SELECT_ARROW_RIGHT_RECT := Rect2(1468.0, 390.0, 58.0, 150.0)
+const WORLD_SELECT_ARROW_LEFT_RECT := Rect2(1380.0, 76.0, 60.0, 56.0)
+const WORLD_SELECT_ARROW_RIGHT_RECT := Rect2(1456.0, 76.0, 60.0, 56.0)
 const WORLD_SELECT_ENTER_RECT := Rect2(1136.0, 732.0, 238.0, 62.0)
 const WORLD_SELECT_ALMANAC_RECT := Rect2(946.0, 732.0, 176.0, 62.0)
 const WORLD_SELECT_ENDLESS_RECT := Rect2(74.0, 732.0, 162.0, 62.0)
@@ -1388,15 +1390,15 @@ func _is_touch_generated_mouse_suppressed() -> bool:
 
 
 func _world_select_command_dock_rect() -> Rect2:
-	return Rect2(50.0, 704.0, 1490.0, 156.0)
+	return Rect2(72, 738, 1444, 112)
 
 
 func _world_select_action_rects() -> Dictionary:
 	return {
-		"home": Rect2(1412.0, 748.0, 112.0, 62.0),
-		"update": Rect2(930.0, 748.0, 148.0, 48.0),
-		"update_info": Rect2(930.0, 812.0, 276.0, 36.0),
-		"enter": Rect2(1224.0, 748.0, 150.0, 62.0),
+		"home": Rect2(72, 76, 112, 56),
+		"update": Rect2(96, 772, 148, 44),
+		"update_info": Rect2(260, 768, 400, 52),
+		"enter": Rect2(1188, 762, 304, 64),
 	}
 
 
@@ -1423,27 +1425,20 @@ func _world_select_touch_target(position: Vector2) -> Dictionary:
 
 
 func _home_action_rects() -> Dictionary:
-	var left_x := 78.0
-	var middle_x := 626.0
-	var right_x := 990.0
-	var top_y := 206.0
-	var right_card_w := 448.0
-	var right_card_h := 122.0
-	var right_gap_y := 22.0
 	return {
-		"mainline": Rect2(left_x, top_y, 520.0, 342.0),
-		"daily": Rect2(middle_x, top_y + 72.0, 326.0, 136.0),
-		"entertainment": Rect2(middle_x, top_y + 232.0, 326.0, 136.0),
-		"events": Rect2(left_x, top_y + 402.0, 760.0, 142.0),
-		"base": Rect2(right_x, top_y, right_card_w, right_card_h),
-		"enhance": Rect2(right_x, top_y + (right_card_h + right_gap_y), right_card_w, right_card_h),
-		"gacha": Rect2(right_x, top_y + (right_card_h + right_gap_y) * 2.0, right_card_w, right_card_h),
-		"almanac": Rect2(right_x, top_y + (right_card_h + right_gap_y) * 3.0, right_card_w, right_card_h),
+		"mainline": Rect2(72, 196, 712, 430),
+		"daily": Rect2(808, 196, 708, 203),
+		"entertainment": Rect2(808, 423, 708, 203),
+		"base": Rect2(72, 650, 343, 158),
+		"enhance": Rect2(439, 650, 343, 158),
+		"gacha": Rect2(806, 650, 343, 158),
+		"almanac": Rect2(1173, 650, 343, 158),
+		"events": Rect2(72, 820, 1444, 64),
 	}
 
 
 func _home_resource_rect() -> Rect2:
-	return Rect2(BASE_VIEWPORT_SIZE.x - 640.0, 14.0, 570.0, 74.0)
+	return Rect2(946, 66, 570, 74)
 
 
 func _home_resource_board_safe_rect() -> Rect2:
@@ -1467,26 +1462,23 @@ func _home_resource_status_rect() -> Rect2:
 
 
 func _home_logo_rect() -> Rect2:
-	return Rect2(455.0, 4.0, 500.0, 195.0)
+	return Rect2(72, 42, 710, 122)
 
 
 func _home_title_text_rect() -> Rect2:
-	var logo_rect := _home_logo_rect()
-	return Rect2(logo_rect.position + Vector2(35.0, 32.0), Vector2(430.0, 108.0))
+	return Rect2(72, 42, 560, 88)
 
 
 func _home_mainline_chip_rects() -> Array:
-	var mainline_rect := Rect2(_home_action_rects()["mainline"])
+	var origin := Rect2(_home_action_rects()["mainline"]).position
 	var result := []
-	var chip_size := Vector2(64.0, 64.0)
 	for i in range(5):
-		result.append(Rect2(mainline_rect.position + Vector2(68.0 + float(i) * 78.0, 214.0), chip_size))
+		result.append(Rect2(origin + Vector2(32 + i * 78, 254), Vector2(64, 64)))
 	return result
 
 
 func _home_mainline_progress_rect() -> Rect2:
-	var mainline_rect := Rect2(_home_action_rects()["mainline"])
-	return Rect2(mainline_rect.position + Vector2(68.0, 310.0), Vector2(350.0, 18.0))
+	return Rect2(Rect2(_home_action_rects()["mainline"]).position + Vector2(32, 388), Vector2(648, 14))
 
 
 func _home_ui_asset_paths() -> Dictionary:
@@ -1565,12 +1557,8 @@ func _draw_gacha_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.
 		draw_texture_rect(texture, shadow_rect, false, Color(0.0, 0.0, 0.0, alpha * (1.0 - t * 0.5)))
 
 
-func _draw_gacha_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
-	var texture := _gacha_ui_texture(asset_key)
-	if texture != null:
-		_draw_ui_panel_texture(texture, rect, tint)
-	else:
-		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.22, 0.13)
+func _draw_gacha_asset_panel(_asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
+	ThemeLib.draw_rounded_panel(self, rect, fallback_fill.lerp(Color("242433"), 0.26) * tint, Color(fallback_border, 0.48), 14, 0.14)
 
 
 func _gacha_back_rect() -> Rect2:
@@ -1649,26 +1637,16 @@ func _home_entry_asset_key(entry_id: String) -> String:
 
 
 func _home_entry_board_safe_rect(entry_id: String) -> Rect2:
-	var action_rects := _home_action_rects()
-	var rect := Rect2(action_rects.get(entry_id, Rect2()))
-	if entry_id == "mainline":
-		return Rect2(rect.position + Vector2(46.0, 54.0), Vector2(rect.size.x - 158.0, rect.size.y - 72.0))
-	if entry_id == "events":
-		return Rect2(rect.position + Vector2(170.0, 28.0), Vector2(rect.size.x - 340.0, rect.size.y - 44.0))
-	if entry_id == "daily" or entry_id == "entertainment":
-		return Rect2(rect.position + Vector2(66.0, 14.0), Vector2(rect.size.x - 132.0, rect.size.y - 22.0))
-	return Rect2(rect.position + Vector2(100.0, 10.0), Vector2(rect.size.x - 202.0, rect.size.y - 14.0))
+	return Rect2(_home_action_rects().get(entry_id, Rect2())).grow(-24 if entry_id != "events" else -8)
 
 
 func _home_entry_text_rect(entry_id: String) -> Rect2:
-	var board_rect := _home_entry_board_safe_rect(entry_id)
+	var rect := Rect2(_home_action_rects().get(entry_id, Rect2()))
 	if entry_id == "mainline":
-		return Rect2(board_rect.position + Vector2(24.0, 28.0), Vector2(minf(board_rect.size.x - 116.0, 292.0), 142.0))
+		return Rect2(rect.position + Vector2(32, 46), Vector2(374, 150))
 	if entry_id == "events":
-		return Rect2(board_rect.position + Vector2(12.0, 14.0), Vector2(board_rect.size.x - 94.0, 82.0))
-	if entry_id == "daily" or entry_id == "entertainment":
-		return Rect2(board_rect.position + Vector2(10.0, 20.0), Vector2(board_rect.size.x - 38.0, 92.0))
-	return Rect2(board_rect.position + Vector2(14.0, 18.0), Vector2(board_rect.size.x - 30.0, 90.0))
+		return Rect2(rect.position + Vector2(20, 8), Vector2(rect.size.x - 40, 28))
+	return Rect2(rect.position + Vector2(28, 28), Vector2(rect.size.x - 126, rect.size.y - 56))
 
 
 func _home_touch_target(position: Vector2) -> Dictionary:
@@ -4195,14 +4173,11 @@ func _handle_world_select_click(mouse_pos: Vector2) -> void:
 		if not card_rect.has_point(mouse_pos):
 			continue
 		world_select_index = i
-		var world_key = String(WorldDataLib.all()[i]["key"])
-		if _is_world_unlocked(world_key):
-			current_world_key = world_key
-			selected_level_index = _world_start_index(world_key)
-			_enter_map_mode(true)
-		else:
-			_show_toast("该世界尚未解锁")
+		world_select_scroll = float(i)
+		world_select_velocity = 0.0
+		queue_redraw()
 		return
+
 	if Rect2(action_rects["home"]).has_point(mouse_pos):
 		_enter_home_mode(false)
 		return
@@ -5385,15 +5360,11 @@ func _draw_base_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.2
 
 
 func _draw_base_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
-	var texture := _base_ui_texture(asset_key)
-	if texture != null:
-		if asset_key in ["grid_panel", "detail_panel", "roster_panel"]:
-			_draw_ui_panel_texture(texture, rect, tint)
-			return
-		_draw_base_asset_shadow(texture, rect, 0.24)
-		draw_texture_rect(texture, rect, false, tint)
-	else:
-		_draw_panel_shell(rect, fallback_fill, fallback_border, 0.2, 0.12)
+	var fill := fallback_fill.lerp(Color("16302c"), 0.32) * tint
+	var selected := asset_key == "room_card_selected"
+	ThemeLib.draw_rounded_panel(self, rect, fill.lightened(0.07 if selected else 0.0), Color("b9d591") if selected else Color(fallback_border, 0.38), 14, 0.12)
+	if selected:
+		draw_line(rect.position + Vector2(16, 2), rect.position + Vector2(rect.size.x - 16, 2), Color("c0d594"), 3, true)
 
 
 func _base_room_icon_kind(room_id: String) -> String:
@@ -19953,9 +19924,8 @@ func _draw_menu_backdrop_fill(draw_mode: String) -> void:
 	var night := draw_mode == MODE_WORLD_SELECT and roundi(world_select_scroll) >= 3
 	if draw_mode == MODE_MAP:
 		night = current_world_key == "night"
-	if draw_mode == MODE_HOME:
-		# 明亮花园风：天空蓝 → 草地绿，与 _draw_home_scene 的白天天空一致。
-		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.46, 0.74, 1.0), Color(0.62, 0.8, 0.5))
+	if draw_mode in [MODE_HOME, MODE_WORLD_SELECT, MODE_ALMANAC]:
+		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), GardenMenus.BACKGROUND_TOP, GardenMenus.BACKGROUND_BOTTOM)
 		return
 	if draw_mode == MODE_DAILY:
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, size), Color(0.035, 0.05, 0.058), Color(0.012, 0.018, 0.022))
@@ -20043,8 +20013,7 @@ func _draw_gacha_scene() -> void:
 
 	var coin_rect := _gacha_coin_rect()
 	_draw_gacha_asset_panel("coin_chip", coin_rect, Color(0.24, 0.12, 0.25, 0.94), Color(0.98, 0.78, 0.32, 0.9))
-	if _gacha_ui_texture("coin_chip") == null:
-		_draw_coin_icon(coin_rect.position + Vector2(38.0, coin_rect.size.y * 0.5), 0.75)
+	_draw_coin_icon(coin_rect.position + Vector2(38.0, coin_rect.size.y * 0.5), 0.75)
 	ThemeLib.draw_label(self, ui_font, Rect2(coin_rect.position + Vector2(66, 10), Vector2(126, coin_rect.size.y - 20)), str(coins_total), 23, Color(1.0, 0.9, 0.45))
 	ThemeLib.draw_label(self, ui_font, Rect2(coin_rect.position + Vector2(204, 10), Vector2(coin_rect.size.x - 228, coin_rect.size.y - 20)), "保底 %d/50" % gacha_pity_counter, 16, Color(0.92, 0.84, 1.0))
 
@@ -20353,14 +20322,14 @@ func _draw_base_detail_panel() -> void:
 	elif room_type == "training":
 		var target := String(room_state.get("target", base_selected_fragment_plant))
 		_draw_text("训练目标", detail.position + Vector2(30.0, 304.0), 16, Color(0.6, 0.72, 0.76))
-		ThemeLib.draw_rounded_panel(self, Rect2(detail.position + Vector2(28.0, 318.0), Vector2(210.0, 86.0)), Color(0.08, 0.1, 0.115, 0.9), Color(accent.r, accent.g, accent.b, 0.46), 5.0, 0.06, 0.06)
+		ThemeLib.draw_rounded_panel(self, Rect2(detail.position + Vector2(28.0, 318.0), Vector2(380.0, 72.0)), Color(0.08, 0.1, 0.115, 0.9), Color(accent.r, accent.g, accent.b, 0.46), 5.0, 0.06, 0.06)
 		if Defs.PLANTS.has(target):
 			_draw_card_icon(target, detail.position + Vector2(72.0, 366.0))
 			_draw_text(String(Defs.PLANTS[target].get("name", target)), detail.position + Vector2(116.0, 354.0), 18, Color(0.92, 0.98, 1.0))
 			_draw_text("点击底部植物切换", detail.position + Vector2(116.0, 378.0), 13, Color(0.6, 0.72, 0.76))
 	var summary := _base_resource_summary()
-	draw_rect(Rect2(detail.position + Vector2(28.0, 424.0), Vector2(detail.size.x - 56.0, 1.0)), Color(accent.r, accent.g, accent.b, 0.24), true)
-	_draw_text("待领取：金币 %d   材料 %d   碎片 %d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], detail.position + Vector2(30.0, 456.0), 17, Color(0.9, 0.94, 0.84))
+	draw_rect(Rect2(detail.position + Vector2(28.0, 414.0), Vector2(detail.size.x - 56.0, 1.0)), Color(accent.r, accent.g, accent.b, 0.24), true)
+	_draw_text("待领取：金币 %d   材料 %d   碎片 %d" % [int(summary.get("coins", 0)), int(summary.get("materials", 0)), int(summary.get("fragments", 0))], detail.position + Vector2(30.0, 410.0), 15, Color(0.9, 0.94, 0.84))
 	var upgrade_cost := _base_room_upgrade_cost(room_id)
 	var upgrade_ready := _base_can_upgrade_room(room_id)
 	var upgrade_label := "最高等级" if room_level >= BASE_ROOM_MAX_LEVEL else "升级至 Lv.%d  ·  %d 金 / 材料 %d" % [room_level + 1, int(upgrade_cost.get("coins", 0)), int(upgrade_cost.get("material_amount", 0))]
@@ -20594,182 +20563,35 @@ func _path_midpoint(from: Vector2, to: Vector2, index: int) -> Vector2:
 
 
 func _world_card_rect(index: int) -> Rect2:
-	var center_x = BASE_VIEWPORT_SIZE.x * 0.5 + (float(index) - world_select_scroll) * WORLD_CARD_SPACING
-	var delta = absf(float(index) - world_select_scroll)
-	var card_scale = clampf(1.0 - delta * 0.12, 0.84, 1.0)
-	var card_size = Vector2(460.0, 560.0) * card_scale
-	return Rect2(Vector2(center_x - card_size.x * 0.5, 150.0 + delta * 18.0), card_size)
+	return Rect2(72, 170 + index * 77, 312, 68)
 
 
 func _world_select_title_panel_rect() -> Rect2:
-	return Rect2(60.0, 34.0, 620.0, 132.0)
+	return Rect2(220, 58, 780, 96)
 
 
 func _world_select_title_text_rect() -> Rect2:
-	var panel_rect := _world_select_title_panel_rect()
-	return Rect2(panel_rect.position + Vector2(218.0, 38.0), Vector2(326.0, 48.0))
+	return Rect2(220, 58, 480, 54)
 
 
 func _world_select_title_subtitle_rect() -> Rect2:
-	var panel_rect := _world_select_title_panel_rect()
-	return Rect2(panel_rect.position + Vector2(170.0, 88.0), Vector2(410.0, 26.0))
+	return Rect2(222, 118, 680, 28)
 
 
 func _world_select_card_text_rect(index: int) -> Rect2:
-	var card_rect := _world_card_rect(index)
-	var scale := card_rect.size.x / 460.0
-	return Rect2(card_rect.position + Vector2(50.0, 64.0) * scale, Vector2(306.0, 150.0) * scale)
+	return Rect2(_world_card_rect(index).position + Vector2(62, 8), Vector2(196, 28))
 
 
-func _world_select_card_preview_grid_rect(index: int) -> Rect2:
-	var card_rect := _world_card_rect(index)
-	var scale := card_rect.size.x / 460.0
-	return Rect2(card_rect.position + Vector2(54.0, 248.0) * scale, Vector2(320.0, 230.0) * scale)
+func _world_select_card_preview_grid_rect(_index: int) -> Rect2:
+	return Rect2(954, 466, 530, 110)
 
 
-func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Color, fill: Color, entry_id: String, large: bool = false, disabled: bool = false) -> void:
-	var pointer := _pointer_local_position()
-	var hovered := rect.has_point(pointer) and not disabled
-	var pulse := 0.5 + 0.5 * sin(ui_time * 2.6 + rect.position.x * 0.01)
-	var actual_fill := fill
-	var actual_accent := accent
-	# hover 时整张卡片轻微上浮 + 加重阴影。
-	var lift := 4.0 if hovered else 0.0
-	var card_rect := Rect2(rect.position - Vector2(0.0, lift), rect.size)
-	var asset_key := _home_entry_asset_key(entry_id)
-	if _home_ui_texture(asset_key) == null:
-		ThemeLib.draw_soft_shadow(self, card_rect, Color(0.0, 0.0, 0.0, 0.30 if hovered else 0.24), 4, 16.0, 10.0 + lift)
-	# 卡片本体：优先使用 Image2 单元素框，缺图时回退到旧的代码绘制面板。
-	var panel_tint := Color(1.06, 1.045, 1.0, 1.0) if hovered else Color.WHITE
-	_draw_home_asset_panel(asset_key, card_rect, actual_fill, Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.66), disabled, panel_tint)
-	if _home_ui_texture(asset_key) == null:
-		draw_rect(Rect2(card_rect.position, Vector2(7.0, card_rect.size.y)), actual_accent, true)
-		draw_rect(Rect2(card_rect.position + Vector2(7.0, 0.0), Vector2(card_rect.size.x - 7.0, 36.0)), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.14), true)
-	# 装饰：植物图标（带轻微浮动）替换原来的 ASCII 字符双圆。
-	var icon_kind := String(HOME_ENTRY_ICON_KINDS.get(entry_id, ""))
-	var icon_size := 92.0 if large else 72.0
-	var bob := sin(ui_time * 1.8 + rect.position.x * 0.02) * (3.0 if large else 2.0) if not disabled else 0.0
-	var icon_center := card_rect.position + Vector2(card_rect.size.x - (120.0 if large else 76.0), (124.0 if large else card_rect.size.y * 0.50)) - Vector2(0.0, bob)
-	# 图标背光圆。
-	draw_circle(icon_center, icon_size * (0.62 if large else 0.58), Color(actual_accent.r, actual_accent.g, actual_accent.b, 0.13 + pulse * 0.06))
-	var icon_alpha := 1.0
-	if icon_kind != "":
-		var texture := _image2_texture("plants", icon_kind)
-		if texture != null:
-			var tex_size := Vector2(icon_size, icon_size)
-			draw_texture_rect(texture, Rect2(icon_center + Vector2(-tex_size.x * 0.5, -tex_size.y * 0.72), tex_size), false, Color(1.0, 1.0, 1.0, icon_alpha))
-		else:
-			# 图标缺失时回退到小圆点占位。
-			draw_circle(icon_center, icon_size * 0.3, Color(actual_accent.r, actual_accent.g, actual_accent.b, icon_alpha * 0.5))
-	var title_size := 34 if large else 26
-	var subtitle_size := 18 if large else 16
-	var text_rect := _home_entry_text_rect(entry_id)
-	var text_delta := card_rect.position - rect.position
-	text_rect.position += text_delta
-	# 标题/副标题配色调成暖白，比原来的冷灰更明亮亲切。
-	ThemeLib.draw_text_with_shadow(self, ui_font, text_rect.position + Vector2(0.0, title_size + 2.0), title, title_size, Color(0.99, 0.98, 0.9), Vector2(1.5, 2.5), 0.32)
-	var subtitle_rect := Rect2(text_rect.position + Vector2(0.0, title_size + 14.0), Vector2(text_rect.size.x, text_rect.size.y - title_size - 8.0))
-	_draw_text_block(subtitle, subtitle_rect, subtitle_size, Color(0.92, 0.9, 0.78), 5.0, 3 if large else 2)
-	# Disabled overlay with lock icon on top
-	if disabled:
-		if _home_ui_texture(asset_key) != null:
-			draw_texture_rect(_home_ui_texture(asset_key), card_rect, false, Color(0.05, 0.07, 0.08, 0.36))
-		else:
-			ThemeLib.draw_disabled_overlay(self, card_rect, false)
-		var lock_texture := _home_ui_texture("lock_badge")
-		if lock_texture != null:
-			var lock_size := Vector2(82.0, 82.0)
-			draw_texture_rect(lock_texture, Rect2(card_rect.get_center() - lock_size * 0.5 + Vector2(116.0, 0.0), lock_size), false)
-		else:
-			ThemeLib.draw_disabled_overlay(self, card_rect, true)
+func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Color, _fill: Color, entry_id: String, large: bool = false, disabled: bool = false) -> void:
+	GardenMenus.draw_home_entry(self, rect, title, subtitle, accent, entry_id, large, disabled)
 
 
 func _draw_home_scene() -> void:
-	# 明亮花园风背景：白天天空（蓝天渐变 + 太阳光晕 + 视差云朵 + 远山 + 草地）。
-	ThemeLib.draw_world_sky(self, BASE_VIEWPORT_SIZE, ui_time, false)
-	# 底部叠加草坪带，让庭院感落地。
-	ThemeLib.draw_grass_tufts(self, Rect2(0.0, BASE_VIEWPORT_SIZE.y - 110.0, BASE_VIEWPORT_SIZE.x, 110.0), ui_time, 12, Color(0.34, 0.62, 0.22))
-	# 暖色浮动光点 + 飘动云朵，让画面有生气。
-	ThemeLib.draw_ambient_particles(self, BASE_VIEWPORT_SIZE, ui_time, "fireflies", 16)
-	ThemeLib.draw_cloud(self, Vector2(260.0, 120.0 + sin(ui_time * 0.4) * 8.0), 1.1, 0.9, Color(1.0, 1.0, 1.0))
-	ThemeLib.draw_cloud(self, Vector2(1180.0, 86.0 + sin(ui_time * 0.5 + 1.5) * 7.0), 0.9, 0.8, Color(1.0, 0.99, 0.96))
-
-	# 顶部标题牌匾：底板与标题均来自 Image2 元素，副标题仍由 Godot 动态绘制。
-	var logo_rect := _home_logo_rect()
-	ThemeLib.draw_glow_circle(self, logo_rect.get_center() + Vector2(0.0, -12.0), 165.0, Color(1.0, 0.94, 0.52, 0.22), 4)
-	var logo_texture := _home_ui_texture("logo")
-	if logo_texture != null:
-		_draw_home_asset_shadow(logo_texture, logo_rect, 0.20)
-		draw_texture_rect(logo_texture, logo_rect, false)
-	else:
-		_draw_panel_shell(logo_rect.grow(-20.0), Color(0.94, 0.78, 0.42, 0.92), Color(0.42, 0.26, 0.1), 0.18, 0.14)
-	var title_texture := _home_ui_texture("title_text")
-	var title_rect := _home_title_text_rect()
-	if title_texture != null:
-		draw_texture_rect(title_texture, title_rect, false)
-	else:
-		var title_text := "植物大战僵尸"
-		var title_width := ui_font.get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 54).x
-		var title_pos := Vector2(logo_rect.get_center().x - title_width * 0.5, logo_rect.position.y + 92.0)
-		ThemeLib.draw_text_with_shadow(self, ui_font, title_pos + Vector2(0.0, 3.0), title_text, 54, Color(0.2, 0.34, 0.11), Vector2(2.0, 4.0), 0.36)
-		ThemeLib.draw_text_with_shadow(self, ui_font, title_pos, title_text, 54, Color(0.96, 0.86, 0.22), Vector2(0.0, 0.0), 0.0)
-	var subtitle_text := "主线 / 每日 / 娱乐 / 活动"
-	var subtitle_width := ui_font.get_string_size(subtitle_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 19).x
-	ThemeLib.draw_text_with_shadow(self, ui_font, Vector2(logo_rect.get_center().x - subtitle_width * 0.5, logo_rect.position.y + 154.0), subtitle_text, 19, Color(0.25, 0.38, 0.18), Vector2(1.0, 2.0), 0.25)
-
-	# 资源条：使用 Image2 单元素底图，数值和状态仍动态绘制。
-	var resource_rect := _home_resource_rect()
-	var status_rect := _home_resource_status_rect()
-	var coin_text_rect := _home_resource_coin_text_rect()
-	var drone_text_rect := _home_resource_drone_text_rect()
-	_draw_home_asset_panel("resource_bar", resource_rect, Color(0.1, 0.16, 0.12, 0.78), Color(0.5, 0.74, 0.42, 0.8))
-	_draw_coin_icon(resource_rect.position + Vector2(44.0, 37.0), 0.9)
-	ThemeLib.draw_label(self, ui_font, coin_text_rect, "金币 %d" % coins_total, 20, Color(1.0, 0.9, 0.46))
-	ThemeLib.draw_label(self, ui_font, drone_text_rect, "基建无人机 %.0f" % base_drones, 19, Color(0.7, 0.95, 1.0))
-	ThemeLib.draw_label(self, ui_font, status_rect, _home_update_status_line(), 13, Color(0.82, 0.9, 0.78))
-	var settings_center := resource_rect.position + Vector2(resource_rect.size.x - 28.0, resource_rect.size.y * 0.5)
-	draw_circle(settings_center, 13.0, Color(0.73, 0.9, 0.92, 0.18))
-	for spoke in range(8):
-		var angle := float(spoke) * TAU / 8.0 + ui_time * 0.18
-		draw_line(settings_center + Vector2(cos(angle), sin(angle)) * 9.0, settings_center + Vector2(cos(angle), sin(angle)) * 15.0, Color(0.82, 0.94, 0.9, 0.5), 2.0)
-	draw_circle(settings_center, 5.5, Color(0.82, 0.94, 0.9, 0.62))
-
-	var action_rects := _home_action_rects()
-	var mainline_rect := Rect2(action_rects["mainline"])
-	_draw_home_entry(mainline_rect, "主线关卡", "进入世界选择，推进地图与首领关卡。当前世界：%s" % _map_mode_title_for_world(current_world_key), Color(0.96, 0.74, 0.22), Color(0.16, 0.22, 0.16, 0.9), "mainline", true)
-	var worlds := WorldDataLib.all()
-	var preview_count: int = mini(5, worlds.size())
-	var chip_rects := _home_mainline_chip_rects()
-	for i in range(preview_count):
-		var world := Dictionary(worlds[i])
-		var unlocked := _is_world_unlocked(String(world.get("key", "day")))
-		var chip_rect := Rect2(chip_rects[i])
-		var accent := Color(world.get("accent", Color(0.62, 0.78, 0.42)))
-		var chip_fill := Color(accent.r, accent.g, accent.b, 0.28 if unlocked else 0.08)
-		var chip_border := Color(accent.r, accent.g, accent.b, 0.88 if unlocked else 0.24)
-		ThemeLib.draw_rounded_panel(self, chip_rect, chip_fill, chip_border, 10.0, 0.06, 0.08)
-		if String(world.get("key", "")) == current_world_key:
-			var glow := 0.36 + 0.18 * sin(ui_time * 3.2)
-			draw_rect(chip_rect.grow(4.0), Color(0.78, 1.0, 0.28, glow), false, 3.0)
-		var number_text := str(i + 1)
-		var number_width: float = ui_font.get_string_size(number_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 24).x
-		ThemeLib.draw_text_with_shadow(self, ui_font, chip_rect.position + Vector2((chip_rect.size.x - number_width) * 0.5, 41.0), number_text, 24, Color(0.99, 0.97, 0.9) if unlocked else Color(0.46, 0.52, 0.54), Vector2(1.0, 2.0), 0.26)
-	var completed_levels_count := _completed_level_count()
-	var total_levels_count: int = max(Defs.LEVELS.size(), 1)
-	var progress_ratio := clampf(float(completed_levels_count) / float(total_levels_count), 0.0, 1.0)
-	var progress_rect := _home_mainline_progress_rect()
-	ThemeLib.draw_progress_bar(self, progress_rect, progress_ratio, Color(0.68, 0.96, 0.18), Color(0.08, 0.16, 0.08, 0.68), Color(0.42, 0.66, 0.18, 0.92))
-	var progress_text := "进度 %d/%d 关" % [completed_levels_count, total_levels_count]
-	ThemeLib.draw_text_with_shadow(self, ui_font, progress_rect.position + Vector2(0.0, -8.0), progress_text, 17, Color(0.82, 1.0, 0.35), Vector2(1.0, 2.0), 0.26)
-
-	var daily_done := daily_challenge_date == _today_string()
-	_draw_home_entry(Rect2(action_rects["daily"]), "每日关卡" if not daily_done else "每日已领", "今日修饰挑战，奖励金币和强化材料。", Color(0.4, 0.82, 1.0), Color(0.12, 0.2, 0.16, 0.9), "daily")
-	_draw_home_entry(Rect2(action_rects["entertainment"]), "娱乐关卡", "无尽模式入口，尸潮会持续变强。", Color(0.98, 0.44, 0.34), Color(0.2, 0.14, 0.12, 0.9), "entertainment")
-	_draw_home_entry(Rect2(action_rects["events"]), "活动关卡", "限时活动入口已预留，后续版本开放。", Color(0.5, 0.88, 0.58), Color(0.12, 0.2, 0.14, 0.9), "events", false, true)
-	_draw_home_entry(Rect2(action_rects["base"]), "基建", "生产金币、材料、碎片，并管理植物心情。", Color(0.34, 0.86, 0.92), Color(0.12, 0.2, 0.18, 0.9), "base")
-	_draw_home_entry(Rect2(action_rects["enhance"]), "植物强化", "按植物类型提升属性，消耗材料与金币。", Color(0.9, 0.7, 0.28), Color(0.2, 0.16, 0.1, 0.9), "enhance")
-	_draw_home_entry(Rect2(action_rects["gacha"]), "抽卡", "获取稀有植物、碎片和强化材料。", Color(0.84, 0.5, 0.92), Color(0.18, 0.12, 0.2, 0.9), "gacha")
-	_draw_home_entry(Rect2(action_rects["almanac"]), "图鉴", "查看植物、僵尸和 Boss 资料。", Color(0.66, 0.86, 0.52), Color(0.14, 0.2, 0.14, 0.9), "almanac")
+	GardenMenus.draw_home(self)
 
 
 func _draw_daily_scene() -> void:
@@ -20848,115 +20670,15 @@ func _draw_daily_scene() -> void:
 
 
 func _draw_world_select_scene() -> void:
-	var background_texture := _world_ui_texture("background")
-	if background_texture != null:
-		draw_texture_rect(background_texture, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), false)
-	else:
-		_draw_world_sky(false)
-	draw_rect(Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.18, 0.14, 0.08, 0.08), true)
-
-	var title_rect := _world_select_title_panel_rect()
-	_draw_world_asset_panel("title_panel", title_rect, Color(0.98, 0.94, 0.82, 0.95), Color(0.54, 0.4, 0.16))
-	var title_text_rect := _world_select_title_text_rect()
-	var title_label := "世界选择"
-	var title_width: float = ui_font.get_string_size(title_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40).x
-	ThemeLib.draw_text_with_shadow(self, ui_font, title_text_rect.position + Vector2(maxf(0.0, (title_text_rect.size.x - title_width) * 0.5), 38.0), title_label, 40, Color(0.34, 0.22, 0.08), Vector2(1.5, 3.0), 0.24)
-	var title_subtitle_rect := _world_select_title_subtitle_rect()
-	var subtitle_label := "选择世界，再进入该世界的关卡地图。"
-	var subtitle_width: float = ui_font.get_string_size(subtitle_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 18).x
-	ThemeLib.draw_text_with_shadow(self, ui_font, title_subtitle_rect.position + Vector2(maxf(0.0, (title_subtitle_rect.size.x - subtitle_width) * 0.5), 18.0), subtitle_label, 18, Color(0.42, 0.3, 0.14), Vector2(1.0, 2.0), 0.2)
-
-	for i in range(WorldDataLib.all().size()):
-		var world := Dictionary(WorldDataLib.all()[i])
-		var card_rect := _world_card_rect(i)
-		var selected := roundi(world_select_scroll) == i
-		var unlocked := _is_world_unlocked(String(world["key"])) or String(world["key"]) == "day"
-		var accent := Color(world["accent"])
-		var card_key := "card_%s" % String(world["key"])
-		if not unlocked:
-			card_key = "card_day"
-		var tint := Color.WHITE if unlocked else Color(0.58, 0.6, 0.64, 0.86)
-		_draw_world_asset_panel(card_key, card_rect, Color(world["panel"]), Color(world["accent_dark"]), tint)
-		if selected:
-			var glow := 0.32 + 0.18 * sin(ui_time * 3.0)
-			var selected_texture := _world_ui_texture(card_key)
-			if selected_texture != null:
-				draw_texture_rect(selected_texture, card_rect.grow(9.0), false, Color(1.0, 0.82, 0.28, glow * 0.42))
-				draw_texture_rect(selected_texture, card_rect.grow(18.0), false, Color(1.0, 0.82, 0.28, glow * 0.18))
-			else:
-				draw_rect(card_rect.grow(5.0), Color(1.0, 0.86, 0.32, glow), false, 4.0)
-				draw_rect(card_rect.grow(10.0), Color(1.0, 0.86, 0.32, glow * 0.36), false, 2.0)
-
-		var scale := card_rect.size.x / 460.0
-		var text_rect := _world_select_card_text_rect(i)
-		var dark_card := String(world["key"]) in ["night", "fog", "city", "volcano"]
-		var title_color := Color(0.96, 0.98, 1.0) if dark_card else Color(0.28, 0.22, 0.08)
-		var body_color := Color(0.84, 0.92, 1.0) if dark_card else Color(0.34, 0.26, 0.12)
-		var subtitle_fill := Color(accent.r, accent.g, accent.b, 0.76)
-		if dark_card:
-			draw_rect(Rect2(text_rect.position, Vector2(text_rect.size.x, 170 * scale)).grow(6 * scale), Color(0.04, 0.065, 0.06, 0.78), true)
-		ThemeLib.draw_text_with_shadow(self, ui_font, text_rect.position + Vector2(0.0, 42.0 * scale), String(world["title"]), int(round(34.0 * scale)), title_color, Vector2(1.0, 2.5) * scale, 0.28)
-		var subtitle_rect := Rect2(text_rect.position + Vector2(0.0, 58.0 * scale), Vector2(250.0, 28.0) * scale)
-		ThemeLib.draw_rounded_panel(self, subtitle_rect, subtitle_fill, Color(1.0, 1.0, 1.0, 0.28), 10.0 * scale, 0.04, 0.04)
-		ThemeLib.draw_text_with_shadow(self, ui_font, subtitle_rect.position + Vector2(18.0, 20.0) * scale, String(world["subtitle"]), int(round(15.0 * scale)), Color(1.0, 0.98, 0.92), Vector2(1.0, 1.5) * scale, 0.24)
-		var desc := String(world["description"])
-		if desc.length() > 72:
-			desc = desc.left(70) + "..."
-		_draw_text_block(desc, Rect2(text_rect.position + Vector2(0.0, 96.0 * scale), Vector2(text_rect.size.x, 70.0 * scale)), int(round(16.0 * scale)), body_color, 4.0 * scale, 3)
-
-		var preview_plants: Array = world["plants"]
-		var grid_rect := _world_select_card_preview_grid_rect(i)
-		for plant_index in range(preview_plants.size()):
-			var slot_size := Vector2(96.0, 106.0) * scale
-			var chip_rect := Rect2(grid_rect.position + Vector2(float(plant_index % 3) * 112.0, floor(float(plant_index) / 3.0) * 118.0) * scale, slot_size)
-			_draw_world_asset_panel("plant_slot", chip_rect, Color(0.98, 0.95, 0.88, 0.94), Color(world["accent_dark"]))
-			_draw_card_icon(String(preview_plants[plant_index]), chip_rect.position + Vector2(chip_rect.size.x * 0.5, 56.0 * scale))
-			var plant_name := String(Defs.PLANTS[String(preview_plants[plant_index])]["name"])
-			ThemeLib.draw_label(self, ui_font, Rect2(chip_rect.position + Vector2(10, 14) * scale, Vector2(chip_rect.size.x - 20 * scale, 24 * scale)), plant_name, 12, Color(0.24, 0.16, 0.06), HORIZONTAL_ALIGNMENT_CENTER, 9)
-
-		var progress_label = "已解锁 %d/%d 关" % [_visible_unlocked_count(String(world["key"])), _visible_level_indices(String(world["key"])).size()]
-		ThemeLib.draw_label(self, ui_font, Rect2(Vector2(card_rect.position.x + 72 * scale, card_rect.end.y - 62 * scale), Vector2(card_rect.size.x - 144 * scale, 30 * scale)), progress_label, 19, title_color)
-		if not unlocked:
-			draw_rect(card_rect, Color(0.0, 0.0, 0.0, 0.26), true)
-			ThemeLib.draw_text_with_shadow(self, ui_font, card_rect.position + Vector2(52.0, card_rect.size.y - 22.0), "通关前置世界后解锁", 18, Color(1.0, 0.96, 0.86), Vector2(1.0, 2.0), 0.32)
-
-	_draw_world_asset_panel("arrow_left", WORLD_SELECT_ARROW_LEFT_RECT, Color(0.96, 0.92, 0.82, 0.94), Color(0.48, 0.35, 0.16))
-	_draw_world_asset_panel("arrow_right", WORLD_SELECT_ARROW_RIGHT_RECT, Color(0.96, 0.92, 0.82, 0.94), Color(0.48, 0.35, 0.16))
-
-	var selected_world = _selected_world_data()
-	var world_key = String(selected_world.get("key", "day"))
-	var unlocked_world = _is_world_unlocked(world_key)
-	var enter_fill = Color(selected_world.get("accent", Color(0.42, 0.76, 0.24)))
-	var action_rects = _world_select_action_rects()
-	var dock_rect = _world_select_command_dock_rect()
-	_draw_world_asset_panel("dock_panel", dock_rect, Color(0.98, 0.92, 0.78, 0.94), Color(0.54, 0.4, 0.16))
-	ThemeLib.draw_label(self, ui_font, Rect2(dock_rect.position + Vector2(180, 42), Vector2(230, 42)), "作战终端", 27, Color(0.42, 0.28, 0.12))
-	ThemeLib.draw_label(self, ui_font, Rect2(dock_rect.position + Vector2(180, 90), Vector2(230, 30)), "世界 %d/%d" % [world_select_index + 1, WorldDataLib.all().size()], 19, Color(0.5, 0.38, 0.18))
-	if not unlocked_world:
-		enter_fill = Color(0.44, 0.46, 0.52)
-	var enter_rect = Rect2(action_rects["enter"])
-	_draw_world_image_button(enter_rect, "button_primary", "进入", 28, Color(0.28, 0.2, 0.06) if unlocked_world else Color(0.9, 0.92, 0.96), enter_fill, Color(0.18, 0.22, 0.16))
-	_draw_world_image_button(Rect2(action_rects["home"]), "button_blue", "主页", 19, Color(0.95, 0.98, 1.0), Color(0.28, 0.38, 0.44), Color(0.54, 0.7, 0.78))
-
-	_draw_world_image_button(Rect2(action_rects["update"]), "button_blue", _update_action_text(), 16, Color(0.95, 0.98, 1.0), _update_badge_fill(), Color(0.18, 0.22, 0.28))
-	var update_info_rect = Rect2(action_rects["update_info"])
-	ThemeLib.draw_rounded_panel(self, update_info_rect, Color(0.92, 0.84, 0.68, 0.54), Color(0.66, 0.48, 0.22, 0.36), 8.0, 0.02, 0.03)
-	ThemeLib.draw_label(self, ui_font, update_info_rect.grow_individual(-12, -3, -12, -3), _update_status_line(), 13, Color(0.34, 0.26, 0.12))
-	if update_state == "downloading":
-		var bar_rect = Rect2(update_info_rect.position + Vector2(12.0, update_info_rect.size.y - 5.0), Vector2(update_info_rect.size.x - 24.0, 3.0))
-		draw_rect(bar_rect, Color(0.08, 0.1, 0.12, 0.82), true)
-		draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * clampf(update_download_progress, 0.0, 1.0), bar_rect.size.y)), Color(0.92, 0.66, 0.22, 0.94), true)
-		draw_rect(bar_rect, Color(0.94, 0.96, 1.0, 0.24), false, 1.0)
-	# Coin display
-	var coin_rect = Rect2(1212.0, 818.0, 190.0, 34.0)
-	ThemeLib.draw_rounded_panel(self, coin_rect, Color(1.0, 0.86, 0.32, 0.88), Color(0.72, 0.48, 0.08, 0.74), 10.0, 0.04, 0.04)
-	_draw_coin_icon(coin_rect.position + Vector2(26.0, 17.0), 0.52)
-	ThemeLib.draw_label(self, ui_font, Rect2(coin_rect.position + Vector2(48, 3), Vector2(coin_rect.size.x - 60, 28)), str(coins_total), 16, Color(0.33, 0.21, 0.04))
+	GardenMenus.draw_world_select(self)
 
 
 func _draw_map_scene() -> void:
 	var is_night_world = current_world_key == "night"
-	_draw_world_sky(is_night_world)
+	if is_night_world:
+		_draw_world_sky(true)
+	else:
+		GardenMenus.background(self)
 	var header_rect = Rect2(22.0, 22.0, 516.0, 88.0)
 	_draw_panel_shell(header_rect, Color(0.96, 0.92, 0.8, 0.94) if not is_night_world else Color(0.18, 0.22, 0.34, 0.94), Color(0.48, 0.35, 0.16) if not is_night_world else Color(0.52, 0.62, 0.82), 0.14, 0.08)
 	draw_circle(header_rect.position + Vector2(36.0, 44.0), 18.0, Color(1.0, 0.92, 0.34) if not is_night_world else Color(0.84, 0.9, 1.0))
@@ -21045,24 +20767,16 @@ func _draw_map_scene() -> void:
 
 
 func _draw_almanac_scene() -> void:
-	_draw_world_sky(false)
-	draw_rect(Rect2(Vector2(0.0, 164.0), Vector2(BASE_VIEWPORT_SIZE.x, BASE_VIEWPORT_SIZE.y - 164.0)), Color(0.71, 0.82, 0.58), true)
-	_draw_panel_shell(ALMANAC_BOOK_RECT, Color(0.93, 0.88, 0.75), Color(0.46, 0.34, 0.16), 0.16, 0.08)
-	draw_line(ALMANAC_BOOK_RECT.position + Vector2(ALMANAC_BOOK_RECT.size.x * 0.38, 18.0), ALMANAC_BOOK_RECT.position + Vector2(ALMANAC_BOOK_RECT.size.x * 0.38, ALMANAC_BOOK_RECT.size.y - 18.0), Color(0.78, 0.68, 0.52), 3.0)
+	GardenMenus.background(self)
+	GardenMenus.label(self, Rect2(220, 58, 760, 54), "庭院图鉴", 40)
+	GardenMenus.label(self, Rect2(222, 118, 850, 28), "了解你的植物伙伴，也了解即将面对的对手。", 20, GardenMenus.MUTED)
+	ThemeLib.draw_rounded_panel(self, ALMANAC_BOOK_RECT, GardenMenus.PAPER, GardenMenus.BORDER, 22, 0.12)
+	_draw_fancy_button(ALMANAC_CLOSE_RECT, "‹  返回", GardenMenus.PAPER, GardenMenus.BORDER, 22)
+	_draw_fancy_button(ALMANAC_PLANT_TAB_RECT, "植物", GardenMenus.GREEN if almanac_tab == "plants" else Color("e8ecdc"), GardenMenus.BORDER, 22)
+	_draw_fancy_button(ALMANAC_ZOMBIE_TAB_RECT, "僵尸 / 首领", GardenMenus.GREEN if almanac_tab == "zombies" else Color("e8ecdc"), GardenMenus.BORDER, 22)
 
-	_draw_text("图鉴", Vector2(106.0, 72.0), 34, Color(0.24, 0.16, 0.06))
-
-	var plant_tab_color = Color(0.96, 0.92, 0.78) if almanac_tab == "plants" else Color(0.84, 0.8, 0.72)
-	var zombie_tab_color = Color(0.96, 0.92, 0.78) if almanac_tab == "zombies" else Color(0.84, 0.8, 0.72)
-	_draw_panel_shell(ALMANAC_PLANT_TAB_RECT, plant_tab_color, Color(0.42, 0.3, 0.14), 0.08, 0.05)
-	_draw_panel_shell(ALMANAC_ZOMBIE_TAB_RECT, zombie_tab_color, Color(0.42, 0.3, 0.14), 0.08, 0.05)
-	_draw_panel_shell(ALMANAC_CLOSE_RECT, Color(0.88, 0.84, 0.76), Color(0.42, 0.3, 0.14), 0.08, 0.05)
-	_draw_fancy_button(ALMANAC_PLANT_TAB_RECT, "植物", Color(0.72, 0.86, 0.42), Color(0.28, 0.44, 0.14), 20)
-	_draw_fancy_button(ALMANAC_ZOMBIE_TAB_RECT, "僵尸", Color(0.82, 0.62, 0.36), Color(0.46, 0.28, 0.12), 20)
-	_draw_fancy_button(ALMANAC_CLOSE_RECT, "返回", Color(0.94, 0.86, 0.66), Color(0.48, 0.3, 0.1), 18)
-
-	_draw_panel_shell(ALMANAC_LIST_RECT, Color(0.96, 0.93, 0.86), Color(0.44, 0.32, 0.14), 0.12, 0.06)
-	_draw_panel_shell(ALMANAC_DETAIL_RECT, Color(0.96, 0.93, 0.86), Color(0.44, 0.32, 0.14), 0.12, 0.06)
+	_draw_panel_shell(ALMANAC_LIST_RECT, Color("f0f1e5"), GardenMenus.BORDER, 0.12, 0.06)
+	_draw_panel_shell(ALMANAC_DETAIL_RECT, Color("f0f1e5"), GardenMenus.BORDER, 0.12, 0.06)
 
 	var entries = _current_almanac_entries()
 	_draw_text("已收录 %d 项" % entries.size(), ALMANAC_LIST_RECT.position + Vector2(16.0, 24.0), 18, Color(0.28, 0.2, 0.08))
@@ -21079,7 +20793,7 @@ func _draw_almanac_scene() -> void:
 		ALMANAC_LIST_RECT.position + Vector2(10.0, 42.0),
 		Vector2(ALMANAC_LIST_RECT.size.x - 14.0, ALMANAC_LIST_RECT.size.y - 50.0)
 	)
-	_draw_scroll_mask(list_content_rect, view_rect, Color(0.96, 0.93, 0.86), Color(0.58, 0.46, 0.24))
+	_draw_scroll_mask(list_content_rect, view_rect, Color("f0f1e5"), Color(0.45, 0.55, 0.40, 0.24))
 
 	var track_rect = _almanac_list_track_rect()
 	_draw_panel_shell(track_rect, Color(0.84, 0.8, 0.72), Color(0.42, 0.3, 0.14), 0.06, 0.03)
@@ -21748,10 +21462,6 @@ func _draw_seed_selection_scene() -> void:
 	_ensure_selection_scene_ready()
 	_draw_selection_level_backdrop(current_level)
 	var is_mobile = _is_mobile_runtime()
-	if not is_mobile:
-		_draw_panel_shell(Rect2(Vector2(44.0, 182.0), Vector2(214.0, 392.0)), Color(0.18, 0.16, 0.12, 0.62), Color(0.82, 0.68, 0.42, 0.64))
-		_draw_panel_shell(Rect2(Vector2(66.0, 238.0), Vector2(170.0, 164.0)), Color(0.82, 0.76, 0.6, 0.72), Color(0.58, 0.42, 0.2, 0.7), 0.12, 0.08)
-		draw_rect(Rect2(Vector2(96.0, 192.0), Vector2(110.0, 62.0)), Color(0.79, 0.28, 0.21, 0.78), true)
 	var selected_panel_rect = _selection_selected_panel_rect()
 	var zombie_panel_rect = _selection_zombie_panel_rect()
 	var pool_panel_rect = _selection_pool_panel_rect()
@@ -21760,9 +21470,9 @@ func _draw_seed_selection_scene() -> void:
 	var start_rect = _selection_start_rect()
 	var preview_rect = _selection_preview_button_rect()
 
-	_draw_panel_shell(selected_panel_rect, Color(0.95, 0.9, 0.76, 0.88), Color(0.48, 0.35, 0.16, 0.82), 0.14, 0.08)
-	_draw_panel_shell(zombie_panel_rect, Color(0.92, 0.88, 0.8, 0.86), Color(0.48, 0.35, 0.16, 0.78), 0.1, 0.05)
-	_draw_panel_shell(pool_panel_rect, Color(0.95, 0.92, 0.84, 0.9), Color(0.48, 0.35, 0.16, 0.82), 0.14, 0.08)
+	_draw_panel_shell(selected_panel_rect, Color("e8eddc"), GardenMenus.BORDER, 0.14, 0.08)
+	_draw_panel_shell(zombie_panel_rect, Color("f0f1e6"), GardenMenus.BORDER, 0.1, 0.05)
+	_draw_panel_shell(pool_panel_rect, GardenMenus.PAPER, GardenMenus.BORDER, 0.14, 0.08)
 	var required_count = _required_seed_count(current_level)
 
 	var title_rect = Rect2(selected_panel_rect.position.x, _viewport_safe_rect().position.y + 2.0, selected_panel_rect.size.x, 28.0 if is_mobile else 48.0)
@@ -21782,7 +21492,7 @@ func _draw_seed_selection_scene() -> void:
 
 	for i in range(MAX_SEED_SLOTS):
 		var slot_rect = _selection_slot_rect(i)
-		_draw_panel_shell(slot_rect, Color(0.9, 0.86, 0.76), Color(0.46, 0.34, 0.16), 0.08, 0.04)
+		_draw_panel_shell(slot_rect, Color("d8e0c8"), Color(0.46, 0.34, 0.16), 0.08, 0.04)
 		if i < selection_cards.size():
 			_draw_selection_card(String(selection_cards[i]), slot_rect, true, false)
 		else:
@@ -21810,8 +21520,8 @@ func _draw_seed_selection_scene() -> void:
 		pool_panel_rect.position + Vector2(10.0, 38.0),
 		Vector2(pool_panel_rect.size.x - 14.0, footer_rect.position.y - pool_panel_rect.position.y - 30.0)
 	)
-	_draw_scroll_mask(pool_content_rect, pool_view_rect, Color(0.95, 0.92, 0.84, 0.9), Color(0.58, 0.46, 0.24, 0.82))
-	_draw_panel_shell(footer_rect, Color(0.88, 0.84, 0.76, 0.9), Color(0.42, 0.3, 0.14), 0.06, 0.04)
+	_draw_scroll_mask(pool_content_rect, pool_view_rect, GardenMenus.PAPER, Color(0.4, 0.5, 0.3, 0.2))
+	_draw_panel_shell(footer_rect, Color("e8eddc"), Color(0.42, 0.3, 0.14), 0.06, 0.04)
 	ThemeLib.draw_label(self, ui_font, Rect2(footer_rect.position + Vector2(12, 0), Vector2(maxf(0, preview_rect.position.x - footer_rect.position.x - 24), footer_rect.size.y)), "%d / %d" % [selection_cards.size(), required_count], 16, Color(0.28, 0.2, 0.08))
 
 	var track_rect = _selection_pool_track_rect()
@@ -21823,7 +21533,7 @@ func _draw_seed_selection_scene() -> void:
 		_draw_text("滚动查看", pool_panel_rect.position + Vector2(pool_panel_rect.size.x - 94.0, 30.0), 14, Color(0.24, 0.16, 0.06))
 
 	var back_color = Color(0.88, 0.84, 0.76)
-	var start_color = Color(0.42, 0.76, 0.24) if selection_cards.size() >= required_count else Color(0.62, 0.62, 0.62)
+	var start_color = GardenMenus.GREEN if selection_cards.size() >= required_count else Color(0.62, 0.62, 0.62)
 	_draw_fancy_button(preview_rect, "预览背景", Color(0.72, 0.86, 0.9), Color(0.28, 0.46, 0.52), 17)
 	_draw_fancy_button(back_rect, "返回难度" if current_level.has("touhou_difficulty") else "返回地图", back_color, Color(0.42, 0.3, 0.14), 18)
 	_draw_fancy_button(start_rect, "开始战斗", start_color, Color(0.22, 0.36, 0.12), 20)
@@ -21839,17 +21549,16 @@ func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: b
 	var bg = Color(0.96, 0.94, 0.87) if not disabled else Color(0.82, 0.8, 0.76)
 	if hovered and not disabled:
 		draw_rect(card_rect_draw.grow(6.0), Color(1.0, 0.96, 0.72, 0.12), true)
-	_draw_panel_shell(card_rect_draw, bg, Color(0.42, 0.3, 0.14), 0.08, 0.05)
+	_draw_panel_shell(card_rect_draw, bg, GardenMenus.BORDER, 0.08, 0.05)
 	if selected:
-		var pulse = 0.72 + 0.28 * sin(ui_time * 6.0 + rect.position.x * 0.02)
-		draw_rect(card_rect_draw.grow(6.0), Color(1.0, 0.9, 0.3, 0.08 * pulse), true)
-		draw_rect(card_rect_draw.grow(-1.0), Color(0.94, 0.84, 0.24), false, 3.0)
+		ThemeLib.draw_rounded_panel(self, card_rect_draw, Color("dce9ca"), GardenMenus.GREEN, 10, 0.0)
+		draw_circle(card_rect_draw.end - Vector2(10, 10), 4, GardenMenus.GREEN, true, -1, true)
+
 	var label_height := 16.0 if card_rect_draw.size.y < 64.0 else 20.0
 	_draw_card_icon(kind, card_rect_draw.get_center(), clampf((card_rect_draw.size.y - label_height * 2.0) / 52.0, 0.2, 1.0))
 	ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(5, 2), Vector2(card_rect_draw.size.x - 10, label_height)), String(Defs.PLANTS[kind]["name"]), 13, Color(0.14, 0.23, 0.16), HORIZONTAL_ALIGNMENT_CENTER, 9)
 	ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(8, card_rect_draw.size.y - label_height - 2), Vector2(card_rect_draw.size.x - 16, label_height)), str(Defs.PLANTS[kind]["cost"]), 16, Color(0.28, 0.18, 0.06))
-	if disabled:
-		draw_rect(card_rect_draw, Color(0.0, 0.0, 0.0, 0.16), true)
+
 
 
 func _draw_almanac_entry(kind: String, rect: Rect2, selected: bool, is_plant: bool, allow_hover: bool = true) -> void:
@@ -21859,11 +21568,11 @@ func _draw_almanac_entry(kind: String, rect: Rect2, selected: bool, is_plant: bo
 	card_rect_draw.position.y -= 3.0 if hovered else 0.0
 	if hovered:
 		draw_rect(card_rect_draw.grow(5.0), Color(1.0, 1.0, 1.0, 0.06), true)
-	_draw_panel_shell(card_rect_draw, Color(0.95, 0.93, 0.86), Color(0.42, 0.3, 0.14), 0.08, 0.05)
+	_draw_panel_shell(card_rect_draw, GardenMenus.PAPER, GardenMenus.BORDER, 0.08, 0.05)
 	if selected:
-		var pulse = 0.76 + 0.24 * sin(ui_time * 5.2 + rect.position.y * 0.03)
-		draw_rect(card_rect_draw.grow(6.0), Color(1.0, 0.88, 0.2, 0.08 * pulse), true)
-		draw_rect(card_rect_draw.grow(-1.0), Color(0.96, 0.84, 0.24), false, 3.0)
+		ThemeLib.draw_rounded_panel(self, card_rect_draw, Color("dce9ca"), GardenMenus.GREEN, 10, 0.0)
+		draw_circle(card_rect_draw.end - Vector2(10, 10), 4, GardenMenus.GREEN, true, -1, true)
+
 	if is_plant:
 		_draw_card_icon(kind, card_rect_draw.position + Vector2(card_rect_draw.size.x * 0.5, 46.0))
 		ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(4, 2), Vector2(card_rect_draw.size.x - 8, 23)), String(Defs.PLANTS[kind]["name"]), 12, Color(0.28, 0.18, 0.06), HORIZONTAL_ALIGNMENT_CENTER, 9)
@@ -21875,13 +21584,13 @@ func _draw_almanac_entry(kind: String, rect: Rect2, selected: bool, is_plant: bo
 func _draw_almanac_plant_detail(kind: String) -> void:
 	var data = Defs.PLANTS[kind]
 	var icon_center = ALMANAC_DETAIL_RECT.position + Vector2(114.0, 112.0)
-	_draw_panel_shell(Rect2(ALMANAC_DETAIL_RECT.position + Vector2(36.0, 46.0), Vector2(156.0, 170.0)), Color(0.98, 0.95, 0.88), Color(0.46, 0.34, 0.16), 0.08, 0.06)
+	_draw_panel_shell(Rect2(ALMANAC_DETAIL_RECT.position + Vector2(36.0, 46.0), Vector2(156.0, 170.0)), GardenMenus.PAPER, GardenMenus.BORDER, 0.08, 0.06)
 	_draw_card_icon(kind, icon_center, 2.2)
-	ThemeLib.draw_label(self, ui_font, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(214, 14), Vector2(390, 50)), String(data["name"]), 32, Color(0.24, 0.16, 0.06))
+	ThemeLib.draw_label(self, ui_font, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(214, 14), Vector2(ALMANAC_DETAIL_RECT.size.x - 250, 50)), String(data["name"]), 32, Color(0.24, 0.16, 0.06))
 	var stats = _plant_almanac_stats(kind)
 	for i in range(stats.size()):
-		var chip_rect = Rect2(ALMANAC_DETAIL_RECT.position + Vector2(206.0, 76.0 + i * 32.0), Vector2(378.0, 26.0))
-		_draw_panel_shell(chip_rect, Color(0.98, 0.95, 0.88), Color(0.52, 0.4, 0.22), 0.04, 0.04)
+		var chip_rect = Rect2(ALMANAC_DETAIL_RECT.position + Vector2(206.0, 76.0 + i * 32.0), Vector2(ALMANAC_DETAIL_RECT.size.x - 250, 26))
+		_draw_panel_shell(chip_rect, GardenMenus.PAPER, GardenMenus.BORDER, 0.04, 0.04)
 		ThemeLib.draw_label(self, ui_font, chip_rect.grow_individual(-10, -2, -10, -2), String(stats[i]), 18, Color(0.28, 0.2, 0.08))
 	var lines = _plant_almanac_lines(kind)
 	var plant_text := ""
@@ -21890,19 +21599,19 @@ func _draw_almanac_plant_detail(kind: String) -> void:
 			plant_text += "\n"
 		plant_text += String(lines[i])
 	var text_top := maxf(224, 76 + stats.size() * 32 + 12)
-	_draw_text_block(plant_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44, text_top), Vector2(564, ALMANAC_DETAIL_RECT.size.y - text_top - 28)), 20, Color(0.26, 0.18, 0.08), 8.0, 5)
+	_draw_text_block(plant_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44, text_top), Vector2(ALMANAC_DETAIL_RECT.size.x - 88, ALMANAC_DETAIL_RECT.size.y - text_top - 28)), 20, Color(0.26, 0.18, 0.08), 8.0, 9)
 
 
 func _draw_almanac_zombie_detail(kind: String) -> void:
 	var data = Defs.ZOMBIES[kind]
 	var icon_center = ALMANAC_DETAIL_RECT.position + Vector2(122.0, 136.0)
-	_draw_panel_shell(Rect2(ALMANAC_DETAIL_RECT.position + Vector2(36.0, 46.0), Vector2(172.0, 196.0)), Color(0.98, 0.95, 0.88), Color(0.46, 0.34, 0.16), 0.08, 0.06)
+	_draw_panel_shell(Rect2(ALMANAC_DETAIL_RECT.position + Vector2(36.0, 46.0), Vector2(172.0, 196.0)), GardenMenus.PAPER, GardenMenus.BORDER, 0.08, 0.06)
 	_draw_zombie_icon(kind, icon_center, 1.18)
-	ThemeLib.draw_label(self, ui_font, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(224, 14), Vector2(380, 50)), String(data["name"]), 32, Color(0.24, 0.16, 0.06))
+	ThemeLib.draw_label(self, ui_font, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(224, 14), Vector2(ALMANAC_DETAIL_RECT.size.x - 260, 50)), String(data["name"]), 32, Color(0.24, 0.16, 0.06))
 	var stats = _zombie_almanac_stats(kind)
 	for i in range(stats.size()):
-		var chip_rect = Rect2(ALMANAC_DETAIL_RECT.position + Vector2(216.0, 76.0 + i * 32.0), Vector2(378.0, 26.0))
-		_draw_panel_shell(chip_rect, Color(0.98, 0.95, 0.88), Color(0.52, 0.4, 0.22), 0.04, 0.04)
+		var chip_rect = Rect2(ALMANAC_DETAIL_RECT.position + Vector2(216.0, 76.0 + i * 32.0), Vector2(ALMANAC_DETAIL_RECT.size.x - 250, 26))
+		_draw_panel_shell(chip_rect, GardenMenus.PAPER, GardenMenus.BORDER, 0.04, 0.04)
 		ThemeLib.draw_label(self, ui_font, chip_rect.grow_individual(-10, -2, -10, -2), String(stats[i]), 18, Color(0.28, 0.2, 0.08))
 	var lines = _zombie_almanac_lines(kind)
 	var zombie_text := ""
@@ -21911,7 +21620,7 @@ func _draw_almanac_zombie_detail(kind: String) -> void:
 			zombie_text += "\n"
 		zombie_text += String(lines[i])
 	var text_top := maxf(254, 76 + stats.size() * 32 + 12)
-	_draw_text_block(zombie_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44, text_top), Vector2(564, ALMANAC_DETAIL_RECT.size.y - text_top - 28)), 20, Color(0.26, 0.18, 0.08), 8.0, 5)
+	_draw_text_block(zombie_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44, text_top), Vector2(ALMANAC_DETAIL_RECT.size.x - 88, ALMANAC_DETAIL_RECT.size.y - text_top - 28)), 20, Color(0.26, 0.18, 0.08), 8.0, 9)
 
 
 func _ease_out_back(t: float) -> float:

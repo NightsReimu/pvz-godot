@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.104** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.105** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -138,6 +138,12 @@ v1.0.104 统一要求**难度越高，招式越多**：所有东方 Boss（含�
 
 > [!NOTE]
 > 东方角色、名称、设定和 Boss 美术属于 Touhou Project 相关二次创作内容。仓库中的东方原曲仍受原权利人保护，不能因为代码开源就视为可自由复制或再分发。
+
+## 界面与符卡演出
+
+v1.0.105 重做主界面和世界选择：七个世界同时可见，点击预览场景、关卡进度和代表植物，再进入地图；已锁定的世界也能预览。新增统一的世界场景插画，主菜单、图鉴、选卡、基建和抽卡采用更清晰的面板与按钮。图鉴扩大阅读区域，基建收益和升级按钮不再重叠。
+
+东方 Boss 开启符卡时展开主题法阵、御札/星芒等粒子与符名横幅，持续约 1.65 秒；暂停时冻结，切阶段或退场时清除。非符攻击不使用符卡宣告。保留 v1.0.104 的战斗数值和节奏。实现与验证见 [界面与符卡演出记录](docs/garden-ui-spell-intro.md)。
 
 ## 操作方式
 

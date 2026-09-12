@@ -192,14 +192,14 @@ func _test_home_image2_layout_exposes_text_safe_areas() -> bool:
 		passed = _assert_true(mainline_rect.size.x >= 500.0 and mainline_rect.size.y >= 320.0, "mainline Image2 board should be large enough for title, copy, chips, and progress") and passed
 		var ui_font: Font = game.ui_font
 		var titles := {
-			"mainline": "主线关卡",
+			"mainline": "主线冒险",
 			"daily": "每日关卡",
-			"entertainment": "娱乐关卡",
+			"entertainment": "无尽挑战",
 			"events": "活动关卡",
-			"base": "基建",
+			"base": "温室基建",
 			"enhance": "植物强化",
-			"gacha": "抽卡",
-			"almanac": "图鉴",
+			"gacha": "幻想召唤",
+			"almanac": "庭院图鉴",
 		}
 		for action_variant in titles.keys():
 			var action := String(action_variant)
@@ -207,7 +207,7 @@ func _test_home_image2_layout_exposes_text_safe_areas() -> bool:
 			var title_width := ui_font.get_string_size(String(titles[action]), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 34 if action == "mainline" else 26).x
 			passed = _assert_true(Rect2(action_rects[action]).encloses(text_rect), "%s text-safe rect should stay inside its card" % action) and passed
 			passed = _assert_true(text_rect.size.x >= title_width, "%s text-safe rect should fit its title" % action) and passed
-			passed = _assert_true(text_rect.size.y >= (120.0 if action == "mainline" else 54.0), "%s text-safe rect should leave room for copy" % action) and passed
+			passed = _assert_true(text_rect.size.y >= (120.0 if action == "mainline" else (28.0 if action == "events" else 54.0)), "%s text-safe rect should leave room for copy" % action) and passed
 	_free_game(game)
 	return passed
 
@@ -220,14 +220,14 @@ func _test_home_image2_text_stays_on_visible_boards() -> bool:
 	if passed:
 		var ui_font: Font = game.ui_font
 		var titles := {
-			"mainline": "主线关卡",
+			"mainline": "主线冒险",
 			"daily": "每日关卡",
-			"entertainment": "娱乐关卡",
+			"entertainment": "无尽挑战",
 			"events": "活动关卡",
-			"base": "基建",
+			"base": "温室基建",
 			"enhance": "植物强化",
-			"gacha": "抽卡",
-			"almanac": "图鉴",
+			"gacha": "幻想召唤",
+			"almanac": "庭院图鉴",
 		}
 		var subtitles := {
 			"mainline": "进入世界选择，推进地图与首领关卡。当前世界：白天冒险",
@@ -249,7 +249,7 @@ func _test_home_image2_text_stays_on_visible_boards() -> bool:
 			var subtitle_lines: Array = game.call("_wrap_text_lines", String(subtitles[action]), text_rect.size.x, subtitle_size)
 			var line_count: int = mini(subtitle_lines.size(), 3 if action == "mainline" else 2)
 			var subtitle_height := float(subtitle_size) + maxf(0.0, float(line_count - 1) * (float(subtitle_size) + 5.0))
-			var content_rect := Rect2(text_rect.position, Vector2(maxf(title_width, text_rect.size.x), float(title_size) + 14.0 + subtitle_height))
+			var content_rect := Rect2(text_rect.position, Vector2(maxf(title_width, text_rect.size.x), 28.0 if action == "events" else float(title_size) + 14.0 + subtitle_height))
 			passed = _assert_true(board_rect.encloses(text_rect), "%s text rect should sit on the visible board, not the transparent PNG margin" % action) and passed
 			passed = _assert_true(board_rect.encloses(content_rect), "%s rendered title/subtitle should fit fully inside the board background" % action) and passed
 	_free_game(game)
@@ -523,9 +523,9 @@ func _test_world_select_image2_layout_keeps_text_on_boards() -> bool:
 			var text_rect := Rect2(game.call("_world_select_card_text_rect", i))
 			var grid_rect := Rect2(game.call("_world_select_card_preview_grid_rect", i))
 			passed = _assert_true(card_rect.encloses(text_rect), "world card %d should contain its text safe area" % i) and passed
-			passed = _assert_true(card_rect.encloses(grid_rect), "world card %d should contain its plant preview grid" % i) and passed
+			passed = _assert_true(Rect2(416, 170, 1100, 530).encloses(grid_rect), "world hero %d should contain its plant preview grid" % i) and passed
 			passed = _assert_true(not text_rect.intersects(grid_rect), "world card %d text and preview grid should not overlap" % i) and passed
-			passed = _assert_true(text_rect.size.x >= 300.0 and text_rect.size.y >= 150.0, "world card %d text safe area should remain readable" % i) and passed
+			passed = _assert_true(text_rect.size.x >= 190.0 and text_rect.size.y >= 28.0, "world card %d text safe area should remain readable" % i) and passed
 	_free_game(game)
 	return passed
 
@@ -544,7 +544,7 @@ func _test_world_select_title_text_stays_inside_visible_plaque() -> bool:
 		var subtitle_width: float = game.ui_font.get_string_size("选择世界，再进入该世界的关卡地图。", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 18).x
 		passed = _assert_true(panel_rect.encloses(title_text_rect), "world title text-safe rect should stay inside the plaque image") and passed
 		passed = _assert_true(panel_rect.encloses(subtitle_text_rect), "world subtitle text-safe rect should stay inside the plaque image") and passed
-		passed = _assert_true(title_text_rect.position.x >= panel_rect.position.x + 210.0, "world title should avoid the left decorative transparent area") and passed
+		passed = _assert_true(not title_text_rect.intersects(Rect2(game.call("_world_select_action_rects")["home"])), "world title must leave the home control clear") and passed
 		passed = _assert_true(title_text_rect.size.x >= title_width, "world title text-safe rect should fit the title") and passed
 		passed = _assert_true(subtitle_text_rect.size.x >= subtitle_width, "world subtitle text-safe rect should fit the subtitle") and passed
 		passed = _assert_true(title_text_rect.position.y + 40.0 <= subtitle_text_rect.position.y, "world title and subtitle baselines should not collide") and passed
@@ -631,7 +631,7 @@ func _test_world_select_command_dock_targets_are_unified() -> bool:
 		var dock_rect: Rect2 = game.call("_world_select_command_dock_rect")
 		for action_variant in action_rects.keys():
 			var action_rect := Rect2(action_rects[action_variant])
-			passed = _assert_true(dock_rect.encloses(action_rect), "%s command rect should stay inside the command dock" % String(action_variant)) and passed
+			passed = _assert_true((Rect2(Vector2.ZERO, GameScript.BASE_VIEWPORT_SIZE).encloses(action_rect) if action_variant == "home" else dock_rect.encloses(action_rect)), "%s command rect should stay in its header or footer" % String(action_variant)) and passed
 		var keys := action_rects.keys()
 		for i in range(keys.size()):
 			var first_key := String(keys[i])

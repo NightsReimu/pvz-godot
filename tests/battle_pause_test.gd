@@ -10,6 +10,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var failed := false
 	failed = not _test_escape_toggles_battle_pause() or failed
+	failed = not _test_spell_declaration_holds_during_pause() or failed
 	failed = not _test_almanac_close_returns_to_paused_battle() or failed
 	quit(1 if failed else 0)
 
@@ -76,5 +77,18 @@ func _test_almanac_close_returns_to_paused_battle() -> bool:
 	game._handle_almanac_click(game.ALMANAC_CLOSE_RECT.get_center())
 	var passed = _assert_true(game.mode == game.MODE_BATTLE, "closing the almanac opened from battle pause should return to battle instead of leaving the level") \
 		and _assert_true(game.get("battle_paused") == true, "closing the almanac opened from battle pause should restore the paused overlay")
+	_free_game(game)
+	return passed
+
+
+func _test_spell_declaration_holds_during_pause() -> bool:
+	var game := _make_game()
+	var runtime = game._ensure_touhou_danmaku()
+	var cast := {"owner": 1, "kind": "reimu_boss", "age": 0.55, "card": {"id": "th08-test", "name": "梦符测试", "origin": "canonical"}}
+	runtime.casts.append(cast)
+	var before: Dictionary = runtime.DeclarationFX.state(cast)
+	game.battle_paused = true
+	game._process(0.5)
+	var passed := _assert_true(runtime.casts.size() == 1 and runtime.DeclarationFX.state(cast) == before, "Battle pause must freeze the real spell declaration clock")
 	_free_game(game)
 	return passed
