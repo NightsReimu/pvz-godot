@@ -230,9 +230,9 @@ func draw_boss(center: Vector2, boss: Dictionary) -> void:
 	var texture: Texture2D = game._try_get_boss_frame_texture(KIND, frame_index(boss))
 	if texture == null:
 		return
-	var scale := 0.72
+	var scale: float = game._touhou_boss_draw_scale(KIND)
 	var extent := texture.get_size() * scale
-	game.draw_texture_rect(texture, Rect2(center + Vector2(-extent.x * 0.5, -extent.y * 0.72), extent), false)
+	game.draw_texture_rect(texture, Rect2(center + Vector2(-extent.x * 0.5, game.TouhouSpriteDefs.top_offset(KIND)), extent), false)
 	var seal := center + Vector2(0, -35)
 	for index in range(8):
 		var angle: float = game.level_time * 0.55 + index * TAU / 8.0

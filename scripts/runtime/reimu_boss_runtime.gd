@@ -66,10 +66,13 @@ func update(delta: float) -> void:
 	if game.boss_time_stop_timer > 0.0:
 		return
 	var owners := {}
+	var backdrop_active := false
 	for zombie in game.zombies:
+		if String(zombie.kind) in [KIND, "marisa_boss"] and float(zombie.health) > 0:
+			backdrop_active = true
 		if String(zombie.kind) == KIND and float(zombie.health) > 0.0:
 			owners[int(zombie.uid)] = true
-	light = move_toward(light, 1.0 if not owners.is_empty() else 0.0, maxf(0, delta) * 0.38)
+	light = move_toward(light, 1.0 if backdrop_active else 0.0, maxf(0, delta) * 0.38)
 	_clear_marks()
 	for index in range(tiles.size() - 1, -1, -1):
 		var tile: Dictionary = tiles[index]
@@ -125,9 +128,9 @@ func draw_boss(center: Vector2, boss: Dictionary) -> void:
 	if texture == null:
 		return
 	# The caller already applies the responsive battle unit scale.
-	var scale := 0.83
+	var scale: float = game._touhou_boss_draw_scale(KIND)
 	var extent := texture.get_size() * scale
-	var position := center + Vector2(-extent.x * 0.5, -extent.y * 0.75)
+	var position := center + Vector2(-extent.x * 0.5, game.TouhouSpriteDefs.top_offset(KIND))
 	game.draw_texture_rect(texture, Rect2(position, extent), false, Color(1, 0.88, 0.88) if float(boss.get("flash", 0)) > 0 else Color.WHITE)
 	var seal_center := center + Vector2(0, -35 * scale)
 	if String(boss.get("rumia_state", "idle")) in ["barrier", "phase", "final"]:
@@ -189,7 +192,7 @@ func draw_overlay() -> void:
 				var point := Vector2(c.blink_position)
 				game.draw_arc(point, (24 + fposmod(float(c.age) * 24, 30)) * game._battle_unit_scale(), 0, TAU, 32, Color(GOLD, 0.48), 1.5, true)
 	# Use the reserved bamboo path; the bottom strip belongs to the boss HUD.
-	if light > 0.1 and game.ui_font != null:
+	if light > 0.1 and game.ui_font != null and game.zombies.any(func(b): return String(b.kind) == KIND and float(b.health) > 0):
 		var font_size := 12 if game.size.x < 1100 else 15
 		var labels := ["赤符·短暂封印", "蓝符·净化僵尸", "金符·恢复减伤"]
 		var pos := Vector2(board.end.x + 10, board.end.y - 46)

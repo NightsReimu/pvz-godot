@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.102** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.103** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -105,7 +105,7 @@ The original source code is available under the MIT License. Bundled artwork, au
 
 项目目前包含三组主要东方主题支线。Boss 技能参考角色设定和对应原作关卡的符卡主题重新设计，并适配植物防守玩法；不是对原作弹幕的逐帧复制。
 
-点击已解锁的东方关卡后选择难度。常规东方关卡提供 **Easy / Normal / Hard / Lunatic**；芙兰 EX 和蓝紫终幕提供 **EX / EX+**。Easy 与 EX 沿用旧版战斗，较高档增加 Boss 生命、阶段、追击招式、弹幕密度和小怪波次。Lunatic 与 EX+ 先自选植物，再以正常阳光费用和冷却作战；其余档使用传送带。重开保留难度与选卡，通关按关卡和难度分别记录。
+点击已解锁的东方关卡后选择难度。常规东方关卡提供 **Easy / Normal / Hard / Lunatic**；芙兰 EX 和蓝紫终幕提供 **EX / EX+**。Easy 与 EX 保留既有路线，较高档增加 Boss 生命、阶段、追击招式、弹幕密度和小怪波次。Lunatic 与 EX+ 先自选植物，再以正常阳光费用和冷却作战；其余档使用传送带。重开保留难度与选卡，通关按关卡和难度分别记录。
 
 ### 红魔乡主题
 
@@ -130,7 +130,9 @@ v1.0.100 新增的 3-21 在通过 3-20 后解锁。慧音使用提供的 24 帧�
 
 v1.0.102 新增 **3-22-a 博丽灵梦**，通过 3-21 解锁。深夜竹林开场保持低亮度，灵梦登场后逐渐映出符光；使用提供的 24 帧透明素材与两首音乐。Easy / Normal / Hard / Lunatic 分别对应永夜抄 4A 的完整符卡分支，原作道中两符并入同一终末战，Normal 以上以「梦想封印 瞬」耐久收束。赤符短暂封印植物，蓝符净化僵尸，金符回血并减少弹幕伤害；这些符格属于本作原创塔防效果。
 
-东方 Boss 的生命、弹速、发射密度和伤害进一步降低。伤害倍率为 Easy 0.34、Normal 0.40、Hard 0.48、Lunatic 0.58，EX 0.34、EX+ 0.55；拥挤时保留御札等弹型的轮廓。原作符卡对应、改编边界和碰撞性能测量见 [东方 Boss 符卡对照](docs/touhou-spells.md)。
+v1.0.103 新增 **3-22-b 雾雨魔理沙**，同样通过 3-21 解锁，共用灵梦的深夜竹林与道中 BGM，终末使用新提供的音乐与 24 帧透明动作。包含永夜抄 4B 四难度的 078–100 号符卡分支：彩色星带、旋转星流、非定向激光、单/双魔炮、地球光与射月，Normal 以上有终末魔炮。无独立道中 Boss；新增灼光格、棱镜格，以及可抢种阻止、可击破的魔化蘑菇。
+
+应战斗反馈，东方 Boss 数值适度回调：相对 v1.0.102，生命增加约 11%–15%、伤害增加约 15%–18%、弹速约增加 6%，密度与发射频率同步提高。23 种东方 Boss 统一人物显示高度，阶段不再放大角色。原作对应、塔防适配边界与数值表见 [东方 Boss 符卡对照](docs/touhou-spells.md)。
 
 > [!NOTE]
 > 东方角色、名称、设定和 Boss 美术属于 Touhou Project 相关二次创作内容。仓库中的东方原曲仍受原权利人保护，不能因为代码开源就视为可自由复制或再分发。

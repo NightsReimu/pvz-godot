@@ -2,6 +2,7 @@ extends RefCounted
 class_name TouhouSpellDefs
 
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
+const Marisa = preload("res://scripts/data/marisa_spell_defs.gd")
 const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
 
 # TH06/TH07 Normal routes, followed by Extra/Phantasm where specified.
@@ -9,6 +10,7 @@ const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
 # Sources and the tower-defense adaptations are documented in docs/touhou-spells.md.
 const CARDS := {
 	"reimu_boss": Reimu.ROUTES.easy,
+	"marisa_boss": Marisa.ROUTES.easy,
 	"rumia_boss": [
 		["th06-02", "夜符「Night Bird」", "night_bird", "bird"],
 		["th06-03", "暗符「Demarcation」", "demarcation", "dark"],
@@ -165,6 +167,7 @@ const REBIRTH := ["th07-114", "「反魂蝶 -三分咲-」", "resurrection_butte
 # Unnamed attacks are tower-defense adaptations, never invented named spell cards.
 const NONSPELLS := {
 	"reimu_boss": ["博丽灵梦", "reimu_amulets", "ofuda"],
+	"marisa_boss": ["雾雨魔理沙", "marisa_stars", "stars"],
 	"rumia_boss": ["露米娅", "dark_fan", "bird"],
 	"cirno_boss": ["琪露诺", "ice_fan", "icicle"],
 	"meiling_boss": ["红美铃", "rainbow_spiral", "rainbow"],
@@ -220,6 +223,8 @@ static func card_from_entry(entry: Array) -> Dictionary:
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
 	if kind == "reimu_boss":
 		return Reimu.cards(level)
+	if kind == "marisa_boss":
+		return Marisa.cards(level)
 	if String(level.get("mid_boss_kind", "")) == kind:
 		if kind == "patchouli_boss":
 			return PATCHOULI_EXTRA

@@ -265,7 +265,10 @@ func _test_continuous_emitters() -> void:
 	runtime.update(2.6)
 	check(not runtime.casts.is_empty() and not runtime.beams.is_empty(), "dolls must remain until their final telegraphed laser ends")
 	check(float(game.zombies[0].touhou_cast_remaining) == 0.0, "finishing existing lasers must not extend the boss cast lock")
-	runtime.update(1.0)
+	var remaining := 0.0
+	for beam in runtime.beams:
+		remaining = maxf(remaining, float(beam.delay) + float(beam.duration) - float(beam.age))
+	runtime.update(remaining + 0.1)
 	check(runtime.casts.is_empty() and runtime.beams.is_empty(), "completed laser formations must finish without restarting emission")
 	release(game)
 

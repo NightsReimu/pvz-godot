@@ -56,9 +56,7 @@ func _run() -> void:
 	failed = not _test_touhou_boss_frame_indices_use_24_frame_ranges() or failed
 	failed = not _test_touhou_boss_frames_share_stable_canvases() or failed
 	failed = not _test_touhou_boss_prepared_frames_keep_complete_silhouettes() or failed
-	failed = not _test_prismriver_render_scale_stays_readable() or failed
-	failed = not _test_youmu_render_scale_stays_compact() or failed
-	failed = not _test_yuyuko_render_scale_stays_compact() or failed
+	failed = not _test_uniform_touhou_render_height() or failed
 	failed = not _test_youmu_frames_share_a_stable_canvas() or failed
 	failed = not _test_youmu_skill_states_use_coherent_frame_ranges() or failed
 	quit(1 if failed else 0)
@@ -180,55 +178,26 @@ func _test_touhou_boss_prepared_frames_keep_complete_silhouettes() -> bool:
 	return passed
 
 
-func _test_prismriver_render_scale_stays_readable() -> bool:
+func _test_uniform_touhou_render_height() -> bool:
 	var game := _make_game()
-	var passed := _assert_true(game.has_method("_prismriver_draw_scale"), "Prismriver should expose a draw scale helper")
-	var max_alpha_height := 0.0
-	for frame_index in range(24):
-		var bounds := _prepared_alpha_bounds_for_frame(game, "prismriver_boss", frame_index)
-		passed = _assert_true(bounds.size.y > 0, "Prismriver frame %02d should have visible prepared sprite pixels" % frame_index) and passed
-		max_alpha_height = maxf(max_alpha_height, float(bounds.size.y))
-	if game.has_method("_prismriver_draw_scale"):
-		var opening_height := max_alpha_height * float(game.call("_prismriver_draw_scale", 0))
-		var late_height := max_alpha_height * float(game.call("_prismriver_draw_scale", 3))
-		passed = _assert_true(opening_height <= 196.0, "Prismriver opening render should stay inside the normalized boss height band (%.1fpx)" % opening_height) and passed
-		passed = _assert_true(late_height <= 204.0, "Prismriver late-phase render should stay inside the normalized boss height band (%.1fpx)" % late_height) and passed
-	_free_game(game)
-	return passed
-
-
-func _test_youmu_render_scale_stays_compact() -> bool:
-	var game := _make_game()
-	var passed := _assert_true(game.has_method("_youmu_draw_scale"), "Youmu should expose a draw scale helper")
-	var max_alpha_height := 0.0
-	for frame_index in range(24):
-		var path := "res://art/youmu/frame_%02d.png" % frame_index
-		var bounds := _alpha_bounds_for_frame(path)
-		passed = _assert_true(bounds.size.y > 0, "%s should have visible sprite pixels" % path) and passed
-		max_alpha_height = maxf(max_alpha_height, float(bounds.size.y))
-	if game.has_method("_youmu_draw_scale"):
-		var opening_height := max_alpha_height * float(game.call("_youmu_draw_scale", 0))
-		var late_height := max_alpha_height * float(game.call("_youmu_draw_scale", 3))
-		passed = _assert_true(opening_height <= 158.0, "Youmu opening render should stay close to the old boss size instead of ballooning to %.1fpx" % opening_height) and passed
-		passed = _assert_true(late_height <= 166.0, "Youmu late-phase render should stay readable without becoming oversized (%.1fpx)" % late_height) and passed
-	_free_game(game)
-	return passed
-
-
-func _test_yuyuko_render_scale_stays_compact() -> bool:
-	var game := _make_game()
-	var passed := _assert_true(game.has_method("_yuyuko_draw_scale"), "Yuyuko should expose a draw scale helper")
-	var max_alpha_height := 0.0
-	for frame_index in range(24):
-		var path := "res://art/yuyuko/frame_%02d.png" % frame_index
-		var bounds := _alpha_bounds_for_frame(path)
-		passed = _assert_true(bounds.size.y > 0, "%s should have visible sprite pixels" % path) and passed
-		max_alpha_height = maxf(max_alpha_height, float(bounds.size.y))
-	if game.has_method("_yuyuko_draw_scale"):
-		var opening_height := max_alpha_height * float(game.call("_yuyuko_draw_scale", 0))
-		var late_height := max_alpha_height * float(game.call("_yuyuko_draw_scale", 3))
-		passed = _assert_true(opening_height <= 174.0, "Yuyuko opening render should not tower over the other Touhou bosses (%.1fpx)" % opening_height) and passed
-		passed = _assert_true(late_height <= 184.0, "Yuyuko late-phase render should keep the revived boss readable without becoming oversized (%.1fpx)" % late_height) and passed
+	var passed := true
+	for kind in game.TouhouDifficulty.EXTENSIONS:
+		var image := Image.new()
+		var path: String = game._boss_frame_folder_for_kind(kind) + "/frame_00.png"
+		passed = _assert_true(image.load(ProjectSettings.globalize_path(path)) == OK, "Calibration source must load: " + kind) and passed
+		var min_y := image.get_height()
+		var max_y := -1
+		for y in range(image.get_height()):
+			for x in range(image.get_width()):
+				if image.get_pixel(x, y).a >= 128.0 / 255.0:
+					min_y = mini(min_y, y)
+					max_y = maxi(max_y, y)
+		var draw_scale: float = game._touhou_boss_draw_scale(kind)
+		passed = _assert_true(absf((max_y - min_y + 1) * draw_scale - 180.0) < 0.01, kind + " must share the 180px opaque idle height") and passed
+		var legacy_helper := "_" + String(kind).trim_suffix("_boss") + "_draw_scale"
+		if game.has_method(legacy_helper):
+			for phase in range(4):
+				passed = _assert_true(is_equal_approx(float(game.call(legacy_helper, phase)), draw_scale), kind + " must not grow with phases") and passed
 	_free_game(game)
 	return passed
 

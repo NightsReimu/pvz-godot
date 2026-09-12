@@ -1,0 +1,13 @@
+{
+  "source": "ChatGPT Image Sep 13, 2026, 12_57_54 AM.png",
+  "sha256": "a3cf3037d4858a3f9f215505fbc1b34eafe5a90627146cda73fb1821d4b56a67",
+  "grid": [
+    6,
+    4
+  ],
+  "frame_size": [
+    256,
+    256
+  ],
+  "processing": "Exact cell extraction from user-provided RGBA sprite sheet; alpha and pixels preserved. No redrawing or chroma key."
+}

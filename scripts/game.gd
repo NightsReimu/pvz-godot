@@ -15,6 +15,8 @@ const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const TouhouDanmakuRuntime = preload("res://scripts/runtime/touhou_danmaku_runtime.gd")
 const TouhouPhaseRuntime = preload("res://scripts/runtime/touhou_phase_runtime.gd")
 const KeineBossRuntime = preload("res://scripts/runtime/keine_boss_runtime.gd")
+const TouhouSpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
+const MarisaBossRuntime = preload("res://scripts/runtime/marisa_boss_runtime.gd")
 const ReimuBossRuntime = preload("res://scripts/runtime/reimu_boss_runtime.gd")
 const TouhouDifficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const TouhouDifficultyMenu = preload("res://scripts/runtime/touhou_difficulty_menu.gd")
@@ -587,6 +589,8 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"mystia_boss",
 	"keine_boss",
 	"reimu_boss",
+	"marisa_boss",
+	"marisa_mushroom",
 	"keine_bamboo",
 	"fog_boss",
 	"roof_boss",
@@ -951,6 +955,7 @@ var projectile_runtime: ProjectileRuntime
 var touhou_danmaku: TouhouDanmakuRuntime
 var keine_runtime: RefCounted
 var reimu_runtime: RefCounted
+var marisa_runtime: RefCounted
 var zombie_runtime: ZombieRuntime
 var objective_runtime: ObjectiveRuntime
 var save_dirty := false
@@ -2052,6 +2057,8 @@ func _process(delta: float) -> void:
 	_update_conveyor(delta)
 	if reimu_runtime != null:
 		reimu_runtime.update(delta)
+	if marisa_runtime != null:
+		marisa_runtime.update(delta)
 	_update_plants(delta)
 	_update_projectiles(delta)
 	_update_rollers(delta)
@@ -3118,7 +3125,7 @@ func _should_use_image2_zombie_texture(kind: String) -> bool:
 
 func _boss_frame_count_for_kind(kind: String) -> int:
 	match kind:
-		"keine_boss", "reimu_boss":
+		"keine_boss", "reimu_boss", "marisa_boss":
 			return 24
 		"rumia_boss":
 			return RUMIA_FRAME_COUNT
@@ -3168,6 +3175,8 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 	match kind:
 		"reimu_boss":
 			return "res://art/reimu"
+		"marisa_boss":
+			return "res://art/marisa"
 		"keine_boss":
 			return "res://art/keine"
 		"rumia_boss":
@@ -3735,6 +3744,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 		return
 	_queue_boss_frame_set_prewarm("keine_boss")
 	_queue_boss_frame_set_prewarm("reimu_boss")
+	_queue_boss_frame_set_prewarm("marisa_boss")
 	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "lily_white_boss", "prismriver_boss", "youmu_boss", "yuyuko_boss", "ran_boss", "yukari_boss", "flandre_boss", "wriggle_boss", "mystia_boss"]:
 		_queue_boss_frame_set_prewarm(kind)
 
@@ -7082,6 +7092,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		keine_runtime.reset()
 	if reimu_runtime != null:
 		reimu_runtime.reset()
+	if marisa_runtime != null:
+		marisa_runtime.reset()
 	selected_level_index = level_index
 	if not level_override.is_empty():
 		current_level = level_override.duplicate(true)
@@ -7917,6 +7929,12 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.boss_bgm))
 			_show_banner("博丽灵梦展开结界，竹林映出符光！", 2.8)
+		elif kind == "marisa_boss":
+			_ensure_marisa_runtime()
+			_ensure_reimu_runtime()
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.boss_bgm))
+			_show_banner("雾雨魔理沙举起八卦炉，星光照亮竹林！", 2.8)
 	elif kind == "pool_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
@@ -8755,6 +8773,9 @@ func _is_plant_under_signal_ivy_shield(row: int, col: int) -> bool:
 
 func _plant_attack_cadence_scale(row: int, col: int) -> float:
 	var scale := 1.0
+	var occupant = _targetable_plant_at(row, col) if row >= 0 and row < grid.size() and col >= 0 and col < grid[row].size() and row < support_grid.size() and col < support_grid[row].size() else null
+	if occupant != null and bool(occupant.get("marisa_glare", false)):
+		scale = 1.25
 	if _is_frozen_cell(row, col):
 		scale = maxf(scale, float(current_level.get("frozen_attack_slow", 1.3)))
 	var programmer_count = _count_alive_enemy_zombies_by_kind("programmer_zombie")
@@ -9479,6 +9500,12 @@ func _ensure_keine_runtime() -> RefCounted:
 	if keine_runtime == null:
 		keine_runtime = KeineBossRuntime.new(self)
 	return keine_runtime
+
+
+func _ensure_marisa_runtime() -> RefCounted:
+	if marisa_runtime == null:
+		marisa_runtime = MarisaBossRuntime.new(self)
+	return marisa_runtime
 
 
 func _ensure_reimu_runtime() -> RefCounted:
@@ -12245,6 +12272,10 @@ func _update_zombies(delta: float) -> void:
 			zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), 0.45)
 		if float(zombie.get("corrode_timer", 0.0)) > 0.0 and float(zombie.get("corrode_dps", 0.0)) > 0.0:
 			zombie = _apply_zombie_damage(zombie, float(zombie["corrode_dps"]) * delta, 0.04)
+		if String(zombie.kind) == "marisa_mushroom":
+			zombies[i] = zombie
+			continue
+
 		if String(zombie.kind) == "keine_bamboo":
 			_ensure_keine_runtime().update_bamboo(zombie, delta)
 			zombies[i] = zombie
@@ -13464,6 +13495,8 @@ func _cleanup_dead_zombies() -> void:
 			keine_runtime.clear_owner(int(zombie.get("uid", -1)))
 		if reimu_runtime != null and String(zombie.kind) == "reimu_boss":
 			reimu_runtime.clear_owner(int(zombie.get("uid", -1)))
+		if marisa_runtime != null and String(zombie.kind) == "marisa_boss":
+			marisa_runtime.clear_owner(int(zombie.get("uid", -1)))
 		if String(zombie.get("kind", "")) == "yuyuko_boss" and bool(Defs.ZOMBIES["yuyuko_boss"].get("revive_once", false)) and not bool(zombie.get("yuyuko_revived", false)):
 			zombies[i] = _trigger_yuyuko_boss_revival(zombie)
 			continue
@@ -15181,6 +15214,8 @@ func _update_rumia_hover(zombie: Dictionary, delta: float) -> Dictionary:
 
 func _hover_boss_effect_tint(kind: String) -> Color:
 	match kind:
+		"marisa_boss":
+			return Color(1.0, 0.8, 0.4, 0.24)
 		"daiyousei_boss":
 			return Color(0.46, 1.0, 0.76, 0.24)
 		"cirno_boss":
@@ -15655,7 +15690,7 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["dark_football", "wizard_zombie", "ninja", "screen_door"],
 			]
 			tint = Color(0.65, 0.88, 0.71, 0.3)
-		"reimu_boss":
+		"reimu_boss", "marisa_boss":
 			pools = [
 				["normal", "conehead", "newspaper"],
 				["screen_door", "ninja", "buckethead"],
@@ -15741,7 +15776,7 @@ func _damage_plants_in_row_segment(row: int, min_x: float, max_x: float, damage:
 		if plant_center_x < min_x or plant_center_x > max_x:
 			continue
 		var plant = plant_variant
-		var incoming_damage := damage * float(plant.get("reimu_guard", 1.0))
+		var incoming_damage := damage * float(plant.get("reimu_guard", 1.0)) * float(plant.get("marisa_prism", 1.0))
 		if float(plant.get("holy_invincible_timer", 0.0)) > 0.0:
 			plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.1)
 			continue
@@ -15766,7 +15801,7 @@ func _damage_plant_cell(row: int, col: int, damage: float, extra_cooldown: float
 	if plant_variant == null:
 		return false
 	var plant = plant_variant
-	damage *= float(plant.get("reimu_guard", 1.0))
+	damage *= float(plant.get("reimu_guard", 1.0)) * float(plant.get("marisa_prism", 1.0))
 	if float(plant.get("holy_invincible_timer", 0.0)) > 0.0:
 		plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.12)
 		return true
@@ -16200,6 +16235,10 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 	if String(zombie.kind) == "reimu_boss":
 		zombie = _ensure_touhou_danmaku().cast(zombie)
 		_ensure_reimu_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
+		return zombie
+	if String(zombie.kind) == "marisa_boss":
+		zombie = _ensure_touhou_danmaku().cast(zombie)
+		_ensure_marisa_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
 		return zombie
 	if String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")).begins_with("pressure_"):
 		return _ensure_touhou_danmaku().cast(zombie)
@@ -17407,6 +17446,8 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		keine_runtime.cancel_cast(int(zombie.get("uid", -1)))
 	if String(zombie.kind) == "reimu_boss" and reimu_runtime != null:
 		reimu_runtime.clear_owner(int(zombie.get("uid", -1)))
+	if String(zombie.kind) == "marisa_boss" and marisa_runtime != null:
+		marisa_runtime.clear_owner(int(zombie.get("uid", -1)))
 	if TouhouSpellDefs.CARDS.has(String(zombie.get("kind", ""))):
 		if touhou_danmaku != null and zombie.has("touhou_owner"):
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
@@ -21986,6 +22027,8 @@ func _zombie_draw_motion(zombie: Dictionary, base_center: Vector2) -> Dictionary
 	var phase = float(zombie.get("anim_phase", 0.0))
 	var appear_t = clampf((level_time - float(zombie.get("spawn_time", level_time))) / 0.22, 0.0, 1.0)
 	var appear = _ease_out_back(appear_t)
+	if String(zombie.get("kind", "")) == "marisa_mushroom":
+		return {"center": base_center, "rotation": 0.0, "scale": Vector2(-appear, appear)}
 	if _is_hovering_boss_kind(String(zombie.get("kind", ""))):
 		var kind = String(zombie.get("kind", ""))
 		var move_timer = float(zombie.get("rumia_move_timer", 0.0))
@@ -22216,6 +22259,8 @@ func _draw_battle_scene() -> void:
 		_ensure_keine_runtime().draw_ground()
 	if _is_reimu_midnight_bamboo_level():
 		_ensure_reimu_runtime().draw_ground()
+		if marisa_runtime != null:
+			marisa_runtime.draw_ground()
 	_draw_hover()
 	_draw_mowers()
 	_draw_lane_obstacles()
@@ -22236,6 +22281,8 @@ func _draw_battle_scene() -> void:
 		keine_runtime.draw_overlay()
 	if reimu_runtime != null and _is_reimu_midnight_bamboo_level():
 		reimu_runtime.draw_overlay()
+	if marisa_runtime != null and _is_reimu_midnight_bamboo_level():
+		marisa_runtime.draw_overlay()
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
 	combat_draw_offset = Vector2.ZERO
@@ -24387,7 +24434,7 @@ func _draw_boss_health_bar() -> void:
 	var max_health = maxf(1.0, float(boss.get("max_health", 1.0)))
 	var trail_health = maxf(health, float(boss.get("boss_hud_trail", health / max_health)) * max_health)
 	var phase_label := "阶段 %d" % (int(boss.get("boss_phase", 0)) + 1)
-	var survival := bool(boss.get("yuyuko_revived", false)) or (String(boss.kind) == "reimu_boss" and String(boss.get("touhou_card", {}).get("pattern", "")) == "reimu_blink")
+	var survival := bool(boss.get("yuyuko_revived", false)) or String(boss.get("touhou_card", {}).get("pattern", "")) in ["reimu_blink", "marisa_final_spark", "marisa_final_master"]
 	if boss.has("touhou_encounter"):
 		var encounter: Dictionary = boss.touhou_encounter
 		var phase_count := TouhouSpellDefs.phase_count(String(boss.kind), current_level)
@@ -24982,7 +25029,7 @@ func _draw_boss_cast_cue(center: Vector2, boss: Dictionary) -> void:
 		return
 	var progress = clampf(1.0 - float(boss.get("boss_skill_timer", 0.0)) / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0)
 	var tint = _hover_boss_effect_tint(String(boss["kind"]))
-	var cue_scale: float = _battle_unit_scale() if String(boss.kind) == "reimu_boss" else 1.0
+	var cue_scale: float = _battle_unit_scale() if String(boss.kind) in ["reimu_boss", "marisa_boss"] else 1.0
 	var anchor = center + Vector2(0.0, -20.0 * cue_scale)
 	var radius = lerpf(82.0, 58.0, progress) * cue_scale
 	draw_arc(anchor, 58.0 * cue_scale, 0.0, TAU, 48, Color(tint.r, tint.g, tint.b, 0.28), 1.5, true)
@@ -30595,76 +30642,80 @@ func _ensure_flandre_frames_loaded() -> void:
 	shared_flandre_frames_face_left = expected_face_left
 
 
-func _rumia_draw_scale(phase: int) -> float:
-	return 0.58 + float(phase) * 0.010
+func _touhou_boss_draw_scale(kind: String) -> float:
+	return TouhouSpriteDefs.draw_scale(kind)
 
 
-func _daiyousei_draw_scale(phase: int) -> float:
-	return 0.66 + float(phase) * 0.010
+func _rumia_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("rumia_boss")
 
 
-func _cirno_draw_scale(phase: int) -> float:
-	return 0.62 + float(phase) * 0.010
+func _daiyousei_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("daiyousei_boss")
 
 
-func _meiling_draw_scale(phase: int) -> float:
-	return 0.60 + float(phase) * 0.010
+func _cirno_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("cirno_boss")
 
 
-func _koakuma_draw_scale(phase: int) -> float:
-	return 0.64 + float(phase) * 0.010
+func _meiling_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("meiling_boss")
 
 
-func _patchouli_draw_scale(phase: int) -> float:
-	return 0.67 + float(phase) * 0.010
+func _koakuma_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("koakuma_boss")
 
 
-func _sakuya_draw_scale(phase: int) -> float:
-	return 0.53 + float(phase) * 0.010
+func _patchouli_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("patchouli_boss")
 
 
-func _remilia_draw_scale(phase: int) -> float:
-	return 0.67 + float(phase) * 0.010
+func _sakuya_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("sakuya_boss")
 
 
-func _letty_draw_scale(phase: int) -> float:
-	return 0.77 + float(phase) * 0.010
+func _remilia_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("remilia_boss")
 
 
-func _chen_draw_scale(phase: int) -> float:
-	return 0.60 + float(phase) * 0.010
+func _letty_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("letty_boss")
 
 
-func _alice_draw_scale(phase: int) -> float:
-	return 0.61 + float(phase) * 0.010
+func _chen_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("chen_boss")
 
 
-func _lily_white_draw_scale(phase: int) -> float:
-	return 0.64 + float(phase) * 0.010
+func _alice_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("alice_boss")
 
 
-func _prismriver_draw_scale(phase: int) -> float:
-	return 0.82 + float(phase) * 0.010
+func _lily_white_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("lily_white_boss")
 
 
-func _youmu_draw_scale(phase: int) -> float:
-	return 0.63 + float(phase) * 0.010
+func _prismriver_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("prismriver_boss")
 
 
-func _yuyuko_draw_scale(phase: int) -> float:
-	return 0.66 + float(phase) * 0.010
+func _youmu_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("youmu_boss")
 
 
-func _ran_draw_scale(phase: int) -> float:
-	return 0.67 + float(phase) * 0.010
+func _yuyuko_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("yuyuko_boss")
 
 
-func _yukari_draw_scale(phase: int) -> float:
-	return 0.63 + float(phase) * 0.010
+func _ran_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("ran_boss")
 
 
-func _flandre_draw_scale(phase: int) -> float:
-	return 0.66 + float(phase) * 0.010
+func _yukari_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("yukari_boss")
+
+
+func _flandre_draw_scale(_phase: int) -> float:
+	return _touhou_boss_draw_scale("flandre_boss")
 
 
 func _boss_pose_frame(pose_index: int, speed: float, phase: float) -> int:
@@ -30739,8 +30790,14 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _keine_frame_index(zombie)
 		"reimu_boss":
 			return _reimu_frame_index(zombie)
+		"marisa_boss":
+			return _marisa_frame_index(zombie)
 		_:
 			return 0
+
+
+func _marisa_frame_index(zombie: Dictionary) -> int:
+	return _ensure_marisa_runtime().frame_index(zombie)
 
 
 func _reimu_frame_index(zombie: Dictionary) -> int:
@@ -31242,8 +31299,8 @@ func _draw_wriggle_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(center + Vector2(0.0, 48.0), 42.0 + phase * 5.0, Color(0.02, 0.04, 0.03, 0.26))
 	draw_circle(center + Vector2(0.0, -24.0 + bob), 58.0 + phase * 8.0, aura)
 	if texture != null:
-		var texture_size = texture.get_size() * (0.72 + phase * 0.035)
-		draw_texture_rect(texture, Rect2(center + Vector2(-texture_size.x * 0.5, -texture_size.y * 0.82 + bob), texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+		var texture_size = texture.get_size() * _touhou_boss_draw_scale("wriggle_boss")
+		draw_texture_rect(texture, Rect2(center + Vector2(-texture_size.x * 0.5, TouhouSpriteDefs.top_offset("wriggle_boss") + 10.0 + bob), texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -34.0), 28.0, Color(0.2, 0.7, 0.28))
 	for i in range(8 + phase * 2):
@@ -31271,8 +31328,8 @@ func _draw_mystia_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(center + Vector2(0.0, 46.0), 52.0 + phase * 5.0, Color(0.07, 0.01, 0.08, 0.28))
 	draw_circle(center + Vector2(0.0, -22.0 + bob), 72.0 + phase * 7.0, Color(1.0, 0.12, 0.6, 0.08 + phase * 0.018))
 	if texture != null:
-		var texture_size = texture.get_size() * (0.7 + phase * 0.03)
-		draw_texture_rect(texture, Rect2(center + Vector2(-texture_size.x * 0.5, -texture_size.y * 0.82 + bob), texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
+		var texture_size = texture.get_size() * _touhou_boss_draw_scale("mystia_boss")
+		draw_texture_rect(texture, Rect2(center + Vector2(-texture_size.x * 0.5, TouhouSpriteDefs.top_offset("mystia_boss") + 10.0 + bob), texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -30.0), 30.0, Color(0.5, 0.08, 0.28))
 	for i in range(6 + phase * 2):
@@ -31480,7 +31537,7 @@ func _draw_rumia_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 26.0, Color(0.16, 0.0, 0.04, 0.08))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.06, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.06, TouhouSpriteDefs.top_offset("rumia_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 28.0, Color(0.94, 0.84, 0.5))
@@ -31507,7 +31564,7 @@ func _draw_daiyousei_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 24.0, Color(0.18, 0.42, 0.28, 0.08))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.05, -texture_size.y * 0.84 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.05, TouhouSpriteDefs.top_offset("daiyousei_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -36.0), 24.0, Color(0.74, 0.96, 0.72))
@@ -31534,7 +31591,7 @@ func _draw_cirno_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 26.0, Color(0.22, 0.44, 0.74, 0.08))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.84 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("cirno_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -38.0), 26.0, Color(0.78, 0.92, 1.0))
@@ -31601,7 +31658,7 @@ func _draw_meiling_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 28.0, Color(0.18, 0.52, 0.28, 0.07))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.05, -texture_size.y * 0.85 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.05, TouhouSpriteDefs.top_offset("meiling_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 26.0, Color(0.86, 0.56, 0.44))
@@ -31636,7 +31693,7 @@ func _draw_koakuma_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 26.0, Color(0.24, 0.06, 0.16, 0.08))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.84 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("koakuma_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -36.0), 24.0, Color(0.86, 0.34, 0.44))
@@ -31664,7 +31721,7 @@ func _draw_patchouli_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 28.0, Color(0.3, 0.18, 0.54, 0.08))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.85 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("patchouli_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -42.0), 26.0, Color(0.84, 0.68, 0.96))
@@ -31700,7 +31757,7 @@ func _draw_sakuya_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 26.0, Color(0.26, 0.34, 0.52, 0.08))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.85 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("sakuya_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.86, 0.9, 0.96))
@@ -31733,7 +31790,7 @@ func _draw_remilia_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 30.0, Color(0.28, 0.02, 0.08, 0.12))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("remilia_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -42.0), 26.0, Color(0.94, 0.76, 0.82))
@@ -31773,7 +31830,7 @@ func _draw_letty_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_arc(aura_center, ring_radius, level_time * 0.8 + float(ring_index), level_time * 0.8 + PI * 1.38 + float(ring_index), 36, Color(0.88, 0.98, 1.0, 0.18), 2.0)
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("letty_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.9, 0.96, 1.0))
@@ -31809,7 +31866,7 @@ func _draw_chen_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_arc(aura_center, ring_radius, -level_time * 1.4 + float(ring_index), -level_time * 1.4 + PI * 1.55 + float(ring_index), 34, Color(1.0, 0.34, 0.18, 0.18), 2.2)
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("chen_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.96, 0.72, 0.62))
@@ -31847,7 +31904,7 @@ func _draw_alice_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_arc(aura_center, ring_radius, level_time * (0.55 + float(ring_index) * 0.08) + float(ring_index), level_time * (0.55 + float(ring_index) * 0.08) + PI * 1.36 + float(ring_index), 36, Color(0.82, 0.68, 1.0, 0.16), 1.8)
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("alice_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.92, 0.82, 0.76))
@@ -31891,7 +31948,7 @@ func _draw_lily_white_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_line(petal_center + Vector2(-4.0, 0.0), petal_center + Vector2(5.0, -2.0), Color(0.94, 1.0, 0.72, 0.44), 1.2)
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("lily_white_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(1.0, 0.94, 0.78))
@@ -31924,7 +31981,7 @@ func _draw_prismriver_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_line(note_center + Vector2(3.0, -13.0), note_center + Vector2(10.0, -10.0), Color(0.72, 0.86, 1.0, 0.38), 1.1)
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("prismriver_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 25.0, Color(0.86, 0.82, 1.0))
@@ -31965,7 +32022,7 @@ func _draw_youmu_boss(center: Vector2, zombie: Dictionary) -> void:
 		)
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("youmu_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.9, 0.92, 0.9))
@@ -32004,7 +32061,7 @@ func _draw_yuyuko_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_line(butterfly + Vector2(0.0, -4.0), butterfly + Vector2(0.0, 5.0), Color(1.0, 0.92, 1.0, 0.5), 1.1)
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("yuyuko_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -42.0), 24.0, Color(1.0, 0.92, 0.96))
@@ -32041,7 +32098,7 @@ func _draw_ran_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_line(seal + Vector2(0.0, -5.0), seal + Vector2(0.0, 5.0), Color(0.72, 0.12, 0.04, 0.58), 1.1)
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("ran_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -38.0), 24.0, Color(1.0, 0.82, 0.44))
@@ -32085,7 +32142,7 @@ func _draw_yukari_boss(center: Vector2, zombie: Dictionary) -> void:
 		draw_circle(butterfly + Vector2(3.5, 0.0), 4.0, Color(0.72, 0.36, 1.0, 0.4))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.86 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("yukari_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.92, 0.82, 1.0))
@@ -32109,7 +32166,7 @@ func _draw_flandre_boss(center: Vector2, zombie: Dictionary) -> void:
 	draw_circle(aura_center, 32.0, Color(0.38, 0.06, 0.12, 0.12))
 	if texture != null:
 		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, -texture_size.y * 0.88 + bob)
+		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("flandre_boss") + 10.0 + bob)
 		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
 	else:
 		draw_circle(center + Vector2(0.0, -40.0), 24.0, Color(0.98, 0.78, 0.82))
@@ -32759,6 +32816,12 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "reimu_boss":
 		_ensure_reimu_runtime().draw_boss(center, zombie)
+		return
+	if kind == "marisa_boss":
+		_ensure_marisa_runtime().draw_boss(center, zombie)
+		return
+	if kind == "marisa_mushroom":
+		_ensure_marisa_runtime().draw_mushroom(center, zombie)
 		return
 	if kind == "keine_bamboo":
 		_ensure_keine_runtime().draw_bamboo(center, zombie)

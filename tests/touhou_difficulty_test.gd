@@ -16,10 +16,10 @@ func _run() -> void:
 
 
 func _test_boss_damage_scaling() -> void:
-	var expected := {"easy": 0.34, "normal": 0.40, "hard": 0.48, "lunatic": 0.58, "extra": 0.34, "extra_plus": 0.55}
+	var expected := {"easy": 0.40, "normal": 0.47, "hard": 0.56, "lunatic": 0.67, "extra": 0.40, "extra_plus": 0.63}
 	for choice in expected:
 		var level := {"events": [{"kind": "rumia_boss"}], "touhou_difficulty": choice}
-		check(is_equal_approx(float(Difficulty.boss_damage_multiplier(level)), float(expected[choice])), "%s must use the reduced, displayed Touhou Boss damage multiplier" % choice)
+		check(is_equal_approx(float(Difficulty.boss_damage_multiplier(level)), float(expected[choice])), "%s must use the rebalanced, displayed Touhou Boss damage multiplier" % choice)
 	check(is_equal_approx(float(Difficulty.boss_damage_multiplier({"events": [{"kind": "basic"}]})), 1.0), "Non-Touhou levels must retain their damage values")
 
 
@@ -53,7 +53,7 @@ func _test_level_overrides() -> void:
 			if choice == options.back():
 				check(level.mode == "normal" and level.start_sun > 0 and not level.has("conveyor_plants"), "Highest tier must use funded manual planting")
 		check(base == before, "Difficulty construction must never mutate registered levels")
-	check(regular == 16 and extra == 2, "All 18 Touhou stages must expose the right selector")
+	check(regular == 17 and extra == 2, "All 19 Touhou stages must expose the right selector")
 
 
 func _difficulty_game(kind: String, choice: String) -> EncounterGame:
@@ -79,8 +79,8 @@ func _test_higher_route(kind: String) -> void:
 	for choice in choices:
 		var level := {"id": "1-23" if choices.size() == 2 else "test", "touhou_difficulty": choice}
 		var phases := Spells.phases_for(kind, level)
-		if kind == "reimu_boss":
-			check(phases.size() == (5 if choice == "easy" else 6), "Reimu must use her actual difficulty-specific 4A route")
+		if kind in ["reimu_boss", "marisa_boss"]:
+			check(phases.size() == (5 if choice == "easy" else 6), "TH08 4A/B bosses must use actual difficulty-specific routes")
 		else:
 			check(phases.size() > previous, "%s must gain phases at %s" % [kind, choice])
 		previous = phases.size()

@@ -3,6 +3,7 @@ class_name TouhouDanmakuRuntime
 
 const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
+const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
 const MAX_BULLETS := 480
 const MAX_BEAMS := 72
@@ -53,7 +54,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	clear_owner(owner)
 	var pattern = String(card.pattern)
 	var duration := 3.4
-	if String(boss.kind) == "reimu_boss":
+	if String(boss.kind) in ["reimu_boss", "marisa_boss"]:
 		duration = float(card.get("duration", 4.8))
 	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
 		duration = 2.2
@@ -64,7 +65,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	if pattern == "resurrection_butterfly":
 		duration = 24.0
 	boss["touhou_card"] = card
-	boss["touhou_invulnerable"] = pattern in ["and_then_none", "resurrection_butterfly", "reimu_blink"]
+	boss["touhou_invulnerable"] = pattern in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master"]
 	boss["touhou_survival_timer"] = duration if bool(boss.touhou_invulnerable) else 0.0
 	boss["touhou_cast_remaining"] = duration
 	boss["touhou_cast_duration"] = duration
@@ -72,7 +73,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	var session := {"owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
 	casts.append(session)
 	game._show_banner(String(card.name), 1.8)
-	if String(boss.kind) != "reimu_boss":
+	if String(boss.kind) not in ["reimu_boss", "marisa_boss"]:
 		game.effects.append({"shape": String(boss.kind).trim_suffix("_boss") + "_spell_seal", "position": center, "radius": 72.0, "time": 0.45, "duration": 0.45, "color": Color(0.9, 0.86, 1.0, 0.25)})
 	if pattern == "wraith_charm":
 		game._spawn_youmu_wraiths_from(center, 2 + mini(int(session.phase), 1), int(session.phase))
@@ -118,11 +119,11 @@ func _tick(delta: float) -> void:
 			boss["touhou_survival_timer"] = boss.touhou_cast_remaining
 		if float(session.age) >= float(session.duration):
 			boss["touhou_invulnerable"] = false
-			if String(session.pattern) in ["and_then_none", "reimu_blink"] and boss.has("touhou_encounter"):
+			if String(session.pattern) in ["and_then_none", "reimu_blink", "marisa_final_spark", "marisa_final_master"] and boss.has("touhou_encounter"):
 				boss.touhou_encounter.depleted = true
 			if String(session.pattern) == "resurrection_butterfly":
 				boss["health"] = 0.0
-			if String(session.pattern) in ["and_then_none", "resurrection_butterfly", "reimu_blink"]:
+			if String(session.pattern) in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master"]:
 				clear_owner(owner)
 			elif not beams.any(func(b): return int(b.owner) == owner and b.has("actor_index")):
 				# Keep laser emitters visible until their final telegraph and beam end.
@@ -225,6 +226,9 @@ func _update_actors(c: Dictionary) -> void:
 
 func _emit_wave(c: Dictionary) -> void:
 	var p = String(c.pattern)
+	if p.begins_with("marisa_") or p == "nonspell_marisa_stars":
+		MarisaDanmaku.emit(self, c)
+		return
 	if p.begins_with("reimu_") or p == "nonspell_reimu_amulets":
 		ReimuDanmaku.emit(self, c)
 		return
@@ -731,6 +735,8 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			b.bounces -= 1
 		if String(b.kind) == "reimu_boss":
 			before = ReimuDanmaku.advance_bullet(b, before, motion_delta)
+		elif String(b.kind) == "marisa_boss":
+			before = MarisaDanmaku.advance_bullet(b, before, motion_delta)
 		var hit := false
 		if age >= float(b.get("arming_time", 0.0)):
 			hit = _hit_plant_segment(before, Vector2(b.position), float(b.radius), float(b.damage), [])
@@ -751,6 +757,8 @@ func _tick_beams(delta: float, owners: Dictionary) -> void:
 				if int(c.owner) == int(beam.owner) and int(beam.actor_index) < c.actors.size():
 					beam.from = c.actors[int(beam.actor_index)].position
 					break
+		if String(beam.kind) == "marisa_boss":
+			MarisaDanmaku.advance_beam(beam, delta)
 		beam.age += delta
 		if float(beam.age) >= float(beam.delay):
 			if bool(beam.get("sword_cut", false)) and not bool(beam.get("cut_done", false)):
@@ -822,12 +830,13 @@ func draw() -> void:
 	var outline = PackedVector2Array([board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)])
 	for c in casts:
 		var cast_age = float(c.age)
-		var cue_scale: float = game._battle_unit_scale() if String(c.kind) == "reimu_boss" else 1.0
+		var cue_scale: float = game._battle_unit_scale() if String(c.kind) in ["reimu_boss", "marisa_boss"] else 1.0
 		var pulse_window = clampf(1.0 - (float(c.next_wave) - cast_age) / 0.38, 0.0, 1.0)
 		var pulse_center = Vector2(c.center) + Vector2(0, 34 * cue_scale)
 		var pulse_radius = (42.0 + pulse_window * 34.0) * cue_scale
 		var pulse_alpha = 0.08 + pulse_window * 0.18
-		game.draw_circle(pulse_center, pulse_radius, Color(1.0, 0.16, 0.18, pulse_alpha), false, 2.0, true)
+		var pulse_color := Color(1.0, 0.78, 0.35, pulse_alpha) if String(c.kind) == "marisa_boss" else Color(1.0, 0.16, 0.18, pulse_alpha)
+		game.draw_circle(pulse_center, pulse_radius, pulse_color, false, 2.0, true)
 		if pulse_window > 0.65:
 			var warning_angle = (cast_age * 2.7) - PI * 0.5
 			game.draw_arc(pulse_center, pulse_radius + 10.0 * cue_scale, warning_angle, warning_angle + PI * 0.54, 22, Color(1.0, 0.72, 0.28, 0.78), maxf(1.0, 3.0 * cue_scale), true)
@@ -861,6 +870,13 @@ func draw() -> void:
 		var active = float(beam.age) >= float(beam.delay)
 		var color = Color(beam.color)
 		color.a = 0.75 if active else 0.45
+		if active and bool(beam.get("spark", false)):
+			game.draw_line(from, to, Color(color, 0.13), float(beam.width) * 1.3, true)
+			for band in range(5):
+				var hue := Color.from_hsv(fposmod(float(beam.age) * 0.22 + band * 0.14, 1.0), 0.45, 1.0, 0.76)
+				game.draw_line(from, to, hue, float(beam.width) * (1.0 - band * 0.16), true)
+			game.draw_line(from, to, Color(1, 0.99, 0.94, 0.94), maxf(2, float(beam.width) * 0.12), true)
+			continue
 		if active and bool(beam.get("sword_cut", false)):
 			game._draw_effect_blade(to, from, float(beam.width) * 0.65, color, Color(0.95, 1, 1, 0.95))
 			continue

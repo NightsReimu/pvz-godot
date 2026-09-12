@@ -9,6 +9,8 @@ const PALETTE := [Color("f65a76"), Color("72cdeb"), Color("b594f3"), Color("f1cc
 static func emit(danmaku: RefCounted, c: Dictionary) -> void:
 	var game: Control = danmaku.game
 	var rank := int(game.TouhouDifficulty.profile(game.current_level).rank)
+	# The direct-loop geometries were authored at the v1.0.102 density baseline.
+	var density := float(game.TouhouDifficulty.profile(game.current_level).density) / float([0.78, 0.92, 1.07, 1.22][rank])
 	var origin := Vector2(c.center)
 	var target: Vector2 = danmaku._target(origin)
 	var aim := (target - origin).angle()
@@ -24,7 +26,7 @@ static func emit(danmaku: RefCounted, c: Dictionary) -> void:
 		"reimu_duplex", "reimu_great_duplex":
 			# Straight streams enter a pair of clearly marked boundary windows.
 			# Crossing relocates the bullet, never sweeps damage through the gap.
-			var count := 9 + rank * 3
+			var count := ceili((9 + rank * 3) * density)
 			var high := p == "reimu_great_duplex"
 			for i in range(count):
 				var y := board.position.y + board.size.y * (0.09 + 0.82 * float(i) / maxf(1, count - 1))
@@ -34,7 +36,7 @@ static func emit(danmaku: RefCounted, c: Dictionary) -> void:
 		"reimu_spread", "reimu_worn":
 			# Large coloured dream spheres expand in offset rings; Worn repeats
 			# with a second, slower layer rather than reusing an aimed fan.
-			var count := 12 + rank * 3 + mini(4, wave)
+			var count := ceili((12 + rank * 3 + mini(4, wave)) * density)
 			for i in range(count):
 				var angle := TAU * float(i) / count + wave * 0.21
 				danmaku._bullet(c, origin, angle, (105 + wave * 3) * scale, PALETTE[(i + wave) % 5], "dream_orb", {"radius": 7.5 * scale, "damage": 16.0})
@@ -45,7 +47,7 @@ static func emit(danmaku: RefCounted, c: Dictionary) -> void:
 			# Hard/Lunatic add eight radial arms, with a rotating second layer.
 			var center := board.position + board.size * Vector2(0.46, 0.5)
 			var radius := minf(board.size.x * 0.35, board.size.y * 0.43)
-			var count := 18 + rank * 6
+			var count := ceili((18 + rank * 6) * density)
 			var gap := wave * 0.38 + PI * 0.5
 			for i in range(count):
 				var angle := TAU * float(i) / count + wave * 0.07
@@ -60,7 +62,7 @@ static func emit(danmaku: RefCounted, c: Dictionary) -> void:
 		"reimu_concentrate", "reimu_returning":
 			# Detached charms curve toward the snapshotted target. Returning
 			# starts outward before turning back, unlike the expanding Spread.
-			var count := 10 + rank * 3
+			var count := ceili((10 + rank * 3) * density)
 			for i in range(count):
 				var angle := TAU * float(i) / count + wave * 0.31
 				var start := origin + Vector2.from_angle(angle) * 30 * scale
@@ -71,7 +73,7 @@ static func emit(danmaku: RefCounted, c: Dictionary) -> void:
 			# Nested rectangular borders emit perpendicular streams, alternately
 			# inward and outward; the high variant counter-rotates the borders.
 			var center := board.position + board.size * Vector2(0.53, 0.5)
-			var count := 6 + rank * 2
+			var count := ceili((6 + rank * 2) * density)
 			var rotation := sin(wave * 0.24) * (0.20 if rank >= 2 else 0.05)
 			c["barrier_rotation"] = rotation
 			for layer in range(2):
@@ -96,7 +98,7 @@ static func emit(danmaku: RefCounted, c: Dictionary) -> void:
 			# short telegraphed delays before the amulets converge.
 			var start := board.position + board.size * Vector2(0.77 + 0.10 * sin(wave * 1.9), 0.2 + 0.6 * (wave % 4) / 3.0)
 			c["blink_position"] = start
-			var count := 14 + rank * 3
+			var count := ceili((14 + rank * 3) * density)
 			for i in range(count):
 				var angle := TAU * float(i) / count + wave * 0.27
 				danmaku._bullet(c, start, angle, 112 * scale, PALETTE[(i + wave) % 5], "dream_orb", {"radius": 6.0 * scale, "damage": 12.0, "arming_time": 0.35})
