@@ -3,7 +3,7 @@ class_name TouhouDanmakuRuntime
 
 const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
-const MAX_BULLETS := 640
+const MAX_BULLETS := 480
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
 const DANMAKU_BASE_DAMAGE := 22.0
@@ -761,8 +761,21 @@ func _cut_spirit_bullets(slash: Dictionary) -> void:
 func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float, hit_cells: Array, stop_at_first: bool = true) -> bool:
 	var nearest := Vector2i(-1, -1)
 	var distance := INF
-	for row in game.active_rows:
-		for col in range(game.COLS):
+	# Most bullets travel only a few pixels per tick. Restrict collision checks to
+	# cells intersecting the swept segment instead of scanning the whole board.
+	var padding := radius + minf(game.CELL_SIZE.x, game.CELL_SIZE.y) * 0.22
+	var min_x := minf(from.x, to.x) - padding
+	var max_x := maxf(from.x, to.x) + padding
+	var min_y := minf(from.y, to.y) - padding
+	var max_y := maxf(from.y, to.y) + padding
+	var min_col := clampi(int(floor((min_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x)), 0, game.COLS - 1)
+	var max_col := clampi(int(floor((max_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x)), 0, game.COLS - 1)
+	var min_row := clampi(int(floor((min_y - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y)), 0, game.ROWS - 1)
+	var max_row := clampi(int(floor((max_y - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y)), 0, game.ROWS - 1)
+	for row in range(min_row, max_row + 1):
+		if not game._is_row_active(row):
+			continue
+		for col in range(min_col, max_col + 1):
 			var cell := Vector2i(int(row), col)
 			if hit_cells.has(cell):
 				continue
@@ -771,7 +784,7 @@ func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float
 				continue
 			var center: Vector2 = game._cell_center(cell.x, cell.y) + Vector2(0, -12)
 			var closest = Geometry2D.get_closest_point_to_segment(center, from, to)
-			if closest.distance_squared_to(center) > pow(radius + minf(game.CELL_SIZE.x, game.CELL_SIZE.y) * 0.22, 2):
+			if closest.distance_squared_to(center) > padding * padding:
 				continue
 			if not stop_at_first:
 				game._damage_plant_cell(cell.x, cell.y, damage, 0.0, true)
@@ -787,6 +800,7 @@ func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float
 
 func draw() -> void:
 	var board: Rect2 = Rect2(game.BOARD_ORIGIN, game.board_size)
+	var crowded := bullets.size() >= 300
 	var outline = PackedVector2Array([board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)])
 	for c in casts:
 		var cast_age = float(c.age)
@@ -844,6 +858,15 @@ func draw() -> void:
 		var color = Color(b.color)
 		var radius = float(b.radius)
 		if not board.grow(-radius * 2).has_point(point):
+			continue
+		# At peak density, preserve the projectile silhouette while avoiding the
+		# many polygon and outline draw calls used by ornate bullets.
+		if crowded and String(b.shape) not in ["orb", "butterfly", "petal"]:
+			var fast_axis := Vector2(b.velocity).normalized()
+			if fast_axis.is_zero_approx():
+				fast_axis = Vector2.LEFT
+			game.draw_line(point - fast_axis * radius * 1.5, point + fast_axis * radius * 1.5, color, maxf(2.0, radius * 0.7), true)
+			game.draw_circle(point, radius * 0.8, Color(1, 1, 1, 0.72))
 			continue
 		if String(b.shape) in ["orb", "butterfly", "petal", "note"]:
 			game.draw_circle(point, radius + 1.7, Color(0.08, 0.05, 0.13, 0.86))

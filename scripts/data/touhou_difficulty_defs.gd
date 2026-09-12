@@ -61,7 +61,7 @@ static func profile(level: Dictionary) -> Dictionary:
 static func boss_damage_multiplier(level: Dictionary) -> float:
 	if not level.has("touhou_difficulty"):
 		return 1.0
-	return {"easy": 0.70, "normal": 0.78, "hard": 0.90, "lunatic": 1.02, "extra": 0.70, "extra_plus": 0.98}.get(String(level.get("touhou_difficulty", "easy")), 0.70)
+	return {"easy": 0.45, "normal": 0.52, "hard": 0.62, "lunatic": 0.74, "extra": 0.45, "extra_plus": 0.70}.get(String(level.get("touhou_difficulty", "easy")), 0.45)
 
 
 static func build_level(base: Dictionary, choice: String) -> Dictionary:
