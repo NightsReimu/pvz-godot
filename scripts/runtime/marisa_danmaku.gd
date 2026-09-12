@@ -8,6 +8,7 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 	var game: Control = dm.game
 	var profile: Dictionary = game.TouhouDifficulty.profile(game.current_level)
 	var rank := int(profile.rank)
+	var density: float = game.TouhouDifficulty.attack_density(String(c.kind), game.current_level)
 	var p := String(c.pattern)
 	var origin := Vector2(c.center)
 	var target: Vector2 = dm._target(origin)
@@ -20,7 +21,7 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 		return
 	match p:
 		"marisa_milky_way", "marisa_asteroid":
-			var count := ceili((14 + rank * 3) * float(profile.density))
+			var count := ceili((14 + rank * 3) * density)
 			for i in range(count):
 				var y := 0.06 + 0.88 * float(i) / maxf(1, count - 1)
 				var angle := PI + sin(i * 0.6 + wave * 0.55) * 0.21
@@ -32,7 +33,7 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 					var start := board.position + board.size * Vector2(0.92, 0.1 + fposmod(i * 0.31 + wave * 0.173, 0.8))
 					dm._bullet(c, start, PI + sin(i * 2.1 + wave) * 0.38, 103 * scale, COLORS[(i + 2) % 5], "star", {"radius": 9.0 * scale, "damage": 23.0, "arming_time": 0.4})
 		"marisa_stardust", "marisa_event_horizon":
-			var count := ceili((19 + rank * 3) * float(profile.density))
+			var count := ceili((19 + rank * 3) * density)
 			for i in range(count):
 				var angle := TAU * float(i) / count + wave * 0.24
 				if p == "marisa_stardust":

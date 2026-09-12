@@ -43,7 +43,7 @@ func _initialize() -> void:
 			actual.append(String(card[0]).trim_prefix("th08-").to_int())
 			all_ids[card[0]] = true
 		check(actual == ids[rank], choice + " must use exactly its TH08 4B card IDs, including former midboss cards")
-		check(Spells.phases_for("marisa_boss", level).size() == ids[rank].size(), "Do not insert fabricated extra canonical stages")
+		check(Spells.phases_for("marisa_boss", level).size() == ids[rank].size() + rank, "Preserve all canonical cards and cumulatively add one original move per tier")
 		check((level.mode == "normal") == (choice == "lunatic"), "Only Lunatic uses manual seed selection")
 		check(level.events.back().kind == "marisa_boss", "Reinforcement waves must precede the finale")
 	check(all_ids.size() == 23, "All 23 difficulty-specific spell entries must be represented")

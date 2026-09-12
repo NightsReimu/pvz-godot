@@ -62,6 +62,18 @@ func cast(boss: Dictionary, pattern: String) -> void:
 	var rank := int(game.TouhouDifficulty.profile(game.current_level).rank)
 	var row_count: int = game.active_rows.size()
 	var row := int(game.active_rows[posmod(serial * 2, row_count)])
+	if pattern in ["pressure_stars_crossfire", "pressure_stars_domain"]:
+		var domain := pattern.ends_with("_domain")
+		queue_tile(boss, Vector2i(row, 3), "glare", 1.2)
+		queue_tile(boss, Vector2i(int(game.active_rows[posmod(serial * 2 + 3, row_count)]), 3), "glare", 1.2)
+		queue_tile(boss, Vector2i(row, 2), "prism", 1.2)
+		if not domain:
+			queue_tile(boss, Vector2i(int(game.active_rows[posmod(serial * 2 + 3, row_count)]), 2), "prism", 1.2)
+		for index in range(3 if domain else 2):
+			var cell := Vector2i(int(game.active_rows[posmod(serial + index * 2, row_count)]), 5 + index % 2)
+			if game._targetable_plant_at(cell.x, cell.y) == null:
+				queue_tile(boss, cell, "mushroom", 1.4)
+		return
 	queue_tile(boss, Vector2i(row, 2 + serial % 3), "glare")
 	queue_tile(boss, Vector2i(int(game.active_rows[posmod(serial * 2 + 3, row_count)]), 2), "prism")
 	for index in range(2 + mini(rank, 2)):

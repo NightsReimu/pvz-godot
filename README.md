@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.103** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.104** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -133,6 +133,8 @@ v1.0.102 新增 **3-22-a 博丽灵梦**，通过 3-21 解锁。深夜竹林开�
 v1.0.103 新增 **3-22-b 雾雨魔理沙**，同样通过 3-21 解锁，共用灵梦的深夜竹林与道中 BGM，终末使用新提供的音乐与 24 帧透明动作。包含永夜抄 4B 四难度的 078–100 号符卡分支：彩色星带、旋转星流、非定向激光、单/双魔炮、地球光与射月，Normal 以上有终末魔炮。无独立道中 Boss；新增灼光格、棱镜格，以及可抢种阻止、可击破的魔化蘑菇。
 
 应战斗反馈，东方 Boss 数值适度回调：相对 v1.0.102，生命增加约 11%–15%、伤害增加约 15%–18%、弹速约增加 6%，密度与发射频率同步提高。23 种东方 Boss 统一人物显示高度，阶段不再放大角色。原作对应、塔防适配边界与数值表见 [东方 Boss 符卡对照](docs/touhou-spells.md)。
+
+v1.0.104 统一要求**难度越高，招式越多**：所有东方 Boss（含道中）在 Normal / Hard / Lunatic 累积追加 1 / 2 / 3 招原创技能，EX+ 追加两招，各招采用不同弹型。灵梦增加轮转封田、两仪夹阵与封魔棋盘，魔理沙增加棱镜播种、交差彗星与恒星炉心；两位四档分别为 5 / 7 / 8 / 9 阶段，原作终符保持最后展开。同时单独提高两位约 25% 生命，加强弹伤、后段成长、弹速、密度和援军节奏。
 
 > [!NOTE]
 > 东方角色、名称、设定和 Boss 美术属于 Touhou Project 相关二次创作内容。仓库中的东方原曲仍受原权利人保护，不能因为代码开源就视为可自由复制或再分发。

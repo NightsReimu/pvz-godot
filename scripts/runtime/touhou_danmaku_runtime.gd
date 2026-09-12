@@ -5,6 +5,7 @@ const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
+const ExtraDanmaku = preload("res://scripts/runtime/touhou_extra_danmaku.gd")
 const MAX_BULLETS := 480
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
@@ -84,7 +85,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	_update_actors(session)
 	_emit_wave(session)
 	session.wave = 1
-	session.next_wave = maxf(float(session.next_wave), 0.62 * float(Difficulty.profile(game.current_level).cadence))
+	session.next_wave = maxf(float(session.next_wave), 0.62 * Difficulty.attack_cadence(String(boss.kind), game.current_level))
 	return game._set_rumia_state(boss, String(card.pose), duration)
 
 
@@ -135,7 +136,7 @@ func _tick(delta: float) -> void:
 			var interval := 0.62
 			if String(session.pattern) in ["qed", "izuna"]:
 				interval = lerpf(0.68, 0.24, float(session.age) / float(session.duration))
-			session.next_wave += interval * float(Difficulty.profile(game.current_level).cadence)
+			session.next_wave += interval * Difficulty.attack_cadence(String(session.kind), game.current_level)
 		if float(session.get("focus_until", 0.0)) > float(session.age):
 			focused_owners[owner] = true
 	_tick_bullets(delta, owners, focused_owners)
@@ -167,14 +168,14 @@ func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: 
 	var intensity = 1.0 + minf(0.3, float(c.get("wave", 0)) * 0.018) + float(c.get("phase", 0)) * 0.05
 	var b := {"owner": int(c.owner), "kind": String(c.kind), "position": origin, "velocity": Vector2.from_angle(angle) * speed * intensity, "age": 0.0, "life": 7.0, "radius": DANMAKU_BASE_RADIUS, "damage": DANMAKU_BASE_DAMAGE + float(c.get("phase", 0)) * DANMAKU_PHASE_DAMAGE, "color": color, "shape": shape}
 	b.merge(extra, true)
-	b.velocity *= float(Difficulty.profile(game.current_level).speed)
-	b.damage *= Difficulty.boss_damage_multiplier(game.current_level)
+	b.velocity *= Difficulty.attack_speed(String(c.kind), game.current_level)
+	b.damage *= Difficulty.attack_damage(String(c.kind), game.current_level, int(c.get("phase", 0)))
 	bullets.append(b)
 
 
 func _fan(c: Dictionary, origin: Vector2, count: int, angle: float, spread: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
 	var centered := count % 2 == 1
-	count = maxi(1, ceili(count * float(Difficulty.profile(game.current_level).density)))
+	count = maxi(1, ceili(count * Difficulty.attack_density(String(c.kind), game.current_level)))
 	# Density scaling must preserve the middle bullet of odd aimed fans.
 	if centered and count % 2 == 0:
 		count -= 1
@@ -184,7 +185,7 @@ func _fan(c: Dictionary, origin: Vector2, count: int, angle: float, spread: floa
 
 
 func _ring(c: Dictionary, origin: Vector2, count: int, rotation: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
-	count = ceili(count * float(Difficulty.profile(game.current_level).density))
+	count = ceili(count * Difficulty.attack_density(String(c.kind), game.current_level))
 	for i in range(count):
 		_bullet(c, origin, rotation + TAU * i / count, speed, color, shape, extra)
 
@@ -193,7 +194,7 @@ func _beam(c: Dictionary, from: Vector2, to: Vector2, color: Color, delay: float
 	if beams.size() < MAX_BEAMS:
 		var beam := {"owner": int(c.owner), "kind": String(c.kind), "from": from, "to": to, "color": color, "age": 0.0, "delay": delay, "duration": 0.38, "width": width, "damage": 68.0 + float(c.phase) * 8.0, "hits": []}
 		beam.merge(extra, true)
-		beam.damage *= Difficulty.boss_damage_multiplier(game.current_level)
+		beam.damage *= Difficulty.attack_damage(String(c.kind), game.current_level, int(c.phase), true)
 		beams.append(beam)
 
 
@@ -211,7 +212,7 @@ func _actor(c: Dictionary, index: int, kind: String, position: Vector2, pose: St
 func _update_actors(c: Dictionary) -> void:
 	var turn = float(c.age) * 0.25 / 0.62
 	match String(c.pattern):
-		"france", "holland", "london", "shanghai", "nonspell_doll_fan", "pressure_dolls":
+		"france", "holland", "london", "shanghai", "nonspell_doll_fan", "pressure_dolls", "pressure_dolls_crossfire", "pressure_dolls_domain":
 			for i in range(5):
 				_actor(c, i, "alice_doll_zombie", _point(0.72 + 0.12 * sin(i + turn), 0.12 + i * 0.19))
 		"shikigami_chen", "shikigami_ran":
@@ -626,6 +627,8 @@ func _emit_nonspell(c: Dictionary) -> void:
 
 
 func _emit_pressure(c: Dictionary) -> void:
+	if ExtraDanmaku.emit(self, c):
+		return
 	var tier := int(c.card.get("pressure_tier", 1))
 	var wave := int(c.wave)
 	var turn := float(c.age) * (0.65 + tier * 0.17)

@@ -133,7 +133,8 @@ func draw() -> void:
 		var cleared: bool = game._touhou_difficulty_cleared(level_index, id)
 		if cleared:
 			_label(Rect2(Vector2(rect.end.x - 62, rect.position.y + 13), Vector2(52, 24)), "已通关", 13, tint)
-		_label(Rect2(rect.position + Vector2(14, rect.size.y - 28), Vector2(rect.size.x - 28, 22)), "自选植物" if data.select else "传送带", 15, Color("d8e2da"))
+		var mode := "自选植物" if data.select else "传送带"
+		_label(Rect2(rect.position + Vector2(14, rect.size.y - 28), Vector2(rect.size.x - 28, 22)), "%s · 原创 +%d 招" % [mode, int(data.phases)], 15, Color("d8e2da"))
 	var chosen := Difficulty.build_level(level, choice)
 	var phases := 0
 	var attacks := 0
@@ -149,8 +150,8 @@ func draw() -> void:
 			phases += 1
 			attacks += 1
 	var info_y := panel.end.y - 104
-	_label(Rect2(Vector2(panel.position.x + 24, info_y), Vector2(panel.size.x - 48, 24)), "终末 %d 阶段 · %d 招式    Boss 生命 x%.1f    追加 %d 波" % [phases, attacks, float(settings.health), int(settings.waves)], 16, Color("dce5dc"))
-	_label(Rect2(Vector2(panel.position.x + 24, info_y + 25), Vector2(panel.size.x - 48, 20)), "弹幕密度 x%.2f    Boss伤害 x%.2f" % [float(settings.density), Difficulty.boss_damage_multiplier(chosen)], 14, Color("a9bfb0"))
+	_label(Rect2(Vector2(panel.position.x + 24, info_y), Vector2(panel.size.x - 48, 24)), "终末 %d 阶段 · %d 攻击段    Boss 生命 x%.1f    追加 %d 波" % [phases, attacks, float(settings.health), int(settings.waves)], 16, Color("dce5dc"))
+	_label(Rect2(Vector2(panel.position.x + 24, info_y + 25), Vector2(panel.size.x - 48, 20)), "难度倍率：弹幕密度 x%.2f    Boss伤害 x%.2f" % [float(settings.density), Difficulty.boss_damage_multiplier(chosen)], 14, Color("a9bfb0"))
 	var start := start_rect()
 	game.draw_rect(start, Color(settings.color))
 	_label(start.grow(-10), "选择植物" if settings.select else "开始战斗", 18, Color("17231d"))

@@ -10,8 +10,7 @@ const PROFILES := {
 	"extra_plus": {"name": "EX+", "rank": 3, "health": 2.0, "damage": 1.4, "density": 1.33, "speed": 1.15, "cadence": 0.8, "phases": 2, "waves": 6, "select": true, "color": "ee809a"},
 }
 
-# Name, collision-pattern family, existing animation pose. These are original
-# tower-defense nonspells, not fabricated official spell-card references.
+# Theme, collision family, animation pose. Extra moves are explicitly original.
 const EXTENSIONS := {
 	"marisa_boss": ["星光魔法", "stars", "stars"],
 	"reimu_boss": ["博丽符阵", "ofuda", "seal"],
@@ -37,6 +36,59 @@ const EXTENSIONS := {
 	"mystia_boss": ["夜雀轮唱", "song", "song"],
 	"keine_boss": ["史书回廊", "history", "history"],
 }
+
+# Each column is a different move, retained by all subsequent difficulty tiers.
+# The first uses the character's pursuit pattern, then crossfire, then a domain.
+const MOVE_NAMES := {
+	"stars": ["星符「棱镜播种」", "恋光「交差彗星」", "魔庭「恒星炉心」"],
+	"ofuda": ["封符「轮转封田」", "阴阳「两仪夹阵」", "博丽「封魔棋盘」"],
+	"dark": ["夜幕追击", "逆光暗弧", "无月回廊"],
+	"fairy": ["妖精环流", "双翼返花", "翡翠花庭"],
+	"ice": ["冰棱封锁", "迟冻交叉", "九瓣冰牢"],
+	"rainbow": ["虹彩回旋", "镜虹对流", "六色盘龙"],
+	"books": ["禁书巡游", "双页折返", "禁书索引"],
+	"elements": ["七曜交织", "水火夹击", "五行轮转"],
+	"knives": ["刻针追猎", "停刻剪刀", "银针钟盘"],
+	"scarlet": ["猩红枪阵", "血翼交枪", "红月牢笼"],
+	"crystal": ["破坏棱镜", "折光双棱", "碎星领域"],
+	"snow": ["寒潮封路", "逆风回雪", "白夜霜环"],
+	"shikigami": ["式神穿阵", "猫步折返", "回旋式网"],
+	"dolls": ["人偶织网", "双列牵丝", "人偶光栅"],
+	"spring": ["春风散华", "迎春双燕", "花开四时"],
+	"music": ["三重奏追击", "错拍回声", "终夜轮唱"],
+	"sword": ["半灵连斩", "双刃错位", "六道剑围"],
+	"butterfly": ["幽蝶返照", "冥蝶双回", "幽庭花葬"],
+	"fox": ["式神封阵", "九尾对冲", "狐火星罗"],
+	"boundary": ["隙间封锁", "里外折返", "四隅境界"],
+	"insects": ["萤群夜袭", "交错萤航", "夜空灯阵"],
+	"song": ["夜雀轮唱", "反拍鸟鸣", "笼中回响"],
+	"history": ["史书回廊", "今昔交错", "编年重围"],
+}
+
+# TH08 4A/B authored low fixed damage per projectile, so late phases previously
+# fell behind other bosses. Keep character tuning separate from difficulty.
+const ATTACK_TUNING := {
+	"reimu_boss": {"damage": 1.45, "beam_damage": 1.35, "phase_damage": 0.12, "speed": 1.12, "density": 1.16, "cadence": 0.9},
+	"marisa_boss": {"damage": 1.35, "beam_damage": 1.22, "phase_damage": 0.12, "speed": 1.10, "density": 1.15, "cadence": 0.9},
+}
+
+
+static func attack_density(kind: String, level: Dictionary) -> float:
+	return float(profile(level).density) * float(ATTACK_TUNING.get(kind, {}).get("density", 1.0))
+
+
+static func attack_speed(kind: String, level: Dictionary) -> float:
+	return float(profile(level).speed) * float(ATTACK_TUNING.get(kind, {}).get("speed", 1.0))
+
+
+static func attack_cadence(kind: String, level: Dictionary) -> float:
+	return float(profile(level).cadence) * float(ATTACK_TUNING.get(kind, {}).get("cadence", 1.0))
+
+
+static func attack_damage(kind: String, level: Dictionary, phase: int, beam: bool = false) -> float:
+	var tuning: Dictionary = ATTACK_TUNING.get(kind, {})
+	var growth := 1.0 + clampi(phase, 0, 3) * float(tuning.get("phase_damage", 0.0))
+	return boss_damage_multiplier(level) * float(tuning.get("beam_damage" if beam else "damage", 1.0)) * growth
 
 
 static func is_touhou(level: Dictionary) -> bool:
@@ -95,16 +147,18 @@ static func build_level(base: Dictionary, choice: String) -> Dictionary:
 
 
 static func extend_phases(kind: String, level: Dictionary, phases: Array) -> Array:
-	# Reimu has complete per-difficulty TH08 routes; difficulty changes the
-	# real variants instead of inserting generic extra spell stages.
-	if kind in ["reimu_boss", "marisa_boss"]:
-		return phases
 	var count := int(profile(level).phases)
 	if count == 0 or phases.is_empty() or not EXTENSIONS.has(kind):
 		return phases
 	var theme: Array = EXTENSIONS[kind]
 	for index in range(count):
-		var card := ["original-difficulty-%s-%d" % [kind, index + 1], "追击 · %s %s" % [theme[0], ["I", "II", "III"][index]], "pressure_" + theme[1], theme[2], {"pressure_tier": index + 1}]
+		var suffix: String = ["", "_crossfire", "_domain"][index]
+		var pose: String = theme[2]
+		if kind == "reimu_boss":
+			pose = ["seal", "dream", "barrier"][index]
+		elif kind == "marisa_boss":
+			pose = ["stars", "laser", "orbit"][index]
+		var card := ["original-difficulty-%s-%d" % [kind, index + 1], "原创 · " + MOVE_NAMES[theme[1]][index], "pressure_" + theme[1] + suffix, pose, {"pressure_tier": index + 1, "pressure_family": theme[1]}]
 		phases.insert(phases.size() - 1, [card])
 	return phases
 

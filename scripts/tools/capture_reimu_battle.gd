@@ -39,20 +39,22 @@ func _run() -> void:
 			var boss: Dictionary = game.zombies.back()
 			boss.spawn_time = 0.0
 			game._ensure_reimu_runtime().update(3.0)
-			var cards: Array = game.TouhouSpellDefs.cards_for("reimu_boss", game.current_level)
-			for cycle in range(cards.size()):
+			var phases: Array = boss.touhou_encounter.phases
+			for cycle in range(phases.size()):
 				boss.touhou_encounter.index = cycle
 				boss.touhou_encounter.attack = boss.touhou_encounter.phases[cycle].size() - 1
 				boss.touhou_encounter.depleted = false
 				game.TouhouPhaseRuntime._set_bounds(boss)
 				boss.health = boss.touhou_encounter.ceiling
 				game._trigger_boss_skill(boss)
+				game._cleanup_dead_zombies()
+				game.effects.clear()
 				game.touhou_danmaku.update(1.65)
-				game.reimu_runtime.update(1.1)
+				game.reimu_runtime.update(1.65)
 				game._update_effects(1.65)
 				game.banner_timer = 0.0
 				game.banner_label.hide()
-				await snapshot(game, label + "-" + String(cards[cycle][0]))
+				await snapshot(game, label + "-" + String(phases[cycle].back()[0]))
 			game.save_dirty = false
 			game.free()
 	quit()

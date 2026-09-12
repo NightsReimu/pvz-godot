@@ -140,7 +140,7 @@ func _test_beams_and_orbits() -> void:
 	check(game.grid[2][3].health == before, "Laser telegraph must remain harmless")
 	dm.update(0.2)
 	var hit_health := float(game.grid[2][3].health)
-	check(is_equal_approx(before - hit_health, 100 * game.TouhouDifficulty.boss_damage_multiplier(game.current_level)), "Beam damage must apply difficulty exactly once")
+	check(is_equal_approx(before - hit_health, 100 * 1.22 * game.TouhouDifficulty.boss_damage_multiplier(game.current_level)), "Beam damage must apply character tuning and difficulty exactly once")
 	dm.update(0.6)
 	check(game.grid[2][3].health == hit_health, "A sustained beam must not damage the same cell every frame")
 	var rotating := {"from": Vector2.ZERO, "to": Vector2(100, 0), "turn_rate": 0.2}

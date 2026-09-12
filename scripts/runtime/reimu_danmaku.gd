@@ -10,7 +10,7 @@ static func emit(danmaku: RefCounted, c: Dictionary) -> void:
 	var game: Control = danmaku.game
 	var rank := int(game.TouhouDifficulty.profile(game.current_level).rank)
 	# The direct-loop geometries were authored at the v1.0.102 density baseline.
-	var density := float(game.TouhouDifficulty.profile(game.current_level).density) / float([0.78, 0.92, 1.07, 1.22][rank])
+	var density: float = game.TouhouDifficulty.attack_density(String(c.kind), game.current_level) / float([0.78, 0.92, 1.07, 1.22][rank])
 	var origin := Vector2(c.center)
 	var target: Vector2 = danmaku._target(origin)
 	var aim := (target - origin).angle()

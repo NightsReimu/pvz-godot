@@ -56,10 +56,23 @@ func cast(boss: Dictionary, pattern: String) -> void:
 		return
 	var row := int(game.active_rows[posmod(serial * 2, row_count)])
 	var other := int(game.active_rows[posmod(serial * 2 + 3, row_count)])
+	if pattern == "pressure_ofuda_domain":
+		# Three alternating pairs leave protected cells beside the sealed cells.
+		for index in range(3):
+			var lane := int(game.active_rows[posmod(serial + index * 2, row_count)])
+			queue_tile(boss, Vector2i(lane, 2 + index), "seal" if index < 2 else "purify", 1.2)
+			queue_tile(boss, Vector2i(lane, 3 + index), "guard" if index < 2 else "purify", 1.45)
+		return
+	if pattern == "pressure_ofuda_crossfire":
+		for lane in [row, other]:
+			queue_tile(boss, Vector2i(lane, 3), "seal", 1.2)
+			queue_tile(boss, Vector2i(lane, 2), "guard", 1.2)
+		queue_tile(boss, Vector2i(row, 6), "purify", 1.2)
+		return
 	queue_tile(boss, Vector2i(row, 2 + serial % 3), "seal")
 	queue_tile(boss, Vector2i(other, 4 + serial % 3), "purify")
 	queue_tile(boss, Vector2i(other, 1 + serial % 2), "guard")
-	if rank >= 2:
+	if rank >= 2 or pattern == "pressure_ofuda":
 		queue_tile(boss, Vector2i(int(game.active_rows[posmod(serial + 1, row_count)]), 3 + serial % 3), "seal", 1.3)
 
 func update(delta: float) -> void:

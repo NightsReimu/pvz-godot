@@ -76,14 +76,31 @@ func tick(game: Control, dt: float = 0.1) -> void:
 func _test_higher_route(kind: String) -> void:
 	var choices: Array = ["extra", "extra_plus"] if kind in ["flandre_boss", "ran_boss", "yukari_boss"] else ["easy", "normal", "hard", "lunatic"]
 	var previous := 0
+	var previous_patterns := 0
+	var inherited_moves := []
 	for choice in choices:
 		var level := {"id": "1-23" if choices.size() == 2 else "test", "touhou_difficulty": choice}
 		var phases := Spells.phases_for(kind, level)
-		if kind in ["reimu_boss", "marisa_boss"]:
-			check(phases.size() == (5 if choice == "easy" else 6), "TH08 4A/B bosses must use actual difficulty-specific routes")
-		else:
-			check(phases.size() > previous, "%s must gain phases at %s" % [kind, choice])
+		check(phases.size() > previous, "%s must gain phases at %s" % [kind, choice])
+		var patterns := {}
+		var original_moves := []
+		for phase in phases:
+			for entry in phase:
+				patterns[entry[2]] = true
+				if String(entry[0]).begins_with("original-difficulty-"):
+					original_moves.append(entry[0])
+		check(patterns.size() > previous_patterns, "%s needs more distinct moves, not repeated stronger copies, at %s" % [kind, choice])
+		check(original_moves.size() == int(Difficulty.profile(level).phases), "%s must receive every original move for %s" % [kind, choice])
+		for inherited in inherited_moves:
+			check(original_moves.has(inherited), "Higher difficulty must retain previously unlocked original moves")
+		var base_level := level.duplicate(true)
+		base_level.touhou_difficulty = "extra" if choices.size() == 2 else choice
+		var cards := Spells.cards_for(kind, base_level).filter(func(card): return not String(card[0]).begins_with("original-"))
+		var finale := Difficulty.spell_variant(kind, base_level, cards.back())
+		check(phases.back().back()[0] == finale[0], "%s must keep its canonical finale after added moves" % kind)
 		previous = phases.size()
+		previous_patterns = patterns.size()
+		inherited_moves = original_moves
 	var game := _difficulty_game(kind, choices.back())
 	var boss: Dictionary = game.zombies[0]
 	check(is_equal_approx(float(boss.max_health), float(Game.Defs.ZOMBIES[kind].health) * float(Difficulty.profile(game.current_level).health)), "Spawn must apply the chosen boss health once")
