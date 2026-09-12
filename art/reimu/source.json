@@ -1,0 +1,13 @@
+{
+  "source": "codex-clipboard-7385594a-1a71-4114-9387-15fc38fa44be.png",
+  "sha256": "32c365d9d5407e87bc88a972ee41dc2010304c87bd37c8a1e436603747bcb6c5",
+  "grid": [
+    6,
+    4
+  ],
+  "frame_size": [
+    256,
+    256
+  ],
+  "processing": "Exact cell extraction from user-provided RGBA sprite sheet; alpha and pixels preserved. No redrawing or chroma key."
+}

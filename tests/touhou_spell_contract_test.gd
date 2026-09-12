@@ -185,7 +185,9 @@ func _test_bullets_outlive_emission() -> void:
 	game.zombies[0] = game._trigger_boss_skill(game.zombies[0])
 	game.touhou_danmaku.update(3.5)
 	check(game.touhou_danmaku.casts.is_empty() and not game.touhou_danmaku.bullets.is_empty(), "ordinary bullets must continue flying after emission finishes")
-	game.touhou_danmaku.update(2.7)
+	# Slower Easy bullets need more travel time, but still reach the backline
+	# within their seven-second lifetime after the emitter has stopped.
+	game.touhou_danmaku.update(3.4)
 	check(float(game.grid[2][1].health) < hp, "slow aimed bullets must be able to reach the backline")
 	game.zombies[0].health = 0.0
 	game.touhou_danmaku.update(0.1)

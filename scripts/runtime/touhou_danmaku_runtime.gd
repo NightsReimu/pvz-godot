@@ -3,6 +3,7 @@ class_name TouhouDanmakuRuntime
 
 const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
+const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
 const MAX_BULLETS := 480
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
@@ -52,6 +53,8 @@ func cast(boss: Dictionary) -> Dictionary:
 	clear_owner(owner)
 	var pattern = String(card.pattern)
 	var duration := 3.4
+	if String(boss.kind) == "reimu_boss":
+		duration = float(card.get("duration", 4.8))
 	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
 		duration = 2.2
 	if boss.has("touhou_encounter"):
@@ -61,7 +64,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	if pattern == "resurrection_butterfly":
 		duration = 24.0
 	boss["touhou_card"] = card
-	boss["touhou_invulnerable"] = pattern in ["and_then_none", "resurrection_butterfly"]
+	boss["touhou_invulnerable"] = pattern in ["and_then_none", "resurrection_butterfly", "reimu_blink"]
 	boss["touhou_survival_timer"] = duration if bool(boss.touhou_invulnerable) else 0.0
 	boss["touhou_cast_remaining"] = duration
 	boss["touhou_cast_duration"] = duration
@@ -69,7 +72,8 @@ func cast(boss: Dictionary) -> Dictionary:
 	var session := {"owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
 	casts.append(session)
 	game._show_banner(String(card.name), 1.8)
-	game.effects.append({"shape": String(boss.kind).trim_suffix("_boss") + "_spell_seal", "position": center, "radius": 72.0, "time": 0.45, "duration": 0.45, "color": Color(0.9, 0.86, 1.0, 0.25)})
+	if String(boss.kind) != "reimu_boss":
+		game.effects.append({"shape": String(boss.kind).trim_suffix("_boss") + "_spell_seal", "position": center, "radius": 72.0, "time": 0.45, "duration": 0.45, "color": Color(0.9, 0.86, 1.0, 0.25)})
 	if pattern == "wraith_charm":
 		game._spawn_youmu_wraiths_from(center, 2 + mini(int(session.phase), 1), int(session.phase))
 		session.next_wave = duration + 1.0
@@ -114,11 +118,11 @@ func _tick(delta: float) -> void:
 			boss["touhou_survival_timer"] = boss.touhou_cast_remaining
 		if float(session.age) >= float(session.duration):
 			boss["touhou_invulnerable"] = false
-			if String(session.pattern) == "and_then_none" and boss.has("touhou_encounter"):
+			if String(session.pattern) in ["and_then_none", "reimu_blink"] and boss.has("touhou_encounter"):
 				boss.touhou_encounter.depleted = true
 			if String(session.pattern) == "resurrection_butterfly":
 				boss["health"] = 0.0
-			if String(session.pattern) in ["and_then_none", "resurrection_butterfly"]:
+			if String(session.pattern) in ["and_then_none", "resurrection_butterfly", "reimu_blink"]:
 				clear_owner(owner)
 			elif not beams.any(func(b): return int(b.owner) == owner and b.has("actor_index")):
 				# Keep laser emitters visible until their final telegraph and beam end.
@@ -168,9 +172,14 @@ func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: 
 
 
 func _fan(c: Dictionary, origin: Vector2, count: int, angle: float, spread: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
-	count = ceili(count * float(Difficulty.profile(game.current_level).density))
+	var centered := count % 2 == 1
+	count = maxi(1, ceili(count * float(Difficulty.profile(game.current_level).density)))
+	# Density scaling must preserve the middle bullet of odd aimed fans.
+	if centered and count % 2 == 0:
+		count -= 1
 	for i in range(count):
-		_bullet(c, origin, angle + (float(i) / maxf(1.0, count - 1) - 0.5) * spread, speed, color, shape, extra)
+		var offset := 0.0 if count == 1 else (float(i) / (count - 1) - 0.5) * spread
+		_bullet(c, origin, angle + offset, speed, color, shape, extra)
 
 
 func _ring(c: Dictionary, origin: Vector2, count: int, rotation: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
@@ -216,6 +225,9 @@ func _update_actors(c: Dictionary) -> void:
 
 func _emit_wave(c: Dictionary) -> void:
 	var p = String(c.pattern)
+	if p.begins_with("reimu_") or p == "nonspell_reimu_amulets":
+		ReimuDanmaku.emit(self, c)
+		return
 	if p.begins_with("pressure_"):
 		_emit_pressure(c)
 		return
@@ -717,7 +729,11 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			b.position.y = clampf(point.y, board.position.y + 5, board.end.y - 5)
 			b.velocity.y *= -1
 			b.bounces -= 1
-		var hit = _hit_plant_segment(before, Vector2(b.position), float(b.radius), float(b.damage), [])
+		if String(b.kind) == "reimu_boss":
+			before = ReimuDanmaku.advance_bullet(b, before, motion_delta)
+		var hit := false
+		if age >= float(b.get("arming_time", 0.0)):
+			hit = _hit_plant_segment(before, Vector2(b.position), float(b.radius), float(b.damage), [])
 		if hit or age >= float(b.life) or not board.grow(240).has_point(Vector2(b.position)):
 			bullets.remove_at(index)
 
@@ -768,10 +784,12 @@ func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float
 	var max_x := maxf(from.x, to.x) + padding
 	var min_y := minf(from.y, to.y) - padding
 	var max_y := maxf(from.y, to.y) + padding
-	var min_col := clampi(int(floor((min_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x)), 0, game.COLS - 1)
-	var max_col := clampi(int(floor((max_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x)), 0, game.COLS - 1)
-	var min_row := clampi(int(floor((min_y - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y)), 0, game.ROWS - 1)
-	var max_row := clampi(int(floor((max_y - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y)), 0, game.ROWS - 1)
+	# Collision centers are at cell center minus 12px, not at tile edges.
+	# Derive candidate bounds from those centers, also rejecting off-board shots.
+	var min_col := maxi(0, ceili((min_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x - 0.5))
+	var max_col := mini(game.COLS - 1, floori((max_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x - 0.5))
+	var min_row := maxi(0, ceili((min_y + 12 - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y - 0.5))
+	var max_row := mini(game.ROWS - 1, floori((max_y + 12 - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y - 0.5))
 	for row in range(min_row, max_row + 1):
 		if not game._is_row_active(row):
 			continue
@@ -804,14 +822,15 @@ func draw() -> void:
 	var outline = PackedVector2Array([board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)])
 	for c in casts:
 		var cast_age = float(c.age)
+		var cue_scale: float = game._battle_unit_scale() if String(c.kind) == "reimu_boss" else 1.0
 		var pulse_window = clampf(1.0 - (float(c.next_wave) - cast_age) / 0.38, 0.0, 1.0)
-		var pulse_center = Vector2(c.center) + Vector2(0, 34)
-		var pulse_radius = 42.0 + pulse_window * 34.0
+		var pulse_center = Vector2(c.center) + Vector2(0, 34 * cue_scale)
+		var pulse_radius = (42.0 + pulse_window * 34.0) * cue_scale
 		var pulse_alpha = 0.08 + pulse_window * 0.18
 		game.draw_circle(pulse_center, pulse_radius, Color(1.0, 0.16, 0.18, pulse_alpha), false, 2.0, true)
 		if pulse_window > 0.65:
 			var warning_angle = (cast_age * 2.7) - PI * 0.5
-			game.draw_arc(pulse_center, pulse_radius + 10.0, warning_angle, warning_angle + PI * 0.54, 22, Color(1.0, 0.72, 0.28, 0.78), 3.0, true)
+			game.draw_arc(pulse_center, pulse_radius + 10.0 * cue_scale, warning_angle, warning_angle + PI * 0.54, 22, Color(1.0, 0.72, 0.28, 0.78), maxf(1.0, 3.0 * cue_scale), true)
 		if float(c.get("focus_until", 0.0)) > float(c.age):
 			var center = Vector2(c.center)
 			for i in range(8):
@@ -857,16 +876,26 @@ func draw() -> void:
 		var point = Vector2(b.position)
 		var color = Color(b.color)
 		var radius = float(b.radius)
+		if float(b.age) < float(b.get("arming_time", 0.0)):
+			color.a = 0.36
 		if not board.grow(-radius * 2).has_point(point):
 			continue
 		# At peak density, preserve the projectile silhouette while avoiding the
 		# many polygon and outline draw calls used by ornate bullets.
-		if crowded and String(b.shape) not in ["orb", "butterfly", "petal"]:
+		if crowded and String(b.shape) not in ["orb", "dream_orb", "butterfly", "petal"]:
 			var fast_axis := Vector2(b.velocity).normalized()
 			if fast_axis.is_zero_approx():
 				fast_axis = Vector2.LEFT
-			game.draw_line(point - fast_axis * radius * 1.5, point + fast_axis * radius * 1.5, color, maxf(2.0, radius * 0.7), true)
-			game.draw_circle(point, radius * 0.8, Color(1, 1, 1, 0.72))
+			var side := fast_axis.orthogonal()
+			match String(b.shape):
+				"ofuda":
+					game.draw_colored_polygon(PackedVector2Array([point + fast_axis * radius * 1.45 + side * radius * 0.7, point - fast_axis * radius * 1.45 + side * radius * 0.7, point - fast_axis * radius * 1.45 - side * radius * 0.7, point + fast_axis * radius * 1.45 - side * radius * 0.7]), Color(1, 0.96, 0.90, color.a))
+					game.draw_line(point - fast_axis * radius, point + fast_axis * radius, color, maxf(1.3, radius * 0.35), true)
+				"star":
+					game.draw_line(point - Vector2(radius, 0), point + Vector2(radius, 0), color, 2, true)
+					game.draw_line(point - Vector2(0, radius), point + Vector2(0, radius), color, 2, true)
+				_:
+					game.draw_colored_polygon(PackedVector2Array([point + fast_axis * radius * 1.6, point + side * radius * 0.6, point - fast_axis * radius * 1.2, point - side * radius * 0.6]), color)
 			continue
 		if String(b.shape) in ["orb", "butterfly", "petal", "note"]:
 			game.draw_circle(point, radius + 1.7, Color(0.08, 0.05, 0.13, 0.86))
@@ -875,6 +904,10 @@ func draw() -> void:
 			axis = Vector2.LEFT
 		var normal = axis.orthogonal()
 		match String(b.shape):
+			"dream_orb":
+				game.draw_circle(point, radius + 2, Color(color, color.a * 0.2))
+				game.draw_circle(point, radius, color)
+				game.draw_circle(point, radius * 0.58, Color(1, 0.98, 0.94, color.a * 0.92))
 			"knife":
 				var polygon = PackedVector2Array([point + axis * radius * 2, point + normal * radius * 0.65, point - axis * radius * 1.5, point - normal * radius * 0.65])
 				_draw_bullet_polygon(polygon, color)
@@ -885,7 +918,7 @@ func draw() -> void:
 				game.draw_line(point - axis * radius, point + axis * radius * 1.2, Color(1, 1, 1, 0.8), 1, true)
 			"ofuda":
 				var polygon = PackedVector2Array([point + axis * radius * 1.45 + normal * radius * 0.7, point - axis * radius * 1.45 + normal * radius * 0.7, point - axis * radius * 1.45 - normal * radius * 0.7, point + axis * radius * 1.45 - normal * radius * 0.7])
-				_draw_bullet_polygon(polygon, Color(1, 0.97, 0.88))
+				_draw_bullet_polygon(polygon, Color(1, 0.97, 0.88, color.a))
 				for offset in [-0.6, 0.0, 0.6]:
 					var mark = point + axis * radius * offset
 					game.draw_line(mark - normal * radius * 0.45, mark + normal * radius * 0.45, color.darkened(0.2), 1.7, true)
@@ -925,4 +958,4 @@ func draw() -> void:
 func _draw_bullet_polygon(polygon: PackedVector2Array, color: Color) -> void:
 	game.draw_colored_polygon(polygon, color)
 	polygon.append(polygon[0])
-	game.draw_polyline(polygon, Color(0.08, 0.05, 0.13, 0.85), 1.2, true)
+	game.draw_polyline(polygon, Color(0.08, 0.05, 0.13, 0.85 * color.a), 1.2, true)

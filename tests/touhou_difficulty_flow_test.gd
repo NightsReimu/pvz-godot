@@ -23,7 +23,7 @@ func _run() -> void:
 	game.unlocked_levels = GameScript.Defs.LEVELS.size()
 	game.completed_levels.resize(GameScript.Defs.LEVELS.size())
 	game.completed_levels.fill(true)
-	for id in ["1-17", "1-18", "1-23", "2-28", "2-30", "2-31", "3-20", "3-21"]:
+	for id in ["1-17", "1-18", "1-23", "2-28", "2-30", "2-31", "3-20", "3-21", "3-22-a"]:
 		game._start_level(index_of(id))
 		check(game._touhou_difficulty_is_open() and game.mode == game.MODE_MAP, "Clicking a Touhou level must open a modal before battle")
 		var menu = game.touhou_difficulty_menu

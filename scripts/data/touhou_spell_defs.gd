@@ -2,11 +2,13 @@ extends RefCounted
 class_name TouhouSpellDefs
 
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
+const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
 
 # TH06/TH07 Normal routes, followed by Extra/Phantasm where specified.
 # Columns: reference ID, display name, pattern, animation pose.
 # Sources and the tower-defense adaptations are documented in docs/touhou-spells.md.
 const CARDS := {
+	"reimu_boss": Reimu.ROUTES.easy,
 	"rumia_boss": [
 		["th06-02", "夜符「Night Bird」", "night_bird", "bird"],
 		["th06-03", "暗符「Demarcation」", "demarcation", "dark"],
@@ -162,6 +164,7 @@ const REBIRTH := ["th07-114", "「反魂蝶 -三分咲-」", "resurrection_butte
 
 # Unnamed attacks are tower-defense adaptations, never invented named spell cards.
 const NONSPELLS := {
+	"reimu_boss": ["博丽灵梦", "reimu_amulets", "ofuda"],
 	"rumia_boss": ["露米娅", "dark_fan", "bird"],
 	"cirno_boss": ["琪露诺", "ice_fan", "icicle"],
 	"meiling_boss": ["红美铃", "rainbow_spiral", "rainbow"],
@@ -192,7 +195,7 @@ static func phases_for(kind: String, level: Dictionary = {}) -> Array:
 			originals.append(entry)
 			continue
 		var attacks: Array = []
-		if NONSPELLS.has(kind) and not String(entry[0]).ends_with("nonspell") and String(entry[2]) != "keine_takamagahara":
+		if NONSPELLS.has(kind) and not String(entry[0]).ends_with("nonspell") and String(entry[2]) != "keine_takamagahara" and not (entry.size() > 4 and bool(entry[4].get("last_spell", false))):
 			var opening: Array = NONSPELLS[kind]
 			attacks.append(["adapted-%s-nonspell" % kind, "非符 · %s" % opening[0], "nonspell_" + opening[1], opening[2]])
 		attacks.append(entry)
@@ -215,6 +218,8 @@ static func card_from_entry(entry: Array) -> Dictionary:
 
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind == "reimu_boss":
+		return Reimu.cards(level)
 	if String(level.get("mid_boss_kind", "")) == kind:
 		if kind == "patchouli_boss":
 			return PATCHOULI_EXTRA

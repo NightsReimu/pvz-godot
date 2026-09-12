@@ -16,7 +16,7 @@ func _run() -> void:
 
 
 func _test_boss_damage_scaling() -> void:
-	var expected := {"easy": 0.45, "normal": 0.52, "hard": 0.62, "lunatic": 0.74, "extra": 0.45, "extra_plus": 0.70}
+	var expected := {"easy": 0.34, "normal": 0.40, "hard": 0.48, "lunatic": 0.58, "extra": 0.34, "extra_plus": 0.55}
 	for choice in expected:
 		var level := {"events": [{"kind": "rumia_boss"}], "touhou_difficulty": choice}
 		check(is_equal_approx(float(Difficulty.boss_damage_multiplier(level)), float(expected[choice])), "%s must use the reduced, displayed Touhou Boss damage multiplier" % choice)
@@ -53,7 +53,7 @@ func _test_level_overrides() -> void:
 			if choice == options.back():
 				check(level.mode == "normal" and level.start_sun > 0 and not level.has("conveyor_plants"), "Highest tier must use funded manual planting")
 		check(base == before, "Difficulty construction must never mutate registered levels")
-	check(regular == 15 and extra == 2, "All 17 existing Touhou stages must expose the right selector")
+	check(regular == 16 and extra == 2, "All 18 Touhou stages must expose the right selector")
 
 
 func _difficulty_game(kind: String, choice: String) -> EncounterGame:
@@ -79,7 +79,10 @@ func _test_higher_route(kind: String) -> void:
 	for choice in choices:
 		var level := {"id": "1-23" if choices.size() == 2 else "test", "touhou_difficulty": choice}
 		var phases := Spells.phases_for(kind, level)
-		check(phases.size() > previous, "%s must gain phases at %s" % [kind, choice])
+		if kind == "reimu_boss":
+			check(phases.size() == (5 if choice == "easy" else 6), "Reimu must use her actual difficulty-specific 4A route")
+		else:
+			check(phases.size() > previous, "%s must gain phases at %s" % [kind, choice])
 		previous = phases.size()
 	var game := _difficulty_game(kind, choices.back())
 	var boss: Dictionary = game.zombies[0]
@@ -156,7 +159,7 @@ func _test_pressure_scaling() -> void:
 		var game := _difficulty_game("rumia_boss", choice)
 		game._trigger_boss_skill(game.zombies[0])
 		var bullet: Dictionary = game.touhou_danmaku.bullets[0]
-		check(game.touhou_danmaku.bullets.size() > previous_count and float(bullet.damage) > previous_damage and Vector2(bullet.velocity).length() > previous_speed, "Higher tiers must increase actual bullet density, damage and speed")
+		check(game.touhou_danmaku.bullets.size() >= previous_count and float(bullet.damage) > previous_damage and Vector2(bullet.velocity).length() > previous_speed, "Quantized centered fans must not lose bullets at higher tiers; damage and speed must strictly increase")
 		check(game._boss_reinforcement_interval("rumia_boss", 0) < previous_interval, "Boss reinforcements must accelerate at higher difficulty")
 		previous_count = game.touhou_danmaku.bullets.size()
 		previous_damage = bullet.damage

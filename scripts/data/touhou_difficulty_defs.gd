@@ -2,17 +2,18 @@ extends RefCounted
 
 # Easy/EX are compatibility baselines. Extra+ is an original challenge mode.
 const PROFILES := {
-	"easy": {"name": "Easy", "rank": 0, "health": 1.0, "damage": 1.0, "density": 1.0, "speed": 1.0, "cadence": 1.0, "phases": 0, "waves": 0, "select": false, "color": "8ece9a"},
-	"normal": {"name": "Normal", "rank": 1, "health": 1.4, "damage": 1.12, "density": 1.15, "speed": 1.07, "cadence": 0.9, "phases": 1, "waves": 2, "select": false, "color": "72c6e5"},
-	"hard": {"name": "Hard", "rank": 2, "health": 1.9, "damage": 1.28, "density": 1.3, "speed": 1.14, "cadence": 0.8, "phases": 2, "waves": 4, "select": false, "color": "e9c46a"},
-	"lunatic": {"name": "Lunatic", "rank": 3, "health": 2.6, "damage": 1.46, "density": 1.5, "speed": 1.22, "cadence": 0.7, "phases": 3, "waves": 6, "select": true, "color": "ee809a"},
-	"extra": {"name": "EX", "rank": 0, "health": 1.0, "damage": 1.0, "density": 1.0, "speed": 1.0, "cadence": 1.0, "phases": 0, "waves": 0, "select": false, "color": "e9c46a"},
-	"extra_plus": {"name": "EX+", "rank": 3, "health": 2.2, "damage": 1.4, "density": 1.45, "speed": 1.2, "cadence": 0.72, "phases": 2, "waves": 6, "select": true, "color": "ee809a"},
+	"easy": {"name": "Easy", "rank": 0, "health": 0.9, "damage": 1.0, "density": 0.78, "speed": 0.9, "cadence": 1.16, "phases": 0, "waves": 0, "select": false, "color": "8ece9a"},
+	"normal": {"name": "Normal", "rank": 1, "health": 1.2, "damage": 1.12, "density": 0.92, "speed": 0.96, "cadence": 1.08, "phases": 1, "waves": 2, "select": false, "color": "72c6e5"},
+	"hard": {"name": "Hard", "rank": 2, "health": 1.55, "damage": 1.28, "density": 1.07, "speed": 1.03, "cadence": 0.98, "phases": 2, "waves": 4, "select": false, "color": "e9c46a"},
+	"lunatic": {"name": "Lunatic", "rank": 3, "health": 2.0, "damage": 1.46, "density": 1.22, "speed": 1.1, "cadence": 0.9, "phases": 3, "waves": 6, "select": true, "color": "ee809a"},
+	"extra": {"name": "EX", "rank": 0, "health": 0.9, "damage": 1.0, "density": 0.88, "speed": 0.94, "cadence": 1.08, "phases": 0, "waves": 0, "select": false, "color": "e9c46a"},
+	"extra_plus": {"name": "EX+", "rank": 3, "health": 1.8, "damage": 1.4, "density": 1.2, "speed": 1.08, "cadence": 0.88, "phases": 2, "waves": 6, "select": true, "color": "ee809a"},
 }
 
 # Name, collision-pattern family, existing animation pose. These are original
 # tower-defense nonspells, not fabricated official spell-card references.
 const EXTENSIONS := {
+	"reimu_boss": ["博丽符阵", "ofuda", "seal"],
 	"rumia_boss": ["夜幕追击", "dark", "bird"],
 	"daiyousei_boss": ["妖精环流", "fairy", "ring"],
 	"cirno_boss": ["冰棱封锁", "ice", "icicle"],
@@ -59,9 +60,9 @@ static func profile(level: Dictionary) -> Dictionary:
 
 
 static func boss_damage_multiplier(level: Dictionary) -> float:
-	if not level.has("touhou_difficulty"):
+	if not level.has("touhou_difficulty") and not is_touhou(level):
 		return 1.0
-	return {"easy": 0.45, "normal": 0.52, "hard": 0.62, "lunatic": 0.74, "extra": 0.45, "extra_plus": 0.70}.get(String(level.get("touhou_difficulty", "easy")), 0.45)
+	return {"easy": 0.34, "normal": 0.40, "hard": 0.48, "lunatic": 0.58, "extra": 0.34, "extra_plus": 0.55}.get(String(level.get("touhou_difficulty", "easy")), 0.34)
 
 
 static func build_level(base: Dictionary, choice: String) -> Dictionary:
@@ -93,6 +94,10 @@ static func build_level(base: Dictionary, choice: String) -> Dictionary:
 
 
 static func extend_phases(kind: String, level: Dictionary, phases: Array) -> Array:
+	# Reimu has complete per-difficulty TH08 routes; difficulty changes the
+	# real variants instead of inserting generic extra spell stages.
+	if kind == "reimu_boss":
+		return phases
 	var count := int(profile(level).phases)
 	if count == 0 or phases.is_empty() or not EXTENSIONS.has(kind):
 		return phases

@@ -15,6 +15,7 @@ const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const TouhouDanmakuRuntime = preload("res://scripts/runtime/touhou_danmaku_runtime.gd")
 const TouhouPhaseRuntime = preload("res://scripts/runtime/touhou_phase_runtime.gd")
 const KeineBossRuntime = preload("res://scripts/runtime/keine_boss_runtime.gd")
+const ReimuBossRuntime = preload("res://scripts/runtime/reimu_boss_runtime.gd")
 const TouhouDifficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const TouhouDifficultyMenu = preload("res://scripts/runtime/touhou_difficulty_menu.gd")
 const ObjectiveRuntime = preload("res://scripts/runtime/objective_runtime.gd")
@@ -585,6 +586,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"wriggle_boss",
 	"mystia_boss",
 	"keine_boss",
+	"reimu_boss",
 	"keine_bamboo",
 	"fog_boss",
 	"roof_boss",
@@ -948,6 +950,7 @@ var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
 var touhou_danmaku: TouhouDanmakuRuntime
 var keine_runtime: RefCounted
+var reimu_runtime: RefCounted
 var zombie_runtime: ZombieRuntime
 var objective_runtime: ObjectiveRuntime
 var save_dirty := false
@@ -1285,7 +1288,7 @@ func _refresh_battle_layout() -> void:
 	var short_hud: bool = compact_hud and safe_rect.size.y < 500.0
 	var left_margin = safe_rect.position.x + clampf(safe_rect.size.x * (0.035 if is_mobile else 0.09), 18.0 if is_mobile else 128.0, 64.0 if is_mobile else 188.0)
 	var right_margin = (viewport.x - safe_rect.end.x) + clampf(safe_rect.size.x * (0.018 if is_mobile else 0.08), 12.0 if is_mobile else 96.0, 38.0 if is_mobile else 176.0)
-	if short_hud and _is_keine_moonlit_forest_level():
+	if short_hud and (_is_keine_moonlit_forest_level() or _is_reimu_midnight_bamboo_level()):
 		right_margin = maxf(right_margin, safe_rect.size.x * 0.15)
 	var hud_top = safe_rect.position.y + (14.0 if is_mobile else BASE_SEED_BANK_RECT.position.y)
 	if short_hud:
@@ -2047,6 +2050,8 @@ func _process(delta: float) -> void:
 	_update_scarlet_clocktower_hazards(delta)
 	_update_spawn_director(delta)
 	_update_conveyor(delta)
+	if reimu_runtime != null:
+		reimu_runtime.update(delta)
 	_update_plants(delta)
 	_update_projectiles(delta)
 	_update_rollers(delta)
@@ -3113,7 +3118,7 @@ func _should_use_image2_zombie_texture(kind: String) -> bool:
 
 func _boss_frame_count_for_kind(kind: String) -> int:
 	match kind:
-		"keine_boss":
+		"keine_boss", "reimu_boss":
 			return 24
 		"rumia_boss":
 			return RUMIA_FRAME_COUNT
@@ -3161,6 +3166,8 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 
 func _boss_frame_folder_for_kind(kind: String) -> String:
 	match kind:
+		"reimu_boss":
+			return "res://art/reimu"
 		"keine_boss":
 			return "res://art/keine"
 		"rumia_boss":
@@ -3727,6 +3734,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	if target_tab != "zombies":
 		return
 	_queue_boss_frame_set_prewarm("keine_boss")
+	_queue_boss_frame_set_prewarm("reimu_boss")
 	for kind in ["rumia_boss", "daiyousei_boss", "cirno_boss", "meiling_boss", "koakuma_boss", "patchouli_boss", "sakuya_boss", "remilia_boss", "letty_boss", "chen_boss", "alice_boss", "lily_white_boss", "prismriver_boss", "youmu_boss", "yuyuko_boss", "ran_boss", "yukari_boss", "flandre_boss", "wriggle_boss", "mystia_boss"]:
 		_queue_boss_frame_set_prewarm(kind)
 
@@ -7072,6 +7080,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		touhou_difficulty_menu.close()
 	if keine_runtime != null:
 		keine_runtime.reset()
+	if reimu_runtime != null:
+		reimu_runtime.reset()
 	selected_level_index = level_index
 	if not level_override.is_empty():
 		current_level = level_override.duplicate(true)
@@ -7902,6 +7912,11 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.boss_bgm))
 			_show_banner("上白泽慧音封存了林间的历史！", 2.8)
+		elif kind == "reimu_boss":
+			_ensure_reimu_runtime()
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.boss_bgm))
+			_show_banner("博丽灵梦展开结界，竹林映出符光！", 2.8)
 	elif kind == "pool_boss":
 		var boss_index = zombies.size() - 1
 		var boss_unit = zombies[boss_index]
@@ -9464,6 +9479,12 @@ func _ensure_keine_runtime() -> RefCounted:
 	if keine_runtime == null:
 		keine_runtime = KeineBossRuntime.new(self)
 	return keine_runtime
+
+
+func _ensure_reimu_runtime() -> RefCounted:
+	if reimu_runtime == null:
+		reimu_runtime = ReimuBossRuntime.new(self)
+	return reimu_runtime
 
 
 func _ensure_objective_runtime() -> ObjectiveRuntime:
@@ -13441,6 +13462,8 @@ func _cleanup_dead_zombies() -> void:
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
 		if keine_runtime != null and String(zombie.kind) == "keine_boss":
 			keine_runtime.clear_owner(int(zombie.get("uid", -1)))
+		if reimu_runtime != null and String(zombie.kind) == "reimu_boss":
+			reimu_runtime.clear_owner(int(zombie.get("uid", -1)))
 		if String(zombie.get("kind", "")) == "yuyuko_boss" and bool(Defs.ZOMBIES["yuyuko_boss"].get("revive_once", false)) and not bool(zombie.get("yuyuko_revived", false)):
 			zombies[i] = _trigger_yuyuko_boss_revival(zombie)
 			continue
@@ -15632,6 +15655,13 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 				["dark_football", "wizard_zombie", "ninja", "screen_door"],
 			]
 			tint = Color(0.65, 0.88, 0.71, 0.3)
+		"reimu_boss":
+			pools = [
+				["normal", "conehead", "newspaper"],
+				["screen_door", "ninja", "buckethead"],
+				["nether", "shade_zombie", "football"],
+			]
+			tint = Color(1.0, 0.46, 0.48, 0.22)
 		"pool_boss":
 			pools = [
 				["lifebuoy_normal", "qinghua", "ice_block"],
@@ -15711,17 +15741,18 @@ func _damage_plants_in_row_segment(row: int, min_x: float, max_x: float, damage:
 		if plant_center_x < min_x or plant_center_x > max_x:
 			continue
 		var plant = plant_variant
+		var incoming_damage := damage * float(plant.get("reimu_guard", 1.0))
 		if float(plant.get("holy_invincible_timer", 0.0)) > 0.0:
 			plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.1)
 			continue
 		if float(plant.get("armor_health", 0.0)) > 0.0:
-			var armor_left = float(plant["armor_health"]) - damage
+			var armor_left = float(plant["armor_health"]) - incoming_damage
 			if armor_left < 0.0:
 				plant["health"] += armor_left
 				armor_left = 0.0
 			plant["armor_health"] = armor_left
 		else:
-			plant["health"] -= damage
+			plant["health"] -= incoming_damage
 		plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.16)
 		_set_targetable_plant(row, col, plant)
 		hit = true
@@ -15735,6 +15766,7 @@ func _damage_plant_cell(row: int, col: int, damage: float, extra_cooldown: float
 	if plant_variant == null:
 		return false
 	var plant = plant_variant
+	damage *= float(plant.get("reimu_guard", 1.0))
 	if float(plant.get("holy_invincible_timer", 0.0)) > 0.0:
 		plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.12)
 		return true
@@ -15845,6 +15877,8 @@ func _update_charmed_plants(delta: float) -> void:
 
 
 func _plant_charm_blocks_actions(plant: Dictionary) -> bool:
+	if bool(plant.get("reimu_sealed", false)):
+		return true
 	return bool(plant.get("mystia_charmed", false)) or bool(plant.get("mystia_being_cooked", false)) or float(plant.get("youmu_charm_timer", 0.0)) > 0.0 or bool(plant.get("youmu_charm_blocked_frame", false))
 
 
@@ -16163,6 +16197,10 @@ func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
+	if String(zombie.kind) == "reimu_boss":
+		zombie = _ensure_touhou_danmaku().cast(zombie)
+		_ensure_reimu_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
+		return zombie
 	if String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")).begins_with("pressure_"):
 		return _ensure_touhou_danmaku().cast(zombie)
 	if String(zombie.kind) == "keine_boss":
@@ -17367,6 +17405,8 @@ func _trigger_flandre_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 	if String(zombie.kind) == "keine_boss" and keine_runtime != null:
 		keine_runtime.cancel_cast(int(zombie.get("uid", -1)))
+	if String(zombie.kind) == "reimu_boss" and reimu_runtime != null:
+		reimu_runtime.clear_owner(int(zombie.get("uid", -1)))
 	if TouhouSpellDefs.CARDS.has(String(zombie.get("kind", ""))):
 		if touhou_danmaku != null and zombie.has("touhou_owner"):
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
@@ -17856,6 +17896,8 @@ func _damage_front_plant_in_row(row: int, damage: float) -> void:
 
 func _current_zombie_speed(zombie: Dictionary) -> float:
 	var speed = float(zombie["base_speed"])
+	if bool(zombie.get("reimu_purified", false)):
+		speed *= 0.55
 	if float(zombie.get("mystia_food_buff_timer", 0.0)) > 0.0:
 		speed *= float(zombie.get("mystia_food_speed_mult", 1.0))
 	if String(zombie.get("kind", "")) == "cinder_runner" and _ensure_volcano_expansion().runner_is_hot(zombie):
@@ -19278,6 +19320,10 @@ func _is_mystia_night_food_stand_level() -> bool:
 
 func _is_keine_moonlit_forest_level() -> bool:
 	return String(current_level.get("terrain", "")) == "keine_moonlit_forest"
+
+
+func _is_reimu_midnight_bamboo_level() -> bool:
+	return String(current_level.get("terrain", "")) == "reimu_midnight_bamboo"
 
 
 func _is_cloud_sea_level() -> bool:
@@ -22038,6 +22084,11 @@ func _ambient_light_for_level() -> Dictionary:
 		tint_alpha = 0.065
 		shadow_tint = Color(0.01, 0.015, 0.025)
 		shadow_alpha = 0.14
+	elif _is_reimu_midnight_bamboo_level():
+		tint = Color(0.42, 0.56, 0.64)
+		tint_alpha = 0.035
+		shadow_tint = Color(0.01, 0.015, 0.025)
+		shadow_alpha = 0.12
 	elif _is_mystia_night_food_stand_level():
 		tint = Color(0.52, 0.2, 0.42)
 		tint_alpha = 0.08
@@ -22163,6 +22214,8 @@ func _draw_battle_scene() -> void:
 	_draw_battle_board()
 	if _is_keine_moonlit_forest_level():
 		_ensure_keine_runtime().draw_ground()
+	if _is_reimu_midnight_bamboo_level():
+		_ensure_reimu_runtime().draw_ground()
 	_draw_hover()
 	_draw_mowers()
 	_draw_lane_obstacles()
@@ -22181,6 +22234,8 @@ func _draw_battle_scene() -> void:
 		touhou_danmaku.draw()
 	if keine_runtime != null:
 		keine_runtime.draw_overlay()
+	if reimu_runtime != null and _is_reimu_midnight_bamboo_level():
+		reimu_runtime.draw_overlay()
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
 	combat_draw_offset = Vector2.ZERO
@@ -22266,6 +22321,9 @@ func _draw_endless_bonus_overlay() -> void:
 
 
 func _draw_battle_background() -> void:
+	if _is_reimu_midnight_bamboo_level():
+		_ensure_reimu_runtime().draw_background()
+		return
 	if _is_keine_moonlit_forest_level():
 		_ensure_keine_runtime().draw_background()
 	elif _is_hakugyokurou_border_level():
@@ -23295,7 +23353,9 @@ func _draw_battle_board() -> void:
 			continue
 
 		var lane_color := Color(0.39, 0.75, 0.31) if row % 2 == 0 else Color(0.34, 0.68, 0.26)
-		if _is_keine_moonlit_forest_level():
+		if _is_reimu_midnight_bamboo_level():
+			lane_color = _ensure_reimu_runtime().lane_color(row)
+		elif _is_keine_moonlit_forest_level():
 			lane_color = Color("284c36") if row % 2 == 0 else Color("23432f")
 		elif _is_blood_moon_level():
 			lane_color = Color(0.46, 0.08, 0.12) if row % 2 == 0 else Color(0.38, 0.05, 0.08)
@@ -23436,7 +23496,7 @@ func _draw_battle_board() -> void:
 			var tile = _cell_rect(row, col).grow(-2.0)
 			var tint = Color(1.0, 1.0, 1.0, 0.03) if (row + col) % 2 == 0 else Color(0.0, 0.0, 0.0, 0.02)
 			var border_color = Color(0.16, 0.35, 0.12, 0.22)
-			if _is_keine_moonlit_forest_level():
+			if _is_keine_moonlit_forest_level() or _is_reimu_midnight_bamboo_level():
 				tint = Color(0.65, 0.78, 0.51, 0.04) if (row + col) % 2 == 0 else Color(0, 0.05, 0.02, 0.08)
 				border_color = Color(0.65, 0.78, 0.6, 0.15)
 			elif _is_blood_moon_level():
@@ -24327,7 +24387,7 @@ func _draw_boss_health_bar() -> void:
 	var max_health = maxf(1.0, float(boss.get("max_health", 1.0)))
 	var trail_health = maxf(health, float(boss.get("boss_hud_trail", health / max_health)) * max_health)
 	var phase_label := "阶段 %d" % (int(boss.get("boss_phase", 0)) + 1)
-	var survival := bool(boss.get("yuyuko_revived", false))
+	var survival := bool(boss.get("yuyuko_revived", false)) or (String(boss.kind) == "reimu_boss" and String(boss.get("touhou_card", {}).get("pattern", "")) == "reimu_blink")
 	if boss.has("touhou_encounter"):
 		var encounter: Dictionary = boss.touhou_encounter
 		var phase_count := TouhouSpellDefs.phase_count(String(boss.kind), current_level)
@@ -24922,14 +24982,15 @@ func _draw_boss_cast_cue(center: Vector2, boss: Dictionary) -> void:
 		return
 	var progress = clampf(1.0 - float(boss.get("boss_skill_timer", 0.0)) / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0)
 	var tint = _hover_boss_effect_tint(String(boss["kind"]))
-	var anchor = center + Vector2(0.0, -20.0)
-	var radius = lerpf(82.0, 58.0, progress)
-	draw_arc(anchor, 58.0, 0.0, TAU, 48, Color(tint.r, tint.g, tint.b, 0.28), 1.5, true)
+	var cue_scale: float = _battle_unit_scale() if String(boss.kind) == "reimu_boss" else 1.0
+	var anchor = center + Vector2(0.0, -20.0 * cue_scale)
+	var radius = lerpf(82.0, 58.0, progress) * cue_scale
+	draw_arc(anchor, 58.0 * cue_scale, 0.0, TAU, 48, Color(tint.r, tint.g, tint.b, 0.28), 1.5, true)
 	draw_arc(anchor, radius, -PI * 0.5, -PI * 0.5 + TAU * maxf(0.01, progress), 56, Color(1.0, 0.83, 0.38, 0.85), 3.0, true)
 	for i in range(4):
 		var direction = Vector2.from_angle(float(i) * PI * 0.5 + level_time * 0.7)
 		var point = anchor + direction * radius
-		draw_line(point + direction * 10.0, point, Color(tint.r, tint.g, tint.b, 0.85), 2.5, true)
+		draw_line(point + direction * 10.0 * cue_scale, point, Color(tint.r, tint.g, tint.b, 0.85), 2.5, true)
 		glow_primitives.append({"pos": point, "radius": 3.0, "color": Color(tint.r, tint.g, tint.b, 0.35)})
 
 
@@ -30676,8 +30737,14 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _mystia_frame_index(zombie)
 		"keine_boss":
 			return _keine_frame_index(zombie)
+		"reimu_boss":
+			return _reimu_frame_index(zombie)
 		_:
 			return 0
+
+
+func _reimu_frame_index(zombie: Dictionary) -> int:
+	return _ensure_reimu_runtime().frame_index(zombie)
 
 
 func _keine_frame_index(zombie: Dictionary) -> int:
@@ -32689,6 +32756,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "keine_boss":
 		_ensure_keine_runtime().draw_boss(center, zombie)
+		return
+	if kind == "reimu_boss":
+		_ensure_reimu_runtime().draw_boss(center, zombie)
 		return
 	if kind == "keine_bamboo":
 		_ensure_keine_runtime().draw_bamboo(center, zombie)

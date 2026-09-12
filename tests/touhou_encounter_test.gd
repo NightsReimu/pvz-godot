@@ -11,7 +11,7 @@ class EncounterGame extends Game:
 		pass
 
 	func _trigger_boss_skill(boss: Dictionary) -> Dictionary:
-		declarations.append({"id": Spells.card_for(boss, current_level).id, "stage": boss.touhou_encounter.index})
+		declarations.append({"id": Spells.card_for(boss, current_level).id, "stage": boss.get("touhou_encounter", {}).get("index", 0)})
 		return super._trigger_boss_skill(boss)
 
 class EmptyBoardDanmaku extends Game.TouhouDanmakuRuntime:

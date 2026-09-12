@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.101** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.102** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -127,6 +127,10 @@ The original source code is available under the MIT License. Bundled artwork, au
 泳池世界 3-19 至 3-21 依次迎战莉格露、米斯蒂娅和上白泽慧音。3-20 夜雀食堂和 3-21 月下的历史采用六行纯草地；这两关没有独立道中 Boss，终末登场时切换专属音乐，Boss 战期间继续出现普通僵尸。
 
 v1.0.100 新增的 3-21 在通过 3-20 后解锁。慧音使用提供的 24 帧素材，在月下竹林展开五阶段战斗：参考永夜抄三面 Normal 的四张终末符卡与 Last Spell「高天原」，再加入带预警的环身戒鞭、使植物短暂沉睡的月下琴律，以及可用普通攻击击破的逆心竹阵。敌对竹子数量受限，且在慧音退场后清除。
+
+v1.0.102 新增 **3-22-a 博丽灵梦**，通过 3-21 解锁。深夜竹林开场保持低亮度，灵梦登场后逐渐映出符光；使用提供的 24 帧透明素材与两首音乐。Easy / Normal / Hard / Lunatic 分别对应永夜抄 4A 的完整符卡分支，原作道中两符并入同一终末战，Normal 以上以「梦想封印 瞬」耐久收束。赤符短暂封印植物，蓝符净化僵尸，金符回血并减少弹幕伤害；这些符格属于本作原创塔防效果。
+
+东方 Boss 的生命、弹速、发射密度和伤害进一步降低。伤害倍率为 Easy 0.34、Normal 0.40、Hard 0.48、Lunatic 0.58，EX 0.34、EX+ 0.55；拥挤时保留御札等弹型的轮廓。原作符卡对应、改编边界和碰撞性能测量见 [东方 Boss 符卡对照](docs/touhou-spells.md)。
 
 > [!NOTE]
 > 东方角色、名称、设定和 Boss 美术属于 Touhou Project 相关二次创作内容。仓库中的东方原曲仍受原权利人保护，不能因为代码开源就视为可自由复制或再分发。
