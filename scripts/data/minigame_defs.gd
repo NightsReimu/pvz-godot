@@ -2,7 +2,7 @@ extends RefCounted
 
 # Separate from campaign levels: all challenges loan their seed cards.
 const ENTRIES := [
-	{"id":"rain", "title":"雨中种植物", "icon":"lily_pad", "color":"709ac2", "tag":"落种 · 暴雨泳池", "description":"点击雨中落下的种子收入卡槽，再免费种植。种子会过期，水路先放睡莲。", "goal":"守住 6 波尸潮"},
+	{"id":"rain", "title":"雨中种植物", "icon":"lily_pad", "color":"709ac2", "tag":"落种 · 暴雨泳池", "description":"点击雨中落下的种子握在手上，再点击格子免费种下。种子会过期，水路先放睡莲。", "goal":"守住 6 波尸潮"},
 	{"id":"gems", "title":"宝石连连看", "icon":"repeater", "color":"a986ce", "tag":"交换 · 活体三消", "description":"依次点击两株相邻植物进行交换。三个同类成线消除补种，植物同时抵御僵尸。", "goal":"累计消除 50 组"},
 	{"id":"invisible", "title":"隐形僵尸", "icon":"plantern", "color":"8397ad", "tag":"传送带 · 寻迹防守", "description":"脚印暴露行踪，受击与冰冻让僵尸现形。用路灯照亮周围，再布置交叉火力。", "goal":"守住 6 波隐形尸潮"},
 	{"id":"stars", "title":"星星果", "icon":"starfruit", "color":"d5b65d", "tag":"布阵 · 点亮星图", "description":"在所有金色标记上同时种下星星果。可以先种其他植物防守，再铲除调整阵型。", "goal":"点亮全部 14 个星位"},

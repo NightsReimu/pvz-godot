@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Data = preload("res://scripts/data/minigame_defs.gd")
+const Defs = preload("res://scripts/game_defs.gd")
 const Match3 = preload("res://scripts/runtime/minigame_match3.gd")
 const Visuals = preload("res://scripts/ui/minigame_visuals.gd")
 var game: Control
@@ -42,7 +43,7 @@ func setup() -> void:
 	if id == "": return
 	game.expected_spawn_units = game.current_level.events.size()
 	if id == "gems": puzzle = Match3.new(game)
-	if id == "rain": game.active_cards = ["", "", "", "", "", ""]
+	if id == "rain": game.active_cards = []
 	if id == "invisible": game.active_cards = ["peashooter", "snow_pea", "plantern", "wallnut", "", ""]
 	if id == "columns":
 		game.active_cards = ["flower_pot", "cabbage_pult", "kernel_pult", "", "", ""]
@@ -230,14 +231,14 @@ func click(pos: Vector2) -> bool:
 			puzzle.idle = 6
 		return true
 	if id == "rain":
+		# Rain has no seed bank: clicking a falling seed puts it straight into hand.
 		for i in range(packets.size()-1,-1,-1):
 			if packet_rect(packets[i]).has_point(pos):
-				var slot: int = game.active_cards.find("")
-				if slot < 0:
-					game._show_toast("卡槽已满，先种植一张")
-					return true
-				game.active_cards[slot] = packets[i].kind
+				var kind := String(packets[i].kind)
 				packets.remove_at(i)
+				game.selected_tool = kind
+				var data: Dictionary = Defs.PLANTS.get(kind, {})
+				game._show_toast("%s 已握在手上，点击格子种下" % String(data.get("name", kind)))
 				return true
 	return false
 
@@ -252,7 +253,7 @@ func status() -> String:
 		"gems": return "消除 %d / 50 组   ·   连锁 %d" % [mini(puzzle.score,50),puzzle.combo]
 		"stars": return "星位 %d / 14   ·   所有标记同时放满星星果" % star_count()
 		"bare": return "第 %d / 5 轮 · %s" % [wave,"布防中（铲除按剩余血量退款）" if planning else "防守中 · 无天降阳光"]
-		"rain": return "第 %d / 6 波 · 点落种收集，种子 15 秒过期" % wave
+		"rain": return "第 %d / 6 波 · 点落种握在手上，再点格子免费种下" % wave
 		"invisible": return "第 %d / 6 波 · 脚印追踪 / 路灯照明 / 冰冻现形" % wave
 		"portals":
 			var health := "%d%% / %d%%" % [maxi(0,int(cores[0].health/36)),maxi(0,int(cores[1].health/36))]

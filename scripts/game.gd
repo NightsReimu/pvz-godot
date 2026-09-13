@@ -7181,7 +7181,10 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		conveyor_source_cards = current_level["conveyor_plants"].duplicate()
 	if current_level.has("conveyor_plants_after_freeze"):
 		frozen_branch_post_freeze_cards = current_level["conveyor_plants_after_freeze"].duplicate()
-	if _is_conveyor_level():
+	if _is_rain_minigame():
+		# Rain hands falling seeds straight to the cursor, so it never owns a seed bank.
+		active_cards = []
+	elif _is_conveyor_level():
 		active_cards = ["", "", "", "", "", ""]
 	else:
 		active_cards = chosen_cards.duplicate()
@@ -7291,7 +7294,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 			"active": false,
 		})
 
-	if _is_conveyor_level():
+	if _is_conveyor_level() and not _is_rain_minigame():
 		for i in range(3):
 			_fill_conveyor_slot(i)
 
@@ -19491,6 +19494,10 @@ func _coin_target() -> Vector2:
 	return COIN_METER_RECT.position + COIN_METER_RECT.size * 0.5
 
 
+func _is_rain_minigame() -> bool:
+	return String(current_level.get("minigame", "")) == "rain"
+
+
 func _is_conveyor_level() -> bool:
 	return String(current_level.get("mode", "")) == "conveyor" or String(current_level.get("mode", "")) == "bowling"
 
@@ -19819,7 +19826,7 @@ func _setup_level_graves() -> void:
 
 
 func _update_conveyor(delta: float) -> void:
-	if String(current_level.get("minigame", "")) == "rain": return
+	if _is_rain_minigame(): return
 	if not _is_conveyor_level():
 		return
 	_sync_conveyor_special_cards()

@@ -62,21 +62,21 @@ func test_rain(game: Control) -> void:
 	game._start_minigame("rain")
 	var rt = game.minigame_runtime
 	game._update_conveyor(100)
-	check(game.active_cards.count("")==6,"Rain has no automatic conveyor")
+	check(game.active_cards.is_empty(),"Rain has no seed bank")
 	rt.update_rain(0.1)
 	check(rt.packets.size()==1,"Seed falls")
 	var point: Vector2 = rt.packet_rect(rt.packets[0]).get_center()
 	game._handle_primary_click(point)
-	check(game.active_cards.has("peashooter") and rt.packets.is_empty(),"Click collects falling seed")
-	game.selected_tool = "peashooter"
+	check(game.selected_tool=="peashooter" and rt.packets.is_empty(),"Click holds falling seed")
 	game._handle_board_click(Vector2i(0,0))
-	check(game.grid[0][0] != null and game.sun_points == 0 and game.active_cards.count("")==6,"Free planting consumes collected seed")
-	game.active_cards.fill("wallnut")
+	check(game.grid[0][0] != null and game.sun_points == 0 and game.selected_tool=="","Free planting spends the held seed")
+	game.selected_tool = "wallnut"
 	rt.update_rain(2)
 	game._handle_primary_click(rt.packet_rect(rt.packets[0]).get_center())
-	check(rt.packets.size()==1,"Full bank leaves seed on field")
+	check(game.selected_tool != "wallnut" and rt.packets.is_empty(),"Falling seed replaces the held plant")
+	rt.packets.append({"kind":"peashooter", "u":0.5, "v":0.5, "target":0.5, "life":1.0})
 	rt.packet_timer = 100
-	rt.update_rain(16)
+	rt.update_rain(2)
 	check(rt.packets.is_empty(),"Seeds expire")
 	check(game._placement_error("peashooter",2,0)!="" and game._placement_error("lily_pad",2,0)=="","Water still requires pads")
 
