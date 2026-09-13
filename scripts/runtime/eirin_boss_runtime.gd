@@ -104,14 +104,14 @@ func cast(boss: Dictionary, pattern: String) -> void:
 	var count = 2 + rank
 	for n in range(mini(count, occupied.size())):
 		var index = posmod(serial * 5 + n * maxi(1, occupied.size() / count), occupied.size())
-		queue_strike(boss, occupied[index], 100.0 + rank * 25.0, pattern)
+		queue_strike(boss, occupied[index], 62.0 + rank * 16.0, pattern)
 	match pattern:
 		"eirin_life", "eirin_rising":
 			# The cellular grid blooms into neighboring cells after a visible warning.
 			if not occupied.is_empty():
 				var seed_cell: Vector2i = occupied[serial % occupied.size()]
 				for r in range(maxi(0, seed_cell.x - 1), mini(game.ROWS, seed_cell.x + 2)):
-					queue_strike(boss, Vector2i(r, seed_cell.y), 120.0 + rank * 20, pattern)
+					queue_strike(boss, Vector2i(r, seed_cell.y), 75.0 + rank * 13.0, pattern)
 		"pressure_medicine":
 			start_medicine(boss, "rage")
 		"pressure_medicine_crossfire":
@@ -220,7 +220,8 @@ func reinforcement_kind() -> String:
 	if roster.is_empty():
 		for key in game.Defs.ZOMBIES:
 			var data: Dictionary = game.Defs.ZOMBIES[key]
-			if String(key) not in ["mech_zombie", "flywheel_zombie"] and not bool(data.get("boss", false)) and not bool(data.get("boss_summon", false)) and not bool(data.get("non_mainline_special", false)):
+			# zomboni is excluded: its board-wide ice trail has no counterplay on this stage.
+			if String(key) not in ["mech_zombie", "flywheel_zombie", "zomboni"] and not bool(data.get("boss", false)) and not bool(data.get("boss_summon", false)) and not bool(data.get("non_mainline_special", false)):
 				roster.append(String(key))
 		roster.append_array(["star_fairy", "kedama", "rabbit_airship", "moon_rabbit", "moon_rabbit_guard"])
 	var kind = roster[game.rng.randi_range(0, roster.size() - 1)]

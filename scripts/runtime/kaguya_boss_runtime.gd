@@ -165,17 +165,17 @@ func cast(boss: Dictionary, pattern: String) -> void:
 	match pattern:
 		"kaguya_dragon":
 			for cell in targets:
-				mark(boss, cell, "dragon", 155 + rank * 30)
+				mark(boss, cell, "dragon", 95 + rank * 17)
 		"kaguya_bowl":
 			summon_treasure(boss, "bowl")
 			for cell in targets:
-				mark(boss, cell, "bowl", 125 + rank * 25)
+				mark(boss, cell, "bowl", 78 + rank * 15)
 		"kaguya_robe":
 			game._ensure_eirin_runtime().world = "lava"
 			game._ensure_eirin_runtime().supply_terrain_tool("lava")
 			for cell in targets:
 				game._ensure_eirin_runtime().queue_tile(boss, cell, "lava")
-				mark(boss, cell, "robe", 120 + rank * 25)
+				mark(boss, cell, "robe", 75 + rank * 15)
 		"kaguya_swallow":
 			var anchor = summon_treasure(boss, "swallow")
 			if anchor >= 0:
@@ -184,20 +184,20 @@ func cast(boss: Dictionary, pattern: String) -> void:
 			game._ensure_eirin_runtime().switch_world(boss)
 			for cell in targets:
 				for col in range(maxi(0, cell.y - 1), mini(game.COLS, cell.y + 2)):
-					mark(boss, Vector2i(cell.x, col), "branch", 110 + rank * 20, 2.0 + abs(col - cell.y) * 0.45)
+					mark(boss, Vector2i(cell.x, col), "branch", 68 + rank * 13, 2.0 + abs(col - cell.y) * 0.45)
 		"pressure_eternity":
 			for cell in targets:
-				mark(boss, cell, "eternity", 85 + rank * 20)
+				mark(boss, cell, "eternity", 53 + rank * 12)
 			game._show_banner("永恒花圃 · 两秒后标记格停长三秒，格内小怪也会停步", 2.5)
 		"pressure_eternity_crossfire":
 			for cell in targets:
 				for beat in range(3):
-					mark(boss, cell, "instant", 100 + rank * 15, 2.0 + beat * 0.55)
+					mark(boss, cell, "instant", 62 + rank * 10, 2.0 + beat * 0.55)
 		"pressure_eternity_domain":
 			begin_rewind(boss, 4.0)
 			game._ensure_eirin_runtime().switch_world(boss)
 			for cell in targets:
-				mark(boss, cell, "branch", 170, 2.0)
+				mark(boss, cell, "branch", 105, 2.0)
 		_:
 			if pattern.begins_with("kaguya_night_"):
 				night = int(pattern.get_slice("_", 2))
@@ -206,7 +206,7 @@ func cast(boss: Dictionary, pattern: String) -> void:
 				else:
 					game._ensure_eirin_runtime().switch_world(boss)
 				for cell in targets:
-					mark(boss, cell, "night", 140 + rank * 25, 2.0)
+					mark(boss, cell, "night", 88 + rank * 15, 2.0)
 
 func update(delta: float) -> void:
 	if game.boss_time_stop_timer > 0:

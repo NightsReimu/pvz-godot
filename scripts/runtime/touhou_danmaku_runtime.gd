@@ -836,6 +836,10 @@ func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float
 			var closest = Geometry2D.get_closest_point_to_segment(center, from, to)
 			if closest.distance_squared_to(center) > padding * padding:
 				continue
+			# A mirror reed bounces boss danmaku back instead of being damaged by it.
+			if String(plant.get("kind", "")) == "mirror_reed" and game._mirror_reed_reflect_boss_shot(cell, damage):
+				hit_cells.append(cell)
+				continue
 			if not stop_at_first:
 				game._damage_plant_cell(cell.x, cell.y, damage, 0.0, true)
 				hit_cells.append(cell)

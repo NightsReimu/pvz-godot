@@ -2,9 +2,9 @@ extends "res://tests/click_ultimate_behavior_test.gd"
 
 func _run() -> void:
 	var passed := _test_passive_heals_health_only()
-	passed = _test_ultimate_heals_without_armor_or_damage() and passed
+	passed = _test_ultimate_heals_and_shields() and passed
 	passed = _test_touhou_conveyor_weight() and passed
-	print("Healing gourd: health-only passive/ultimate, support layers and Touhou weight: %s" % ("PASS" if passed else "FAIL"))
+	print("Healing gourd: healing passive, healing+shielding ultimate, support layers and Touhou weight: %s" % ("PASS" if passed else "FAIL"))
 	quit(0 if passed else 1)
 
 func _test_passive_heals_health_only() -> bool:
@@ -26,7 +26,7 @@ func _test_passive_heals_health_only() -> bool:
 	_free_game(game)
 	return passed
 
-func _test_ultimate_heals_without_armor_or_damage() -> bool:
+func _test_ultimate_heals_and_shields() -> bool:
 	var game := _make_game()
 	var gourd: Dictionary = game._create_plant("healing_gourd", 2, 2)
 	gourd.ultimate_charge = 1.0
@@ -44,7 +44,8 @@ func _test_ultimate_heals_without_armor_or_damage() -> bool:
 	var enemy_health := float(enemy.health)
 	var passed := _assert_true(game._try_activate_ultimate(2, 2), "Charged gourd ultimate must activate")
 	passed = _assert_true(neighbor.health == neighbor.max_health and support.health == support.max_health, "Gourd ultimate restores plant and support health") and passed
-	passed = _assert_true(neighbor.armor_health == 5.0 and neighbor.max_armor_health == 100.0 and gourd.get("armor_health", 0.0) == 0.0, "Gourd ultimate cannot create or repair armor") and passed
+	passed = _assert_true(neighbor.armor_health == 265.0 and neighbor.max_armor_health == 265.0, "Gourd ultimate stacks a shield on every plant") and passed
+	passed = _assert_true(gourd.get("armor_health", 0.0) == 260.0 and String(gourd.get("shell_kind", "")) == "holy_shield", "Gourd ultimate shields the gourd itself") and passed
 	passed = _assert_true(enemy.health == enemy_health, "Gourd ultimate cannot damage zombies") and passed
 	passed = _assert_true(game.grid[1][2] == null and game.support_grid[1][2] == support, "Healing must not copy a support into the main plant layer") and passed
 	_free_game(game)

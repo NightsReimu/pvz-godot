@@ -10,7 +10,7 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 	var wave = int(c.wave)
 	var aim: float = (dm._target(o) - o).angle()
 	var p = String(c.pattern)
-	var extra = {"damage": 32.0, "radius": 5 * s, "arming_time": 0.7}
+	var extra = {"damage": 22.0, "radius": 5 * s, "arming_time": 0.7}
 	match p:
 		"nonspell_kaguya_jewels":
 			dm._fan(c, o, 7 + rank * 2, aim, 1.1, 160 * s, COLORS[wave % 5], "orb", extra)
@@ -29,7 +29,7 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 			for side in [-1, 1]:
 				var start: Vector2 = dm._point(0.9, 0.5 + side * 0.38)
 				var end: Vector2 = dm._point(0.06, 0.5 - side * sin(wave * 0.4) * 0.35)
-				dm._beam(c, start, end, COLORS[3], 1.3, 7 * s, {"damage": 105.0})
+				dm._beam(c, start, end, COLORS[3], 1.3, 7 * s, {"damage": 66.0})
 				dm._fan(c, start, 5 + rank, (end - start).angle(), 0.6, 160 * s, COLORS[2], "rice", extra)
 		"kaguya_branch":
 			for n in range(7):

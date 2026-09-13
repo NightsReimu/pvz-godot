@@ -12,18 +12,18 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 	var aim: float = (dm._target(origin) - origin).angle()
 	var wave = int(c.wave)
 	var p = String(c.pattern)
-	var extra = {"damage": 30.0, "radius": 5.0 * scale, "arming_time": 0.65}
+	var extra = {"damage": 22.0, "radius": 5.0 * scale, "arming_time": 0.65}
 	match p:
 		"eirin_vessel":
 			# Encircling heavenly spheres, with a quiet center and rotating openings.
-			dm._ring(c, origin, 16 + rank * 2, wave * 0.17, 100 * scale, BLUE, "orb", {"damage": 16.0, "radius": 5 * scale, "arming_time": 0.7})
+			dm._ring(c, origin, 16 + rank * 2, wave * 0.17, 100 * scale, BLUE, "orb", {"damage": 12.0, "radius": 5 * scale, "arming_time": 0.7})
 		"nonspell_eirin_arrows":
 			dm._fan(c, origin, 7 + rank * 2, aim, 1.1, 165 * scale, RED, "rice", extra)
 		"eirin_memories", "eirin_genealogy":
 			# Branching genealogy: each generation forks at a progressively wider node.
 			for side in [-1, 1]:
 				var fork: Vector2 = dm._point(0.68 - (wave % 3) * 0.12, 0.5 + side * (0.1 + (wave % 3) * 0.12))
-				dm._beam(c, origin, fork, BLUE, 0.9, 6 * scale, {"damage": 58.0})
+				dm._beam(c, origin, fork, BLUE, 0.9, 6 * scale, {"damage": 40.0})
 				dm._fan(c, fork, 5 + rank * 2, PI + side * 0.22, 0.9, 125 * scale, RED, "rice", extra)
 		"eirin_life", "eirin_rising":
 			for row in range(6):
@@ -33,12 +33,12 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 		"eirin_device", "eirin_brain":
 			for n in range(3 + rank):
 				var point: Vector2 = dm._point(0.55 + 0.23 * cos(wave * 0.42 + n * TAU / (3 + rank)), 0.5 + 0.4 * sin(wave * 0.42 + n * TAU / (3 + rank)))
-				dm._beam(c, point, dm._target(point), BLUE, 1.15, 6 * scale, {"damage": 86.0})
+				dm._beam(c, point, dm._target(point), BLUE, 1.15, 6 * scale, {"damage": 56.0})
 				dm._fan(c, point, 5, (dm._target(point) - point).angle(), 0.7, 112 * scale, GOLD, "rice", extra)
 		"eirin_apollo":
 			for n in range(3 + rank):
 				var point: Vector2 = dm._point(0.16 + fposmod(wave * 0.19 + n * 0.23, 0.78), 0.02)
-				dm._beam(c, point, point + Vector2(-g.CELL_SIZE.x * 0.6, g.board_size.y), RED, 1.25, 9 * scale, {"damage": 125.0})
+				dm._beam(c, point, point + Vector2(-g.CELL_SIZE.x * 0.6, g.board_size.y), RED, 1.25, 9 * scale, {"damage": 80.0})
 				dm._fan(c, origin, 7, aim, 1.3, 148 * scale, GOLD, "rice", extra)
 		"eirin_astronomical":
 			for side in [-1, 1]:

@@ -33,13 +33,9 @@ static func label(game: Control, rect: Rect2, text: String, font_size: int = 22,
 
 
 static func plant(game: Control, kind: String, rect: Rect2) -> void:
-	var texture: Texture2D = game._image2_texture("plants", kind)
-	if texture != null:
-		var dimensions := texture.get_size()
-		dimensions *= minf(rect.size.x / dimensions.x, rect.size.y / dimensions.y)
-		game.draw_texture_rect(texture, Rect2(rect.get_center() - dimensions * 0.5, dimensions), false)
-	else:
-		game._draw_card_icon(kind, rect.get_center())
+	# Unified procedural/SVG plant art everywhere; image2 plant icons are retired so the
+	# hub, challenge menus and rain seeds all match the in-battle look.
+	game._draw_card_icon(kind, rect.get_center(), clampf(rect.size.y / 52.0, 0.3, 3.0))
 
 
 static func draw_home_entry(game: Control, rect: Rect2, title: String, subtitle: String, accent: Color, entry_id: String, large: bool = false, disabled: bool = false) -> void:

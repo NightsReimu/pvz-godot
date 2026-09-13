@@ -113,6 +113,9 @@ func _test_gourd_and_damage() -> void:
 	check(game._try_activate_ultimate(2, 2), "Gourd ultimate remains usable under suppression")
 	check(gourd.health == gourd.max_health and plant.health < plant.max_health, "Ultimate fully heals its owner; allied healing remains reduced")
 	rt.clear_owner(int(boss.uid))
+	# The gourd ultimate above now also stacks a shield, so clear it before probing Apollo.
+	plant.armor_health = 0.0
+	plant.max_armor_health = 0.0
 	plant.health = plant.max_health
 	var initial := float(plant.health)
 	rt.queue_strike(boss, Vector2i(2, 3), 175, "eirin_apollo")
@@ -139,6 +142,7 @@ func _test_roster_and_terrain() -> void:
 	var boss: Dictionary = game.zombies[0]
 	var rt = game._ensure_eirin_runtime()
 	rt.reinforcement_kind()
+	check(not rt.roster.has("zomboni"), "3-24 reinforcement pool excludes the sled zombie")
 	for kind in ["snorkel", "dragon_boat", "bobsled_team", "gargantuar", "catapult_zombie", "basalt_guard", "star_fairy", "kedama", "rabbit_airship"]:
 		check(rt.roster.has(kind), "All-world roster includes " + kind)
 		game._spawn_zombie(kind, 1)

@@ -50,10 +50,14 @@ static func level(id: String) -> Dictionary:
 	if result.mode == "conveyor": result.conveyor_plants = cards.duplicate()
 	for wave in range(5 if id == "bare" else 6):
 		for n in range(10 + wave * 2):
-			var pool: Array = ["normal", "normal", "conehead"]
-			if wave >= 2: pool.append("buckethead")
-			if wave >= 3: pool.append("newspaper")
-			if wave >= 4: pool.append("football")
+			# Rich pool: ordinary zombies whose behaviour needs no special terrain.
+			# Ice/water-only kinds (zomboni, bobsled_team, dolphin_rider, snorkel, digger_zombie)
+			# and mainline-only specials are deliberately left out.
+			var pool: Array = ["normal", "normal", "conehead", "conehead", "newspaper", "screen_door"]
+			if wave >= 1: pool.append_array(["buckethead", "pogo_zombie", "ladder_zombie", "squash_zombie", "lifebuoy_normal", "lifebuoy_cone"])
+			if wave >= 2: pool.append_array(["football", "dark_football", "balloon_zombie", "jack_in_the_box_zombie", "subway_zombie"])
+			if wave >= 3: pool.append_array(["basketball", "ninja", "catapult_zombie", "wizard_zombie", "imp", "bungee_zombie", "tornado_zombie", "nezha"])
+			if wave >= 4: pool.append_array(["ski_zombie", "shieldbearer_zombie", "medic_zombie", "saboteur_zombie", "excavator_zombie", "nether"])
 			var row := (n + wave * 2) % int(result.row_count)
 			var kind: String = pool[(n * 3 + wave + n / 3) % pool.size()]
 			if id == "rain" and row in [2,3]: kind = "ducky_tube" if wave < 3 else "lifebuoy_cone"

@@ -117,7 +117,7 @@ func update_rain(delta: float) -> void:
 	packets = packets.filter(func(packet): return float(packet.life) > 0)
 	packet_timer -= delta
 	if packet_timer > 0: return
-	packet_timer = 1.6
+	packet_timer = 2.8
 	if packets.size() >= 10: return
 	var opening := ["peashooter", "peashooter", "lily_pad", "lily_pad", "repeater", "repeater", "peashooter", "snow_pea", "lily_pad", "wallnut", "starfruit", "cherry_bomb"]
 	var cards: Array = game.current_level.minigame_cards

@@ -882,6 +882,8 @@ var active_cards: Array = []
 var active_rows: Array = []
 var conveyor_source_cards: Array = []
 var conveyor_spawn_timer := 0.0
+# 0..1 per conveyor slot: 1 = just spawned, slides in from the right like the original game.
+var conveyor_card_slide: Array = []
 var level_end_time := 1.0
 var next_event_index := 0
 var base_events_spawned := 0
@@ -11069,12 +11071,19 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 
 		# === CAMPAIGN CORE: HEALING ===
 		"healing_gourd":
+			# Heals every plant and lays a stacking shield on top of it.
+			var gourd_shield = float(Defs.PLANTS["healing_gourd"].get("ultimate_shield", 260.0))
+			var gourd_shield_cap = float(Defs.PLANTS["healing_gourd"].get("ultimate_shield_cap", 780.0))
 			for layer in [grid, support_grid]:
 				for cells in layer:
 					for hp in cells:
 						if hp == null or float(hp.get("health", 0.0)) <= 0.0:
 							continue
 						_restore_plant_health(hp, maxf(0, float(hp.get("max_health", 120.0)) - float(hp.health)))
+						var stacked_shield = minf(float(hp.get("armor_health", 0.0)) + gourd_shield, gourd_shield_cap)
+						hp["armor_health"] = stacked_shield
+						hp["max_armor_health"] = maxf(float(hp.get("max_armor_health", 0.0)), stacked_shield)
+						hp["shell_kind"] = "holy_shield"
 						hp["flash"] = maxf(float(hp.get("flash", 0.0)), 0.2)
 			effects.append({"position": center, "radius": 400.0, "time": 0.42, "duration": 0.42, "color": Color(0.56, 0.98, 0.42, 0.28)})
 			_trigger_screen_shake(4.0)
@@ -14328,10 +14337,9 @@ func _find_storm_reed_target(row: int, trigger_x: float) -> int:
 
 
 func _is_hidden_from_lane_attacks(zombie: Dictionary) -> bool:
+	# Fog only hides zombies from the player's view (handled in the zombie draw pass);
+	# plants still acquire and shoot them, so fog must not gate lane attacks here.
 	var kind = String(zombie.get("kind", ""))
-	var zombie_pos = Vector2(float(zombie.get("x", 0.0)), _row_center_y(int(zombie.get("row", -1))))
-	if _is_fog_level() and _is_enemy_zombie(zombie) and not _is_position_revealed_by_fog_rules(zombie_pos):
-		return true
 	if bool(zombie.get("balloon_flying", false)):
 		return true
 	if bool(zombie.get("digger_tunneling", false)):
@@ -14727,6 +14735,54 @@ func _reflect_shot_with_mirror_reed(zombie: Dictionary, mirror_cell: Vector2i, s
 		"anim_speed": 9.2,
 	})
 	return zombie
+
+
+func _mirror_reed_reflect_boss_shot(cell: Vector2i, damage: float) -> bool:
+	# Boss danmaku that reaches a mirror reed is bounced into the nearest enemy.
+	# Returns true whenever the reed absorbs the shot, so the plant takes no damage.
+	var mirror = _targetable_plant_at(cell.x, cell.y)
+	if mirror == null or String(mirror.get("kind", "")) != "mirror_reed" or float(mirror.get("health", 0.0)) <= 0.0:
+		return false
+	if float(mirror.get("reflect_cooldown_until", 0.0)) > level_time:
+		# Still shields the reed; only the counter-attack is throttled.
+		return true
+	var enemy := _nearest_reflect_enemy(cell)
+	if enemy.is_empty():
+		return true
+	mirror["reflect_cooldown_until"] = level_time + 0.18
+	mirror["flash"] = maxf(float(mirror.get("flash", 0.0)), 0.22)
+	_set_targetable_plant(cell.x, cell.y, mirror)
+	var mirror_center: Vector2 = _cell_center(cell.x, cell.y) + Vector2(6.0, -12.0)
+	var reflected_damage = damage * float(Defs.PLANTS["mirror_reed"].get("reflect_damage_mult", 1.2))
+	_apply_zombie_damage(enemy, reflected_damage, 0.18)
+	enemy["special_pause_timer"] = maxf(float(enemy.get("special_pause_timer", 0.0)), 0.26)
+	enemy["revealed_timer"] = maxf(float(enemy.get("revealed_timer", 0.0)), 2.2)
+	effects.append({
+		"shape": "mirror_reflect_arc",
+		"position": mirror_center,
+		"target": Vector2(float(enemy["x"]) - 8.0, _row_center_y(int(enemy["row"])) - 16.0),
+		"time": 0.34,
+		"duration": 0.34,
+		"color": Color(0.82, 0.94, 1.0, 0.32),
+		"anim_speed": 9.2,
+	})
+	return true
+
+
+func _nearest_reflect_enemy(cell: Vector2i) -> Dictionary:
+	var origin: Vector2 = _cell_center(cell.x, cell.y)
+	var best: Dictionary = {}
+	var best_distance := INF
+	for zombie_variant in zombies:
+		var zombie: Dictionary = zombie_variant
+		if not _is_enemy_zombie(zombie) or float(zombie.get("health", 0.0)) <= 0.0:
+			continue
+		var point := Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		var distance := origin.distance_squared_to(point)
+		if distance < best_distance:
+			best_distance = distance
+			best = zombie
+	return best
 
 
 func _try_reflect_targeted_hostile_shot(zombie: Dictionary, target: Vector2i, damage: float, shooter_origin: Vector2, incoming_shape: String = "", incoming_color: Color = Color(0.76, 0.94, 1.0, 0.52)) -> Dictionary:
@@ -19830,6 +19886,8 @@ func _update_conveyor(delta: float) -> void:
 	if not _is_conveyor_level():
 		return
 	_sync_conveyor_special_cards()
+	for i in range(conveyor_card_slide.size()):
+		conveyor_card_slide[i] = maxf(0.0, float(conveyor_card_slide[i]) - delta * 3.0)
 	conveyor_spawn_timer -= delta
 	if conveyor_spawn_timer > 0.0:
 		return
@@ -19837,9 +19895,10 @@ func _update_conveyor(delta: float) -> void:
 	for i in range(active_cards.size()):
 		if String(active_cards[i]) == "":
 			_fill_conveyor_slot(i)
-			conveyor_spawn_timer = rng.randf_range(1.1, 2.0)
+			# Deliberately unhurried, matching the original belt cadence.
+			conveyor_spawn_timer = rng.randf_range(4.6, 6.8)
 			return
-	conveyor_spawn_timer = 0.6
+	conveyor_spawn_timer = 1.4
 
 
 func _fill_conveyor_slot(index: int) -> void:
@@ -19849,6 +19908,9 @@ func _fill_conveyor_slot(index: int) -> void:
 	if kind == "":
 		return
 	active_cards[index] = kind
+	while conveyor_card_slide.size() < active_cards.size():
+		conveyor_card_slide.append(0.0)
+	conveyor_card_slide[index] = 1.0
 
 
 func _consume_conveyor_card(kind: String) -> void:
@@ -23944,6 +24006,8 @@ func _draw_seed_bank() -> void:
 	for index in range(active_cards.size()):
 		var kind = String(active_cards[index])
 		var rect = _card_rect(index)
+		if index < conveyor_card_slide.size() and float(conveyor_card_slide[index]) > 0.0:
+			rect.position.x += float(conveyor_card_slide[index]) * 180.0
 		var hovered = rect.has_point(mouse_pos)
 		var draw_rect_local = rect.grow(2.0 if hovered else 0.0)
 		draw_rect_local.position.y -= 4.0 if hovered else 0.0
@@ -24618,6 +24682,9 @@ func _draw_click_ultimate_indicator(draw_center: Vector2, plant: Dictionary) -> 
 func _draw_hover() -> void:
 	if battle_state != BATTLE_PLAYING or battle_paused:
 		return
+	# The held plant follows the cursor, using the same procedural/SVG art as the board.
+	if selected_tool != "" and selected_tool != "shovel" and selected_tool != "plant_food":
+		_draw_card_icon(selected_tool, _pointer_local_position(), 0.85)
 	if _is_minigame():
 		if minigame_runtime.help_open: return
 		if MinigameVisuals.draw_column_hover(self,minigame_runtime): return
@@ -32373,7 +32440,8 @@ func _draw_qinghua_zombie(center: Vector2, zombie: Dictionary) -> void:
 
 
 func _draw_shouyue_zombie(center: Vector2, zombie: Dictionary) -> void:
-	var hidden_alpha = 0.42 if not bool(zombie.get("portrait", false)) and _is_hidden_from_lane_attacks(zombie) else 0.92
+	var fog_hidden := _is_fog_level() and _is_enemy_zombie(zombie) and not _is_position_revealed_by_fog_rules(Vector2(float(zombie.get("x", 0.0)), _row_center_y(int(zombie.get("row", -1)))))
+	var hidden_alpha = 0.42 if not bool(zombie.get("portrait", false)) and (_is_hidden_from_lane_attacks(zombie) or fog_hidden) else 0.92
 	var flash = float(zombie.get("flash", 0.0))
 	var aim_active = bool(zombie.get("snipe_charge_active", false))
 	var aim_ratio = 0.0

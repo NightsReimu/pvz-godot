@@ -915,6 +915,8 @@ const PLANTS: Dictionary = {
 		"ultimate_charge_time": 58.0,
 		"ultimate_duration": 0.6,
 		"ultimate_heal": 220.0,
+		"ultimate_shield": 260.0,
+		"ultimate_shield_cap": 780.0,
 	},
 	"mango_bowling": {
 		"name": "芒果保龄球",
