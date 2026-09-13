@@ -24517,6 +24517,27 @@ func _draw_projectiles() -> void:
 			draw_circle(projectile_pos + Vector2(-1.0, -1.0), projectile_radius * 0.24, Color(1.0, 1.0, 0.92, 0.48))
 			continue
 		if projectile_kind == "boomerang":
+			if bool(projectile.get("flame_boomerang", false)):
+				# Torchwood-ignited boomerangs keep the familiar spinning crescent but gain
+				# a hotter core, a layered flame trail, and drifting embers.
+				var flame_phase = level_time * 12.0
+				draw_circle(projectile_pos, projectile_radius * 1.8, Color(1.0, 0.24, 0.04, 0.12))
+				for flame_index in range(5):
+					var flame_ratio = float(flame_index + 1) / 5.0
+					var flame_center = projectile_pos + Vector2(-trail_dir * flame_ratio * 14.0, sin(flame_phase + flame_ratio * 5.0) * (2.0 + flame_ratio * 2.0))
+					draw_circle(flame_center, projectile_radius * (0.92 - flame_ratio * 0.11), Color(1.0, 0.42, 0.08, 0.3 - flame_ratio * 0.04))
+				for ember_index in range(3):
+					var ember_ratio = float(ember_index + 1) / 3.0
+					var ember_center = projectile_pos + Vector2(-trail_dir * ember_ratio * 18.0, sin(flame_phase * 1.2 + ember_index * 2.0) * 8.0 - ember_ratio * 4.0)
+					draw_circle(ember_center, 1.5 + float(2 - ember_index) * 0.45, Color(1.0, 0.82, 0.34, 0.72 - ember_ratio * 0.12))
+				for trail_index in range(3):
+					var trail_ratio = float(trail_index + 1) / 3.0
+					var trail_center = projectile_pos + Vector2(-trail_dir * trail_ratio * 12.0, 0.0)
+					draw_arc(trail_center, projectile_radius * (0.98 - trail_ratio * 0.12), -1.25, 1.25, 18, Color(1.0, 0.54, 0.12, 0.42 - trail_ratio * 0.08), 2.6)
+				draw_arc(projectile_pos, projectile_radius * 1.05, -1.4, 1.4, 20, Color(1.0, 0.28, 0.06, 0.96), 3.4)
+				draw_arc(projectile_pos, projectile_radius * 0.7, -1.32, 1.32, 16, Color(1.0, 0.88, 0.46, 0.92), 2.0)
+				draw_circle(projectile_pos, projectile_radius * 0.32, Color(1.0, 0.98, 0.76, 0.9))
+				continue
 			for trail_index in range(3):
 				var trail_ratio = float(trail_index + 1) / 3.0
 				var trail_center = projectile_pos + Vector2(-trail_dir * trail_ratio * 12.0, 0.0)

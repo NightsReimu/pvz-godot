@@ -178,14 +178,19 @@ func _emit_amber_ultimate_impact(impact_position: Vector2, armored: bool) -> voi
 	})
 
 
-func _apply_boomerang_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12) -> Dictionary:
+func _apply_boomerang_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12, projectile: Dictionary = {}) -> Dictionary:
 	var shield_health = float(zombie.get("shield_health", 0.0))
 	if shield_health > 0.0:
-		return game._apply_zombie_damage(zombie, minf(damage, shield_health), flash_amount)
-	return game._apply_zombie_damage(zombie, damage, flash_amount)
+		zombie = game._apply_zombie_damage(zombie, minf(damage, shield_health), flash_amount)
+	else:
+		zombie = game._apply_zombie_damage(zombie, damage, flash_amount)
+	if bool(projectile.get("flame_boomerang", false)):
+		zombie["corrode_timer"] = maxf(float(zombie.get("corrode_timer", 0.0)), float(projectile.get("burn_duration", 0.0)))
+		zombie["corrode_dps"] = maxf(float(zombie.get("corrode_dps", 0.0)), float(projectile.get("burn_damage", 0.0)))
+	return zombie
 
 
-func apply_fire_projectile_splash(row: int, center_x: float, damage: float, skip_index: int) -> void:
+func apply_fire_projectile_splash(row: int, center_x: float, damage: float, skip_index: int, burn_damage: float = 0.0, burn_duration: float = 0.0) -> void:
 	var splash_radius = 48.0
 	for i in range(game.zombies.size()):
 		if i == skip_index:
@@ -196,6 +201,9 @@ func apply_fire_projectile_splash(row: int, center_x: float, damage: float, skip
 		if absf(float(zombie["x"]) - center_x) > splash_radius:
 			continue
 		zombie = game._apply_zombie_damage(zombie, damage, 0.1)
+		if burn_damage > 0.0 and burn_duration > 0.0:
+			zombie["corrode_timer"] = maxf(float(zombie.get("corrode_timer", 0.0)), burn_duration)
+			zombie["corrode_dps"] = maxf(float(zombie.get("corrode_dps", 0.0)), burn_damage)
 		game.zombies[i] = zombie
 	game.effects.append({
 		"position": Vector2(center_x, game._row_center_y(row)),
@@ -264,8 +272,17 @@ func update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictio
 			var zombie = game.zombies[target_index]
 			var uid = int(zombie.get("uid", -1))
 			if not hit_uids.has(uid):
-				zombie = _apply_boomerang_damage(zombie, float(projectile["damage"]), 0.12)
+				zombie = _apply_boomerang_damage(zombie, float(projectile["damage"]), 0.12, projectile)
 				game.zombies[target_index] = zombie
+				if bool(projectile.get("flame_boomerang", false)):
+					apply_fire_projectile_splash(
+						int(projectile["row"]),
+						float(zombie["x"]),
+						float(projectile["damage"]) * 0.52,
+						target_index,
+						float(projectile.get("burn_damage", 0.0)) * 0.7,
+						float(projectile.get("burn_duration", 0.0))
+					)
 				hit_uids.append(uid)
 				return_markers.append({
 					"uid": uid,
@@ -295,7 +312,7 @@ func update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictio
 				var zombie = game.zombies[zombie_index]
 				if game._is_enemy_zombie(zombie):
 					var return_damage = float(projectile.get("return_damage", projectile["damage"]))
-					zombie = _apply_boomerang_damage(zombie, return_damage, 0.12)
+					zombie = _apply_boomerang_damage(zombie, return_damage, 0.12, projectile)
 					game.zombies[zombie_index] = zombie
 			return_hits.append(uid)
 		projectile["return_hits"] = return_hits
@@ -335,10 +352,11 @@ func update_lotus_converge_projectile(projectile: Dictionary, delta: float) -> D
 
 func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
 	var kind = String(projectile.get("kind", ""))
-	# Torchwood transforms straight peas and amber peas into flaming versions.
+	# Torchwood transforms straight peas, amber peas, and boomerangs into flaming versions.
 	var is_pea = kind == "" or kind == "pea"
 	var is_amber = kind == "amber_pea"
-	if not is_pea and not is_amber:
+	var is_boomerang = kind == "boomerang"
+	if not is_pea and not is_amber and not is_boomerang:
 		return projectile
 	if bool(projectile.get("fire", false)) or bool(projectile.get("reflected", false)) or float(projectile.get("speed", 0.0)) <= 0.0:
 		return projectile
@@ -352,9 +370,27 @@ func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
 		if projectile_x < center_x - 20.0 or projectile_x > center_x + 20.0:
 			continue
 		projectile["fire"] = true
-		projectile["damage"] = float(projectile["damage"]) * 2.0
+		projectile["damage"] = float(projectile["damage"]) * (1.8 if is_boomerang else 2.0)
 		projectile["slow_duration"] = 0.0
-		if is_amber:
+		if is_boomerang:
+			# Keep the original boomerang kind so outbound/return collision logic remains intact,
+			# while the marker gives the projectile its own flame visuals and burn payload.
+			projectile["flame_boomerang"] = true
+			projectile["burn_damage"] = maxf(8.0, float(projectile["damage"]) * 0.34)
+			projectile["burn_duration"] = 3.2
+			projectile["return_damage"] = float(projectile.get("return_damage", projectile["damage"])) * 1.08
+			projectile["color"] = Color(1.0, 0.34, 0.08)
+			projectile["radius"] = maxf(float(projectile.get("radius", 10.0)), 12.0)
+			game.effects.append({
+				"position": Vector2(projectile["position"]),
+				"radius": 32.0,
+				"time": 0.24,
+				"duration": 0.24,
+				"color": Color(1.0, 0.42, 0.12, 0.34),
+			})
+			if game.has_method("_play_firing_sfx"):
+				game._play_sfx("res://audio/sfx/shoot-fire.wav", -14.0, 1.08)
+		elif is_amber:
 			# 烈焰琥珀: keeps the amber armor bonus, gains a deeper flame tint
 			# and a larger body so it reads as an upgraded amber, not a pea.
 			projectile["amber_fire"] = true
