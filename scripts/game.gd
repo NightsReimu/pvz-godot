@@ -10927,16 +10927,13 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 
 		# === CAMPAIGN CORE: HEALING ===
 		"healing_gourd":
-			for rr in range(ROWS):
-				for cc in range(COLS):
-					var hp = _top_plant_at(rr, cc)
-					if hp == null: continue
-					hp["health"] = float(hp.get("max_health",120.0))
-					hp["armor_health"] = maxf(float(hp.get("armor_health",0.0)), float(hp.get("max_health",120.0)) * 0.5)
-					hp["max_armor_health"] = maxf(float(hp.get("max_armor_health",1.0)), float(hp["armor_health"]))
-					hp["flash"] = maxf(float(hp.get("flash",0.0)), 0.2)
-					grid[rr][cc] = hp
-			_damage_zombies_in_circle(center, 200.0, 100.0)
+			for layer in [grid, support_grid]:
+				for cells in layer:
+					for hp in cells:
+						if hp == null or float(hp.get("health", 0.0)) <= 0.0:
+							continue
+						hp["health"] = float(hp.get("max_health", 120.0))
+						hp["flash"] = maxf(float(hp.get("flash", 0.0)), 0.2)
 			effects.append({"position": center, "radius": 400.0, "time": 0.42, "duration": 0.42, "color": Color(0.56, 0.98, 0.42, 0.28)})
 			_trigger_screen_shake(4.0)
 		"cotton_candy":
@@ -19695,6 +19692,15 @@ func _pick_conveyor_card_for_slot(index: int) -> String:
 		options.append(kind)
 	if options.is_empty():
 		return ""
+	if TouhouDifficulty.is_touhou(current_level) and options.has("healing_gourd"):
+		# Preserve duplicate pool entries, with 30% less relative weight per gourd.
+		var total_weight := float(options.size()) - float(options.count("healing_gourd")) * 0.3
+		var pick := rng.randf() * total_weight
+		for kind in options:
+			pick -= 0.7 if String(kind) == "healing_gourd" else 1.0
+			if pick < 0.0:
+				return String(kind)
+		return String(options.back())
 	return String(options[rng.randi_range(0, options.size() - 1)])
 
 
@@ -34020,7 +34026,8 @@ func _plant_almanac_stats(kind: String) -> Array:
 		"holo_nut":
 			stats.append("定位：会自我回复的全息厚墙")
 		"healing_gourd":
-			stats.append("效果：脉冲治疗周围植物")
+			stats.append("效果：每 3 秒为周围 3×3 植物恢复 65 生命")
+			stats.append("大招：恢复全场植物及承载物生命；不加护甲、不伤敌")
 		"cotton_candy":
 			stats.append("效果：云格专用，3×3 糖云治疗并减速")
 		"mango_bowling":

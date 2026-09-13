@@ -1367,7 +1367,7 @@ func _apply_leyline_pulse(row: int, center: Vector2, damage: float, stun_duratio
 	return hit
 
 
-func _heal_targetable_plant(row: int, col: int, amount: float, flash: float = 0.08) -> bool:
+func _heal_targetable_plant(row: int, col: int, amount: float, flash: float = 0.08, repair_armor: bool = true) -> bool:
 	var plant = game._targetable_plant_at(row, col)
 	if plant == null:
 		return false
@@ -1375,7 +1375,7 @@ func _heal_targetable_plant(row: int, col: int, amount: float, flash: float = 0.
 	if float(plant.get("health", 0.0)) < float(plant.get("max_health", 0.0)):
 		plant["health"] = minf(float(plant["max_health"]), float(plant["health"]) + amount)
 		healed = true
-	if float(plant.get("max_armor_health", 0.0)) > 0.0 and float(plant.get("armor_health", 0.0)) < float(plant.get("max_armor_health", 0.0)):
+	if repair_armor and float(plant.get("max_armor_health", 0.0)) > 0.0 and float(plant.get("armor_health", 0.0)) < float(plant.get("max_armor_health", 0.0)):
 		plant["armor_health"] = minf(float(plant["max_armor_health"]), float(plant["armor_health"]) + amount * 0.45)
 		healed = true
 	if healed:
@@ -1489,7 +1489,7 @@ func update_healing_gourd(plant: Dictionary, delta: float, row: int, col: int) -
 	var healed := false
 	for other_row in range(max(0, row - 1), min(game.ROWS, row + 2)):
 		for other_col in range(max(0, col - 1), min(game.COLS, col + 2)):
-			healed = _heal_targetable_plant(other_row, other_col, heal_amount) or healed
+			healed = _heal_targetable_plant(other_row, other_col, heal_amount, 0.08, false) or healed
 	if healed:
 		game.effects.append({
 			"shape": "glow_burst",

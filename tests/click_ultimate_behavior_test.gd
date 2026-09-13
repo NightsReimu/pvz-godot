@@ -216,9 +216,11 @@ func _test_pepper_mortar_click_ultimate_creates_front_fire_wall() -> bool:
 		if effect_index != -1:
 			patch_count += 1
 			duration_ok = duration_ok and is_equal_approx(float(game.effects[effect_index].get("duration", 0.0)), 10.0)
-	return _assert_true(activated, "pepper_mortar should accept click ultimate activation when fully charged") \
+	var passed := _assert_true(activated, "pepper_mortar should accept click ultimate activation when fully charged") \
 		and _assert_true(patch_count == game.active_rows.size(), "pepper_mortar click ultimate should create a full fire wall on the frontmost zombie column") \
 		and _assert_true(duration_ok, "pepper_mortar click ultimate fire wall should last 10 seconds")
+	_free_game(game)
+	return passed
 
 
 func _test_pulse_bulb_click_ultimate_freezes_a_5x5_area() -> bool:
