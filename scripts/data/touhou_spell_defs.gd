@@ -4,11 +4,14 @@ class_name TouhouSpellDefs
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const Marisa = preload("res://scripts/data/marisa_spell_defs.gd")
 const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
+const Reisen = preload("res://scripts/data/reisen_spell_defs.gd")
 
 # TH06/TH07 Normal routes, followed by Extra/Phantasm where specified.
 # Columns: reference ID, display name, pattern, animation pose.
 # Sources and the tower-defense adaptations are documented in docs/touhou-spells.md.
 const CARDS := {
+	"reisen_boss": Reisen.ROUTES.easy,
+	"tewi_boss": [["th08-tewi-nonspell", "非符 · 因幡帝", "nonspell_tewi_rings", "shot"]],
 	"reimu_boss": Reimu.ROUTES.easy,
 	"marisa_boss": Marisa.ROUTES.easy,
 	"rumia_boss": [
@@ -166,6 +169,7 @@ const REBIRTH := ["th07-114", "「反魂蝶 -三分咲-」", "resurrection_butte
 
 # Unnamed attacks are tower-defense adaptations, never invented named spell cards.
 const NONSPELLS := {
+	"reisen_boss": ["铃仙", "reisen_fan", "shot"],
 	"reimu_boss": ["博丽灵梦", "reimu_amulets", "ofuda"],
 	"marisa_boss": ["雾雨魔理沙", "marisa_stars", "stars"],
 	"rumia_boss": ["露米娅", "dark_fan", "bird"],
@@ -221,11 +225,13 @@ static func card_from_entry(entry: Array) -> Dictionary:
 
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind == "reisen_boss":
+		return Reisen.cards(level)
 	if kind == "reimu_boss":
 		return Reimu.cards(level)
 	if kind == "marisa_boss":
 		return Marisa.cards(level)
-	if String(level.get("mid_boss_kind", "")) == kind:
+	if String(level.get("mid_boss_kind", "")) == kind and not bool(level.get("mid_boss_final_preview", false)):
 		if kind == "patchouli_boss":
 			return PATCHOULI_EXTRA
 		if kind == "cirno_boss":

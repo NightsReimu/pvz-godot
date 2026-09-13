@@ -136,21 +136,10 @@ func draw() -> void:
 		var mode := "自选植物" if data.select else "传送带"
 		_label(Rect2(rect.position + Vector2(14, rect.size.y - 28), Vector2(rect.size.x - 28, 22)), "%s · 原创 +%d 招" % [mode, int(data.phases)], 15, Color("d8e2da"))
 	var chosen := Difficulty.build_level(level, choice)
-	var phases := 0
-	var attacks := 0
-	var boss_kind := ""
-	for event in level.events:
-		if Difficulty.EXTENSIONS.has(String(event.kind)) and String(event.kind) != String(level.get("mid_boss_kind", "")):
-			boss_kind = String(event.kind)
-	for kind in [boss_kind, String(level.get("boss_successor_kind", ""))]:
-		for phase in Spells.phases_for(kind, chosen):
-			phases += 1
-			attacks += phase.size()
-		if kind == "yuyuko_boss":
-			phases += 1
-			attacks += 1
+	var summary := finale_summary(chosen)
+	var boss_kind := String(summary.kind)
 	var info_y := panel.end.y - 104
-	_label(Rect2(Vector2(panel.position.x + 24, info_y), Vector2(panel.size.x - 48, 24)), "终末 %d 阶段 · %d 攻击段    Boss 生命 x%.1f    追加 %d 波" % [phases, attacks, float(settings.health), int(settings.waves)], 16, Color("dce5dc"))
+	_label(Rect2(Vector2(panel.position.x + 24, info_y), Vector2(panel.size.x - 48, 24)), "终末 %d 阶段 · %d 攻击段    Boss 生命 x%.1f    追加 %d 波" % [summary.phases, summary.attacks, float(settings.health), int(settings.waves)], 16, Color("dce5dc"))
 	_label(Rect2(Vector2(panel.position.x + 24, info_y + 25), Vector2(panel.size.x - 48, 20)), "难度倍率：弹幕密度 x%.2f    Boss伤害 x%.2f" % [float(settings.density), Difficulty.boss_damage_multiplier(chosen)], 14, Color("a9bfb0"))
 	var start := start_rect()
 	game.draw_rect(start, Color(settings.color))
@@ -159,3 +148,18 @@ func draw() -> void:
 		var center := Vector2(panel.end.x - 110, panel.position.y + 224)
 		game.draw_arc(center, 78, 0, TAU, 48, Color(Color(settings.color), 0.35), 1.5, true)
 		game._draw_zombie_icon(boss_kind, center, 1.5)
+
+
+func finale_summary(level: Dictionary) -> Dictionary:
+	var summary := {"kind": "", "phases": 0, "attacks": 0}
+	for event in level.events:
+		if Difficulty.EXTENSIONS.has(String(event.kind)) and (String(event.kind) != String(level.get("mid_boss_kind", "")) or bool(level.get("mid_boss_final_preview", false))):
+			summary.kind = String(event.kind)
+	for kind in [summary.kind, String(level.get("boss_successor_kind", ""))]:
+		for phase in Spells.phases_for(kind, level):
+			summary.phases += 1
+			summary.attacks += phase.size()
+		if kind == "yuyuko_boss":
+			summary.phases += 1
+			summary.attacks += 1
+	return summary

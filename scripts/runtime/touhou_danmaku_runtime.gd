@@ -5,6 +5,7 @@ const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
+const ReisenDanmaku = preload("res://scripts/runtime/reisen_danmaku.gd")
 const ExtraDanmaku = preload("res://scripts/runtime/touhou_extra_danmaku.gd")
 const DeclarationFX = preload("res://scripts/runtime/spell_declaration_fx.gd")
 const MAX_BULLETS := 480
@@ -56,10 +57,13 @@ func cast(boss: Dictionary) -> Dictionary:
 	clear_owner(owner)
 	var pattern = String(card.pattern)
 	var duration := 3.4
-	if String(boss.kind) in ["reimu_boss", "marisa_boss"]:
+	if String(boss.kind) in ["reimu_boss", "marisa_boss", "reisen_boss"]:
 		duration = float(card.get("duration", 4.8))
 	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
 		duration = 2.2
+	if pattern == "pressure_lunar_domain":
+		# A full crossing, portal warning and return must play even under burst damage.
+		duration = 9.0
 	if boss.has("touhou_encounter"):
 		boss.touhou_encounter.casting = true
 	if pattern in ["and_then_none", "life_death"]:
@@ -67,7 +71,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	if pattern == "resurrection_butterfly":
 		duration = 24.0
 	boss["touhou_card"] = card
-	boss["touhou_invulnerable"] = pattern in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master"]
+	boss["touhou_invulnerable"] = pattern in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master", "reisen_tele_mesmerism"]
 	boss["touhou_survival_timer"] = duration if bool(boss.touhou_invulnerable) else 0.0
 	boss["touhou_cast_remaining"] = duration
 	boss["touhou_cast_duration"] = duration
@@ -76,7 +80,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	casts.append(session)
 	if String(card.origin) == "nonspell":
 		game._show_banner(String(card.name), 1.8)
-	if String(boss.kind) not in ["reimu_boss", "marisa_boss"]:
+	if String(boss.kind) not in ["reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss"]:
 		game.effects.append({"shape": String(boss.kind).trim_suffix("_boss") + "_spell_seal", "position": center, "radius": 72.0, "time": 0.45, "duration": 0.45, "color": Color(0.9, 0.86, 1.0, 0.25)})
 	if pattern == "wraith_charm":
 		game._spawn_youmu_wraiths_from(center, 2 + mini(int(session.phase), 1), int(session.phase))
@@ -122,11 +126,11 @@ func _tick(delta: float) -> void:
 			boss["touhou_survival_timer"] = boss.touhou_cast_remaining
 		if float(session.age) >= float(session.duration):
 			boss["touhou_invulnerable"] = false
-			if String(session.pattern) in ["and_then_none", "reimu_blink", "marisa_final_spark", "marisa_final_master"] and boss.has("touhou_encounter"):
+			if String(session.pattern) in ["and_then_none", "reimu_blink", "marisa_final_spark", "marisa_final_master", "reisen_tele_mesmerism"] and boss.has("touhou_encounter"):
 				boss.touhou_encounter.depleted = true
 			if String(session.pattern) == "resurrection_butterfly":
 				boss["health"] = 0.0
-			if String(session.pattern) in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master"]:
+			if String(session.pattern) in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master", "reisen_tele_mesmerism"]:
 				clear_owner(owner)
 			elif not beams.any(func(b): return int(b.owner) == owner and b.has("actor_index")):
 				# Keep laser emitters visible until their final telegraph and beam end.
@@ -229,6 +233,9 @@ func _update_actors(c: Dictionary) -> void:
 
 func _emit_wave(c: Dictionary) -> void:
 	var p = String(c.pattern)
+	if String(c.kind) in ["reisen_boss", "tewi_boss"]:
+		ReisenDanmaku.emit(self, c)
+		return
 	if p.begins_with("marisa_") or p == "nonspell_marisa_stars":
 		MarisaDanmaku.emit(self, c)
 		return
@@ -742,8 +749,10 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			before = ReimuDanmaku.advance_bullet(b, before, motion_delta)
 		elif String(b.kind) == "marisa_boss":
 			before = MarisaDanmaku.advance_bullet(b, before, motion_delta)
+		elif String(b.kind) == "reisen_boss":
+			before = ReisenDanmaku.advance_bullet(b, before)
 		var hit := false
-		if age >= float(b.get("arming_time", 0.0)):
+		if age >= float(b.get("arming_time", 0.0)) and not bool(b.get("reisen_phantom", false)):
 			hit = _hit_plant_segment(before, Vector2(b.position), float(b.radius), float(b.damage), [])
 		if hit or age >= float(b.life) or not board.grow(240).has_point(Vector2(b.position)):
 			bullets.remove_at(index)
@@ -898,10 +907,17 @@ func draw() -> void:
 		var point = Vector2(b.position)
 		var color = Color(b.color)
 		var radius = float(b.radius)
-		if float(b.age) < float(b.get("arming_time", 0.0)):
-			color.a = 0.36
 		if not board.grow(-radius * 2).has_point(point):
 			continue
+		if bool(b.get("reisen_phantom", false)):
+			# Hollow displaced images are harmless. The true location remains marked.
+			game.draw_circle(point, radius, Color(color, 0.16), false, 1.0, true)
+			if String(b.get("reisen_illusion", "")) != "invisible":
+				var ghost: Vector2 = point + Vector2(0, sin(float(b.age) * 6) * radius * 4)
+				game.draw_arc(ghost, radius * 1.2, 0, TAU, 12, Color(color, 0.38), 1.2, true)
+			continue
+		if float(b.age) < float(b.get("arming_time", 0.0)):
+			color.a = 0.36
 		# At peak density, preserve the projectile silhouette while avoiding the
 		# many polygon and outline draw calls used by ornate bullets.
 		if crowded and String(b.shape) not in ["orb", "dream_orb", "butterfly", "petal"]:

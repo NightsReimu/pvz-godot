@@ -75,6 +75,8 @@ func _make_game() -> Control:
 	game.message_panel = PanelContainer.new()
 	game.message_label = Label.new()
 	game.action_button = Button.new()
+	for node in [game.toast_label, game.banner_label, game.message_panel, game.message_label, game.action_button]:
+		game.add_child(node)
 	game.rng.seed = 2929
 	return game
 
@@ -147,7 +149,7 @@ func _test_2_29_configures_youmu_finale_without_midboss() -> bool:
 	var conveyor_plants = Array(level.get("conveyor_plants", []))
 	var passed = _assert_true(bool(level.get("boss_level", false)), "2-29 should be marked as a boss level") \
 		and _assert_true(String(level.get("mode", "")) == "conveyor", "2-29 should be a conveyor level") \
-		and _assert_true(String(level.get("mid_boss_kind", "")) == "", "2-29 should not configure a midboss") \
+		and _assert_true(String(level.get("mid_boss_kind", "")) == "youmu_boss" and bool(level.get("mid_boss_final_preview", false)), "2-29 should configure Youmu's short road preview") \
 		and _assert_true(has_final_boss, "2-29 should include a youmu_boss final event") \
 		and _assert_true(wave_count >= 6 and wave_count <= 8, "2-29 should have a compact Stage 5 route, not a Stage 4-length route") \
 		and _assert_true(final_boss_time >= 120.0 and final_boss_time <= 135.0, "2-29 Youmu finale should start after a medium-length route") \

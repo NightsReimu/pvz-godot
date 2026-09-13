@@ -20,7 +20,7 @@ func _initialize() -> void:
 		quit(1)
 		return
 	check(stage.terrain == "reimu_midnight_bamboo" and stage.row_count == 6 and stage.water_rows.is_empty(), "Marisa needs six grass lanes in the midnight bamboo forest")
-	check(stage.get("mid_boss_kind", "") == "" and stage.unlock_requirements == ["3-21"], "Marisa is a single finale following 3-21")
+	check(stage.get("mid_boss_kind", "") == "marisa_boss" and stage.get("mid_boss_final_preview", false) and stage.unlock_requirements == ["3-21"], "Marisa previews her own finale before the final route")
 	check(stage.boss_intro_bgm == "res://audio/th08_reimu_stage.mp3" and stage.boss_bgm == "res://audio/th08_marisa_boss.mp3", "Use both supplied music tracks")
 	var bosses := 0
 	for event in stage.events:

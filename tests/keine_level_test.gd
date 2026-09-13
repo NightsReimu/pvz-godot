@@ -15,7 +15,7 @@ func _initialize() -> void:
 		return
 	assert(stage.terrain == "keine_moonlit_forest")
 	assert(stage.row_count == 6 and stage.get("water_rows", []).is_empty())
-	assert(stage.get("mid_boss_kind", "").is_empty())
+	assert(stage.get("mid_boss_kind", "") == "keine_boss" and stage.get("mid_boss_final_preview", false))
 	assert(stage.unlock_requirements == ["3-20"])
 	assert(stage.mode == "conveyor")
 	assert(stage.boss_intro_bgm == "res://audio/th08_keine_stage.mp3")

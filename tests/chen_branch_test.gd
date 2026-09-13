@@ -68,6 +68,8 @@ func _make_game() -> Control:
 	game.message_panel = PanelContainer.new()
 	game.message_label = Label.new()
 	game.action_button = Button.new()
+	for node in [game.toast_label, game.banner_label, game.message_panel, game.message_label, game.action_button]:
+		game.add_child(node)
 	return game
 
 
@@ -131,7 +133,7 @@ func _test_2_26_configures_chen_finale_without_midboss() -> bool:
 	var conveyor_plants = Array(level.get("conveyor_plants", []))
 	var passed = _assert_true(bool(level.get("boss_level", false)), "2-26 should be marked as a boss level") \
 		and _assert_true(String(level.get("mode", "")) == "conveyor", "2-26 should be a conveyor level") \
-		and _assert_true(String(level.get("mid_boss_kind", "")) == "", "2-26 should not configure a midboss") \
+		and _assert_true(String(level.get("mid_boss_kind", "")) == "chen_boss" and bool(level.get("mid_boss_final_preview", false)), "2-26 should configure Chen's short road preview") \
 		and _assert_true(has_final_boss, "2-26 should include a chen_boss final event") \
 		and _assert_true(wave_count >= 6, "2-26 should have enough wave markers for a boss branch stage") \
 		and _assert_true(not conveyor_plants.has("flower_pot"), "mayohiga_house conveyor should not require flower pots") \

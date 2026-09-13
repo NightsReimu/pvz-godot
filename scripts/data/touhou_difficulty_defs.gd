@@ -2,16 +2,17 @@ extends RefCounted
 
 # Easy/EX are compatibility baselines. Extra+ is an original challenge mode.
 const PROFILES := {
-	"easy": {"name": "Easy", "rank": 0, "health": 1.0, "damage": 1.0, "density": 0.9, "speed": 0.96, "cadence": 1.08, "phases": 0, "waves": 0, "select": false, "color": "8ece9a"},
-	"normal": {"name": "Normal", "rank": 1, "health": 1.35, "damage": 1.12, "density": 1.05, "speed": 1.02, "cadence": 0.99, "phases": 1, "waves": 2, "select": false, "color": "72c6e5"},
-	"hard": {"name": "Hard", "rank": 2, "health": 1.75, "damage": 1.28, "density": 1.2, "speed": 1.09, "cadence": 0.89, "phases": 2, "waves": 4, "select": false, "color": "e9c46a"},
-	"lunatic": {"name": "Lunatic", "rank": 3, "health": 2.3, "damage": 1.46, "density": 1.38, "speed": 1.17, "cadence": 0.8, "phases": 3, "waves": 6, "select": true, "color": "ee809a"},
-	"extra": {"name": "EX", "rank": 0, "health": 1.0, "damage": 1.0, "density": 0.96, "speed": 1.0, "cadence": 1.0, "phases": 0, "waves": 0, "select": false, "color": "e9c46a"},
-	"extra_plus": {"name": "EX+", "rank": 3, "health": 2.0, "damage": 1.4, "density": 1.33, "speed": 1.15, "cadence": 0.8, "phases": 2, "waves": 6, "select": true, "color": "ee809a"},
+	"easy": {"name": "Easy", "rank": 0, "health": 1.45, "damage": 1.0, "density": 0.9, "speed": 0.96, "cadence": 1.08, "phases": 0, "waves": 0, "select": false, "color": "8ece9a"},
+	"normal": {"name": "Normal", "rank": 1, "health": 1.8, "damage": 1.12, "density": 1.05, "speed": 1.02, "cadence": 0.99, "phases": 1, "waves": 2, "select": false, "color": "72c6e5"},
+	"hard": {"name": "Hard", "rank": 2, "health": 2.25, "damage": 1.28, "density": 1.2, "speed": 1.09, "cadence": 0.89, "phases": 2, "waves": 4, "select": false, "color": "e9c46a"},
+	"lunatic": {"name": "Lunatic", "rank": 3, "health": 2.8, "damage": 1.46, "density": 1.38, "speed": 1.17, "cadence": 0.8, "phases": 3, "waves": 6, "select": true, "color": "ee809a"},
+	"extra": {"name": "EX", "rank": 0, "health": 1.45, "damage": 1.0, "density": 0.96, "speed": 1.0, "cadence": 1.0, "phases": 0, "waves": 0, "select": false, "color": "e9c46a"},
+	"extra_plus": {"name": "EX+", "rank": 3, "health": 2.5, "damage": 1.4, "density": 1.33, "speed": 1.15, "cadence": 0.8, "phases": 2, "waves": 6, "select": true, "color": "ee809a"},
 }
 
 # Theme, collision family, animation pose. Extra moves are explicitly original.
 const EXTENSIONS := {
+	"reisen_boss": ["狂气月廊", "lunar", "eye"],
 	"marisa_boss": ["星光魔法", "stars", "stars"],
 	"reimu_boss": ["博丽符阵", "ofuda", "seal"],
 	"rumia_boss": ["夜幕追击", "dark", "bird"],
@@ -40,6 +41,7 @@ const EXTENSIONS := {
 # Each column is a different move, retained by all subsequent difficulty tiers.
 # The first uses the character's pursuit pattern, then crossfire, then a domain.
 const MOVE_NAMES := {
+	"lunar": ["月门「地月增援航路」", "蚀符「无光的月面温室」", "狂廊「无限折返之瞳」"],
 	"stars": ["星符「棱镜播种」", "恋光「交差彗星」", "魔庭「恒星炉心」"],
 	"ofuda": ["封符「轮转封田」", "阴阳「两仪夹阵」", "博丽「封魔棋盘」"],
 	"dark": ["夜幕追击", "逆光暗弧", "无月回廊"],
@@ -68,6 +70,7 @@ const MOVE_NAMES := {
 # TH08 4A/B authored low fixed damage per projectile, so late phases previously
 # fell behind other bosses. Keep character tuning separate from difficulty.
 const ATTACK_TUNING := {
+	"reisen_boss": {"damage": 1.15, "beam_damage": 1.0, "phase_damage": 0.08, "speed": 1.04, "density": 1.1, "cadence": 0.94},
 	"reimu_boss": {"damage": 1.45, "beam_damage": 1.35, "phase_damage": 0.12, "speed": 1.12, "density": 1.16, "cadence": 0.9},
 	"marisa_boss": {"damage": 1.35, "beam_damage": 1.22, "phase_damage": 0.12, "speed": 1.10, "density": 1.15, "cadence": 0.9},
 }

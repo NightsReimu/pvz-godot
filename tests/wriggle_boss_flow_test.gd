@@ -10,8 +10,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed := false
-	failed = not _test_3_19_uses_rumia_midboss_and_wriggle_finale() or failed
-	failed = not _test_final_boss_waits_for_rumia_gate() or failed
+	failed = not _test_3_19_uses_wriggle_midboss_and_wriggle_finale() or failed
+	failed = not _test_final_boss_waits_for_wriggle_gate() or failed
 	failed = not _test_final_boss_forces_gate_before_midboss_lock() or failed
 	failed = not _test_wriggle_entry_switches_to_boss_bgm() or failed
 	failed = not _test_wriggle_reinforcements_spawn_night_bugs() or failed
@@ -32,10 +32,10 @@ func _find_level(level_id: String) -> Dictionary:
 	return {}
 
 
-func _test_3_19_uses_rumia_midboss_and_wriggle_finale() -> bool:
+func _test_3_19_uses_wriggle_midboss_and_wriggle_finale() -> bool:
 	var level = _find_level("3-19")
 	var passed := _assert_true(not level.is_empty(), "3-19 should exist")
-	passed = _assert_true(String(level.get("mid_boss_kind", "")) == "rumia_boss", "3-19 should use Rumia as the road boss") and passed
+	passed = _assert_true(String(level.get("mid_boss_kind", "")) == "wriggle_boss" and bool(level.get("mid_boss_final_preview", false)), "3-19 should use Wriggle as the road boss") and passed
 	var finale_count := 0
 	for event in level.get("events", []):
 		if String(event.get("kind", "")) == "wriggle_boss":
@@ -46,7 +46,7 @@ func _test_3_19_uses_rumia_midboss_and_wriggle_finale() -> bool:
 
 func _make_game() -> Control:
 	var game := GameScript.new()
-	game.current_level = {"id": "3-19", "events": [], "mid_boss_kind": "rumia_boss", "boss_bgm": "res://audio/th08_wriggle_boss.mp3"}
+	game.current_level = {"id": "3-19", "events": [], "mid_boss_kind": "wriggle_boss", "mid_boss_final_preview": true, "boss_bgm": "res://audio/th08_wriggle_boss.mp3"}
 	game.active_rows = [0, 1, 2, 3, 4, 5]
 	game.board_rows = 6
 	game.board_size = Vector2(882, 550)
@@ -60,7 +60,7 @@ func _make_game() -> Control:
 	return game
 
 
-func _test_final_boss_waits_for_rumia_gate() -> bool:
+func _test_final_boss_waits_for_wriggle_gate() -> bool:
 	var game = _make_game()
 	game.next_event_index = 1
 	game.frozen_branch_progress_locked = true
@@ -70,11 +70,11 @@ func _test_final_boss_waits_for_rumia_gate() -> bool:
 	game.batch_spawn_remaining = 1
 	game.spawn_director_timer = 0.0
 	game._update_spawn_director(1.0)
-	var passed := _assert_true(game.zombies.is_empty(), "Wriggle must remain queued while Rumia is alive")
-	passed = _assert_true(game.batch_spawn_queue.size() == 1, "Wriggle queue entry must remain pending at the midboss gate") and passed
+	var passed := _assert_true(game.zombies.is_empty(), "Wriggle must remain queued while its road preview is alive")
+	passed = _assert_true(game.batch_spawn_queue.size() == 1, "Wriggle queue entry must remain pending at the preview gate") and passed
 	game.frozen_branch_midboss_cleared = true
 	game._update_spawn_director(1.0)
-	passed = _assert_true(game.zombies.size() == 1 and String(game.zombies[0].get("kind", "")) == "wriggle_boss", "Wriggle should spawn after the Rumia gate clears") and passed
+	passed = _assert_true(game.zombies.size() == 1 and String(game.zombies[0].get("kind", "")) == "wriggle_boss", "Wriggle should spawn after the road gate clears") and passed
 	game.free()
 	return passed
 
@@ -89,9 +89,9 @@ func _test_final_boss_forces_gate_before_midboss_lock() -> bool:
 	game.batch_spawn_remaining = 1
 	game.spawn_director_timer = 0.0
 	game._update_spawn_director(1.0)
-	var passed := _assert_true(String(game.zombies[0].get("kind", "")) == "rumia_boss", "a queued finale should force the Rumia road boss to spawn first") if not game.zombies.is_empty() else false
+	var passed := _assert_true(String(game.zombies[0].get("kind", "")) == "wriggle_boss", "a queued finale should force the Wriggle road preview to spawn first") if not game.zombies.is_empty() else false
 	if game.zombies.is_empty():
-		push_error("a queued finale should not spawn before the forced road boss")
+		push_error("a queued finale should not spawn before the forced road preview")
 	passed = _assert_true(game.batch_spawn_queue.size() == 1, "the finale queue entry must wait while the forced road boss is alive") and passed
 	game.free()
 	return passed

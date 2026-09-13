@@ -4,6 +4,8 @@ extends RefCounted
 # Height excludes transparent canvas padding and faint spell glows.
 const BODY_HEIGHT := 180.0
 const IDLE_HEIGHTS := {
+	"tewi_boss": 222.0,
+	"reisen_boss": 247.0,
 	"alice_boss": 242.0,
 	"chen_boss": 225.0,
 	"cirno_boss": 204.0,
@@ -30,6 +32,8 @@ const IDLE_HEIGHTS := {
 }
 
 const IDLE_BOTTOM := {
+	"tewi_boss": 246.0,
+	"reisen_boss": 253.0,
 	"alice_boss": 262.0,
 	"chen_boss": 243.0,
 	"cirno_boss": 230.0,

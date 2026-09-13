@@ -1,12 +1,21 @@
 extends RefCounted
 
 const Spells = preload("res://scripts/data/touhou_spell_defs.gd")
+const SELF_MIDBOSS_HEALTH_RATIO := 0.12
 
 
 static func start(boss: Dictionary, level: Dictionary) -> void:
 	var phases := Spells.phases_for(String(boss.get("kind", "")), level)
 	if phases.is_empty():
 		return
+	if bool(boss.get("touhou_final_preview", false)):
+		phases = [[phases[0][0].duplicate(true)]]
+		boss.max_health *= SELF_MIDBOSS_HEALTH_RATIO
+		boss.health = boss.max_health
+	if String(boss.kind) == String(level.get("mid_boss_kind", "")) and bool(level.get("mid_boss_nonspell_only", false)):
+		# A different-character road boss owns its HP; never apply the self-preview ratio.
+		phases = [[phases[0][0].duplicate(true)]]
+		boss["touhou_road_nonspell"] = true
 	boss["touhou_encounter"] = {"phases": phases, "index": 0, "attack": 0, "completed": 0, "casting": false, "depleted": false, "complete": false}
 	boss["boss_skill_timer"] = 1.6
 	_set_bounds(boss)
@@ -25,6 +34,12 @@ static func _set_bounds(boss: Dictionary) -> void:
 
 static func guard_health(boss: Dictionary) -> void:
 	if not boss.has("touhou_encounter") or bool(boss.get("yuyuko_revived", false)):
+		return
+	# Road defeat can interrupt the nonspell; finale phases keep their attack gates.
+	if bool(boss.get("touhou_final_preview", false)) or bool(boss.get("touhou_road_nonspell", false)):
+		if float(boss.health) <= 0.0:
+			boss.health = 0.0
+			boss.touhou_encounter.complete = true
 		return
 	var encounter: Dictionary = boss.touhou_encounter
 	if bool(encounter.complete):

@@ -3,6 +3,8 @@ extends RefCounted
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const DURATION := 1.65
 const THEMES := {
+	"reisen_boss": [Color("fa668d"), "eye"],
+	"tewi_boss": [Color("f2c0cd"), "petal"],
 	"reimu_boss": [Color("f7667e"), "ofuda"],
 	"marisa_boss": [Color("ffd97b"), "star"],
 	"rumia_boss": [Color("db769a"), "diamond"],
@@ -45,7 +47,15 @@ static func state(cast: Dictionary) -> Dictionary:
 static func glyph(canvas: CanvasItem, center: Vector2, radius: float, kind: String, angle: float, color: Color) -> void:
 	var axis := Vector2.from_angle(angle)
 	var side := axis.orthogonal()
-	if kind == "ofuda":
+	if kind == "eye":
+		var outline := PackedVector2Array()
+		for i in range(33):
+			var t := TAU * i / 32.0
+			outline.append(center + Vector2(cos(t) * radius * 1.5, sin(t) * radius * 0.65))
+		canvas.draw_polyline(outline, color, 1.7, true)
+		canvas.draw_circle(center, radius * 0.43, color)
+		canvas.draw_line(center - Vector2(0, radius * 0.3), center + Vector2(0, radius * 0.3), Color("271329"), 2, true)
+	elif kind == "ofuda":
 		var points := PackedVector2Array([center - axis * radius - side * radius * 0.48, center + axis * radius - side * radius * 0.48, center + axis * radius + side * radius * 0.48, center - axis * radius + side * radius * 0.48])
 		canvas.draw_colored_polygon(points, Color(color, color.a * 0.18))
 		points.append(points[0])

@@ -71,6 +71,8 @@ func _make_game() -> Control:
 	game.message_panel = PanelContainer.new()
 	game.message_label = Label.new()
 	game.action_button = Button.new()
+	for node in [game.toast_label, game.banner_label, game.message_panel, game.message_label, game.action_button]:
+		game.add_child(node)
 	return game
 
 
@@ -135,7 +137,7 @@ func _test_2_27_configures_alice_finale_without_midboss() -> bool:
 	var available_plants = Array(level.get("available_plants", []))
 	var passed = _assert_true(bool(level.get("boss_level", false)), "2-27 should be marked as a boss level") \
 		and _assert_true(String(level.get("mode", "")) == "conveyor", "2-27 should be a conveyor level") \
-		and _assert_true(String(level.get("mid_boss_kind", "")) == "", "2-27 should not configure a midboss") \
+		and _assert_true(String(level.get("mid_boss_kind", "")) == "alice_boss" and bool(level.get("mid_boss_final_preview", false)), "2-27 should configure Alice's short road preview") \
 		and _assert_true(has_final_boss, "2-27 should include an alice_boss final event") \
 		and _assert_true(wave_count >= 6, "2-27 should have enough wave markers for a boss branch stage") \
 		and _assert_true(conveyor_plants.has("grave_buster"), "2-27 conveyor should include grave_buster for Alice's raised graves") \

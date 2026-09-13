@@ -1,0 +1,23 @@
+{
+  "source": "ChatGPT Image Sep 13, 2026, 04_03_29 PM.png",
+  "sha256": "0e63917a4a2124480ce7205150d6e0ee0a4723ef4c7f0c56b85001768102eefc",
+  "layout": [
+    6,
+    4
+  ],
+  "frame_size": [
+    256,
+    256
+  ],
+  "processing": "Exact RGBA cell crops; original transparency preserved. No redraw or color key.",
+  "poses": [
+    "idle",
+    "move",
+    "shot",
+    "eye_or_luck",
+    "hit",
+    "aura",
+    "special",
+    "defeat_recovery"
+  ]
+}

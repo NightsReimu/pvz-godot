@@ -11,6 +11,7 @@ func _run() -> void:
 		_test_live_extensions(kind)
 	_test_variants()
 	_test_pressure_scaling()
+	_test_final_boss_preview_routes()
 	print("Touhou difficulty routes, immutable levels and live attacks: %d failure(s)" % failures)
 	quit(1 if failures else 0)
 
@@ -53,7 +54,7 @@ func _test_level_overrides() -> void:
 			if choice == options.back():
 				check(level.mode == "normal" and level.start_sun > 0 and not level.has("conveyor_plants"), "Highest tier must use funded manual planting")
 		check(base == before, "Difficulty construction must never mutate registered levels")
-	check(regular == 17 and extra == 2, "All 19 Touhou stages must expose the right selector")
+	check(regular == 18 and extra == 2, "All 20 Touhou stages must expose the right selector")
 
 
 func _difficulty_game(kind: String, choice: String) -> EncounterGame:
@@ -183,3 +184,37 @@ func _test_pressure_scaling() -> void:
 		previous_speed = Vector2(bullet.velocity).length()
 		previous_interval = game._boss_reinforcement_interval("rumia_boss", 0)
 		release(game)
+
+
+func _test_final_boss_preview_routes() -> void:
+	var expected := {
+		"1-17": "rumia_boss",
+		"1-21": "sakuya_boss",
+		"2-26": "chen_boss",
+		"2-27": "alice_boss",
+		"2-29": "youmu_boss",
+		"3-20": "mystia_boss",
+		"3-21": "keine_boss",
+	}
+	for level in Game.Defs.LEVELS:
+		var id := String(level.get("id", ""))
+		if not expected.has(id):
+			continue
+		check(String(level.get("mid_boss_kind", "")) == String(expected[id]), "%s must preview its final boss during the road" % id)
+		check(bool(level.get("mid_boss_final_preview", false)), "%s preview must be marked as a short final-boss appearance" % id)
+	for choice in ["easy", "normal", "hard", "lunatic"]:
+		check(float(Difficulty.profile({"touhou_difficulty": choice}).health) >= 1.35, "%s Touhou Boss health must resist one-shot bursts" % choice)
+	var preview_game := make_game("rumia_boss")
+	preview_game.zombies.clear()
+	preview_game.current_level = {"mid_boss_kind": "rumia_boss", "mid_boss_final_preview": true, "mid_boss_locked_progress": 0.45}
+	preview_game._spawn_frozen_branch_midboss()
+	check(preview_game.zombies.size() == 1 and bool(preview_game.zombies[0].get("touhou_final_preview", false)), "Final-boss preview must spawn as a marked temporary encounter")
+	check(preview_game.zombies[0].touhou_encounter.phases.size() == 1, "Final-boss preview must expose only its opening phase")
+	preview_game.level_time = 20.0
+	preview_game._update_frozen_branch_flow()
+	check(not preview_game.frozen_branch_midboss_cleared and preview_game.zombies.size() == 1, "Final-boss preview must remain until the player defeats it")
+	preview_game.zombies[0].health = 0.0
+	preview_game._cleanup_dead_zombies()
+	preview_game._update_frozen_branch_flow()
+	check(preview_game.frozen_branch_midboss_cleared, "Defeating the final-boss preview must release the finale gate")
+	release(preview_game)

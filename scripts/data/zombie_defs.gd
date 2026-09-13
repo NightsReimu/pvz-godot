@@ -492,6 +492,33 @@ const ZOMBIES: Dictionary = {
 		"food_attack_scale": 1.42,
 		"almanac": ["永夜抄二面 Boss。夜雀米斯蒂娅以歌声魅惑植物，并在夜雀食堂把植物做成料理，为僵尸提供短时强化。"],
 	},
+	"tewi_boss": {
+		"name": "因幡帝", "health": 4800.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 300,
+		"skill_cycle_length": 4, "skill_interval_base": 5.8, "skill_interval_phase_scale": 0.4, "skill_interval_min": 3.1,
+		"reinforcement_interval_base": 4.5, "reinforcement_interval_phase_scale": 0.32, "reinforcement_interval_min": 2.8,
+		"almanac": ["永夜抄五面道中。交替释放环弹与扇弹，击破后才开放铃仙终末。", "原创幸运兔脚：一只小怪获得 2.5 秒的 30% 普通攻击减伤；减速攻击或无视护盾攻击可穿过，帝退场后清除。"],
+	},
+	"moon_rabbit": {
+		"name": "月兔斥候", "health": 260.0, "speed": 22.0, "attack_dps": 24.0, "reward": 14,
+		"non_mainline_special": true,
+		"almanac": ["铃仙从月门引来的僵尸兔子。周期性小跳加速，但不能越过植物；冰冻与减速能够压住它的步伐。"],
+	},
+	"moon_rabbit_guard": {
+		"name": "月兔卫兵", "health": 420.0, "shield_health": 320.0, "speed": 13.0, "attack_dps": 30.0, "reward": 22,
+		"non_mainline_special": true,
+		"almanac": ["戴月面头盔的装甲兔卫兵。厚重护甲保护传送门出口；破甲后和普通僵尸一样可被冰冻、魅惑。"],
+	},
+	"moon_portal": {
+		"name": "月面传送门", "health": 320.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0,
+		"non_mainline_special": true,
+		"almanac": ["原创召唤物。空格出现 4 秒倒计时月门，可被植物攻击或爆炸摧毁；在倒计时结束前种上植物也会封住出口。"],
+	},
+	"reisen_boss": {
+		"name": "铃仙·优昙华院·因幡", "health": 36000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 720,
+		"skill_cycle_length": 8, "skill_interval_base": 5.0, "skill_interval_phase_scale": 0.38, "skill_interval_min": 2.25,
+		"reinforcement_interval_base": 3.5, "reinforcement_interval_phase_scale": 0.28, "reinforcement_interval_min": 1.9,
+		"almanac": ["永夜抄五面 Boss。空心幻视弹不判伤，实弹恢复前先预警。红眼格暂时扰乱攻速与瞄准，月食限制射程和阳光生产；治愈葫芦保护周围 3×3。", "月门倒计时 4 秒，可被攻击或种植关闭。Normal 起累加原创月门、月食、回廊折返符卡，最后进入月兔远隔催眠术耐久。"],
+	},
 	"keine_boss": {
 		"name": "上白泽慧音",
 		"health": 23800.0,

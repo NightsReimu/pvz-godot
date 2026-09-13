@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add the six-row 3-23 Imperishable Night Stage 5 level with Tewi road preview, Reisen finale, supplied audio and 24-frame art, original difficulty scaling, and Plants vs. Zombies-compatible corridor mechanics.
+**Goal:** Add the six-row 3-23 Imperishable Night Stage 5 level with a distinct Tewi road encounter, Reisen finale, supplied audio and 24-frame art, original difficulty scaling, and Plants vs. Zombies-compatible corridor mechanics.
 
 **Architecture:** Reuse the existing level definition, Touhou phase, boss runtime, frozen road-gate, danmaku, and terrain-rendering systems. Add a small Reisen-specific runtime for madness-eye, eclipse, portals, and corridor return state; keep combat coordinates stable while rendering only the background rotation. Keep all temporary state owner-scoped and clear it through existing phase, death, retry, and pause paths.
 
@@ -50,7 +50,7 @@ Expected: FAIL on missing definitions and spell routes.
 
 **Step 3: Implement minimal data**
 
-Add boss metadata, frame folders, low-damage opening nonspell, Reisen canonical cards, and the 3-23 configuration. Make the final event `reisen_boss`; configure `mid_boss_kind` as `tewi_boss`, `mid_boss_final_preview` true, `row_count` 6, `water_rows` empty, `healing_gourd` in `available_plants` and `conveyor_plants`, and new stage/finale BGM paths.
+Add boss metadata, frame folders, low-damage opening nonspell, Reisen canonical cards, and the 3-23 configuration. Make the final event `reisen_boss`; configure `mid_boss_kind` as `tewi_boss`, `mid_boss_nonspell_only` true (a distinct character, not `mid_boss_final_preview`), `row_count` 6, `water_rows` empty, `healing_gourd` in `available_plants` and `conveyor_plants`, and new stage/finale BGM paths.
 
 **Step 4: Run tests to verify they pass**
 
@@ -85,7 +85,7 @@ Expected: FAIL on missing assets.
 
 **Step 3: Generate/copy assets**
 
-Use the two user-provided 6×4 atlases as the source, crop exact cells, remove the gray background to alpha without redrawing characters, and write source metadata. Copy the provided MP3 files into the project paths.
+Use exact 256×256 RGBA crops from the two supplied 1536×1024 atlases. Inspection confirmed existing transparent backgrounds, so preserve alpha without another color key. Write source metadata and copy the supplied MP3 files into the project paths.
 
 **Step 4: Run asset tests**
 
