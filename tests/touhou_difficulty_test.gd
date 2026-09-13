@@ -17,7 +17,7 @@ func _run() -> void:
 
 
 func _test_boss_damage_scaling() -> void:
-	var expected := {"easy": 0.40, "normal": 0.47, "hard": 0.56, "lunatic": 0.67, "extra": 0.40, "extra_plus": 0.63}
+	var expected := {"easy": 0.50, "normal": 0.60, "hard": 0.72, "lunatic": 0.86, "extra": 0.50, "extra_plus": 0.82}
 	for choice in expected:
 		var level := {"events": [{"kind": "rumia_boss"}], "touhou_difficulty": choice}
 		check(is_equal_approx(float(Difficulty.boss_damage_multiplier(level)), float(expected[choice])), "%s must use the rebalanced, displayed Touhou Boss damage multiplier" % choice)

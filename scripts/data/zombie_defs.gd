@@ -517,7 +517,7 @@ const ZOMBIES: Dictionary = {
 		"name": "铃仙·优昙华院·因幡", "health": 36000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 720,
 		"skill_cycle_length": 8, "skill_interval_base": 5.0, "skill_interval_phase_scale": 0.38, "skill_interval_min": 2.25,
 		"reinforcement_interval_base": 3.5, "reinforcement_interval_phase_scale": 0.28, "reinforcement_interval_min": 1.9,
-		"almanac": ["永夜抄五面 Boss。空心幻视弹不判伤，实弹恢复前先预警。红眼格暂时扰乱攻速与瞄准，月食限制射程和阳光生产；治愈葫芦保护周围 3×3。", "月门倒计时 4 秒，可被攻击或种植关闭。Normal 起累加原创月门、月食、回廊折返符卡，最后进入月兔远隔催眠术耐久。"],
+		"almanac": ["永夜抄五面 Boss。空心幻视弹不判伤，实弹恢复前先预警。红眼格暂时扰乱攻速与瞄准，月食限制射程和阳光生产；治愈葫芦持续恢复植物生命。", "月门倒计时 4 秒，可被攻击或种植关闭。Normal 起累加原创月门、月食、回廊折返符卡，最后进入月兔远隔催眠术耐久。"],
 	},
 	"keine_boss": {
 		"name": "上白泽慧音",

@@ -36,6 +36,14 @@ func _run() -> void:
 			boss_count += 1
 			check(String(event.get("kind", "")) == "reisen_boss", "Only Reisen may be the final event boss")
 	check(boss_count == 1, "3-23 must schedule exactly one final boss event")
+	var enemy_kinds := {}
+	for event in stage.events:
+		var kind := String(event.get("kind", ""))
+		if not kind in ["flag", "reisen_boss"]:
+			enemy_kinds[kind] = true
+	check(enemy_kinds.size() >= 10, "3-23 must use a broad mixed enemy roster")
+	for kind in ["digger_zombie", "balloon_zombie", "football", "wizard_zombie", "gargantuar"]:
+		check(enemy_kinds.has(kind), "3-23 must include %s in the pressure roster" % kind)
 	check(Difficulty.options(stage) == ["easy", "normal", "hard", "lunatic"], "3-23 must expose four difficulties")
 	var expected_ids := {"easy": [101, 105, 109, 113], "normal": [102, 106, 110, 114, 117], "hard": [103, 107, 111, 115, 118], "lunatic": [104, 108, 112, 116, 119]}
 	var expected_phases := {"easy": 4, "normal": 6, "hard": 7, "lunatic": 8}

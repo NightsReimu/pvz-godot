@@ -15718,7 +15718,7 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 			]
 			tint = Color(1.0, 0.46, 0.48, 0.22)
 		"tewi_boss", "reisen_boss":
-			pools = [["moon_rabbit", "conehead"], ["moon_rabbit", "moon_rabbit_guard"], ["moon_rabbit_guard", "screen_door", "moon_rabbit"]]
+			pools = [["moon_rabbit", "digger_zombie", "balloon_zombie", "conehead"], ["moon_rabbit_guard", "football", "screen_door", "shade_zombie"], ["moon_rabbit_guard", "wizard_zombie", "dark_football", "gargantuar", "moon_rabbit"]]
 			tint = Color(0.85, 0.55, 1.0, 0.3)
 		"pool_boss":
 			pools = [
@@ -19812,7 +19812,13 @@ func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) 
 	var progress = float(event_index + 1) / float(total_events)
 	var level_id = String(current_level.get("id", ""))
 	if level_id == "3-23":
-		var pool := ["moon_rabbit", "conehead", "moon_rabbit"] if progress < 0.5 else ["moon_rabbit_guard", "moon_rabbit", "screen_door"]
+		var pool: Array
+		if progress < 0.4:
+			pool = ["moon_rabbit", "normal", "digger_zombie", "balloon_zombie"]
+		elif progress < 0.75:
+			pool = ["moon_rabbit_guard", "football", "screen_door", "ninja", "shade_zombie"]
+		else:
+			pool = ["moon_rabbit_guard", "wizard_zombie", "dark_football", "gargantuar", "balloon_zombie"]
 		return String(pool[posmod(event_index + extra_index, pool.size())])
 	match main_kind:
 		"day_boss":

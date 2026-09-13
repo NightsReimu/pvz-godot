@@ -11,8 +11,8 @@ const DeclarationFX = preload("res://scripts/runtime/spell_declaration_fx.gd")
 const MAX_BULLETS := 480
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
-const DANMAKU_BASE_DAMAGE := 22.0
-const DANMAKU_PHASE_DAMAGE := 4.0
+const DANMAKU_BASE_DAMAGE := 32.0
+const DANMAKU_PHASE_DAMAGE := 6.0
 const DANMAKU_BASE_RADIUS := 6.0
 const COLORS := [Color("ef5474"), Color("58ccec"), Color("f6d66c"), Color("9ada74"), Color("c28bed"), Color("f99b62")]
 

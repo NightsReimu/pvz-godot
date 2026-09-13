@@ -70,7 +70,7 @@ const MOVE_NAMES := {
 # TH08 4A/B authored low fixed damage per projectile, so late phases previously
 # fell behind other bosses. Keep character tuning separate from difficulty.
 const ATTACK_TUNING := {
-	"reisen_boss": {"damage": 1.15, "beam_damage": 1.0, "phase_damage": 0.08, "speed": 1.04, "density": 1.1, "cadence": 0.94},
+	"reisen_boss": {"damage": 1.35, "beam_damage": 1.18, "phase_damage": 0.12, "speed": 1.08, "density": 1.16, "cadence": 0.86},
 	"reimu_boss": {"damage": 1.45, "beam_damage": 1.35, "phase_damage": 0.12, "speed": 1.12, "density": 1.16, "cadence": 0.9},
 	"marisa_boss": {"damage": 1.35, "beam_damage": 1.22, "phase_damage": 0.12, "speed": 1.10, "density": 1.15, "cadence": 0.9},
 }
@@ -118,7 +118,7 @@ static func profile(level: Dictionary) -> Dictionary:
 static func boss_damage_multiplier(level: Dictionary) -> float:
 	if not level.has("touhou_difficulty") and not is_touhou(level):
 		return 1.0
-	return {"easy": 0.40, "normal": 0.47, "hard": 0.56, "lunatic": 0.67, "extra": 0.40, "extra_plus": 0.63}.get(String(level.get("touhou_difficulty", "easy")), 0.40)
+	return {"easy": 0.50, "normal": 0.60, "hard": 0.72, "lunatic": 0.86, "extra": 0.50, "extra_plus": 0.82}.get(String(level.get("touhou_difficulty", "easy")), 0.50)
 
 
 static func build_level(base: Dictionary, choice: String) -> Dictionary:

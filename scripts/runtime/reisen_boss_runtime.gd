@@ -48,14 +48,6 @@ func _clear_marks(owner: int = -1) -> void:
 					plant.erase("reisen_dazed")
 					plant.erase("reisen_eye_owner")
 
-func protected(cell: Vector2i) -> bool:
-	for row in range(maxi(0, cell.x - 1), mini(game.ROWS, cell.x + 2)):
-		for col in range(maxi(0, cell.y - 1), mini(game.COLS, cell.y + 2)):
-			var p = game._targetable_plant_at(row, col)
-			if p != null and String(p.kind) == "healing_gourd" and float(p.health) > 0 and not game._plant_charm_blocks_actions(p):
-				return true
-	return false
-
 func queue_eye(boss: Dictionary, cell: Vector2i, delay: float = 1.25) -> void:
 	if eyes.size() >= MAX_EYES or not game._is_row_active(cell.x) or cell.y < 0 or cell.y >= game.COLS:
 		return
@@ -137,12 +129,16 @@ func update(delta: float) -> void:
 			eyes.remove_at(i)
 			continue
 		var cell := Vector2i(eye.cell)
-		if float(eye.age) < float(eye.delay) or protected(cell):
+		if float(eye.age) < float(eye.delay):
 			continue
 		var plant = game._targetable_plant_at(cell.x, cell.y)
 		if plant != null and float(plant.get("holy_invincible_timer", 0)) <= 0:
 			plant["reisen_dazed"] = true
 			plant["reisen_eye_owner"] = eye.owner
+			if fposmod(float(eye.age) - float(eye.delay), 1.45) < delta:
+				# The eye is a real pressure source in PvZ: every marked plant,
+				# including a healing gourd, takes periodic damage.
+				game._damage_plant_cell(cell.x, cell.y, 72.0, 0.0)
 	if not eclipse.is_empty():
 		eclipse.age += delta
 		if not owners.has(int(eclipse.owner)) or float(eclipse.age) >= float(eclipse.duration):
@@ -152,12 +148,12 @@ func update(delta: float) -> void:
 			for row in game.active_rows:
 				for col in range(game.COLS):
 					var p = game._targetable_plant_at(row, col)
-					if p != null and p.has("sun_timer") and not protected(Vector2i(row, col)):
+					if p != null and p.has("sun_timer"):
 						p.sun_timer += delta * 0.35
 			if bool(eclipse.strike) and not bool(eclipse.struck) and float(eclipse.age) >= 2.5:
 				eclipse.struck = true
 				for cell in eclipse.cells:
-					game._damage_plant_cell(cell.x, cell.y, 110.0 * (0.35 if protected(cell) else 1.0), 0.0)
+					game._damage_plant_cell(cell.x, cell.y, 110.0, 0.0)
 	var target := 0.0 if eclipse.is_empty() else 0.8
 	darkness = move_toward(darkness, target, delta * 0.4)
 	# Iterate a snapshot: a portal may append a new zombie during this loop.
@@ -179,8 +175,6 @@ func range_limit(row: int, plant_x: float, original: float) -> float:
 	if eclipse.is_empty():
 		return original
 	var col := clampi(int((plant_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x), 0, game.COLS - 1)
-	if protected(Vector2i(row, col)):
-		return original
 	return minf(original, game.CELL_SIZE.x * 5.5)
 
 func deflect_shot(projectile: Dictionary, row: int, position: Vector2) -> void:
@@ -244,7 +238,7 @@ func draw_ground() -> void:
 		var cell := Vector2i(eye.cell)
 		var rect: Rect2 = game._cell_rect(cell.x, cell.y).grow(-4)
 		var warning := float(eye.age) < float(eye.delay)
-		var color := GREEN if protected(cell) else RED
+		var color := RED
 		game.draw_rect(rect, Color(color, 0.05 if warning else 0.13))
 		game.draw_rect(rect, Color(color, 0.65), false, 1.5, true)
 		_draw_eye(rect.get_center(), rect.size.x * 0.3, 0.45 if warning else 0.8)
@@ -253,13 +247,6 @@ func draw_ground() -> void:
 			var rect: Rect2 = game._cell_rect(cell.x, cell.y).grow(-6)
 			game.draw_rect(rect, Color(MOON, 0.15), true)
 			game.draw_arc(rect.get_center(), rect.size.y * 0.35, -PI * 0.5, -PI * 0.5 + TAU * minf(1, float(eclipse.age) / 2.5), 32, MOON, 2, true)
-	for row in game.active_rows:
-		for col in range(game.COLS):
-			var p = game._targetable_plant_at(row, col)
-			if p != null and String(p.kind) == "healing_gourd" and float(p.health) > 0:
-				var first: Rect2 = game._cell_rect(maxi(0, row - 1), maxi(0, col - 1))
-				var last: Rect2 = game._cell_rect(mini(game.board_rows - 1, row + 1), mini(game.COLS - 1, col + 1))
-				game.draw_rect(Rect2(first.position, last.end - first.position).grow(-2), Color(GREEN, 0.45), false, 1.5, true)
 
 func draw_overlay() -> void:
 	var board := Rect2(game.BOARD_ORIGIN, game.board_size)
@@ -275,7 +262,7 @@ func draw_overlay() -> void:
 	if game.ui_font != null:
 		var x: float = board.end.x + 8
 		var font_size := 11 if game.size.x < 1100 else 14
-		var labels := ["红眼 · 攻速干扰", "空心弹 · 无伤幻视", "月门 · 击破阻援", "葫芦 · 3×3保护"]
+		var labels := ["红眼 · 攻速干扰", "空心弹 · 无伤幻视", "月门 · 击破阻援", "葫芦 · 持续回血"]
 		for i in range(labels.size()):
 			game._draw_text(labels[i], Vector2(x, board.end.y - 67 + i * 18), font_size, GREEN if i == 3 else MOON)
 

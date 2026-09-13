@@ -16,11 +16,12 @@ func _run() -> void:
 		quit(1)
 		return
 	_test_fields()
+	_test_damage_pressure()
 	_test_portals()
 	_test_illusion_collision()
 	_test_final_spell_and_return()
 	_test_cards_and_routes()
-	print("Reisen: canonical routes, harmless illusions, eyes, gourd protection, portals and cleanup: %d failure(s)" % failures)
+	print("Reisen: canonical routes, harmless illusions, eyes, healing-only gourd, portals and cleanup: %d failure(s)" % failures)
 	quit(1 if failures else 0)
 
 func _test_fields() -> void:
@@ -35,10 +36,10 @@ func _test_fields() -> void:
 	runtime.update(0.9)
 	check(not game.grid[2][2].get("reisen_dazed", false), "Eye warning must not apply effects early")
 	runtime.update(0.2)
-	check(not game.grid[2][2].get("reisen_dazed", false) and not game.grid[4][2].get("reisen_dazed", false), "Gourd protects the diagonal corners of its 3x3")
+	check(game.grid[2][2].get("reisen_dazed", false) and game.grid[4][2].get("reisen_dazed", false), "Healing gourd must not protect a 3x3 area from eye interference")
 	game.grid[3][1] = null
 	runtime.update(0.1)
-	check(game.grid[2][2].get("reisen_dazed", false) and game._plant_attack_cadence_scale(2, 2) > 1, "Unprotected eye fields disrupt actual attack cadence")
+	check(game.grid[2][2].get("reisen_dazed", false) and game._plant_attack_cadence_scale(2, 2) > 1, "Eye fields disrupt actual attack cadence")
 	game._spawn_projectile(2, game._cell_center(2, 2) + Vector2(20, -12), Color.GREEN, 20, 0)
 	check(absf(game.projectiles.back().velocity_y) > 0 and game.projectiles.back().free_aim, "Red-eye confusion deflects friendly fire instead of permanently charming a plant")
 	runtime.start_eclipse(boss)
@@ -50,20 +51,20 @@ func _test_fields() -> void:
 	game.grid[2][2] = game._create_plant("sunflower", 2, 2)
 	game.grid[4][2] = game._create_plant("sunflower", 4, 2)
 	game.grid[1][1] = game._create_plant("healing_gourd", 1, 1)
-	var protected_sun: Dictionary = game.grid[2][2]
+	var gourd: Dictionary = game.grid[1][1]
 	var exposed_sun: Dictionary = game.grid[4][2]
-	protected_sun.sun_timer = 10.0
+	gourd.sun_timer = 10.0
 	exposed_sun.sun_timer = 10.0
 	var initial_health := float(exposed_sun.health)
 	runtime.start_eclipse(boss, true)
-	runtime.eclipse.cells = [Vector2i(2, 2), Vector2i(4, 2)]
+	runtime.eclipse.cells = [Vector2i(1, 1), Vector2i(4, 2)]
 	runtime.update(2.4)
-	check(is_equal_approx(protected_sun.sun_timer, 10) and is_equal_approx(exposed_sun.sun_timer, 10.84), "Eclipse delays exposed sun production while the gourd protects production")
-	check(protected_sun.health == initial_health and exposed_sun.health == initial_health, "Moonlight strike cannot damage plants before its 2.5 second warning")
+	check(is_equal_approx(gourd.sun_timer, 10.84) and is_equal_approx(exposed_sun.sun_timer, 10.84), "Eclipse slows all sun production, including healing gourd")
+	check(gourd.health == gourd.max_health and exposed_sun.health == initial_health, "Moonlight strike cannot damage plants before its 2.5 second warning")
 	runtime.update(0.2)
 	var damage: float = 110.0 * game.TouhouDifficulty.boss_damage_multiplier(game.current_level)
-	check(is_equal_approx(initial_health - exposed_sun.health, damage) and is_equal_approx(initial_health - protected_sun.health, damage * 0.35), "Moonlight strike uses difficulty damage and gourd mitigation exactly once")
-	check(runtime.range_limit(2, game._cell_center(2, 2).x, 10000) == 10000, "A gourd-protected attacker retains its targeting range during eclipse")
+	check(is_equal_approx(initial_health - exposed_sun.health, damage) and is_equal_approx(gourd.max_health - gourd.health, damage), "Moonlight strike uses difficulty damage without gourd mitigation")
+	check(runtime.range_limit(2, game._cell_center(2, 2).x, 10000) < 10000, "Eclipse range affects attackers regardless of healing gourd placement")
 	release(game)
 
 func _test_final_spell_and_return() -> void:
@@ -91,6 +92,31 @@ func _test_final_spell_and_return() -> void:
 		returned_and_armed = returned_and_armed or game.touhou_danmaku.bullets.any(func(b): return b.get("reisen_returned", false) and float(b.age) >= float(b.get("arming_time", 0)) and not b.get("reisen_phantom", false))
 	check(float(boss.touhou_cast_duration) >= 9 and returned_and_armed, "The live corridor spell gives bullets enough time to teleport, warn, and become harmful again")
 	release(game)
+
+func _test_damage_pressure() -> void:
+	var game := fixture("hard")
+	var boss: Dictionary = game.zombies[0]
+	game.grid[2][2] = game._create_plant("wallnut", 2, 2)
+	var initial := float(game.grid[2][2].health)
+	Game.TouhouPhaseRuntime.start(boss, game.current_level)
+	boss.touhou_encounter.index = 3
+	Game.TouhouPhaseRuntime._set_bounds(boss)
+	boss.touhou_encounter.attack = 0
+	game._trigger_boss_skill(boss)
+	var runtime = game._ensure_reisen_runtime()
+	runtime.eyes.clear()
+	runtime.queue_eye(boss, Vector2i(2, 2), 0.1)
+	for frame in range(24):
+		game.level_time += 0.1
+		runtime.update(0.1)
+		game.touhou_danmaku.update(0.1)
+	check(game.grid[2][2].health < initial, "Reisen eye locks must create a real plant damage event")
+	var probe := {}
+	game.touhou_danmaku._bullet({"kind": "reisen_boss", "owner": 1, "phase": 0, "wave": 0}, Vector2.ZERO, 0, 100, Color.RED, "orb", {"damage": 20.0})
+	probe = game.touhou_danmaku.bullets.back()
+	check(is_equal_approx(float(probe.damage), 20.0 * 1.35 * 0.72), "Hard Reisen bullets must clear the upgraded damage floor")
+	release(game)
+
 
 func _test_illusion_collision() -> void:
 	var game := fixture()
