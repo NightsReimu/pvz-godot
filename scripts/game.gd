@@ -3,6 +3,10 @@ extends Control
 const Defs = preload("res://scripts/game_defs.gd")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const GardenMenus = preload("res://scripts/ui/garden_menus.gd")
+const MinigameDefs = preload("res://scripts/data/minigame_defs.gd")
+const MinigameMenu = preload("res://scripts/ui/minigame_menu.gd")
+const MinigameRuntime = preload("res://scripts/runtime/minigame_runtime.gd")
+const MinigameVisuals = preload("res://scripts/ui/minigame_visuals.gd")
 const WindowModeLib = preload("res://scripts/system/window_mode.gd")
 const UpdateManagerLib = preload("res://scripts/system/update_manager.gd")
 const WorldDataLib = preload("res://scripts/data/world_data.gd")
@@ -39,6 +43,7 @@ const MODE_ALMANAC := "almanac"
 const MODE_SELECTION := "selection"
 const MODE_BATTLE := "battle"
 const MODE_ENDLESS := "endless"
+const MODE_MINIGAMES := "minigames"
 const MODE_GACHA := "gacha"
 const MODE_DAILY := "daily"
 const MODE_BASE := "base"
@@ -662,6 +667,8 @@ var selected_level_index := -1
 var touhou_difficulty_menu: RefCounted
 var touhou_difficulty_choices: Dictionary = {}
 var touhou_difficulty_clears: Dictionary = {}
+var minigame_clears: Dictionary = {}
+var minigame_runtime: RefCounted
 var battle_seed_cards: Array = []
 var hovered_level_index := -1
 var unlocked_levels := 1
@@ -1200,7 +1207,7 @@ func _is_ui_scaled_mode(m: String) -> bool:
 
 
 func _uses_legacy_landscape_ui_mode(m: String) -> bool:
-	return m == MODE_HOME or m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_DAILY or m == MODE_ENHANCE or m == MODE_BASE
+	return m == MODE_MINIGAMES or m == MODE_HOME or m == MODE_WORLD_SELECT or m == MODE_MAP or m == MODE_ALMANAC or m == MODE_GACHA or m == MODE_DAILY or m == MODE_ENHANCE or m == MODE_BASE
 
 
 func _uses_mobile_fill_ui_scaling(_target_mode: String = mode) -> bool:
@@ -1887,6 +1894,9 @@ func _toggle_battle_pause() -> void:
 
 func _restart_current_battle() -> void:
 	_set_battle_paused(false)
+	if _is_minigame():
+		_start_minigame(String(current_level.minigame))
+		return
 	if current_level.has("touhou_difficulty"):
 		_begin_level(selected_level_index, battle_seed_cards, current_level)
 		return
@@ -1973,6 +1983,10 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		return
 
+	if mode == MODE_MINIGAMES:
+		queue_redraw()
+		return
+
 	if mode == MODE_HOME:
 		_begin_auto_update_check_if_needed()
 		map_time += delta
@@ -2019,7 +2033,17 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		return
 
+	if _is_minigame() and minigame_runtime.blocks_simulation():
+		if minigame_runtime.planning and not minigame_runtime.help_open:
+			for kind in active_cards: card_cooldowns[kind] = 0.0
+		queue_redraw()
+		return
+
 	level_time += delta
+	if _is_minigame(): minigame_runtime.update(delta)
+	if _is_minigame() and minigame_runtime.planning:
+		queue_redraw()
+		return
 	boss_time_stop_timer = maxf(0.0, boss_time_stop_timer - delta)
 	boss_time_stop_flash_timer = maxf(0.0, boss_time_stop_flash_timer - delta)
 	_update_fog_state(delta)
@@ -2123,6 +2147,9 @@ func _update_page_transition(delta: float) -> void:
 
 
 func _handle_primary_click(mouse_pos: Vector2) -> void:
+	if mode == MODE_MINIGAMES:
+		MinigameMenu.click(self,mouse_pos)
+		return
 	if _touhou_difficulty_is_open():
 		touhou_difficulty_menu.click(mouse_pos)
 		return
@@ -2180,6 +2207,10 @@ func _handle_primary_click(mouse_pos: Vector2) -> void:
 
 	if BACK_BUTTON_RECT.has_point(mouse_pos):
 		_enter_map_mode()
+		return
+
+	if _is_minigame() and minigame_runtime.click(mouse_pos):
+		queue_redraw()
 		return
 
 	var card_kind = _card_at(mouse_pos)
@@ -4029,7 +4060,7 @@ func _handle_home_click(mouse_pos: Vector2) -> void:
 		_enter_endless_mode()
 		return
 	if Rect2(action_rects["events"]).has_point(mouse_pos):
-		_show_toast("活动关卡筹备中")
+		_enter_minigames_mode()
 		return
 	if Rect2(action_rects["base"]).has_point(mouse_pos):
 		_enter_base_mode()
@@ -4082,7 +4113,35 @@ func _handle_daily_click(mouse_pos: Vector2) -> void:
 		return
 
 
+func _is_minigame() -> bool:
+	return minigame_runtime != null and String(current_level.get("minigame", "")) != ""
+
+
+func _enter_minigames_mode() -> void:
+	mode = MODE_MINIGAMES
+	current_level = {}
+	minigame_runtime = null
+	battle_paused = false
+	battle_state = BATTLE_PLAYING
+	selected_tool = ""
+	active_cards = []
+	message_panel.visible = false
+	panel_action = ""
+	_stop_bgm()
+	_reset_touch_navigation()
+	queue_redraw()
+
+
+func _start_minigame(id: String) -> void:
+	var level := MinigameDefs.level(id)
+	if level.is_empty(): return
+	_begin_level(-1,level.minigame_cards,level)
+
+
 func _enter_map_mode(animated: bool = false) -> void:
+	if _is_minigame():
+		_enter_minigames_mode()
+		return
 	if touhou_difficulty_menu != null:
 		touhou_difficulty_menu.close()
 	battle_state = BATTLE_PLAYING
@@ -7087,6 +7146,7 @@ func _draw_enhance_scene() -> void:
 
 
 func _begin_level(level_index: int, chosen_cards: Array, level_override: Dictionary = {}) -> void:
+	minigame_runtime = null
 	battle_seed_cards = chosen_cards.duplicate()
 	if touhou_difficulty_menu != null:
 		touhou_difficulty_menu.close()
@@ -7244,6 +7304,9 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		_setup_vasebreaker_vases()
 	pending_grave_wave_spawns = graves.size()
 	expected_spawn_units = _estimated_total_spawn_count()
+	if String(current_level.get("minigame", "")) != "":
+		minigame_runtime = MinigameRuntime.new(self)
+		minigame_runtime.setup()
 	_prewarm_level_boss_assets()
 
 	_mark_save_dirty(true)
@@ -7398,6 +7461,7 @@ func _handle_almanac_click(mouse_pos: Vector2) -> void:
 
 
 func _update_spawn_director(delta: float) -> void:
+	if _is_minigame(): return
 	var events = current_level["events"]
 	# A midboss gate pauses both new batches and any final-boss event already queued.
 	# This keeps the finale from entering while the road boss is still alive.
@@ -9047,6 +9111,9 @@ func _handle_corn_cannon_right_click(mouse_pos: Vector2) -> void:
 
 
 func _handle_board_click(cell: Vector2i) -> void:
+	if _is_minigame() and minigame_runtime.board_click(cell):
+		queue_redraw()
+		return
 	if selected_tool == "":
 		if _is_vasebreaker_level() and _break_vase_at(cell.x, cell.y):
 			queue_redraw()
@@ -13984,6 +14051,11 @@ func _spawn_death_poof(pos: Vector2, color: Color = Color(0.6, 0.6, 0.6)) -> voi
 
 
 func _check_end_state() -> void:
+	if _is_minigame():
+		var reason: String = minigame_runtime.fail_reason()
+		if reason != "": _lose_level(reason)
+		elif minigame_runtime.won(): _win_level()
+		return
 	if _objective_active():
 		var fail_reason = objective_runtime.fail_check()
 		if fail_reason != "":
@@ -14001,6 +14073,14 @@ func _win_level() -> void:
 		return
 
 	battle_state = BATTLE_WON
+	if _is_minigame():
+		var id: String = current_level.minigame
+		var first: bool = not bool(minigame_clears.get(id,false))
+		minigame_clears[id] = true
+		if first: coins_total += 200
+		_mark_save_dirty(true)
+		_show_message("%s完成！\n%s\n已消灭 %d 只僵尸" % [current_level.title,"首次通关 · 金币 +200" if first else "练习通关 · 首通奖励已领取",total_kills],"minigames","返回小游戏")
+		return
 	var custom_level = bool(current_level.get("custom_level", false)) or selected_level_index < 0
 	var first_clear = not custom_level and selected_level_index >= 0 and selected_level_index < completed_levels.size() and not bool(completed_levels[selected_level_index])
 	if not custom_level and selected_level_index >= 0 and selected_level_index < completed_levels.size():
@@ -14106,6 +14186,8 @@ func _show_message(text: String, action: String, button_text: String) -> void:
 
 func _on_message_button_pressed() -> void:
 	match panel_action:
+		"minigames":
+			_enter_minigames_mode()
 		"retry":
 			_restart_current_battle()
 		"retry_endless":
@@ -18540,6 +18622,7 @@ func _damage_obstacles_in_radius(row: int, center_x: float, radius: float, damag
 
 
 func _can_finish_level_ignoring_obstacles() -> bool:
+	if _is_minigame(): return minigame_runtime.fail_reason() == "" and minigame_runtime.won()
 	if _is_endless_level():
 		return false
 	if _is_vasebreaker_level() and not vases.is_empty():
@@ -19442,6 +19525,8 @@ func _is_storm_fog_level() -> bool:
 
 
 func _level_has_sky_sun() -> bool:
+	if String(current_level.get("minigame", "")) in ["bare","rain","gems","invisible","columns"]:
+		return false
 	if bool(current_level.get("touhou_seed_selection", false)):
 		return true
 	if current_level.is_empty():
@@ -19734,6 +19819,7 @@ func _setup_level_graves() -> void:
 
 
 func _update_conveyor(delta: float) -> void:
+	if String(current_level.get("minigame", "")) == "rain": return
 	if not _is_conveyor_level():
 		return
 	_sync_conveyor_special_cards()
@@ -20148,6 +20234,8 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 	menu_draw_transform = Transform2D(0.0, glow_draw_scale, 0.0, glow_draw_offset)
 	if draw_mode == MODE_HOME:
 		_draw_home_scene()
+	elif draw_mode == MODE_MINIGAMES:
+		MinigameMenu.draw(self)
 	elif draw_mode == MODE_WORLD_SELECT:
 		_draw_world_select_scene()
 	elif draw_mode == MODE_MAP:
@@ -21848,6 +21936,10 @@ func _plant_draw_motion(plant: Dictionary, base_center: Vector2) -> Dictionary:
 	var scale_x = 1.0 + breathe * 0.018
 	var scale_y = 1.0 - breathe * 0.018
 	var center_offset = Vector2(0.0, bob)
+	if plant.has("mini_swap_from"):
+		var swap_t := clampf((level_time-float(plant.mini_swap_time))/0.24,0,1)
+		var source_cell := Vector2i(plant.mini_swap_from)
+		center_offset += (_cell_center(source_cell.x,source_cell.y)-base_center)*(1.0-smoothstep(0,1,swap_t))
 	var action_ratio = 0.0
 	if float(plant.get("action_timer", 0.0)) > 0.0:
 		var duration = maxf(float(plant.get("action_duration", 0.18)), 0.01)
@@ -22163,6 +22255,7 @@ func _draw_battle_scene() -> void:
 		_ensure_eirin_runtime().draw_ground()
 	else:
 		_draw_battle_board()
+	if _is_minigame(): MinigameVisuals.draw_ground(self,minigame_runtime)
 	if _is_infinite_moon_corridor_level():
 		_ensure_reisen_runtime().draw_ground()
 	if _is_keine_moonlit_forest_level():
@@ -22201,6 +22294,7 @@ func _draw_battle_scene() -> void:
 		kaguya_runtime.draw_overlay()
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
+	if _is_minigame(): MinigameVisuals.draw_overlay(self,minigame_runtime)
 	combat_draw_offset = Vector2.ZERO
 	_set_combat_transform()
 	_draw_ambient_grade()
@@ -22209,6 +22303,7 @@ func _draw_battle_scene() -> void:
 	_draw_objective_chip()
 	_draw_fancy_button(PAUSE_BUTTON_RECT, "暂停", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 	_draw_boss_health_bar()
+	if _is_minigame(): MinigameVisuals.draw_hud(self,minigame_runtime)
 
 	if battle_state != BATTLE_PLAYING:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.28), true)
@@ -22242,7 +22337,7 @@ func _draw_battle_pause_overlay() -> void:
 		{"action": "resume", "label": "继续游戏", "fill": Color(0.5, 0.72, 0.32, 0.96), "border": Color(0.22, 0.36, 0.12)},
 		{"action": "restart", "label": "重新开始", "fill": Color(0.9, 0.66, 0.22, 0.96), "border": Color(0.52, 0.32, 0.08)},
 		{"action": "almanac", "label": "查看图鉴", "fill": Color(0.76, 0.62, 0.32, 0.96), "border": Color(0.42, 0.28, 0.1)},
-		{"action": "map", "label": "返回地图", "fill": Color(0.74, 0.42, 0.24, 0.96), "border": Color(0.42, 0.18, 0.08)},
+		{"action": "map", "label": "返回小游戏" if _is_minigame() else "返回地图", "fill": Color(0.74, 0.42, 0.24, 0.96), "border": Color(0.42, 0.18, 0.08)},
 	]
 	for spec_variant in button_specs:
 		var spec = Dictionary(spec_variant)
@@ -23017,8 +23112,8 @@ func _draw_battle_background() -> void:
 		# Hills
 		draw_polygon(
 			PackedVector2Array([
-				Vector2(0.0, 182.0), Vector2(162.0, 150.0), Vector2(336.0, 194.0),
-				Vector2(596.0, 156.0), Vector2(860.0, 210.0), Vector2(1092.0, 168.0),
+				Vector2(0.0, 182.0), Vector2(size.x * 0.10125, 150.0), Vector2(size.x * 0.21, 194.0),
+				Vector2(size.x * 0.3725, 156.0), Vector2(size.x * 0.5375, 210.0), Vector2(size.x * 0.6825, 168.0),
 				Vector2(size.x, 198.0), Vector2(size.x, 232.0), Vector2(0.0, 232.0),
 			]),
 			PackedColorArray([
@@ -23304,7 +23399,7 @@ func _draw_battle_background() -> void:
 	_draw_coin_icon(COIN_METER_RECT.position + Vector2(22.0, 20.0), 1.0)
 	ThemeLib.draw_label(self, ui_font, Rect2(COIN_METER_RECT.position + Vector2(44, 4), Vector2(COIN_METER_RECT.size.x - 52, COIN_METER_RECT.size.y - 8)), str(coins_total), 22, Color(0.31, 0.2, 0.05))
 
-	_draw_fancy_button(BACK_BUTTON_RECT, "返回地图", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
+	_draw_fancy_button(BACK_BUTTON_RECT, "小游戏" if _is_minigame() else "返回地图", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 
 
 func _draw_battle_board() -> void:
@@ -23825,6 +23920,12 @@ func _draw_seed_bank() -> void:
 	draw_circle(SUN_METER_RECT.get_center(), 18.0 + sun_pulse * 3.0, Color(1.0, 0.9, 0.34, 0.08), false, 2.0)
 	var meter_label = "木槌" if _is_whack_level() else ("传送带" if _is_conveyor_level() else "阳光")
 	var meter_value = "自动供卡" if _is_conveyor_level() else str(sun_points)
+	if _is_minigame() and current_level.minigame == "rain":
+		meter_label = "落种"
+		meter_value = "点击收集"
+	elif _is_minigame() and current_level.minigame == "gems":
+		meter_label = "消除"
+		meter_value = "%d / 50" % mini(minigame_runtime.puzzle.score,50)
 	var value_font_size = 20 if _is_conveyor_level() else 28
 	while value_font_size > 12 and ui_font.get_string_size(meter_value, HORIZONTAL_ALIGNMENT_LEFT, -1.0, value_font_size).x > SUN_METER_RECT.size.x - 12.0:
 		value_font_size -= 1
@@ -23926,6 +24027,10 @@ func _battle_progress_ratio_raw() -> float:
 
 
 func _battle_progress_ratio() -> float:
+	if _is_minigame():
+		if current_level.minigame == "gems": return clampf(float(minigame_runtime.puzzle.score)/50,0,1)
+		if current_level.minigame == "stars": return float(minigame_runtime.star_count())/14
+		return clampf(float(minigame_runtime.spawn_index)/maxi(1,current_level.events.size()),0,1)
 	var progress_ratio = _battle_progress_ratio_raw()
 	if frozen_branch_progress_locked and not frozen_branch_midboss_cleared:
 		return maxf(0.0, frozen_branch_locked_progress)
@@ -24255,7 +24360,17 @@ func _draw_objective_chip() -> void:
 		_draw_text(progress, chip_rect.position + Vector2(chip_rect.size.x - pw - 14.0, 16.0), 16, text_color)
 
 
-func _draw_wave_bar() -> void:	# Endless mode: show wave counter instead of progress bar
+func _draw_wave_bar() -> void:
+	if _is_minigame():
+		ThemeLib.draw_rounded_panel(self,WAVE_BAR_RECT,Color("243d36"),Color("708a75"),8,0.05)
+		var progress := _battle_progress_ratio()
+		ThemeLib.draw_progress_bar(self,WAVE_BAR_RECT.grow(-3),progress,Color("587d51"),Color("243d36"),Color.TRANSPARENT)
+		var progress_text := "第 %d / %d 波" % [minigame_runtime.wave,5 if current_level.minigame == "bare" else 6]
+		if current_level.minigame == "gems": progress_text = "相邻交换 · 三个成线"
+		elif current_level.minigame == "stars": progress_text = "星图点亮 %d / 14" % minigame_runtime.star_count()
+		ThemeLib.draw_label(self,ui_font,WAVE_BAR_RECT,progress_text,14,Color("f4eed3"),HORIZONTAL_ALIGNMENT_CENTER)
+		return
+	# Endless mode: show wave counter instead of progress bar
 	if current_level.get("id", "") == "无尽":
 		ThemeLib.draw_rounded_panel(self, WAVE_BAR_RECT, Color(0.52, 0.14, 0.14), Color(0.36, 0.08, 0.08), 8.0, 0.16, 0.08)
 		var wave_text = "第 %d 波" % endless_wave if endless_wave > 0 else "准备中..."
@@ -24464,6 +24579,7 @@ func _boss_cast_status(boss: Dictionary) -> Dictionary:
 
 
 func _draw_click_ultimate_indicator(draw_center: Vector2, plant: Dictionary) -> void:
+	if bool(plant.get("minigame_core",false)) or (_is_minigame() and current_level.minigame == "gems"): return
 	if _plant_charm_blocks_actions(plant):
 		return
 	var kind = String(plant.get("kind", ""))
@@ -24495,6 +24611,9 @@ func _draw_click_ultimate_indicator(draw_center: Vector2, plant: Dictionary) -> 
 func _draw_hover() -> void:
 	if battle_state != BATTLE_PLAYING or battle_paused:
 		return
+	if _is_minigame():
+		if minigame_runtime.help_open: return
+		if MinigameVisuals.draw_column_hover(self,minigame_runtime): return
 	if _is_whack_level() and selected_tool == "":
 		var target_index = _find_whack_target(_pointer_local_position())
 		if target_index != -1:
@@ -24947,6 +25066,9 @@ func _draw_zombies() -> void:
 	var hud_boss = _current_active_boss()
 	var unit_scale := _battle_unit_scale()
 	for zombie in zombies:
+		if _is_minigame() and not minigame_runtime.zombie_visible(zombie):
+			MinigameVisuals.footprint(self,zombie)
+			continue
 		if _is_fog_level() and _is_enemy_zombie(zombie):
 			var fog_position = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
 			if not _is_position_revealed_by_fog_rules(fog_position):
@@ -27372,6 +27494,9 @@ func _draw_ink_line(from: Vector2, to: Vector2, fill: Color, width: float = -1.0
 
 
 func _draw_plant_body(kind: String, center: Vector2, size_scale: float = 1.0, flash: float = 0.0, alpha: float = 1.0, plant: Dictionary = {}) -> void:
+	if bool(plant.get("minigame_core",false)):
+		MinigameVisuals.draw_core(self,center,size_scale,alpha)
+		return
 	var definition: Dictionary = Defs.PLANTS.get(kind, {})
 	if bool(definition.get("volcano_expansion", false)):
 		_ensure_volcano_expansion().draw_plant(kind, center, size_scale, flash, alpha, plant)
@@ -34696,6 +34821,13 @@ func _merge_save_data_preserving_progress(existing_save: Dictionary, candidate_s
 		if bool(candidate_save.touhou_difficulty_clears[key]):
 			cleared[key] = true
 	merged["touhou_difficulty_clears"] = cleared
+	var mini_cleared := {}
+	for save in [existing_save,candidate_save]:
+		var saved = save.get("minigame_clears",{})
+		if saved is Dictionary:
+			for entry in MinigameDefs.ENTRIES:
+				if saved.get(entry.id,false) is bool and saved.get(entry.id,false): mini_cleared[entry.id] = true
+	merged["minigame_clears"] = mini_cleared
 	var merged_ids: Array = []
 	var seen := {}
 	for level_id in existing.get("completed_ids", []):
@@ -34788,6 +34920,7 @@ func _save_game() -> void:
 		"completed_level_ids": _completed_level_ids(),
 		"touhou_difficulty_choices": touhou_difficulty_choices,
 		"touhou_difficulty_clears": touhou_difficulty_clears,
+		"minigame_clears": minigame_clears,
 		"coins_total": coins_total,
 		"last_level_index": selected_level_index,
 		"current_world_key": current_world_key,
@@ -34847,6 +34980,11 @@ func _should_recover_inconsistent_blank_save(save_version: int, completed_count:
 
 
 func _apply_loaded_save_data(save_data: Dictionary) -> bool:
+	minigame_clears.clear()
+	var mini_saved = save_data.get("minigame_clears",{})
+	if mini_saved is Dictionary:
+		for entry in MinigameDefs.ENTRIES:
+			if mini_saved.get(entry.id,false) is bool and mini_saved.get(entry.id,false): minigame_clears[entry.id] = true
 	touhou_difficulty_choices.clear()
 	touhou_difficulty_clears.clear()
 	var saved_choices: Dictionary = save_data.get("touhou_difficulty_choices", {}) if save_data.get("touhou_difficulty_choices", {}) is Dictionary else {}

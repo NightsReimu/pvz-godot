@@ -104,7 +104,10 @@ static func draw_home(game: Control) -> void:
 	]
 	for entry in entries:
 		draw_home_entry(game, rects[entry[0]], entry[1], entry[2], entry[3], entry[0])
-	draw_home_entry(game, rects.events, "", "", GREEN, "events", false, true)
+	ThemeLib.draw_rounded_panel(game,rects.events,PAPER,BORDER,16,0.06)
+	label(game,Rect2(rects.events.position+Vector2(24,12),Vector2(470,40)),"庭院小游戏    ·    七种全新挑战",24,GREEN)
+	label(game,Rect2(rects.events.position+Vector2(526,16),Vector2(676,32)),"雨中落种 / 活体三消 / 隐形尸潮 / 更多玩法",21,MUTED)
+	label(game,Rect2(rects.events.end-Vector2(170,52),Vector2(144,40)),"开始游玩  →",22,GREEN,true)
 
 
 static func world_progress(game: Control, key: String) -> Vector2i:
