@@ -12,6 +12,7 @@ const PROFILES := {
 
 # Theme, collision family, animation pose. Extra moves are explicitly original.
 const EXTENSIONS := {
+	"kaguya_boss": ["永恒与须臾", "eternity", "special"],
 	"eirin_boss": ["月都医术", "medicine", "special"],
 	"reisen_boss": ["狂气月廊", "lunar", "eye"],
 	"marisa_boss": ["星光魔法", "stars", "stars"],
@@ -42,6 +43,7 @@ const EXTENSIONS := {
 # Each column is a different move, retained by all subsequent difficulty tiers.
 # The first uses the character's pursuit pattern, then crossfire, then a domain.
 const MOVE_NAMES := {
+	"eternity": ["永恒「停长的月下花圃」", "须臾「一瞬千年的收割」", "蓬莱「万象倒映时庭」"],
 	"medicine": ["药符「朱月狂剂」", "禁疗「月都处方」", "虚月「万象临床」"],
 	"lunar": ["月门「地月增援航路」", "蚀符「无光的月面温室」", "狂廊「无限折返之瞳」"],
 	"stars": ["星符「棱镜播种」", "恋光「交差彗星」", "魔庭「恒星炉心」"],
@@ -72,6 +74,7 @@ const MOVE_NAMES := {
 # TH08 4A/B authored low fixed damage per projectile, so late phases previously
 # fell behind other bosses. Keep character tuning separate from difficulty.
 const ATTACK_TUNING := {
+	"kaguya_boss": {"damage": 1.35, "beam_damage": 1.3, "phase_damage": 0.10, "speed": 1.02, "density": 1.08, "cadence": 0.94},
 	"eirin_boss": {"damage": 1.35, "beam_damage": 1.35, "phase_damage": 0.10, "speed": 1.02, "density": 1.08, "cadence": 0.94},
 	"reisen_boss": {"damage": 1.35, "beam_damage": 1.18, "phase_damage": 0.12, "speed": 1.08, "density": 1.16, "cadence": 0.86},
 	"reimu_boss": {"damage": 1.45, "beam_damage": 1.35, "phase_damage": 0.12, "speed": 1.12, "density": 1.16, "cadence": 0.9},
@@ -165,7 +168,7 @@ static func extend_phases(kind: String, level: Dictionary, phases: Array) -> Arr
 		elif kind == "marisa_boss":
 			pose = ["stars", "laser", "orbit"][index]
 		var card := ["original-difficulty-%s-%d" % [kind, index + 1], "原创 · " + MOVE_NAMES[theme[1]][index], "pressure_" + theme[1] + suffix, pose, {"pressure_tier": index + 1, "pressure_family": theme[1]}]
-		phases.insert(phases.size() - 1, [card])
+		phases.insert(phases.size() - (5 if kind == "kaguya_boss" else 1), [card])
 	return phases
 
 

@@ -2,8 +2,9 @@ extends RefCounted
 class_name PoolLevelDefs
 
 const EirinLevel = preload("res://scripts/data/eirin_level_defs.gd")
+const KaguyaLevel = preload("res://scripts/data/kaguya_level_defs.gd")
 
-const LEVELS = [
+static var LEVELS = [
 {
 			"id": "3-1",
 			"title": "泳池时代 3-1",
@@ -787,6 +788,7 @@ const LEVELS = [
 				{"time": 22.0, "kind": "moon_rabbit", "row": 5},
 				{"time": 28.0, "kind": "flag", "wave": true},
 				{"time": 35.0, "kind": "football", "row": 1},
+				{"time": 38.0, "kind": "rabbit_airship", "row": 2},
 				{"time": 42.0, "kind": "moon_rabbit_guard", "row": 3},
 				{"time": 49.0, "kind": "screen_door", "row": 4},
 				{"time": 56.0, "kind": "flag", "wave": true},
@@ -796,12 +798,14 @@ const LEVELS = [
 				{"time": 84.0, "kind": "flag", "wave": true},
 				{"time": 91.0, "kind": "gargantuar", "row": 4},
 				{"time": 99.0, "kind": "moon_rabbit", "row": 1},
+				{"time": 103.0, "kind": "rabbit_airship", "row": 5},
 				{"time": 107.0, "kind": "dark_football", "row": 3},
 				{"time": 116.0, "kind": "flag", "wave": true},
 				{"time": 132.0, "kind": "reisen_boss", "row": 2, "wave": true},
 			],
 		},
 		EirinLevel.LEVEL,
+		KaguyaLevel.level(),
 		{
 			"id": "3-S1",
 			"title": "守住防线",

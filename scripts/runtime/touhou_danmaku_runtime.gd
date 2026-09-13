@@ -7,6 +7,7 @@ const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
 const ReisenDanmaku = preload("res://scripts/runtime/reisen_danmaku.gd")
 const EirinDanmaku = preload("res://scripts/runtime/eirin_danmaku.gd")
+const KaguyaDanmaku = preload("res://scripts/runtime/kaguya_danmaku.gd")
 const ExtraDanmaku = preload("res://scripts/runtime/touhou_extra_danmaku.gd")
 const DeclarationFX = preload("res://scripts/runtime/spell_declaration_fx.gd")
 const MAX_BULLETS := 480
@@ -58,7 +59,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	clear_owner(owner)
 	var pattern = String(card.pattern)
 	var duration := 3.4
-	if String(boss.kind) in ["reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss"]:
+	if String(boss.kind) in ["reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
 		duration = float(card.get("duration", 4.8))
 	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
 		duration = 2.2
@@ -73,6 +74,8 @@ func cast(boss: Dictionary) -> Dictionary:
 		duration = 24.0
 	boss["touhou_card"] = card
 	boss["touhou_invulnerable"] = pattern in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master", "reisen_tele_mesmerism", "eirin_hourai"]
+	if bool(card.get("survival", false)):
+		boss["touhou_invulnerable"] = true
 	boss["touhou_survival_timer"] = duration if bool(boss.touhou_invulnerable) else 0.0
 	boss["touhou_cast_remaining"] = duration
 	boss["touhou_cast_duration"] = duration
@@ -127,11 +130,11 @@ func _tick(delta: float) -> void:
 			boss["touhou_survival_timer"] = boss.touhou_cast_remaining
 		if float(session.age) >= float(session.duration):
 			boss["touhou_invulnerable"] = false
-			if String(session.pattern) in ["and_then_none", "reimu_blink", "marisa_final_spark", "marisa_final_master", "reisen_tele_mesmerism", "eirin_hourai"] and boss.has("touhou_encounter"):
+			if (bool(session.card.get("survival", false)) or String(session.pattern) in ["and_then_none", "reimu_blink", "marisa_final_spark", "marisa_final_master", "reisen_tele_mesmerism", "eirin_hourai"]) and boss.has("touhou_encounter"):
 				boss.touhou_encounter.depleted = true
 			if String(session.pattern) == "resurrection_butterfly":
 				boss["health"] = 0.0
-			if String(session.pattern) in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master", "reisen_tele_mesmerism", "eirin_hourai"]:
+			if bool(session.card.get("survival", false)) or String(session.pattern) in ["and_then_none", "resurrection_butterfly", "reimu_blink", "marisa_final_spark", "marisa_final_master", "reisen_tele_mesmerism", "eirin_hourai"]:
 				clear_owner(owner)
 			elif not beams.any(func(b): return int(b.owner) == owner and b.has("actor_index")):
 				# Keep laser emitters visible until their final telegraph and beam end.
@@ -233,6 +236,9 @@ func _update_actors(c: Dictionary) -> void:
 
 
 func _emit_wave(c: Dictionary) -> void:
+	if String(c.kind) == "kaguya_boss":
+		KaguyaDanmaku.emit(self, c)
+		return
 	if String(c.kind) == "eirin_boss":
 		EirinDanmaku.emit(self, c)
 		return

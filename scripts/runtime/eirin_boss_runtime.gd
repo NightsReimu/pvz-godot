@@ -74,9 +74,12 @@ func switch_world(boss: Dictionary) -> void:
 		candidates.remove_at(index)
 		queue_tile(boss, cell, choices[n % choices.size()] if rank == 3 else world)
 	game._show_banner({"water": "虚月映海 · 蓝格即将化水", "lava": "虚月映火 · 红格即将熔化", "roof": "虚月映檐 · 紫格即将化为屋顶"}[world], 2.0)
+	supply_terrain_tool(world)
+
+func supply_terrain_tool(terrain: String) -> void:
 	# Guarantee a usable counter during the warning, while retaining random draws.
 	if game._is_conveyor_level() and not game.active_cards.is_empty():
-		var tool: String = {"water": "lily_pad", "lava": "cork_plug", "roof": "flower_pot"}[world]
+		var tool: String = {"water": "lily_pad", "lava": "cork_plug", "roof": "flower_pot"}[terrain]
 		var slot = game.active_cards.find("")
 		if slot < 0:
 			slot = game.active_cards.size() - 1
@@ -162,7 +165,7 @@ func update(delta: float) -> void:
 	var owners = {}
 	var final_boss: Dictionary = {}
 	for z in game.zombies:
-		if String(z.kind) == "eirin_boss" and float(z.health) > 0:
+		if String(z.kind) in ["eirin_boss", "kaguya_boss"] and float(z.health) > 0:
 			owners[int(z.uid)] = true
 			if not bool(z.get("touhou_final_preview", false)):
 				final_boss = z
@@ -217,7 +220,7 @@ func reinforcement_kind() -> String:
 	if roster.is_empty():
 		for key in game.Defs.ZOMBIES:
 			var data: Dictionary = game.Defs.ZOMBIES[key]
-			if not bool(data.get("boss", false)) and not bool(data.get("boss_summon", false)) and not bool(data.get("non_mainline_special", false)):
+			if String(key) not in ["mech_zombie", "flywheel_zombie"] and not bool(data.get("boss", false)) and not bool(data.get("boss_summon", false)) and not bool(data.get("non_mainline_special", false)):
 				roster.append(String(key))
 		roster.append_array(["star_fairy", "kedama", "rabbit_airship", "moon_rabbit", "moon_rabbit_guard"])
 	var kind = roster[game.rng.randi_range(0, roster.size() - 1)]

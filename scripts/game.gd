@@ -21,6 +21,7 @@ const MarisaBossRuntime = preload("res://scripts/runtime/marisa_boss_runtime.gd"
 const ReimuBossRuntime = preload("res://scripts/runtime/reimu_boss_runtime.gd")
 const ReisenBossRuntime = preload("res://scripts/runtime/reisen_boss_runtime.gd")
 const EirinBossRuntime = preload("res://scripts/runtime/eirin_boss_runtime.gd")
+const KaguyaBossRuntime = preload("res://scripts/runtime/kaguya_boss_runtime.gd")
 const TouhouEnemyRuntime = preload("res://scripts/runtime/touhou_enemy_runtime.gd")
 const TouhouDifficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const TouhouDifficultyMenu = preload("res://scripts/runtime/touhou_difficulty_menu.gd")
@@ -597,6 +598,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"tewi_boss",
 	"reisen_boss",
 	"eirin_boss", "star_fairy", "kedama", "mini_kedama", "rabbit_airship",
+	"kaguya_boss", "kaguya_treasure",
 	"moon_rabbit",
 	"moon_rabbit_guard",
 	"moon_portal",
@@ -970,6 +972,7 @@ var keine_runtime: RefCounted
 var reimu_runtime: RefCounted
 var reisen_runtime: RefCounted
 var eirin_runtime: RefCounted
+var kaguya_runtime: RefCounted
 var touhou_enemies: RefCounted
 var marisa_runtime: RefCounted
 var zombie_runtime: ZombieRuntime
@@ -2055,6 +2058,8 @@ func _process(delta: float) -> void:
 		reisen_runtime.update(delta)
 	if _is_eirin_level():
 		_ensure_eirin_runtime().update(delta)
+	if kaguya_runtime != null:
+		kaguya_runtime.update(delta)
 	_update_plants(delta)
 	_update_projectiles(delta)
 	_update_rollers(delta)
@@ -3121,7 +3126,7 @@ func _should_use_image2_zombie_texture(kind: String) -> bool:
 
 func _boss_frame_count_for_kind(kind: String) -> int:
 	match kind:
-		"keine_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss", "eirin_boss":
+		"keine_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss", "eirin_boss", "kaguya_boss":
 			return 24
 		"rumia_boss":
 			return RUMIA_FRAME_COUNT
@@ -3221,6 +3226,8 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 			return "res://art/reisen"
 		"eirin_boss":
 			return "res://art/eirin"
+		"kaguya_boss":
+			return "res://art/kaguya"
 		_:
 			return ""
 
@@ -7093,6 +7100,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		reisen_runtime.reset()
 	if eirin_runtime != null:
 		eirin_runtime.reset()
+	if kaguya_runtime != null:
+		kaguya_runtime.reset()
 	selected_level_index = level_index
 	if not level_override.is_empty():
 		current_level = level_override.duplicate(true)
@@ -7434,7 +7443,7 @@ func _should_hold_final_boss_for_midboss(spawn_info: Dictionary) -> bool:
 
 func _should_hold_final_boss_kind(pending_kind: String) -> bool:
 	var midboss_kind = String(current_level.get("mid_boss_kind", ""))
-	if _is_eirin_level() and pending_kind == "eirin_boss" and frozen_branch_midboss_cleared:
+	if _is_eirin_level() and pending_kind in ["eirin_boss", "kaguya_boss"] and frozen_branch_midboss_cleared:
 		return _ensure_eirin_runtime().hold_finale()
 	if midboss_kind == "" or frozen_branch_midboss_cleared:
 		return false
@@ -7576,6 +7585,8 @@ func _grave_wave_kind_for_cell(row: int, col: int) -> String:
 
 
 func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool = false, final_preview: bool = false) -> void:
+	if kind in ["mech_zombie", "flywheel_zombie"] and TouhouDifficulty.is_touhou(current_level):
+		kind = "catapult_zombie" if kind == "mech_zombie" else "screen_door"
 	if kind == "rabbit_airship" and _count_alive_enemy_zombies_by_kind(kind) >= 2:
 		kind = "star_fairy"
 	var base = Defs.ZOMBIES[kind]
@@ -7930,6 +7941,11 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.boss_bgm))
 			_show_banner("八意永琳 · 月之头脑" if _is_stage_ending_boss(boss_unit) else "天丸「壶中的天地」· 击退永琳打开回廊", 2.8)
+		elif kind == "kaguya_boss":
+			_ensure_kaguya_runtime()
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.boss_bgm))
+			_show_banner("蓬莱山辉夜 · 永远与须臾的罪人", 2.8)
 		elif kind in ["reisen_boss", "tewi_boss"]:
 			_ensure_reisen_runtime()
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
@@ -9537,6 +9553,12 @@ func _ensure_eirin_runtime() -> RefCounted:
 	if eirin_runtime == null:
 		eirin_runtime = EirinBossRuntime.new(self)
 	return eirin_runtime
+
+
+func _ensure_kaguya_runtime() -> RefCounted:
+	if kaguya_runtime == null:
+		kaguya_runtime = KaguyaBossRuntime.new(self)
+	return kaguya_runtime
 
 
 func _ensure_touhou_enemies() -> RefCounted:
@@ -13545,6 +13567,10 @@ func _cleanup_dead_zombies() -> void:
 			zombie["health"] = maxf(1.0, float(zombie.get("health", 0.0)))
 		if float(zombie["health"]) > 0.0:
 			continue
+		if kaguya_runtime != null and not kaguya_runtime.claim_death(zombie):
+			_spawn_death_poof(Vector2(float(zombie.x), _row_center_y(int(zombie.row))), Color("d5addb"))
+			zombies.remove_at(i)
+			continue
 		if touhou_danmaku != null and zombie.has("touhou_owner"):
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
 		if keine_runtime != null and String(zombie.kind) == "keine_boss":
@@ -13555,8 +13581,10 @@ func _cleanup_dead_zombies() -> void:
 			marisa_runtime.clear_owner(int(zombie.get("uid", -1)))
 		if reisen_runtime != null and String(zombie.kind) in ["reisen_boss", "tewi_boss"]:
 			reisen_runtime.clear_owner(int(zombie.get("uid", -1)))
-		if eirin_runtime != null and String(zombie.kind) == "eirin_boss":
+		if eirin_runtime != null and String(zombie.kind) in ["eirin_boss", "kaguya_boss"]:
 			eirin_runtime.clear_owner(int(zombie.get("uid", -1)))
+		if kaguya_runtime != null and String(zombie.kind) == "kaguya_boss":
+			kaguya_runtime.clear_owner(int(zombie.uid))
 		if String(zombie.kind) == "kedama":
 			_ensure_touhou_enemies().on_death(zombie)
 		if String(zombie.get("kind", "")) == "yuyuko_boss" and bool(Defs.ZOMBIES["yuyuko_boss"].get("revive_once", false)) and not bool(zombie.get("yuyuko_revived", false)):
@@ -15036,6 +15064,8 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 		return zombie
 
 	var remaining_damage = damage
+	if kaguya_runtime != null and not ignore_shield:
+		remaining_damage *= kaguya_runtime.damage_factor(zombie)
 	if float(zombie.get("tewi_luck_until", 0)) > level_time and slow_duration <= 0 and not ignore_shield:
 		remaining_damage *= 0.7
 	if float(zombie.get("sulfur_brittle_until", 0.0)) > level_time:
@@ -15607,7 +15637,7 @@ func _city_boss_roster_for_phase(phase: int) -> Array:
 
 
 func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
-	if kind == "eirin_boss":
+	if kind in ["eirin_boss", "kaguya_boss"]:
 		if _active_zombie_count() < 55:
 			_spawn_zombie(_ensure_eirin_runtime().reinforcement_kind(), -1, true)
 		return
@@ -15776,7 +15806,7 @@ func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
 			]
 			tint = Color(1.0, 0.46, 0.48, 0.22)
 		"tewi_boss", "reisen_boss":
-			pools = [["moon_rabbit", "digger_zombie", "balloon_zombie", "conehead"], ["moon_rabbit_guard", "football", "screen_door", "shade_zombie"], ["moon_rabbit_guard", "wizard_zombie", "dark_football", "gargantuar", "moon_rabbit"]]
+			pools = [["moon_rabbit", "digger_zombie", "balloon_zombie", "conehead", "rabbit_airship"], ["moon_rabbit_guard", "football", "screen_door", "shade_zombie", "rabbit_airship"], ["moon_rabbit_guard", "wizard_zombie", "dark_football", "gargantuar", "moon_rabbit", "rabbit_airship"]]
 			tint = Color(0.85, 0.55, 1.0, 0.3)
 		"pool_boss":
 			pools = [
@@ -16317,6 +16347,10 @@ func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
+	if String(zombie.kind) == "kaguya_boss":
+		zombie = _ensure_touhou_danmaku().cast(zombie)
+		_ensure_kaguya_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
+		return zombie
 	if String(zombie.kind) == "eirin_boss":
 		zombie = _ensure_touhou_danmaku().cast(zombie)
 		_ensure_eirin_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
@@ -17537,8 +17571,10 @@ func _trigger_flandre_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 	if String(zombie.kind) in ["reisen_boss", "tewi_boss"] and reisen_runtime != null:
 		reisen_runtime.clear_owner(int(zombie.get("uid", -1)))
-	if String(zombie.kind) == "eirin_boss" and eirin_runtime != null:
+	if String(zombie.kind) in ["eirin_boss", "kaguya_boss"] and eirin_runtime != null:
 		eirin_runtime.clear_owner(int(zombie.get("uid", -1)))
+	if String(zombie.kind) == "kaguya_boss" and kaguya_runtime != null:
+		kaguya_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) == "keine_boss" and keine_runtime != null:
 		keine_runtime.cancel_cast(int(zombie.get("uid", -1)))
 	if String(zombie.kind) == "reimu_boss" and reimu_runtime != null:
@@ -18034,6 +18070,8 @@ func _damage_front_plant_in_row(row: int, damage: float) -> void:
 
 func _current_zombie_speed(zombie: Dictionary) -> float:
 	var speed = float(zombie["base_speed"])
+	if kaguya_runtime != null:
+		speed *= kaguya_runtime.speed_factor(zombie)
 	if eirin_runtime != null and _is_eirin_level():
 		speed *= eirin_runtime.rage_multiplier(zombie)
 	if String(zombie.kind) == "moon_rabbit" and float(zombie.get("slow_timer", 0)) <= 0:
@@ -19895,11 +19933,11 @@ func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) 
 	if level_id == "3-23":
 		var pool: Array
 		if progress < 0.4:
-			pool = ["moon_rabbit", "normal", "digger_zombie", "balloon_zombie"]
+			pool = ["moon_rabbit", "normal", "digger_zombie", "balloon_zombie", "rabbit_airship"]
 		elif progress < 0.75:
-			pool = ["moon_rabbit_guard", "football", "screen_door", "ninja", "shade_zombie"]
+			pool = ["moon_rabbit_guard", "football", "screen_door", "ninja", "shade_zombie", "rabbit_airship"]
 		else:
-			pool = ["moon_rabbit_guard", "wizard_zombie", "dark_football", "gargantuar", "balloon_zombie"]
+			pool = ["moon_rabbit_guard", "wizard_zombie", "dark_football", "gargantuar", "balloon_zombie", "rabbit_airship"]
 		return String(pool[posmod(event_index + extra_index, pool.size())])
 	match main_kind:
 		"day_boss":
@@ -22159,6 +22197,8 @@ func _draw_battle_scene() -> void:
 		reisen_runtime.draw_overlay()
 	if eirin_runtime != null and _is_eirin_level():
 		eirin_runtime.draw_overlay()
+	if kaguya_runtime != null:
+		kaguya_runtime.draw_overlay()
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
 	combat_draw_offset = Vector2.ZERO
@@ -24323,11 +24363,12 @@ func _draw_boss_health_bar() -> void:
 	var max_health = maxf(1.0, float(boss.get("max_health", 1.0)))
 	var trail_health = maxf(health, float(boss.get("boss_hud_trail", health / max_health)) * max_health)
 	var phase_label := "阶段 %d" % (int(boss.get("boss_phase", 0)) + 1)
-	var survival := bool(boss.get("yuyuko_revived", false)) or String(boss.get("touhou_card", {}).get("pattern", "")) in ["reimu_blink", "marisa_final_spark", "marisa_final_master"]
+	var timed_survival := bool(boss.get("touhou_card", {}).get("survival", false))
+	var survival := timed_survival or bool(boss.get("yuyuko_revived", false)) or String(boss.get("touhou_card", {}).get("pattern", "")) in ["reimu_blink", "marisa_final_spark", "marisa_final_master"]
 	if boss.has("touhou_encounter"):
 		var encounter: Dictionary = boss.touhou_encounter
 		var phase_count := TouhouSpellDefs.phase_count(String(boss.kind), current_level)
-		phase_label = "%d / %d 阶段" % [phase_count if survival else int(encounter.index) + 1, phase_count]
+		phase_label = "%d / %d 阶段" % [phase_count if survival and not timed_survival else int(encounter.index) + 1, phase_count]
 		if bool(boss.get("touhou_final_preview", false)) or bool(boss.get("touhou_road_nonspell", false)):
 			phase_label = "道中 · 符卡" if String(boss.kind) == "eirin_boss" else "道中 · 非符"
 		health = maxf(0.0, health - float(encounter.floor))
@@ -24388,6 +24429,10 @@ func _draw_boss_health_bar() -> void:
 
 
 func _boss_cast_status(boss: Dictionary) -> Dictionary:
+	if String(boss.kind) == "kaguya_boss" and kaguya_runtime != null and not kaguya_runtime.rewind.is_empty():
+		var snap: Dictionary = kaguya_runtime.rewind
+		var left = maxf(0, float(snap.duration) - float(snap.age))
+		return {"text": "回溯 %.1fs · 新种植物消失%s" % [left, " · 击碎子安贝可阻止" if int(snap.anchor) >= 0 else ""], "color": Color("f5dca2"), "progress": left / float(snap.duration)}
 	if String(boss.get("kind", "")) == "volcano_boss":
 		var remaining = maxf(0.0, float(boss.get("boss_skill_timer", 0.0)))
 		var casting = bool(boss.get("boss_cast_pending", false))
@@ -24909,7 +24954,7 @@ func _draw_zombies() -> void:
 		var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + float(zombie["jump_offset"]))
 		var motion = _zombie_draw_motion(zombie, center)
 		var draw_center = Vector2(motion["center"])
-		if String(zombie.kind) in ["tewi_boss", "reisen_boss", "eirin_boss"]:
+		if String(zombie.kind) in ["tewi_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
 			draw_center.y = maxf(draw_center.y, BOARD_ORIGIN.y + 160 * unit_scale)
 		if _is_boss_zombie(zombie):
 			_draw_boss_cast_cue(draw_center, zombie)
@@ -30706,6 +30751,8 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _reisen_frame_index(zombie)
 		"eirin_boss":
 			return _ensure_eirin_runtime().frame_index(zombie)
+		"kaguya_boss":
+			return _ensure_kaguya_runtime().frame_index(zombie)
 		"keine_boss":
 			return _keine_frame_index(zombie)
 		"reimu_boss":
@@ -30771,6 +30818,10 @@ func _reisen_frame_index(zombie: Dictionary) -> int:
 
 func _eirin_frame_index(zombie: Dictionary) -> int:
 	return _ensure_eirin_runtime().frame_index(zombie)
+
+
+func _kaguya_frame_index(zombie: Dictionary) -> int:
+	return _ensure_kaguya_runtime().frame_index(zombie)
 
 
 func _rumia_frame_index(zombie: Dictionary) -> int:
@@ -32751,6 +32802,9 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "eirin_boss":
 		_ensure_eirin_runtime().draw_boss(center, zombie)
+		return
+	if kind == "kaguya_boss":
+		_ensure_kaguya_runtime().draw_boss(center, zombie)
 		return
 	if kind in TouhouEnemyRuntime.KINDS:
 		_ensure_touhou_enemies().draw_unit(center, zombie)

@@ -1,0 +1,11 @@
+{
+  "source": "ChatGPT Image Sep 13, 2026, 10_03_00 PM.png",
+  "sha256": "8ebee49e0fe8c73f98210029a47f229a894071d4f7f9c4465b1036a69b83f5f2",
+  "layout": "6 columns x 4 rows, 24 original poses",
+  "canvas": [
+    256,
+    256
+  ],
+  "processor": "scripts/tools/prepare_kaguya_frames.py",
+  "note": "User-supplied character; cropped and background removed, never regenerated."
+}

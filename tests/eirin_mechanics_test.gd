@@ -139,7 +139,7 @@ func _test_roster_and_terrain() -> void:
 	var boss: Dictionary = game.zombies[0]
 	var rt = game._ensure_eirin_runtime()
 	rt.reinforcement_kind()
-	for kind in ["snorkel", "dragon_boat", "bobsled_team", "gargantuar", "catapult_zombie", "mech_zombie", "basalt_guard", "star_fairy", "kedama", "rabbit_airship"]:
+	for kind in ["snorkel", "dragon_boat", "bobsled_team", "gargantuar", "catapult_zombie", "basalt_guard", "star_fairy", "kedama", "rabbit_airship"]:
 		check(rt.roster.has(kind), "All-world roster includes " + kind)
 		game._spawn_zombie(kind, 1)
 		check(String(game.zombies.back().kind) == kind, "Cross-world enemy actually spawns: " + kind)

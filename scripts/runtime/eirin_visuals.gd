@@ -21,6 +21,8 @@ static func background(rt: RefCounted) -> void:
 		g.draw_circle(p, 0.8 + (n % 3) * 0.45, Color(0.77, 0.87, 1, 0.15 + blend * 0.35))
 	if rt.sky:
 		_world_horizon(g, rt.world)
+		if String(g.current_level.get("id", "")) == "3-24-b":
+			preload("res://scripts/runtime/kaguya_visuals.gd").sky(g._ensure_kaguya_runtime())
 	# Axial sliding gates distinguish this finite escape from Reisen's rotating rings.
 	if blend < 1:
 		var vanish = Vector2(extent.x * 0.58, extent.y * 0.39)

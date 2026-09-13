@@ -1,6 +1,6 @@
 extends RefCounted
 
-const KINDS = ["star_fairy", "kedama", "mini_kedama", "rabbit_airship", "eirin_medicine"]
+const KINDS = ["star_fairy", "kedama", "mini_kedama", "rabbit_airship", "eirin_medicine", "kaguya_treasure"]
 var game: Control
 
 func _init(owner: Control) -> void:
@@ -8,8 +8,8 @@ func _init(owner: Control) -> void:
 
 func update_unit(z: Dictionary, delta: float) -> bool:
 	if float(z.health) <= 0 or game.boss_time_stop_timer > 0:
-		return String(z.kind) in ["rabbit_airship", "eirin_medicine"]
-	if String(z.kind) == "eirin_medicine":
+		return String(z.kind) in ["rabbit_airship", "eirin_medicine", "kaguya_treasure"]
+	if String(z.kind) in ["eirin_medicine", "kaguya_treasure"]:
 		return true
 	if String(z.kind) == "rabbit_airship":
 		_update_airship(z, delta)
@@ -91,6 +91,9 @@ func draw_unit(center: Vector2, z: Dictionary) -> void:
 	var kind = String(z.kind)
 	var t = game.level_time + float(z.get("anim_phase", 0))
 	var p = center + Vector2(0, sin(t * 3) * 3)
+	if kind == "kaguya_treasure":
+		game._ensure_kaguya_runtime().draw_treasure(p, z)
+		return
 	if kind == "rabbit_airship":
 		p.y -= 27
 		_oval(p + Vector2(0, -30), Vector2(58, 25), Color("9eacc9"))

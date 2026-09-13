@@ -504,6 +504,16 @@ const ZOMBIES: Dictionary = {
 		"reinforcement_interval_base": 4.8, "reinforcement_interval_phase_scale": 0.35, "reinforcement_interval_min": 2.6,
 		"almanac": ["永夜抄六面A。道中为「壶中的天地」，生命为终末的12%，击破后才会离开回廊。终末依次展开神代记忆、生命游戏、思兼、Apollo 13、天文密葬法与蓬莱之药。", "原创世界切换：水、岩浆、屋顶格提前2秒预警，10秒后恢复。Normal追加狂暴药剂，Hard追加禁疗，Lunatic追加万象临床。药瓶可被击破以解除对应效果。"],
 	},
+	"kaguya_boss": {
+		"name": "蓬莱山辉夜", "health": 44000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 900,
+		"skill_interval_base": 4.8, "skill_interval_phase_scale": 0.3, "skill_interval_min": 2.8,
+		"reinforcement_interval_base": 4.8, "reinforcement_interval_phase_scale": 0.35, "reinforcement_interval_min": 2.6,
+		"almanac": ["永夜抄六面B终末。五道难题按龙颈玉、佛石钵、火鼠衣、燕子安贝、蓬莱枝展开，之后连续五段「永夜归返」生存符卡。Easy至Lunatic共有10/11/12/13阶段。", "本作特化：五色落珠点杀、可击破石钵为邻近小怪减伤、火衣改变岩浆格、子安贝为小怪续命、玉枝切换世界。所有危险格有提前预告。", "回溯会记录植物和普通小怪，倒计时结束恢复记录时的生命与位置，死者复苏、期间新增单位消失。大招消耗、奖励、Boss阶段及进度不会回退；打碎子安贝可取消其生命线回溯。Normal追加停长花圃，Hard追加瞬间连击，Lunatic追加万象倒映时庭。"],
+	},
+	"kaguya_treasure": {
+		"name": "辉夜的难题宝物", "health": 420.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true,
+		"almanac": ["辉夜将宝物投向战场，普通攻击和爆炸都可击破。石钵使周围两格普通小怪受到的常规伤害减半；子安贝每秒回复周围两格小怪生命，击碎可终止生命线回溯。宝物两秒显现后生效，至多存在十秒。"],
+	},
 	"star_fairy": {
 		"name": "星弹精灵", "health": 220.0, "speed": 14.0, "attack_dps": 20.0, "reward": 16, "non_mainline_special": true,
 		"almanac": ["持星形法器的双翼精灵。每5秒向同路植物发射星弹，普通地面攻击可以命中；低生命但会在后排持续支援。"],
