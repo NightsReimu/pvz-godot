@@ -1,0 +1,11 @@
+{
+  "source": "codex-clipboard-5b0755cf-b0e4-4ee9-a7ad-88cde9931b31.png",
+  "sha256": "1c4e0a3ff1893cdff3100da03d9668aaa715bc008929fcc06c95de544d6c8147",
+  "layout": [6, 4],
+  "frame_size": [256, 256],
+  "processing": "Original cell crops, GrabCut and color-edge background removal; adjacent-cell glow spill removed. No character regeneration, pose rescaling or interpolation.",
+  "tool": "scripts/tools/prepare_eirin_frames.py",
+  "idle_silhouette_height": 216,
+  "idle_bottom": 246,
+  "poses": ["idle", "move", "bow_shot", "vessel", "hit", "phase", "special", "defeat_recovery"]
+}

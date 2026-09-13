@@ -10,6 +10,8 @@ static func start(boss: Dictionary, level: Dictionary) -> void:
 		return
 	if bool(boss.get("touhou_final_preview", false)):
 		phases = [[phases[0][0].duplicate(true)]]
+		if String(boss.kind) == "eirin_boss":
+			phases = [[Spells.Eirin.road_card(level)]]
 		boss.max_health *= SELF_MIDBOSS_HEALTH_RATIO
 		boss.health = boss.max_health
 	if String(boss.kind) == String(level.get("mid_boss_kind", "")) and bool(level.get("mid_boss_nonspell_only", false)):

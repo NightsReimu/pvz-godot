@@ -48,6 +48,8 @@ func is_mechanical_zombie_kind(kind: String) -> bool:
 func is_row_valid_for_spawn_kind(kind: String, row: int) -> bool:
 	if not game._is_row_active(row):
 		return false
+	if game._is_eirin_level():
+		return true
 	if not game._is_pool_level():
 		return true
 	if kind == "bobsled_team":

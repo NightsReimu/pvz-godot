@@ -17,3 +17,13 @@
 7. Run related Touhou phase/difficulty, healing, conveyor and collision regressions. Inspect screenshots and fix any discovered issues. Update docs/version, merge into main, commit/push with NightsReimu identity and publish a verified four-platform Release.
 
 Use `godot --headless --path . --script tests/<test>.gd` for logic, and native `godot --path . --script tests/eirin_battle_flow_test.gd -- --capture` for rendering. Review each meaningful implementation against its failing test; stop expanding validation once the appropriate tests pass without unresolved concerns.
+
+## Implementation record
+
+- Implemented data, six canonical spell groups plus three difficulty extensions, corridor exit gate, moon/world backgrounds, temporary terrain, medicine and common healing hooks.
+- Cropped all 24 supplied Eirin poses, removed gray/rose background and neighboring-cell spill. Inspected dark and cream contact sheets; retained shared silhouette calibration.
+- Implemented fairy, single-generation kedama and ground-targetable rabbit airship. Road/final mixed roster includes water, mechanical and stationary combat units such as dragon boats.
+- Red-to-green checks: missing stage, missing runtime, all-world roster excluding zero-speed dragon boat, and missing conventional frame-selector entry. Fixed each implementation issue. A ground-pea fixture uses actual small frame steps because its existing collision code tests discrete positions.
+- Passed stage/asset, actual mechanics, complete four-difficulty phase, BGM/road/final/pause/retry and 1600×900/844×390 native rendering tests. Captures use fixed-size SubViewports to avoid macOS backing-scale differences.
+- Related healing gourd, click ultimate, conveyor, Reisen, Touhou difficulty/phase/collision, volcano, gacha passive and world-navigation regressions pass. All temporary outputs remain in ignored `output/eirin`.
+- Version 1.0.110 and release notes prepared; publish with NightsReimu author/committer identity, then verify four platform assets and Pages deployment.

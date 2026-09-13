@@ -1243,7 +1243,7 @@ func activate(row: int, col: int) -> bool:
 					if p != null:
 						p["aurora_buff_timer"] = 8.0
 						p["aurora_buff_ratio"] = 0.5
-						p["health"] = minf(float(p["health"]) + 300.0, float(p.get("max_health",120.0)))
+						game._restore_plant_health(p, 300.0)
 						game.grid[r][c] = p
 			game.effects.append({"position": center, "radius": 400.0, "time": 0.4, "duration": 0.4, "color": Color(0.56, 0.9, 1.0, 0.28)})
 		"blast_pomegranate":
@@ -1303,7 +1303,7 @@ func activate(row: int, col: int) -> bool:
 				for c in range(game.COLS):
 					var p = game._top_plant_at(r, c)
 					if p != null:
-						p["health"] = float(p.get("max_health", 120.0))
+						game._restore_plant_health(p, maxf(0, float(p.get("max_health", 120.0)) - float(p.health)))
 						p["destiny_dmg_timer"] = 12.0
 						p["destiny_speed_timer"] = 12.0
 						p["destiny_dmg_ratio"] = 0.5
@@ -1346,7 +1346,7 @@ func activate(row: int, col: int) -> bool:
 				for c in range(game.COLS):
 					var p = game._top_plant_at(r, c)
 					if p != null:
-						p["health"] = float(p.get("max_health", 120.0))
+						game._restore_plant_health(p, maxf(0, float(p.get("max_health", 120.0)) - float(p.health)))
 						p["holy_invincible_timer"] = 3.0
 						game.grid[r][c] = p
 			game._damage_zombies_in_circle(center, game.board_size.x, 300.0)
@@ -1369,7 +1369,7 @@ func activate(row: int, col: int) -> bool:
 							for c2 in range(game.COLS):
 								var p = game._top_plant_at(r, c2)
 								if p != null:
-									p["health"] = minf(float(p["health"]) + 200.0, float(p.get("max_health",120.0)))
+									game._restore_plant_health(p, 200.0)
 									game.grid[r][c2] = p
 					4:
 						for _sp in range(10):
@@ -1429,7 +1429,7 @@ func activate(row: int, col: int) -> bool:
 					var blessed = game._top_plant_at(r, c)
 					if blessed == null:
 						continue
-					blessed["health"] = float(blessed.get("max_health", 120.0))
+					game._restore_plant_health(blessed, maxf(0, float(blessed.get("max_health", 120.0)) - float(blessed.health)))
 					blessed["holy_invincible_timer"] = maxf(float(blessed.get("holy_invincible_timer", 0.0)), 3.0)
 					blessed["armor_health"] = maxf(float(blessed.get("armor_health", 0.0)), float(Defs.PLANTS["holy_flower"].get("shield_amount", 600.0)))
 					blessed["max_armor_health"] = maxf(float(blessed.get("max_armor_health", 1.0)), float(Defs.PLANTS["holy_flower"].get("shield_amount", 600.0)))

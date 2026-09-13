@@ -54,7 +54,7 @@ func _test_level_overrides() -> void:
 			if choice == options.back():
 				check(level.mode == "normal" and level.start_sun > 0 and not level.has("conveyor_plants"), "Highest tier must use funded manual planting")
 		check(base == before, "Difficulty construction must never mutate registered levels")
-	check(regular == 18 and extra == 2, "All 20 Touhou stages must expose the right selector")
+	check(regular == 19 and extra == 2, "All 21 Touhou stages expose their selector: %d regular, %d extra" % [regular, extra])
 
 
 func _difficulty_game(kind: String, choice: String) -> EncounterGame:

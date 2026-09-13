@@ -498,6 +498,32 @@ const ZOMBIES: Dictionary = {
 		"reinforcement_interval_base": 4.5, "reinforcement_interval_phase_scale": 0.32, "reinforcement_interval_min": 2.8,
 		"almanac": ["永夜抄五面道中。交替释放环弹与扇弹，击破后才开放铃仙终末。", "原创幸运兔脚：一只小怪获得 2.5 秒的 30% 普通攻击减伤；减速攻击或无视护盾攻击可穿过，帝退场后清除。"],
 	},
+	"eirin_boss": {
+		"name": "八意永琳", "health": 42000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 850,
+		"skill_interval_base": 4.8, "skill_interval_phase_scale": 0.3, "skill_interval_min": 2.8,
+		"reinforcement_interval_base": 4.8, "reinforcement_interval_phase_scale": 0.35, "reinforcement_interval_min": 2.6,
+		"almanac": ["永夜抄六面A。道中为「壶中的天地」，生命为终末的12%，击破后才会离开回廊。终末依次展开神代记忆、生命游戏、思兼、Apollo 13、天文密葬法与蓬莱之药。", "原创世界切换：水、岩浆、屋顶格提前2秒预警，10秒后恢复。Normal追加狂暴药剂，Hard追加禁疗，Lunatic追加万象临床。药瓶可被击破以解除对应效果。"],
+	},
+	"star_fairy": {
+		"name": "星弹精灵", "health": 220.0, "speed": 14.0, "attack_dps": 20.0, "reward": 16, "non_mainline_special": true,
+		"almanac": ["持星形法器的双翼精灵。每5秒向同路植物发射星弹，普通地面攻击可以命中；低生命但会在后排持续支援。"],
+	},
+	"kedama": {
+		"name": "分裂毛玉", "health": 280.0, "speed": 20.0, "attack_dps": 24.0, "reward": 15, "non_mainline_special": true,
+		"almanac": ["绒毛妖怪。被击破后散成两只小毛玉，只分裂一代；落地前有显形时间，范围攻击可快速清理。"],
+	},
+	"mini_kedama": {
+		"name": "小毛玉", "health": 80.0, "speed": 26.0, "attack_dps": 14.0, "reward": 3, "non_mainline_special": true,
+		"almanac": ["分裂毛玉的幼体。生命少、移动快，不会继续分裂。"],
+	},
+	"rabbit_airship": {
+		"name": "飞艇玉兔僵尸", "health": 1400.0, "speed": 48.0, "attack_dps": 0.0, "reward": 55, "non_mainline_special": true,
+		"almanac": ["玉兔驾驶的月纹飞艇，普通地面攻击能够击落。由右侧飞到左数第三列后返航，去程及返程每经过一格投下一名防御玉兔。不会啃食植物，也不会进入房屋；最多同时出现两艘。"],
+	},
+	"eirin_medicine": {
+		"name": "月都药瓶", "health": 300.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true,
+		"almanac": ["永琳原创符卡的可破坏药瓶。红瓶维持僵尸狂暴，蓝瓶使植物实际回血降至25%；两秒预警后生效，击破或八秒持续时间结束解除。植物发动大招时自身仍可回满血。"],
+	},
 	"moon_rabbit": {
 		"name": "月兔斥候", "health": 260.0, "speed": 22.0, "attack_dps": 24.0, "reward": 14,
 		"non_mainline_special": true,

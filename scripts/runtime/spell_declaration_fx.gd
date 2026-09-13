@@ -3,6 +3,7 @@ extends RefCounted
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const DURATION := 1.65
 const THEMES := {
+	"eirin_boss": [Color("ff9aaa"), "cross"],
 	"reisen_boss": [Color("fa668d"), "eye"],
 	"tewi_boss": [Color("f2c0cd"), "petal"],
 	"reimu_boss": [Color("f7667e"), "ofuda"],
@@ -47,7 +48,10 @@ static func state(cast: Dictionary) -> Dictionary:
 static func glyph(canvas: CanvasItem, center: Vector2, radius: float, kind: String, angle: float, color: Color) -> void:
 	var axis := Vector2.from_angle(angle)
 	var side := axis.orthogonal()
-	if kind == "eye":
+	if kind == "cross":
+		canvas.draw_line(center - axis * radius, center + axis * radius, color, maxf(1.5, radius * 0.3), true)
+		canvas.draw_line(center - side * radius, center + side * radius, color, maxf(1.5, radius * 0.3), true)
+	elif kind == "eye":
 		var outline := PackedVector2Array()
 		for i in range(33):
 			var t := TAU * i / 32.0

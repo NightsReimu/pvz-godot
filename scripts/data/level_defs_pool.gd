@@ -1,6 +1,8 @@
 extends RefCounted
 class_name PoolLevelDefs
 
+const EirinLevel = preload("res://scripts/data/eirin_level_defs.gd")
+
 const LEVELS = [
 {
 			"id": "3-1",
@@ -799,6 +801,7 @@ const LEVELS = [
 				{"time": 132.0, "kind": "reisen_boss", "row": 2, "wave": true},
 			],
 		},
+		EirinLevel.LEVEL,
 		{
 			"id": "3-S1",
 			"title": "守住防线",

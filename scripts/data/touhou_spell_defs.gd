@@ -5,11 +5,13 @@ const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const Marisa = preload("res://scripts/data/marisa_spell_defs.gd")
 const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
 const Reisen = preload("res://scripts/data/reisen_spell_defs.gd")
+const Eirin = preload("res://scripts/data/eirin_spell_defs.gd")
 
 # TH06/TH07 Normal routes, followed by Extra/Phantasm where specified.
 # Columns: reference ID, display name, pattern, animation pose.
 # Sources and the tower-defense adaptations are documented in docs/touhou-spells.md.
 const CARDS := {
+	"eirin_boss": [["th08-124", "觉神「神代的记忆」", "eirin_memories", "shot"]],
 	"reisen_boss": Reisen.ROUTES.easy,
 	"tewi_boss": [["th08-tewi-nonspell", "非符 · 因幡帝", "nonspell_tewi_rings", "shot"]],
 	"reimu_boss": Reimu.ROUTES.easy,
@@ -169,6 +171,7 @@ const REBIRTH := ["th07-114", "「反魂蝶 -三分咲-」", "resurrection_butte
 
 # Unnamed attacks are tower-defense adaptations, never invented named spell cards.
 const NONSPELLS := {
+	"eirin_boss": ["八意永琳", "eirin_arrows", "shot"],
 	"reisen_boss": ["铃仙", "reisen_fan", "shot"],
 	"reimu_boss": ["博丽灵梦", "reimu_amulets", "ofuda"],
 	"marisa_boss": ["雾雨魔理沙", "marisa_stars", "stars"],
@@ -225,6 +228,8 @@ static func card_from_entry(entry: Array) -> Dictionary:
 
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind == "eirin_boss":
+		return Eirin.cards(level)
 	if kind == "reisen_boss":
 		return Reisen.cards(level)
 	if kind == "reimu_boss":

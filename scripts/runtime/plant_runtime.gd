@@ -1373,7 +1373,7 @@ func _heal_targetable_plant(row: int, col: int, amount: float, flash: float = 0.
 		return false
 	var healed := false
 	if float(plant.get("health", 0.0)) < float(plant.get("max_health", 0.0)):
-		plant["health"] = minf(float(plant["max_health"]), float(plant["health"]) + amount)
+		game._restore_plant_health(plant, amount)
 		healed = true
 	if repair_armor and float(plant.get("max_armor_health", 0.0)) > 0.0 and float(plant.get("armor_health", 0.0)) < float(plant.get("max_armor_health", 0.0)):
 		plant["armor_health"] = minf(float(plant["max_armor_health"]), float(plant["armor_health"]) + amount * 0.45)
@@ -1461,7 +1461,7 @@ func update_holo_nut(plant: Dictionary, delta: float, row: int, col: int) -> voi
 	var heal_amount = float(Defs.PLANTS["holo_nut"]["heal_per_tick"])
 	var healed := false
 	if float(plant["health"]) < float(plant["max_health"]):
-		plant["health"] = minf(float(plant["max_health"]), float(plant["health"]) + heal_amount)
+		game._restore_plant_health(plant, heal_amount)
 		healed = true
 	if float(plant.get("armor_health", 0.0)) > 0.0 and float(plant.get("max_armor_health", 0.0)) > 0.0:
 		plant["armor_health"] = minf(float(plant["max_armor_health"]), float(plant["armor_health"]) + heal_amount * 0.65)
@@ -3456,7 +3456,7 @@ func update_crystal_nut(plant: Dictionary, delta: float, row: int, col: int) -> 
 		})
 		game._trigger_plant_action(plant, 0.18)
 	else:
-		plant["health"] = minf(float(plant["max_health"]), float(plant["health"]) + 35.0)
+		game._restore_plant_health(plant, 35.0)
 	plant["support_timer"] = 1.15
 
 
@@ -3978,7 +3978,7 @@ func update_rock_armor_fruit(plant: Dictionary, delta: float, row: int, col: int
 		game._damage_zombies_in_circle(center, radius, float(data["shockwave_damage"]) * float(prev_layer - cur_layer) * game._plant_enhance_multiplier_at_cell(row, col))
 		game.effects.append({"position": center, "radius": radius, "time": 0.28, "duration": 0.28, "color": Color(0.82, 0.62, 0.36, 0.32)})
 		plant["armor_layer"] = cur_layer
-	plant["health"] = minf(float(plant["health"]) + float(data["regen"]) * delta, float(plant["max_health"]))
+	game._restore_plant_health(plant, float(data["regen"]) * delta)
 
 
 func update_aurora_orchid(plant: Dictionary, delta: float, row: int, col: int) -> void:
@@ -3996,7 +3996,7 @@ func update_aurora_orchid(plant: Dictionary, delta: float, row: int, col: int) -
 		if float(p.get("aurora_buff_timer", 0.0)) <= 0.0 or float(p.get("aurora_buff_ratio", 0.0)) <= buff_ratio:
 			p["aurora_buff_timer"] = maxf(float(p.get("aurora_buff_timer", 0.0)), buff_dur)
 			p["aurora_buff_ratio"] = buff_ratio
-		p["health"] = minf(float(p["health"]) + heal, float(p.get("max_health", 120.0)))
+		game._restore_plant_health(p, heal)
 	game.effects.append({"position": center, "radius": radius, "time": 0.32, "duration": 0.32, "color": Color(0.56, 0.88, 1.0, 0.22)})
 	game._trigger_plant_action(plant, 0.3)
 	plant["support_timer"] = float(data["support_interval"])
@@ -4360,7 +4360,7 @@ func update_holy_lotus(plant: Dictionary, delta: float, row: int, col: int) -> v
 		var center = game._cell_center(row, col)
 		var radius = game.CELL_SIZE.length() * 1.1
 		for p in support_neighbors(row, col):
-			p["health"] = minf(float(p["health"]) + float(data["heal_amount"]), float(p.get("max_health",120.0)))
+			game._restore_plant_health(p, float(data["heal_amount"]))
 		game.effects.append({"position": center, "radius": radius, "time": 0.26, "duration": 0.26, "color": Color(1.0, 0.96, 0.72, 0.2)})
 		game._trigger_plant_action(plant, 0.22)
 		plant["support_timer"] = float(data["heal_interval"])
@@ -4406,7 +4406,7 @@ func update_chaos_shroom(plant: Dictionary, delta: float, row: int, col: int) ->
 			game.effects.append({"position": center, "radius": 200.0, "time": 0.26, "duration": 0.26, "color": Color(0.72, 0.94, 1.0, 0.28)})
 		3:
 			for p in allies:
-				p["health"] = minf(float(p["health"]) + 150.0, float(p.get("max_health",120.0)))
+				game._restore_plant_health(p, 150.0)
 			game.effects.append({"position": center, "radius": 120.0, "time": 0.28, "duration": 0.28, "color": Color(0.72, 1.0, 0.72, 0.26)})
 		4:
 			var lanes: Array = []
