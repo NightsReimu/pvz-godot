@@ -882,8 +882,9 @@ var active_cards: Array = []
 var active_rows: Array = []
 var conveyor_source_cards: Array = []
 var conveyor_spawn_timer := 0.0
-# 0..1 per conveyor slot: 1 = just spawned, slides in from the right like the original game.
-var conveyor_card_slide: Array = []
+# Float visual slot per card. Eases toward the card's real index, so new cards drift in
+# from the right and cards left behind by a pickup slide left to close the gap.
+var conveyor_card_visual: Array = []
 var level_end_time := 1.0
 var next_event_index := 0
 var base_events_spawned := 0
@@ -18969,15 +18970,22 @@ func _strike_tesla_chain(source_position: Vector2, start_index: int, first_damag
 	return chain_indices.size()
 
 
-func _card_rect(index: int) -> Rect2:
+func _card_rect_at(slot: float) -> Rect2:
 	var card_size = _seed_bank_card_size()
 	var card_gap = _seed_bank_card_gap()
 	var start_x = SUN_METER_RECT.position.x + SUN_METER_RECT.size.x + 12.0
 	var y = SEED_BANK_RECT.position.y + 4.0
 	return Rect2(
-		Vector2(start_x + index * (card_size.x + card_gap), y),
+		Vector2(start_x + slot * (card_size.x + card_gap), y),
 		card_size
 	)
+
+
+func _card_rect(index: int) -> Rect2:
+	var slot := float(index)
+	if index >= 0 and index < conveyor_card_visual.size():
+		slot = float(conveyor_card_visual[index])
+	return _card_rect_at(slot)
 
 
 func _card_at(mouse_pos: Vector2) -> String:
@@ -19889,8 +19897,9 @@ func _update_conveyor(delta: float) -> void:
 	if not _is_conveyor_level():
 		return
 	_sync_conveyor_special_cards()
-	for i in range(conveyor_card_slide.size()):
-		conveyor_card_slide[i] = maxf(0.0, float(conveyor_card_slide[i]) - delta * 3.0)
+	var ease_weight := minf(1.0, delta * 6.5)
+	for i in range(conveyor_card_visual.size()):
+		conveyor_card_visual[i] = lerpf(float(conveyor_card_visual[i]), float(i), ease_weight)
 	conveyor_spawn_timer -= delta
 	if conveyor_spawn_timer > 0.0:
 		return
@@ -19911,16 +19920,22 @@ func _fill_conveyor_slot(index: int) -> void:
 	if kind == "":
 		return
 	active_cards[index] = kind
-	while conveyor_card_slide.size() < active_cards.size():
-		conveyor_card_slide.append(0.0)
-	conveyor_card_slide[index] = 1.0
+	while conveyor_card_visual.size() < active_cards.size():
+		conveyor_card_visual.append(float(conveyor_card_visual.size()))
+	conveyor_card_visual[index] = float(index) + 1.15
 
 
 func _consume_conveyor_card(kind: String) -> void:
 	for i in range(active_cards.size()):
-		if String(active_cards[i]) == kind:
-			active_cards[i] = ""
-			break
+		if String(active_cards[i]) != kind:
+			continue
+		# Data shifts left immediately; the visual slot keeps its old value and eases in.
+		for j in range(i, active_cards.size() - 1):
+			active_cards[j] = active_cards[j + 1]
+			if j + 1 < conveyor_card_visual.size():
+				conveyor_card_visual[j] = conveyor_card_visual[j + 1]
+		active_cards[active_cards.size() - 1] = ""
+		break
 
 
 func _available_grave_targets_for_conveyor() -> int:
@@ -24009,8 +24024,6 @@ func _draw_seed_bank() -> void:
 	for index in range(active_cards.size()):
 		var kind = String(active_cards[index])
 		var rect = _card_rect(index)
-		if index < conveyor_card_slide.size() and float(conveyor_card_slide[index]) > 0.0:
-			rect.position.x += float(conveyor_card_slide[index]) * 180.0
 		var hovered = rect.has_point(mouse_pos)
 		var draw_rect_local = rect.grow(2.0 if hovered else 0.0)
 		draw_rect_local.position.y -= 4.0 if hovered else 0.0

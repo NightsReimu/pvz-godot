@@ -1,6 +1,6 @@
 extends RefCounted
 
-const PLANTS := ["cabbage_pult", "kernel_pult", "melon_pult", "dragon_bubble_pult", "toxic_gum_pult", "frost_boomerang", "pressure_bamboo", "starfruit", "pulse_bulb", "pumice_wall", "umbrella_leaf", "cherry_bomb", "jalapeno", "healing_gourd", "lily_pad", "flower_pot", "cork_plug"]
+const PLANTS := ["plasma_shooter", "amber_shooter", "phoenix_tree", "shadow_pea", "holy_lotus", "seraph_flower", "frost_boomerang", "pressure_bamboo", "starfruit", "pulse_bulb", "pumice_wall", "umbrella_leaf", "cherry_bomb", "jalapeno", "healing_gourd", "lily_pad", "flower_pot", "cork_plug"]
 const LEVEL := {
 	"id": "3-24-a", "title": "泳池时代 3-24-a · 壶中的天地",
 	"description": "永夜抄六面A。击退回廊中的永琳后，穿过尽头月门进入天空。终末会预警切换水、岩浆与屋顶格；备好睡莲、软木塞和花盆。全世界小怪与飞艇玉兔来袭，葫芦只能回血。",
@@ -12,7 +12,7 @@ const LEVEL := {
 	"unlock_requirements": ["3-23"], "node_pos": Vector2(1980.0, 350.0),
 	"boss_intro_bgm": "res://audio/th08_eirin_stage.mp3", "boss_bgm": "res://audio/th08_eirin_boss.mp3",
 	"available_plants": PLANTS,
-	"conveyor_plants": ["cabbage_pult", "cabbage_pult", "kernel_pult", "melon_pult", "dragon_bubble_pult", "toxic_gum_pult", "frost_boomerang", "pressure_bamboo", "starfruit", "pulse_bulb", "pumice_wall", "umbrella_leaf", "cherry_bomb", "jalapeno", "healing_gourd", "lily_pad", "lily_pad", "flower_pot", "flower_pot", "cork_plug"],
+	"conveyor_plants": ["plasma_shooter", "plasma_shooter", "amber_shooter", "amber_shooter", "phoenix_tree", "phoenix_tree", "shadow_pea", "holy_lotus", "seraph_flower", "frost_boomerang", "pressure_bamboo", "starfruit", "pulse_bulb", "pumice_wall", "umbrella_leaf", "cherry_bomb", "jalapeno", "healing_gourd", "lily_pad", "lily_pad", "flower_pot", "flower_pot", "cork_plug"],
 	"unlock_plant": "", "start_sun": 0, "time_scale": 0.68, "sky_sun_range": Vector2(999, 999),
 	"events": [
 		{"time": 5.0, "kind": "kedama", "row": 2},
