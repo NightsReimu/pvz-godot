@@ -318,6 +318,11 @@ func _test_cirno_spellcards_create_ice_effects_and_reinforcements() -> bool:
 			var plant = game._create_plant("wallnut", row_i, col)
 			game.grid[row_i][col] = plant
 	game._spawn_zombie_at("cirno_boss", 2, game.BOARD_ORIGIN.x + game.board_size.x - 16.0)
+	# The encounter layer picks cards from its own progress, which would pin every cycle to the
+	# same card. Drop it so boss_skill_cycle drives card selection, as this contract expects.
+	var cirno_probe = game.zombies[0]
+	cirno_probe.erase("touhou_encounter")
+	game.zombies[0] = cirno_probe
 	var expectations = {
 		0: "icicle",
 		1: "perfect_freeze",

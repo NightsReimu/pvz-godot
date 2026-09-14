@@ -365,6 +365,11 @@ func _test_rumia_skill_effects_use_animated_shapes() -> bool:
 		"events": [],
 	}
 	game._spawn_zombie_at("rumia_boss", 2, game.BOARD_ORIGIN.x + game.board_size.x - 16.0)
+	# The encounter layer picks cards from its own progress, which would pin every cycle to the
+	# same card. Drop it so boss_skill_cycle drives card selection, as this contract expects.
+	var rumia_probe = game.zombies[0]
+	rumia_probe.erase("touhou_encounter")
+	game.zombies[0] = rumia_probe
 	var expectations = {
 		0: "night_bird",
 		1: "demarcation",

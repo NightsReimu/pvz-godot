@@ -34977,17 +34977,10 @@ func _best_legacy_save_data() -> Dictionary:
 		var hinted_path = app_userdata_dir.path_join(project_name).path_join(save_name)
 		if hinted_path != current_save_path and FileAccess.file_exists(hinted_path):
 			candidate_paths.append(hinted_path)
-	var dir = DirAccess.open(app_userdata_dir)
-	if dir != null:
-		dir.list_dir_begin()
-		var entry = dir.get_next()
-		while entry != "":
-			if dir.current_is_dir() and not entry.begins_with("."):
-				var candidate_path = app_userdata_dir.path_join(entry).path_join(save_name)
-				if candidate_path != current_save_path and FileAccess.file_exists(candidate_path) and not candidate_paths.has(candidate_path):
-					candidate_paths.append(candidate_path)
-			entry = dir.get_next()
-		dir.list_dir_end()
+	# Only the explicit legacy names above are adopted. Scanning every sibling directory
+	# used to pull in validation builds (their project name derives from this one) and could
+	# silently merge progress the player never made here. Use
+	# scripts/tools/export_validation_pack.sh to build validation packs safely.
 	var best: Dictionary = {}
 	for path_variant in candidate_paths:
 		var candidate = _read_save_data_from_path(String(path_variant))
