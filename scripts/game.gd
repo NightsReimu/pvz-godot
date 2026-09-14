@@ -7187,7 +7187,10 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		# Rain hands falling seeds straight to the cursor, so it never owns a seed bank.
 		active_cards = []
 	elif _is_conveyor_level():
-		active_cards = ["", "", "", "", "", ""]
+		# Belt levels get the full seed-bank width worth of slots.
+		active_cards = []
+		active_cards.resize(MAX_SEED_SLOTS)
+		active_cards.fill("")
 	else:
 		active_cards = chosen_cards.duplicate()
 	active_rows = _build_active_rows(int(current_level.get("row_count", ROWS)))
