@@ -763,7 +763,15 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			before = ReisenDanmaku.advance_bullet(b, before)
 		var hit := false
 		if age >= float(b.get("arming_time", 0.0)) and not bool(b.get("reisen_phantom", false)):
-			hit = _hit_plant_segment(before, Vector2(b.position), float(b.radius), float(b.damage), [])
+			if bool(b.get("reflected", false)):
+				# Already bounced: it now travels back out and bites every zombie it crosses.
+				_hit_zombie_segment(before, Vector2(b.position), float(b.radius), float(b.damage), b)
+			else:
+				var mirror_cell: Vector2i = game._mirror_reed_on_segment(before, Vector2(b.position), float(b.radius))
+				if mirror_cell.y >= 0 and game._bounce_boss_danmaku(b, mirror_cell):
+					hit = false
+				else:
+					hit = _hit_plant_segment(before, Vector2(b.position), float(b.radius), float(b.damage), [])
 		if hit or age >= float(b.life) or not board.grow(240).has_point(Vector2(b.position)):
 			bullets.remove_at(index)
 
@@ -804,6 +812,27 @@ func _cut_spirit_bullets(slash: Dictionary) -> void:
 	for b in cut:
 		_ring(slash, b.position, 10, Vector2(b.velocity).angle(), 160, Color(b.color), "rice", {"sword_fragment": true})
 		game.effects.append({"shape": "youmu_cross_slash", "position": b.position, "radius": 65.0, "time": 0.28, "duration": 0.28, "color": Color(0.8, 1, 1, 0.65)})
+
+
+func _hit_zombie_segment(from: Vector2, to: Vector2, radius: float, damage: float, bullet: Dictionary) -> void:
+	# Reflected danmaku damages each zombie it passes through, once per zombie.
+	var hits: Array = bullet.get("hit_uids", [])
+	var reach := radius + 24.0
+	for zombie_variant in game.zombies:
+		var zombie: Dictionary = zombie_variant
+		if not game._is_enemy_zombie(zombie) or float(zombie.get("health", 0.0)) <= 0.0:
+			continue
+		var uid := int(zombie.get("uid", -1))
+		if hits.has(uid):
+			continue
+		var center := Vector2(float(zombie.get("x", 0.0)), game._row_center_y(int(zombie.get("row", 0))) - 12.0)
+		var closest = Geometry2D.get_closest_point_to_segment(center, from, to)
+		if closest.distance_squared_to(center) > reach * reach:
+			continue
+		hits.append(uid)
+		game._apply_zombie_damage(zombie, damage, 0.18)
+		zombie["revealed_timer"] = maxf(float(zombie.get("revealed_timer", 0.0)), 1.4)
+	bullet["hit_uids"] = hits
 
 
 func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float, hit_cells: Array, stop_at_first: bool = true) -> bool:

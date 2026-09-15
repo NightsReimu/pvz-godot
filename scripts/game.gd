@@ -14742,6 +14742,68 @@ func _reflect_shot_with_mirror_reed(zombie: Dictionary, mirror_cell: Vector2i, s
 	return zombie
 
 
+func _mirror_reed_on_segment(from: Vector2, to: Vector2, radius: float) -> Vector2i:
+	# First living mirror reed whose cell intersects the swept segment, for danmaku bouncing.
+	var reach := radius + 26.0
+	var min_x := minf(from.x, to.x) - reach
+	var max_x := maxf(from.x, to.x) + reach
+	var min_y := minf(from.y, to.y) - reach
+	var max_y := maxf(from.y, to.y) + reach
+	var min_row := maxi(0, int(floor((min_y - BOARD_ORIGIN.y) / CELL_SIZE.y - 0.5)))
+	var max_row := mini(ROWS - 1, int(ceil((max_y - BOARD_ORIGIN.y) / CELL_SIZE.y - 0.5)))
+	var min_col := maxi(0, int(floor((min_x - BOARD_ORIGIN.x) / CELL_SIZE.x - 0.5)))
+	var max_col := mini(COLS - 1, int(ceil((max_x - BOARD_ORIGIN.x) / CELL_SIZE.x - 0.5)))
+	if max_row < min_row or max_col < min_col:
+		return Vector2i(-1, -1)
+	for row in range(min_row, max_row + 1):
+		for col in range(min_col, max_col + 1):
+			var plant = _targetable_plant_at(row, col)
+			if plant == null or String(plant.get("kind", "")) != "mirror_reed" or float(plant.get("health", 0.0)) <= 0.0:
+				continue
+			var center: Vector2 = _cell_center(row, col) + Vector2(0, -12)
+			var closest = Geometry2D.get_closest_point_to_segment(center, from, to)
+			if closest.distance_squared_to(center) <= reach * reach:
+				return Vector2i(row, col)
+	return Vector2i(-1, -1)
+
+
+func _bounce_boss_danmaku(bullet: Dictionary, cell: Vector2i) -> bool:
+	# Turns a boss bullet around at the mirror so it flies back along its own line.
+	var mirror = _targetable_plant_at(cell.x, cell.y)
+	if mirror == null or String(mirror.get("kind", "")) != "mirror_reed" or float(mirror.get("health", 0.0)) <= 0.0:
+		return false
+	if float(mirror.get("reflect_cooldown_until", 0.0)) > level_time:
+		return false
+	var velocity := Vector2(bullet.get("velocity", Vector2.ZERO))
+	if velocity.length() < 0.01:
+		return false
+	mirror["reflect_cooldown_until"] = level_time + 0.12
+	mirror["flash"] = maxf(float(mirror.get("flash", 0.0)), 0.24)
+	_set_targetable_plant(cell.x, cell.y, mirror)
+	bullet["reflected"] = true
+	bullet["velocity"] = -velocity
+	bullet["damage"] = float(bullet.get("damage", 0.0)) * float(Defs.PLANTS["mirror_reed"].get("reflect_damage_mult", 1.2))
+	bullet["hit_uids"] = []
+	bullet["age"] = 0.0
+	bullet["life"] = 3.2
+	bullet["arming_time"] = 0.04
+	# Timed gimmicks belong to the incoming path, not the return trip.
+	bullet.erase("freeze_at")
+	bullet.erase("thaw_at")
+	bullet.erase("redirect_at")
+	var mirror_center: Vector2 = _cell_center(cell.x, cell.y) + Vector2(6.0, -12.0)
+	effects.append({
+		"shape": "mirror_reflect_arc",
+		"position": mirror_center,
+		"target": mirror_center - velocity.normalized() * 70.0,
+		"time": 0.3,
+		"duration": 0.3,
+		"color": Color(0.82, 0.94, 1.0, 0.32),
+		"anim_speed": 9.2,
+	})
+	return true
+
+
 func _mirror_reed_reflect_boss_shot(cell: Vector2i, damage: float) -> bool:
 	# Boss danmaku that reaches a mirror reed is bounced into the nearest enemy.
 	# Returns true whenever the reed absorbs the shot, so the plant takes no damage.
