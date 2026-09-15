@@ -7184,6 +7184,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		conveyor_source_cards = current_level["conveyor_plants"].duplicate()
 	if current_level.has("conveyor_plants_after_freeze"):
 		frozen_branch_post_freeze_cards = current_level["conveyor_plants_after_freeze"].duplicate()
+	_ensure_touhou_conveyor_mirror()
 	if _is_rain_minigame():
 		# Rain hands falling seeds straight to the cursor, so it never owns a seed bank.
 		active_cards = []
@@ -19561,6 +19562,15 @@ func _coin_target() -> Vector2:
 	return COIN_METER_RECT.position + COIN_METER_RECT.size * 0.5
 
 
+func _ensure_touhou_conveyor_mirror() -> void:
+	# Touhou stages always hand out a mirror reed so boss danmaku can be bounced back.
+	if conveyor_source_cards.is_empty() or conveyor_source_cards.has("mirror_reed"):
+		return
+	if not TouhouDifficulty.is_touhou(current_level):
+		return
+	conveyor_source_cards.append("mirror_reed")
+
+
 func _is_rain_minigame() -> bool:
 	return String(current_level.get("minigame", "")) == "rain"
 
@@ -24187,6 +24197,7 @@ func _trigger_cirno_freeze_transition() -> void:
 			})
 	if not frozen_branch_post_freeze_cards.is_empty():
 		conveyor_source_cards = frozen_branch_post_freeze_cards.duplicate()
+		_ensure_touhou_conveyor_mirror()
 		for i in range(active_cards.size()):
 			var active_kind = String(active_cards[i])
 			if active_kind != "lily_pad" and active_kind != "tangle_kelp":
