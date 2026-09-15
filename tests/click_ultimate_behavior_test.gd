@@ -27,7 +27,7 @@ func _run() -> void:
 	failed = not _test_wind_orchid_plant_food_uses_dedicated_gust_effect() or failed
 	failed = not _test_lotus_lancer_click_ultimate_spawns_converging_lotus_barrage() or failed
 	failed = not _test_lotus_lancer_plant_food_matches_its_click_barrage() or failed
-	failed = not _test_mirror_reed_click_ultimate_summons_sniper_support() or failed
+	failed = not _test_mirror_reed_click_ultimate_bounces_every_boss_bullet() or failed
 	failed = not _test_magic_flower_click_ultimate_spawns_random_lane_barrage() or failed
 	failed = not _test_tesla_tulip_click_ultimate_summons_model_y() or failed
 	failed = not _test_brick_guard_click_ultimate_creates_column_wall() or failed
@@ -503,23 +503,31 @@ func _test_lotus_lancer_plant_food_matches_its_click_barrage() -> bool:
 	return passed
 
 
-func _test_mirror_reed_click_ultimate_summons_sniper_support() -> bool:
+func _test_mirror_reed_click_ultimate_bounces_every_boss_bullet() -> bool:
 	var game := _make_game()
 	var row := 2
 	var col := 2
 	var plant = game.call("_create_plant", "mirror_reed", row, col)
 	plant["ultimate_charge"] = 1.0
 	game.grid[row][col] = plant
-	game.call("_spawn_zombie_at", "normal", row, game.call("_cell_center", row, 6).x)
-	var before = float(game.zombies[0].get("health", 0.0))
+	var dm = game.call("_ensure_touhou_danmaku")
+	var origin = game.call("_cell_center", row, 5)
+	for i in range(3):
+		dm.bullets.append({
+			"owner": 1, "kind": "eirin_boss",
+			"position": Vector2(origin) + Vector2(0.0, float(i) * 9.0),
+			"velocity": Vector2(-240.0, 0.0),
+			"age": 1.0, "life": 5.0, "radius": 6.0, "damage": 30.0,
+			"color": Color.WHITE, "shape": "orb", "arming_time": 0.0,
+		})
 	var activated := bool(game.call("_try_activate_ultimate", row, col))
-	var after = float(game.zombies[0].get("health", 0.0))
-	var summon_fx := _count_effect_shape(game, "mirror_sniper_call")
-	var beam_fx := _count_effect_shape(game, "sniper_beam")
+	var reflected := 0
+	for bullet in dm.bullets:
+		if bool(bullet.get("reflected", false)):
+			reflected += 1
 	var passed := _assert_true(activated, "mirror_reed should accept click ultimate activation when fully charged") \
-		and _assert_true(summon_fx > 0, "mirror_reed click ultimate should summon a visible sniper support effect in front of itself") \
-		and _assert_true(beam_fx > 0, "mirror_reed click ultimate should fire a sniper beam after the summon") \
-		and _assert_true(after < before, "mirror_reed click ultimate should damage the target it snipes")
+		and _assert_true(reflected == 3, "mirror_reed click ultimate should turn every boss bullet in flight around") \
+		and _assert_true(_count_effect_shape(game, "mirror_reflect_arc") > 0, "mirror_reed click ultimate should show a visible mirror sweep")
 	_free_game(game)
 	return passed
 

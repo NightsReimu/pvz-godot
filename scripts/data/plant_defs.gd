@@ -725,6 +725,9 @@ const PLANTS: Dictionary = {
 		"reveal_radius": 360.0,
 		"reflect_damage_mult": 1.2,
 		"sniper_damage": 240.0,
+		"ultimate_name": "镜面折返",
+		"ultimate_charge_time": 62.0,
+		"ultimate_duration": 0.5,
 	},
 	"frost_fan": {
 		"name": "霜扇草",

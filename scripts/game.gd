@@ -11353,16 +11353,28 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				})
 				_trigger_screen_shake(4.0)
 		"mirror_reed":
-			if _summon_mirror_reed_sniper_support(row, col, 1, 1.0) > 0:
+			# Ultimate: turn every boss bullet currently in flight back along its own path.
+			var mirrored := 0
+			if touhou_danmaku != null:
+				for bullet_variant in touhou_danmaku.bullets:
+					var mirrored_bullet: Dictionary = bullet_variant
+					if bool(mirrored_bullet.get("reflected", false)):
+						continue
+					if _bounce_boss_danmaku(mirrored_bullet, Vector2i(row, col), true):
+						mirrored += 1
 				effects.append({
-					"shape": "mirror_sniper_call",
-					"position": center + Vector2(CELL_SIZE.x * 0.78, -18.0),
-					"radius": 38.0,
-					"time": 0.24,
-					"duration": 0.24,
-					"color": Color(0.82, 0.96, 1.0, 0.24),
-					"anim_speed": 7.8,
+					"shape": "mirror_reflect_arc",
+					"position": center,
+					"target": center + Vector2(-190.0, 0.0),
+					"time": 0.34,
+					"duration": 0.34,
+					"color": Color(0.82, 0.96, 1.0, 0.3),
+					"anim_speed": 9.4,
 				})
+				effects.append({"position": center, "radius": 200.0, "time": 0.3, "duration": 0.3, "color": Color(0.72, 0.9, 1.0, 0.24)})
+				_trigger_screen_shake(5.0)
+				if mirrored > 0:
+					_show_toast("镜面折返 · 反弹 %d 发弹幕" % mirrored)
 		"nether_shroom":
 			for active_row_variant in active_rows:
 				var summon_row = int(active_row_variant)
@@ -14767,17 +14779,18 @@ func _mirror_reed_on_segment(from: Vector2, to: Vector2, radius: float) -> Vecto
 	return Vector2i(-1, -1)
 
 
-func _bounce_boss_danmaku(bullet: Dictionary, cell: Vector2i) -> bool:
+func _bounce_boss_danmaku(bullet: Dictionary, cell: Vector2i, ignore_cooldown: bool = false) -> bool:
 	# Turns a boss bullet around at the mirror so it flies back along its own line.
 	var mirror = _targetable_plant_at(cell.x, cell.y)
 	if mirror == null or String(mirror.get("kind", "")) != "mirror_reed" or float(mirror.get("health", 0.0)) <= 0.0:
 		return false
-	if float(mirror.get("reflect_cooldown_until", 0.0)) > level_time:
+	if not ignore_cooldown and float(mirror.get("reflect_cooldown_until", 0.0)) > level_time:
 		return false
 	var velocity := Vector2(bullet.get("velocity", Vector2.ZERO))
 	if velocity.length() < 0.01:
 		return false
-	mirror["reflect_cooldown_until"] = level_time + 0.12
+	if not ignore_cooldown:
+		mirror["reflect_cooldown_until"] = level_time + 0.12
 	mirror["flash"] = maxf(float(mirror.get("flash", 0.0)), 0.24)
 	_set_targetable_plant(cell.x, cell.y, mirror)
 	bullet["reflected"] = true
