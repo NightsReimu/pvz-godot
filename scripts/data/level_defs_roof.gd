@@ -453,7 +453,12 @@ const LEVELS = [
 			{"time": 120.0, "kind": "flag", "wave": true},
 			{"time": 132.0, "kind": "turret_zombie"},
 			{"time": 144.0, "kind": "programmer_zombie"},
-			{"time": 158.0, "kind": "flag", "wave": true},
+			{"time": 150.0, "kind": "moon_rabbit"},
+			{"time": 154.0, "kind": "rabbit_airship"},
+			{"time": 158.0, "kind": "moon_rabbit_guard"},
+			{"time": 162.0, "kind": "kedama"},
+			{"time": 166.0, "kind": "star_fairy"},
+			{"time": 170.0, "kind": "flag", "wave": true},
 		],
 	},
 	{

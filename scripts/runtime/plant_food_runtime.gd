@@ -2,7 +2,7 @@ extends RefCounted
 class_name PlantFoodRuntime
 
 const Defs = preload("res://scripts/game_defs.gd")
-const SUPPORTED_KINDS = [
+const LEGACY_SUPPORTED_KINDS = [
 	"thermal_sunflower",
 	"obsidian_artichoke",
 	"steam_clover",
@@ -159,7 +159,9 @@ func _init(game_owner: Control) -> void:
 
 
 static func supported_kinds() -> Array:
-	return SUPPORTED_KINDS.duplicate()
+	# Keep the runtime split in lockstep with the authoritative plant table.
+	# New plants inherit the generic fallback until they receive a bespoke branch.
+	return Defs.PLANTS.keys()
 
 
 func plant_has_food_power(plant: Dictionary) -> bool:

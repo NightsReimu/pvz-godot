@@ -71,7 +71,10 @@ func test_rain(game: Control) -> void:
 	game._handle_board_click(Vector2i(0,0))
 	check(game.grid[0][0] != null and game.sun_points == 0 and game.selected_tool=="","Free planting spends the held seed")
 	game.selected_tool = "wallnut"
-	rt.update_rain(2)
+	rt.update_rain(3.0)
+	check(rt.packets.size() > 0,"A later falling seed arrives after the paced rain interval")
+	if rt.packets.is_empty():
+		return
 	game._handle_primary_click(rt.packet_rect(rt.packets[0]).get_center())
 	check(game.selected_tool != "wallnut" and rt.packets.is_empty(),"Falling seed replaces the held plant")
 	rt.packets.append({"kind":"peashooter", "u":0.5, "v":0.5, "target":0.5, "life":1.0})

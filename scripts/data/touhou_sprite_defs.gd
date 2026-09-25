@@ -7,7 +7,7 @@ const IDLE_HEIGHTS := {
 	"kaguya_boss": 208.0,
 	"eirin_boss": 216.0,
 	"tewi_boss": 222.0,
-	"reisen_boss": 247.0,
+	"reisen_boss": 248.0,
 	"alice_boss": 242.0,
 	"chen_boss": 225.0,
 	"cirno_boss": 204.0,

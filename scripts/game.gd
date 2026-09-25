@@ -11360,21 +11360,22 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					var mirrored_bullet: Dictionary = bullet_variant
 					if bool(mirrored_bullet.get("reflected", false)):
 						continue
-					if _bounce_boss_danmaku(mirrored_bullet, Vector2i(row, col), true):
+					if _bounce_boss_danmaku(mirrored_bullet, Vector2i(row, col), true, false):
 						mirrored += 1
 				effects.append({
-					"shape": "mirror_reflect_arc",
-					"position": center,
-					"target": center + Vector2(-190.0, 0.0),
-					"time": 0.34,
-					"duration": 0.34,
-					"color": Color(0.82, 0.96, 1.0, 0.3),
-					"anim_speed": 9.4,
-				})
-				effects.append({"position": center, "radius": 200.0, "time": 0.3, "duration": 0.3, "color": Color(0.72, 0.9, 1.0, 0.24)})
+						"shape": "mirror_reed_ultimate",
+						"position": center,
+						"radius": 210.0,
+						"mirrored": mirrored,
+						"time": 0.72,
+						"duration": 0.72,
+						"color": Color(0.82, 0.96, 1.0, 0.62),
+						"anim_speed": 8.6,
+					})
 				_trigger_screen_shake(5.0)
 				if mirrored > 0:
 					_show_toast("镜面折返 · 反弹 %d 发弹幕" % mirrored)
+
 		"nether_shroom":
 			for active_row_variant in active_rows:
 				var summon_row = int(active_row_variant)
@@ -12323,22 +12324,10 @@ func _relocate_random_top_plant_for_sakuya() -> bool:
 
 
 func _update_sakuya_time_stop_relocation(zombie: Dictionary, delta: float) -> Dictionary:
-	if boss_time_stop_timer <= 0.0:
-		zombie["sakuya_relocate_timer"] = 0.0
-		zombie["sakuya_relocations_remaining"] = 0
-		return zombie
-	var relocations_remaining = int(zombie.get("sakuya_relocations_remaining", 0))
-	if relocations_remaining <= 0:
-		return zombie
-	var relocate_interval = maxf(float(zombie.get("sakuya_relocate_interval", 0.32)), 0.08)
-	var relocate_timer = float(zombie.get("sakuya_relocate_timer", relocate_interval)) - delta
-	while relocate_timer <= 0.0 and relocations_remaining > 0:
-		if _relocate_random_top_plant_for_sakuya():
-			zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.08)
-		relocations_remaining -= 1
-		relocate_timer += relocate_interval
-	zombie["sakuya_relocate_timer"] = relocate_timer
-	zombie["sakuya_relocations_remaining"] = relocations_remaining
+	# Compatibility hook for old saves. Current Luna Clock never mutates plant
+	# positions; the skill schedules knife effects instead.
+	zombie["sakuya_relocate_timer"] = 0.0
+	zombie["sakuya_relocations_remaining"] = 0
 	return zombie
 
 
@@ -14779,7 +14768,7 @@ func _mirror_reed_on_segment(from: Vector2, to: Vector2, radius: float) -> Vecto
 	return Vector2i(-1, -1)
 
 
-func _bounce_boss_danmaku(bullet: Dictionary, cell: Vector2i, ignore_cooldown: bool = false) -> bool:
+func _bounce_boss_danmaku(bullet: Dictionary, cell: Vector2i, ignore_cooldown: bool = false, snap_to_mirror: bool = true) -> bool:
 	# Turns a boss bullet around at the mirror so it flies back along its own line.
 	var mirror = _targetable_plant_at(cell.x, cell.y)
 	if mirror == null or String(mirror.get("kind", "")) != "mirror_reed" or float(mirror.get("health", 0.0)) <= 0.0:
@@ -14793,26 +14782,40 @@ func _bounce_boss_danmaku(bullet: Dictionary, cell: Vector2i, ignore_cooldown: b
 		mirror["reflect_cooldown_until"] = level_time + 0.12
 	mirror["flash"] = maxf(float(mirror.get("flash", 0.0)), 0.24)
 	_set_targetable_plant(cell.x, cell.y, mirror)
+	var mirror_center: Vector2 = _cell_center(cell.x, cell.y) + Vector2(6.0, -12.0)
+	var outgoing_velocity := -velocity
+	var outgoing_direction := outgoing_velocity.normalized()
+	var reflect_origin: Vector2 = mirror_center if snap_to_mirror else Vector2(bullet.get("position", mirror_center))
 	bullet["reflected"] = true
-	bullet["velocity"] = -velocity
+	bullet["velocity"] = outgoing_velocity
+	bullet["reflect_origin"] = reflect_origin
+	bullet["reflect_direction"] = outgoing_direction
+	bullet["reflect_age"] = 0.0
+	bullet["reflect_flash"] = 0.72
 	bullet["damage"] = float(bullet.get("damage", 0.0)) * float(Defs.PLANTS["mirror_reed"].get("reflect_damage_mult", 1.2))
 	bullet["hit_uids"] = []
 	bullet["age"] = 0.0
 	bullet["life"] = 3.2
 	bullet["arming_time"] = 0.04
-	# Timed gimmicks belong to the incoming path, not the return trip.
-	bullet.erase("freeze_at")
-	bullet.erase("thaw_at")
-	bullet.erase("redirect_at")
-	var mirror_center: Vector2 = _cell_center(cell.x, cell.y) + Vector2(6.0, -12.0)
+	# Clear incoming trajectory modifiers on the return trip.
+	for key in [
+		"freeze_at", "thaw_at", "redirect_at", "homing_after", "aim_point",
+		"boundary_x", "boundary_top", "boundary_height", "boundary_shift", "boundary_exit_x",
+		"orbit_until", "orbit_center", "orbit_radius", "orbit_angle", "orbit_turn",
+		"reisen_illusion", "reisen_cycle", "reisen_offset", "reisen_return_x", "reisen_return_exit", "reisen_mirror_y",
+		"angular_speed", "bounces",
+	]:
+		bullet.erase(key)
+	if snap_to_mirror:
+		bullet["position"] = mirror_center + outgoing_direction * 5.0
 	effects.append({
 		"shape": "mirror_reflect_arc",
-		"position": mirror_center,
-		"target": mirror_center - velocity.normalized() * 70.0,
-		"time": 0.3,
-		"duration": 0.3,
-		"color": Color(0.82, 0.94, 1.0, 0.32),
-		"anim_speed": 9.2,
+		"position": reflect_origin,
+		"target": reflect_origin + outgoing_direction * 118.0,
+		"time": 0.42,
+		"duration": 0.42,
+		"color": Color(0.82, 0.96, 1.0, 0.54),
+		"anim_speed": 11.0,
 	})
 	return true
 
@@ -16476,9 +16479,26 @@ func _apply_touhou_boss_battlefield_skill(zombie: Dictionary) -> Dictionary:
 			var stop_duration = 1.05 + phase * 0.2
 			boss_time_stop_timer = maxf(boss_time_stop_timer, stop_duration)
 			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.48)
-			zombie["sakuya_relocations_remaining"] = maxi(int(zombie.get("sakuya_relocations_remaining", 0)), mini(3, 2 + phase))
-			zombie["sakuya_relocate_interval"] = 0.28 - minf(0.08, phase * 0.02)
-			zombie["sakuya_relocate_timer"] = 0.08
+			# Luna Clock freezes the lawn and rains knives into marked lanes. It
+			# never teleports already-planted units; their grid identity stays stable.
+			zombie["sakuya_relocations_remaining"] = 0
+			var knife_cells := _pick_random_active_cells(2 + phase, 2, COLS - 1)
+			for knife_cell_variant in knife_cells:
+				var knife_cell := Vector2i(knife_cell_variant)
+				effects.append({
+					"shape": "sakuya_knife_rain",
+					"position": _cell_center(knife_cell.x, knife_cell.y) + Vector2(0.0, -92.0),
+					"target": _cell_center(knife_cell.x, knife_cell.y) + Vector2(0.0, -10.0),
+					"knife_count": 3 + phase,
+					"knife_height": 112.0,
+					"damage": float(Defs.ZOMBIES["sakuya_boss"].get("knife_rain_damage", 96.0)),
+					"row": knife_cell.x,
+					"col": knife_cell.y,
+					"time": 0.42,
+					"duration": 0.42,
+					"anim_speed": 8.2,
+					"color": Color(0.82, 0.9, 1.0, 0.4),
+				})
 			effects.append({"shape": "sakuya_time_grid", "position": center, "radius": 220.0 + phase * 24.0, "width": board_size.y * 0.44, "time": stop_duration, "duration": stop_duration, "anim_speed": 8.6, "color": Color(0.82, 0.9, 1.0, 0.3)})
 		"remilia_boss":
 			var cells = _remilia_target_cells(row, 3 + phase, 2)
@@ -24881,6 +24901,14 @@ func _draw_plants() -> void:
 				var cook_pulse = 0.5 + 0.5 * sin(level_time * 6.0 + float(plant.get("anim_phase", 0.0)))
 				draw_circle(draw_center + Vector2(0.0, -10.0), 40.0 + cook_pulse * 5.0, Color(1.0, 0.52, 0.18, 0.14))
 				draw_arc(draw_center + Vector2(0.0, -18.0), 26.0 + cook_pulse * 4.0, level_time * 3.2, level_time * 3.2 + PI * 1.6, 26, Color(1.0, 0.82, 0.32, 0.68), 2.2)
+			if String(plant.get("kind", "")) == "mirror_reed":
+				var reflect_until := float(plant.get("reflect_cooldown_until", 0.0))
+				var reflect_active := reflect_until > level_time or float(plant.get("flash", 0.0)) > 0.0 or bool(plant.get("ultimate_active", false))
+				var mirror_pulse := 0.5 + 0.5 * sin(level_time * 7.5 + float(plant.get("anim_phase", 0.0)))
+				var mirror_alpha := 0.18 if not reflect_active else 0.42 + mirror_pulse * 0.18
+				draw_circle(draw_center + Vector2(10.0, -14.0), 32.0 + mirror_pulse * 4.0, Color(0.56, 0.88, 1.0, mirror_alpha * 0.24))
+				draw_arc(draw_center + Vector2(10.0, -14.0), 28.0 + mirror_pulse * 5.0, level_time * 1.6, level_time * 1.6 + PI * 1.55, 32, Color(0.72, 0.96, 1.0, mirror_alpha), 2.2)
+				draw_arc(draw_center + Vector2(10.0, -14.0), 22.0, -level_time * 2.2, -level_time * 2.2 + PI * 1.15, 24, Color(1.0, 0.96, 0.72, mirror_alpha * 0.78), 1.5)
 
 			_set_combat_transform(draw_center, float(motion["rotation"]), Vector2(motion["scale"]) * unit_scale)
 			var plant_kind := String(plant["kind"])
@@ -25778,6 +25806,27 @@ func _draw_effects() -> void:
 				draw_circle(shard_center, 2.4 + (1.0 - shard_ratio) * 1.8, Color(0.94, 1.0, 1.0, effect_color.a * 0.62))
 			draw_circle(reflect_origin, 9.0, Color(0.86, 0.98, 1.0, effect_color.a * 0.42))
 			draw_circle(reflect_target, 11.0, Color(0.92, 1.0, 1.0, effect_color.a * 0.72))
+			continue
+		if shape == "mirror_reed_ultimate":
+			var ultimate_center := Vector2(effect["position"])
+			var ultimate_radius := float(effect.get("radius", 210.0))
+			var ultimate_birth := clampf(1.0 - ratio, 0.0, 1.0)
+			var ultimate_spin: float = level_time * anim_speed
+			var ring_radius := ultimate_radius * (0.34 + ultimate_birth * 0.66)
+			draw_circle(ultimate_center, ring_radius * 0.58, Color(0.54, 0.84, 1.0, effect_color.a * 0.08))
+			for ring_index in range(3):
+				var arc_radius := ring_radius * (0.54 + float(ring_index) * 0.18)
+				draw_arc(ultimate_center, arc_radius, ultimate_spin * (0.36 if ring_index % 2 == 0 else -0.28) + ring_index * 0.7, ultimate_spin * (0.36 if ring_index % 2 == 0 else -0.28) + ring_index * 0.7 + PI * (1.12 + ultimate_birth * 0.48), 42, Color(0.72, 0.96, 1.0, effect_color.a * (0.78 - ring_index * 0.14)), 2.8 - ring_index * 0.45, true)
+			for shard_index in range(12):
+				var shard_angle := ultimate_spin * 0.42 + float(shard_index) * TAU / 12.0
+				var shard_pos := ultimate_center + Vector2.from_angle(shard_angle) * ring_radius * 0.86
+				draw_line(shard_pos - Vector2.from_angle(shard_angle) * 8.0, shard_pos + Vector2.from_angle(shard_angle) * 8.0, Color(0.92, 1.0, 1.0, effect_color.a * 0.5), 1.6, true)
+			for ray_index in range(6):
+				var ray_angle := ultimate_spin * -0.24 + float(ray_index) * TAU / 6.0
+				var ray_end := ultimate_center + Vector2.from_angle(ray_angle) * ring_radius * 0.74
+				draw_line(ultimate_center, ray_end, Color(0.84, 0.98, 1.0, effect_color.a * 0.16), 1.2, true)
+			draw_circle(ultimate_center, 15.0 + ultimate_birth * 10.0, Color(1.0, 1.0, 1.0, effect_color.a * 0.55))
+			draw_circle(ultimate_center, 7.0 + ultimate_birth * 5.0, Color(0.74, 0.96, 1.0, effect_color.a * 0.9))
 			continue
 		if shape == "mirror_sniper_call":
 			var summon_center = Vector2(effect["position"])

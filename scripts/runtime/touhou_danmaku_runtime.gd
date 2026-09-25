@@ -738,6 +738,9 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 		b["slowed"] = focused_owners.has(int(b.owner))
 		var motion_delta = delta * (0.35 if bool(b.slowed) else 1.0)
 		b.age += delta
+		if bool(b.get("reflected", false)):
+			b["reflect_age"] = float(b.get("reflect_age", 0.0)) + delta
+			b["reflect_flash"] = maxf(0.0, float(b.get("reflect_flash", 0.0)) - delta)
 		var age = float(b.age)
 		var frozen = b.has("freeze_at") and age >= float(b.freeze_at) and age < float(b.thaw_at)
 		if not frozen:
@@ -1034,6 +1037,19 @@ func draw() -> void:
 				game.draw_circle(point + Vector2(-1, -1), radius * 0.43, Color(1, 1, 1, 0.85))
 		if bool(b.get("frozen", false)) or game.boss_time_stop_timer > 0.0:
 			game.draw_arc(point, radius + 3, 0, TAU, 12, Color(0.85, 0.98, 1, 0.65), 1, true)
+		if bool(b.get("reflected", false)):
+			var reflected_dir := Vector2(b.get("reflect_direction", Vector2(b.velocity).normalized()))
+			if reflected_dir.is_zero_approx():
+				reflected_dir = Vector2(b.velocity).normalized()
+			var reflected_age := float(b.get("reflect_age", 0.0))
+			var reflected_fade := clampf(1.0 - reflected_age / 2.8, 0.18, 1.0)
+			var reflected_color := Color(0.62, 0.92, 1.0, reflected_fade)
+			var tail_length := 22.0 + minf(78.0, reflected_age * 90.0)
+			var tail_start: Vector2 = point - reflected_dir * tail_length
+			game.draw_line(tail_start, point, Color(0.48, 0.86, 1.0, reflected_fade * 0.18), radius * 2.8, true)
+			game.draw_line(tail_start, point, Color(0.88, 1.0, 1.0, reflected_fade * 0.72), maxf(1.5, radius * 0.42), true)
+			game.draw_arc(point, radius + 5.0 + sin(float(game.level_time) * 8.0) * 1.5, 0.0, TAU, 18, reflected_color, 1.8, true)
+			game.draw_circle(point, radius * 0.42, Color(1.0, 1.0, 1.0, reflected_fade * 0.9))
 
 
 func _draw_bullet_polygon(polygon: PackedVector2Array, color: Color) -> void:

@@ -28,6 +28,7 @@ func _run() -> void:
 	failed = not _test_lotus_lancer_click_ultimate_spawns_converging_lotus_barrage() or failed
 	failed = not _test_lotus_lancer_plant_food_matches_its_click_barrage() or failed
 	failed = not _test_mirror_reed_click_ultimate_bounces_every_boss_bullet() or failed
+	failed = not _test_mirror_reed_reflection_keeps_visual_path_metadata() or failed
 	failed = not _test_magic_flower_click_ultimate_spawns_random_lane_barrage() or failed
 	failed = not _test_tesla_tulip_click_ultimate_summons_model_y() or failed
 	failed = not _test_brick_guard_click_ultimate_creates_column_wall() or failed
@@ -528,6 +529,25 @@ func _test_mirror_reed_click_ultimate_bounces_every_boss_bullet() -> bool:
 	var passed := _assert_true(activated, "mirror_reed should accept click ultimate activation when fully charged") \
 		and _assert_true(reflected == 3, "mirror_reed click ultimate should turn every boss bullet in flight around") \
 		and _assert_true(_count_effect_shape(game, "mirror_reflect_arc") > 0, "mirror_reed click ultimate should show a visible mirror sweep")
+	_free_game(game)
+	return passed
+
+
+func _test_mirror_reed_reflection_keeps_visual_path_metadata() -> bool:
+	var game := _make_game()
+	var row := 2
+	var col := 2
+	var plant = game.call("_create_plant", "mirror_reed", row, col)
+	game.grid[row][col] = plant
+	var dm = game.call("_ensure_touhou_danmaku")
+	var bullet := {"owner": 1, "kind": "eirin_boss", "position": game.call("_cell_center", row, col + 2), "velocity": Vector2(-240.0, 38.0), "age": 1.0, "life": 5.0, "radius": 6.0, "damage": 30.0, "color": Color.WHITE, "shape": "orb", "arming_time": 0.0}
+	dm.bullets.append(bullet)
+	var reflected := bool(game.call("_bounce_boss_danmaku", bullet, Vector2i(row, col)))
+	var passed := _assert_true(reflected, "mirror reed should reflect a live boss bullet") \
+		and _assert_true(bool(bullet.get("reflected", false)), "reflected bullet should keep reflected state") \
+		and _assert_true(bullet.has("reflect_origin") and bullet.has("reflect_direction") and bullet.has("reflect_age"), "reflected bullet should retain path metadata for rendering") \
+		and _assert_true(Vector2(bullet.get("reflect_direction", Vector2.ZERO)).dot(Vector2(bullet.velocity)) > 0.0, "reflected direction should match the outgoing velocity") \
+		and _assert_true(not bullet.has("homing_after") and not bullet.has("orbit_until") and not bullet.has("angular_speed"), "reflected bullet should clear incoming trajectory modifiers")
 	_free_game(game)
 	return passed
 
