@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GameScript = preload("res://scripts/game.gd")
+const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 
 
 func _initialize() -> void:
@@ -12,6 +13,8 @@ func _run() -> void:
 	failed = not _test_sfx_pool_is_prepared_with_hit_streams() or failed
 	failed = not _test_hit_sfx_assets_and_routing() or failed
 	failed = not _test_basic_projectile_hit_emits_feedback() or failed
+	failed = not _test_elemental_impacts_stay_local() or failed
+	failed = not _test_compact_seed_cards() or failed
 	failed = not _test_polished_art_assets_load_for_common_combat_readability() or failed
 	quit(1 if failed else 0)
 
@@ -140,5 +143,40 @@ func _test_polished_art_assets_load_for_common_combat_readability() -> bool:
 		passed = _assert_true(game.call("_polished_plant_texture", "sunflower") is Texture2D, "polished sunflower PNG should load") and passed
 		passed = _assert_true(game.call("_polished_plant_texture", "wallnut") is Texture2D, "polished wallnut PNG should load") and passed
 		passed = _assert_true(game.call("_polished_projectile_texture", "pea") is Texture2D, "polished pea projectile PNG should load") and passed
+	_free_game(game)
+	return passed
+
+
+func _test_compact_seed_cards() -> bool:
+	var theme = ThemeLib.new()
+	if not _assert_true(theme.has_method("seed_card_layout"), "seed cards need a shared compact layout"):
+		return false
+	var passed := true
+	for card_size in [Vector2(64, 50), Vector2(82, 92), Vector2(70, 60)]:
+		for conveyor in [false, true]:
+			var rect := Rect2(Vector2(24, 12), card_size)
+			var layout: Dictionary = theme.call("seed_card_layout", rect, conveyor)
+			var header: Rect2 = layout.header
+			var portrait: Rect2 = layout.portrait
+			var footer: Rect2 = layout.footer
+			passed = _assert_true(rect.encloses(header) and rect.encloses(portrait) and rect.encloses(footer), "card regions must remain within their hit target") and passed
+			passed = _assert_true(header.end.y <= portrait.position.y and portrait.end.y <= footer.position.y, "card labels and portrait must not overlap") and passed
+			passed = _assert_true(portrait.size.y >= 20, "small cards must reserve at least 20 pixels for the portrait") and passed
+	return passed
+
+
+func _test_elemental_impacts_stay_local() -> bool:
+	var game = _make_game()
+	var passed := true
+	for sample in [
+		[{"kind": "pea", "damage": 40, "fire": true, "slow_duration": 2.0}, {}, "fire"],
+		[{"kind": "pea", "damage": 20, "slow_duration": 2.0}, {}, "ice"],
+		[{"kind": "pea", "damage": 20}, {"shield_health": 100}, "armor"],
+		[{"kind": "pea", "damage": 20}, {}, "leaf"],
+	]:
+		game.screen_shake_amount = 0.0
+		game._emit_projectile_impact_feedback(Vector2(100, 100), sample[0], sample[1])
+		passed = _assert_true(game.effects.back().get("impact_style", "") == sample[2], "impact must identify %s" % sample[2]) and passed
+		passed = _assert_true(is_zero_approx(game.screen_shake_amount), "routine %s impacts must not continuously shake the battle" % sample[2]) and passed
 	_free_game(game)
 	return passed

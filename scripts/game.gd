@@ -2,6 +2,7 @@ extends Control
 
 const Defs = preload("res://scripts/game_defs.gd")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
+const CombatDetails = preload("res://scripts/ui/combat_details.gd")
 const GardenMenus = preload("res://scripts/ui/garden_menus.gd")
 const MinigameDefs = preload("res://scripts/data/minigame_defs.gd")
 const MinigameMenu = preload("res://scripts/ui/minigame_menu.gd")
@@ -14024,13 +14025,21 @@ func _play_bite_hit_sfx(zombie: Dictionary) -> Dictionary:
 func _emit_projectile_impact_feedback(position: Vector2, projectile: Dictionary = {}, target: Dictionary = {}) -> void:
 	var projectile_kind := String(projectile.get("kind", "pea"))
 	var base_color := Color(projectile.get("color", Color(0.36, 0.86, 0.3)))
+	var impact_style := CombatDetails.impact_style(projectile, target)
+	if impact_style == "fire":
+		base_color = Color("#ffa342")
+	elif impact_style == "ice":
+		base_color = Color("#a5e4f4")
+	elif impact_style == "armor":
+		base_color = Color("#ffe1a0")
 	var heavy_hit := float(projectile.get("damage", 0.0)) >= 35.0 or projectile_kind == "amber_ultimate_shard" or bool(projectile.get("fire", false))
 	effects.append({
 		"shape": "projectile_impact",
+		"impact_style": impact_style,
 		"position": position,
-		"radius": 40.0 if heavy_hit else 28.0,
-		"time": 0.16 if heavy_hit else 0.13,
-		"duration": 0.16 if heavy_hit else 0.13,
+		"radius": 26.0 if heavy_hit else 20.0,
+		"time": 0.22 if heavy_hit else 0.18,
+		"duration": 0.22 if heavy_hit else 0.18,
 		"color": Color(base_color.r, base_color.g, base_color.b, 0.28 if heavy_hit else 0.22),
 		"anim_speed": 8.0 if heavy_hit else 6.0,
 	})
@@ -14046,9 +14055,10 @@ func _emit_projectile_impact_feedback(position: Vector2, projectile: Dictionary 
 			"life": rng.randf_range(0.18, 0.34 if heavy_hit else 0.28),
 			"max_life": 0.34 if heavy_hit else 0.28,
 			"color": Color(base_color.r, base_color.g, base_color.b, 0.78),
-			"size": rng.randf_range(2.2, 4.8 if heavy_hit else 4.0),
+			"size": rng.randf_range(1.6, 3.2 if heavy_hit else 2.6),
+			"glow_strength": 0.3,
 		})
-	if heavy_hit:
+	if float(projectile.get("damage", 0.0)) >= 90.0:
 		_trigger_screen_shake(2.2)
 	var impact_sfx_path := _impact_sfx_path(projectile, heavy_hit)
 	_play_sfx(impact_sfx_path, _impact_sfx_volume_db(impact_sfx_path, heavy_hit), rng.randf_range(0.94, 1.08))
@@ -22030,11 +22040,10 @@ func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: b
 		ThemeLib.draw_rounded_panel(self, card_rect_draw, Color("dce9ca"), GardenMenus.GREEN, 10, 0.0)
 		draw_circle(card_rect_draw.end - Vector2(10, 10), 4, GardenMenus.GREEN, true, -1, true)
 
-	var label_height := 16.0 if card_rect_draw.size.y < 64.0 else 20.0
-	_draw_card_icon(kind, card_rect_draw.get_center(), clampf((card_rect_draw.size.y - label_height * 2.0) / 52.0, 0.2, 1.0))
-	ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(5, 2), Vector2(card_rect_draw.size.x - 10, label_height)), String(Defs.PLANTS[kind]["name"]), 13, Color(0.14, 0.23, 0.16), HORIZONTAL_ALIGNMENT_CENTER, 9)
-	ThemeLib.draw_label(self, ui_font, Rect2(card_rect_draw.position + Vector2(8, card_rect_draw.size.y - label_height - 2), Vector2(card_rect_draw.size.x - 16, label_height)), str(Defs.PLANTS[kind]["cost"]), 16, Color(0.28, 0.18, 0.06))
-
+	var layout := ThemeLib.seed_card_layout(card_rect_draw)
+	_draw_card_icon(kind, Rect2(layout.portrait).get_center(), float(layout.icon_scale))
+	ThemeLib.draw_label(self, ui_font, layout.header, String(Defs.PLANTS[kind]["name"]), 13, Color("#283d37"), HORIZONTAL_ALIGNMENT_CENTER, 8)
+	ThemeLib.draw_label(self, ui_font, layout.footer, str(Defs.PLANTS[kind]["cost"]), 15, Color("#68532b"), HORIZONTAL_ALIGNMENT_LEFT, 9)
 
 
 func _draw_almanac_entry(kind: String, rect: Rect2, selected: bool, is_plant: bool, allow_hover: bool = true) -> void:
@@ -24151,41 +24160,33 @@ func _draw_seed_bank() -> void:
 
 		_draw_panel_shell(draw_rect_local, card_color, Color(0.38, 0.28, 0.16), 0.08, 0.05)
 		if selected:
-			var card_pulse = 0.76 + 0.24 * sin(ui_time * 6.8 + float(index))
-			draw_rect(draw_rect_local.grow(6.0), Color(1.0, 0.92, 0.22, 0.08 * card_pulse), true)
-			draw_rect(draw_rect_local.grow(2.0), Color(1.0, 0.9, 0.18), false, 4.0)
+			ThemeLib.draw_rounded_panel(self, draw_rect_local.grow(2), Color("#e4efd5"), GardenMenus.GREEN, 8, 0.0)
+			ThemeLib.draw_rounded_panel(self, Rect2(draw_rect_local.position + Vector2(6, 1), Vector2(draw_rect_local.size.x - 12, 3)), GardenMenus.GREEN, GardenMenus.GREEN, 2, 0.0)
 
-		_draw_card_icon(kind, draw_rect_local.get_center() + Vector2(0, 5 if _is_conveyor_level() else 0), minf(1, (draw_rect_local.size.y - (24 if _is_conveyor_level() else 36)) / 52.0))
+		var layout := ThemeLib.seed_card_layout(draw_rect_local, _is_conveyor_level())
+		var portrait: Rect2 = layout.portrait
+		_draw_card_icon(kind, portrait.get_center(), float(layout.icon_scale))
+		if not _is_conveyor_level() and not affordable:
+			draw_rect(portrait, Color(0.15, 0.18, 0.15, 0.22))
+		if not _is_conveyor_level() and float(card_cooldowns.get(kind, 0.0)) > 0.01:
+			var cover := Rect2(portrait.position, Vector2(portrait.size.x, portrait.size.y * clampf(cooling_ratio, 0, 1)))
+			draw_rect(cover, Color(0.12, 0.2, 0.18, 0.52))
+			var recharge := Rect2(portrait.position + Vector2(1, portrait.size.y - 2), Vector2(portrait.size.x - 2, 2))
+			draw_rect(recharge, Color("#3a5146"))
+			draw_rect(ThemeLib.progress_fill_rect(recharge, 1.0 - cooling_ratio), Color("#b6d57f"))
 
-		if not _is_conveyor_level() and not affordable and float(card_cooldowns[kind]) <= 0.01:
-			draw_rect(draw_rect_local, Color(0.0, 0.0, 0.0, 0.24), true)
-
-		if not _is_conveyor_level() and float(card_cooldowns[kind]) > 0.01:
-			var cover_height = draw_rect_local.size.y * clampf(cooling_ratio, 0.0, 1.0)
-			draw_rect(Rect2(draw_rect_local.position, Vector2(draw_rect_local.size.x, cover_height)), Color(0.12, 0.12, 0.12, 0.46), true)
-			draw_rect(Rect2(draw_rect_local.position + Vector2(0.0, cover_height - 3.0), Vector2(draw_rect_local.size.x, 3.0)), Color(1.0, 1.0, 1.0, 0.14), true)
-			var recharge_rect = Rect2(draw_rect_local.position + Vector2(4.0, draw_rect_local.size.y - 7.0), Vector2(draw_rect_local.size.x - 8.0, 3.0))
-			draw_rect(recharge_rect, Color(0.0, 0.0, 0.0, 0.26), true)
-			draw_rect(ThemeLib.progress_fill_rect(recharge_rect, 1.0 - cooling_ratio), Color(0.86, 0.96, 0.62, 0.82), true)
-
-		# Draw name and cost AFTER overlays so they're always visible
-		var plant_name = String(data["name"])
-		# Name backing strip for readability
-		draw_rect(Rect2(draw_rect_local.position + Vector2(0.0, 2.0), Vector2(draw_rect_local.size.x, 18.0)), Color(card_color.r, card_color.g, card_color.b, 0.88), true)
+		ThemeLib.draw_label(self, ui_font, layout.header, String(data["name"]), 12, Color("#283d37"), HORIZONTAL_ALIGNMENT_CENTER, 8)
 		var enhance_level := int(plant_enhance_levels.get(kind, 0))
-		var name_width: float = draw_rect_local.size.x - (34.0 if enhance_level > 0 else 8.0)
-		ThemeLib.draw_label(self, ui_font, Rect2(draw_rect_local.position + Vector2(4, 2), Vector2(name_width, 18)), plant_name, 12, Color(0.29, 0.17, 0.05), HORIZONTAL_ALIGNMENT_CENTER, 8)
 		if enhance_level > 0:
-			_draw_enhance_level_badge(draw_rect_local.position + Vector2(draw_rect_local.size.x - 15.0, 15.0), enhance_level, 0.78, true)
+			var badge_scale := 0.48 if bool(layout.compact) else 0.68
+			_draw_enhance_level_badge(Vector2(portrait.end.x - 10 * badge_scale, portrait.position.y + 9 * badge_scale), enhance_level, badge_scale, true)
 		if not _is_conveyor_level():
-			# Cost backing strip
-			draw_rect(Rect2(draw_rect_local.position + Vector2(0.0, draw_rect_local.size.y - 20.0), Vector2(draw_rect_local.size.x, 20.0)), Color(card_color.r, card_color.g, card_color.b, 0.82), true)
-			ThemeLib.draw_label(self, ui_font, Rect2(draw_rect_local.position + Vector2(4, draw_rect_local.size.y - 20), Vector2(draw_rect_local.size.x * 0.55, 18)), str(draw_cost), 16, Color(0.29, 0.17, 0.05), HORIZONTAL_ALIGNMENT_LEFT, 10)
-		# Star indicator if plant has stars
+			var cost_rect: Rect2 = layout.footer
+			cost_rect.size.x *= 0.64
+			ThemeLib.draw_label(self, ui_font, cost_rect, str(draw_cost), 15, Color("#68532b") if affordable else Color("#9b4436"), HORIZONTAL_ALIGNMENT_LEFT, 9)
 		if plant_stars.has(kind) and int(plant_stars[kind]) > 0:
-			var star_count = int(plant_stars[kind])
-			for star_i in range(mini(star_count, 3)):
-				draw_circle(draw_rect_local.position + Vector2(draw_rect_local.size.x - 5.0 - float(star_i) * 5.0, draw_rect_local.size.y - 10.0), 2.0, Color(0.72, 0.52, 0.06, 0.9))
+			for star_i in range(mini(int(plant_stars[kind]), 3)):
+				draw_circle(Vector2(draw_rect_local.end.x - 6 - star_i * 4, Rect2(layout.footer).get_center().y), 1.5, Color("#b58b32"), true, -1, true)
 
 	if _is_whack_level():
 		var hammer_rect = _shovel_rect()
@@ -24930,7 +24931,7 @@ func _draw_plants() -> void:
 						draw_center + Vector2(0.0, -52.0 * unit_scale),
 						58.0 * unit_scale,
 						clampf(float(plant["armor_health"]) / float(plant["max_armor_health"]), 0.0, 1.0),
-						Color(0.16, 0.96, 0.3)
+						Color(0.38, 0.72, 0.96)
 					)
 				_draw_health_bar(
 					draw_center + Vector2(0.0, -42.0 * unit_scale),
@@ -24939,8 +24940,8 @@ func _draw_plants() -> void:
 					Color(0.32, 0.86, 0.24)
 				)
 			if float(plant.get("sleep_timer", 0.0)) > 0.0:
-				_draw_text("Z", draw_center + Vector2(-10.0, -62.0), 18, Color(0.86, 0.9, 1.0, 0.9))
-				_draw_text("Z", draw_center + Vector2(6.0, -76.0), 14, Color(0.86, 0.9, 1.0, 0.7))
+				_draw_text("Z", draw_center + Vector2(-10.0, -62.0) * unit_scale, maxi(8, roundi(18 * unit_scale)), Color(0.86, 0.9, 1.0, 0.9))
+				_draw_text("Z", draw_center + Vector2(6.0, -76.0) * unit_scale, maxi(7, roundi(14 * unit_scale)), Color(0.86, 0.9, 1.0, 0.7))
 
 
 func _draw_projectiles() -> void:
@@ -25616,33 +25617,11 @@ func _draw_effects() -> void:
 			_ensure_volcano_expansion().draw_effect(effect)
 			continue
 		var anim_speed = float(effect.get("anim_speed", 4.0))
-		if _try_draw_image2_effect(shape, effect, ratio, effect_color):
-			continue
+		# Elemental impact shapes take priority over the generic legacy hit texture.
 		if shape == "projectile_impact":
-			var impact_center = Vector2(effect["position"])
-			var fade = clampf(ratio, 0.0, 1.0)        # 1 at birth, 0 at death
-			var born = clampf(1.0 - ratio, 0.0, 1.0)   # 0 at birth, 1 at death
-			var base_radius = _effect_visual_radius(effect, ratio)
-			var shock_radius = base_radius * (0.5 + born * 0.95)
-			# bright white core flash, strongest right at impact
-			var core_flash = clampf(fade * 1.5, 0.0, 1.0)
-			draw_circle(impact_center, base_radius * 0.7, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.4))
-			draw_circle(impact_center, base_radius * 0.42, Color(1.0, 1.0, 1.0, core_flash * 0.8))
-			draw_circle(impact_center, base_radius * 0.22, Color(1.0, 1.0, 1.0, core_flash))
-			# expanding double shockwave ring
-			draw_arc(impact_center, shock_radius, 0.0, TAU, 30, Color(1.0, 1.0, 0.95, fade * 0.8), 2.2)
-			draw_arc(impact_center, shock_radius * 0.76, 0.0, TAU, 24, Color(effect_color.r, effect_color.g, effect_color.b, fade * 0.6), 1.6)
-			# radial spark rays
-			var ray_count = 8
-			for ray_index in range(ray_count):
-				var ray_angle = level_time * anim_speed * 0.4 + float(ray_index) * TAU / float(ray_count)
-				var ray_dir = Vector2(cos(ray_angle), sin(ray_angle))
-				var ray_start = impact_center + ray_dir * base_radius * 0.3
-				var ray_end = impact_center + ray_dir * shock_radius * 1.08
-				draw_line(ray_start, ray_end, Color(1.0, 1.0, 0.92, fade * 0.6), 1.8)
-			# additive bloom: bright core + tinted halo
-			glow_primitives.append({"type": "circle", "pos": impact_center, "radius": base_radius * 1.2, "color": Color(1.0, 1.0, 1.0, fade * 0.5)})
-			glow_primitives.append({"type": "circle", "pos": impact_center, "radius": base_radius * 0.5, "color": Color(effect_color.r, effect_color.g, effect_color.b, fade * 0.5)})
+			CombatDetails.impact(self, Vector2(effect.position), _effect_visual_radius(effect, ratio), ratio, effect_color, String(effect.get("impact_style", "leaf")))
+			continue
+		if _try_draw_image2_effect(shape, effect, ratio, effect_color):
 			continue
 		if shape == "dark_orbit":
 			var orbit_center = Vector2(effect["position"])
@@ -27622,7 +27601,7 @@ func _draw_vfx_particles() -> void:
 		draw_circle(pos, sz, Color(base.r, base.g, base.b, alpha * 0.55))
 		draw_circle(pos, sz * 0.5, Color(min(1.0, base.r + 0.3), min(1.0, base.g + 0.3), min(1.0, base.b + 0.3), alpha * 0.9))
 		# additive bloom on the glow layer
-		glow_primitives.append({"type": "circle", "pos": pos, "radius": sz * 2.6, "color": Color(base.r, base.g, base.b, 0.26 * alpha)})
+		glow_primitives.append({"type": "circle", "pos": pos, "radius": sz * 2.6, "color": Color(base.r, base.g, base.b, 0.26 * alpha * float(p.get("glow_strength", 1.0)))})
 
 
 func _draw_mowers() -> void:
@@ -28005,62 +27984,15 @@ func _draw_snow_pea(center: Vector2, size_scale: float, flash: float, alpha: flo
 
 
 func _draw_puff_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var cap_color = Color(0.74, 0.52, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	var cap = center + Vector2(0.0, -4.0 * size_scale)
-	# Stem
-	_draw_ink_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.78, 0.84, 0.66, alpha), 6.0 * size_scale)
-	draw_circle(center + Vector2(-7.0 * size_scale, 22.0 * size_scale), 5.0 * size_scale, Color(0.6, 0.74, 0.5, alpha))
-	# Cap
-	_draw_ink_disc(cap, 18.0 * size_scale, cap_color)
-	draw_circle(cap, 12.0 * size_scale, cap_color.lightened(0.08))
-	# Pale spots on cap
-	draw_circle(cap + Vector2(-8.0 * size_scale, -4.0 * size_scale), 3.2 * size_scale, Color(0.9, 0.78, 0.98, alpha * 0.7))
-	draw_circle(cap + Vector2(6.0 * size_scale, -7.0 * size_scale), 2.6 * size_scale, Color(0.9, 0.78, 0.98, alpha * 0.6))
-	draw_circle(cap + Vector2(9.0 * size_scale, 3.0 * size_scale), 2.2 * size_scale, Color(0.9, 0.78, 0.98, alpha * 0.6))
-	# Snout/barrel (shooter)
-	draw_circle(cap + Vector2(13.0 * size_scale, 1.0 * size_scale), 8.0 * size_scale, cap_color.darkened(0.06))
-	draw_circle(cap + Vector2(19.0 * size_scale, 1.0 * size_scale), 4.0 * size_scale, Color(0.4, 0.24, 0.5, alpha))
-	# Eyes + mouth
-	draw_circle(cap + Vector2(-5.0 * size_scale, -3.0 * size_scale), 2.8 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(cap + Vector2(3.0 * size_scale, -3.0 * size_scale), 2.8 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(cap + Vector2(-4.0 * size_scale, -4.0 * size_scale), 1.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
-	draw_circle(cap + Vector2(4.0 * size_scale, -4.0 * size_scale), 1.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
-	draw_arc(cap + Vector2(-1.0 * size_scale, 4.0 * size_scale), 5.0 * size_scale, 0.2, PI - 0.2, 12, Color(0.1, 0.1, 0.1, alpha), 2.0 * size_scale)
+	CombatDetails.mushroom(self, center, size_scale, "puff_shroom", flash, alpha)
 
 
 func _draw_sun_shroom(center: Vector2, size_scale: float, flash: float, mature: bool, alpha: float = 1.0) -> void:
-	var cap_radius = 20.0 if mature else 14.0
-	var stem_height = 34.0 if mature else 26.0
-	var cap = center + Vector2(0.0, -6.0 * size_scale)
-	var cap_color = Color(0.98, 0.84, 0.28, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	# Warm sun glow
-	var glow_phase = level_time * 2.6
-	draw_arc(cap, (cap_radius + 7.0) * size_scale, glow_phase, glow_phase + PI * 1.5, 22, Color(1.0, 0.86, 0.32, alpha * 0.26), 2.4 * size_scale)
-	draw_arc(cap, (cap_radius + 11.0) * size_scale, -glow_phase * 0.7, -glow_phase * 0.7 + PI * 1.2, 18, Color(1.0, 0.92, 0.5, alpha * 0.18), 1.8 * size_scale)
-	# Stem
-	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, stem_height * size_scale), Color(0.9, 0.86, 0.66, alpha), 6.0 * size_scale)
-	# Cap + highlight
-	draw_circle(cap, cap_radius * size_scale, cap_color)
-	draw_circle(cap + Vector2(-cap_radius * 0.3 * size_scale, -cap_radius * 0.3 * size_scale), cap_radius * 0.5 * size_scale, cap_color.lightened(0.16))
-	# Spots
-	draw_circle(cap + Vector2(-6.0 * size_scale, -8.0 * size_scale), 3.6 * size_scale, Color(1.0, 0.95, 0.58, alpha))
-	draw_circle(cap + Vector2(6.0 * size_scale, -4.0 * size_scale), 3.6 * size_scale, Color(1.0, 0.95, 0.58, alpha))
-	draw_circle(cap + Vector2(2.0 * size_scale, 2.0 * size_scale), 2.6 * size_scale, Color(1.0, 0.95, 0.58, alpha))
-	# Eyes + smile
-	draw_circle(cap + Vector2(-4.0 * size_scale, -5.0 * size_scale), 2.4 * size_scale, Color(0.16, 0.1, 0.06, alpha))
-	draw_circle(cap + Vector2(4.0 * size_scale, -5.0 * size_scale), 2.4 * size_scale, Color(0.16, 0.1, 0.06, alpha))
-	draw_arc(cap + Vector2(0.0, 1.0 * size_scale), 4.0 * size_scale, 0.2, PI - 0.2, 10, Color(0.16, 0.1, 0.06, alpha), 1.8 * size_scale)
+	CombatDetails.mushroom(self, center, size_scale, "sun_shroom", flash, alpha, mature)
 
 
 func _draw_fume_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.84, 0.8, 0.76, alpha), 7.0 * size_scale)
-	_draw_ink_disc(center + Vector2(-2.0 * size_scale, -8.0 * size_scale), 22.0 * size_scale, Color(0.62, 0.34, 0.76, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	_draw_ink_disc(center + Vector2(18.0 * size_scale, -10.0 * size_scale), 12.0 * size_scale, Color(0.78, 0.54, 0.92, alpha))
-	draw_circle(center + Vector2(-7.0 * size_scale, -11.0 * size_scale), 3.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(center + Vector2(3.0 * size_scale, -11.0 * size_scale), 3.0 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	_draw_ink_rect(Rect2(center + Vector2(12.0 * size_scale, -18.0 * size_scale), Vector2(32.0 * size_scale, 16.0 * size_scale)), Color(0.9, 0.72, 1.0, alpha), true)
-	draw_circle(center + Vector2(44.0 * size_scale, -10.0 * size_scale), 8.0 * size_scale, Color(0.94, 0.8, 1.0, alpha * 0.9))
-	draw_circle(center + Vector2(54.0 * size_scale, -10.0 * size_scale), 5.0 * size_scale, Color(0.94, 0.8, 1.0, alpha * 0.54))
+	CombatDetails.mushroom(self, center, size_scale, "fume_shroom", flash, alpha)
 
 
 func _draw_grave_buster(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
@@ -29599,35 +29531,7 @@ func _draw_spikeweed(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 
 func _draw_torchwood(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var bark = Color(0.44, 0.28, 0.16, alpha)
-	var bark_dark = Color(0.32, 0.18, 0.1, alpha)
-	var flame_phase = level_time * 8.0
-	# Trunk stump
-	_draw_ink_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(32.0 * size_scale, 34.0 * size_scale)), bark, true)
-	_draw_ink_rect(Rect2(center + Vector2(-16.0 * size_scale, -4.0 * size_scale), Vector2(8.0 * size_scale, 34.0 * size_scale)), bark_dark, true)
-	# Bark grain lines
-	_draw_ink_line(center + Vector2(-4.0 * size_scale, 0.0), center + Vector2(-4.0 * size_scale, 28.0 * size_scale), bark_dark, 2.0 * size_scale)
-	_draw_ink_line(center + Vector2(6.0 * size_scale, 0.0), center + Vector2(6.0 * size_scale, 28.0 * size_scale), bark_dark, 2.0 * size_scale)
-	# Cut top ring
-	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 16.0 * size_scale, bark.lightened(0.1))
-	_draw_ink_disc(center + Vector2(0.0, -4.0 * size_scale), 11.0 * size_scale, bark)
-	draw_circle(center + Vector2(0.0, -4.0 * size_scale), 6.0 * size_scale, bark_dark)
-	# Flame crown (flickering tongues)
-	for flame_index in range(7):
-		var flame_ratio = float(flame_index) / 6.0
-		var flame_x = (-14.0 + flame_ratio * 28.0) * size_scale
-		var flame_h = (18.0 + sin(flame_phase + flame_index * 1.4) * 5.0) * size_scale
-		var flame_color = Color(0.98, 0.4 + flame_ratio * 0.3, 0.12, alpha * (0.7 - abs(flame_ratio - 0.5) * 0.4)).lerp(Color(1.0, 0.92, 0.5, alpha), flame_ratio * 0.4)
-		_draw_ink_polygon(PackedVector2Array([
-			center + Vector2(flame_x - 4.0 * size_scale, -4.0 * size_scale),
-			center + Vector2(flame_x + 4.0 * size_scale, -4.0 * size_scale),
-			center + Vector2(flame_x + sin(flame_phase + flame_index) * 2.0 * size_scale, -4.0 * size_scale - flame_h),
-		]), PackedColorArray([flame_color, flame_color, flame_color.lightened(0.2)]))
-	# Glowing ember eyes
-	draw_circle(center + Vector2(-6.0 * size_scale, 8.0 * size_scale), 2.6 * size_scale, Color(1.0, 0.7, 0.2, alpha))
-	draw_circle(center + Vector2(6.0 * size_scale, 8.0 * size_scale), 2.6 * size_scale, Color(1.0, 0.7, 0.2, alpha))
-	draw_circle(center + Vector2(-6.0 * size_scale, 8.0 * size_scale), 1.2 * size_scale, Color(1.0, 0.96, 0.7, alpha))
-	draw_circle(center + Vector2(6.0 * size_scale, 8.0 * size_scale), 1.2 * size_scale, Color(1.0, 0.96, 0.7, alpha))
+	CombatDetails.torchwood(self, center, size_scale, flash, alpha, level_time)
 
 
 func _draw_tallnut(center: Vector2, size_scale: float, flash: float, ratio: float, alpha: float = 1.0) -> void:
@@ -33298,6 +33202,8 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 	_draw_ink_rect(Rect2(torso + Vector2(-15.0, 16.0), Vector2(30.0, 12.0)), pants, true)
 	# Belt
 	_draw_ink_rect(Rect2(torso + Vector2(-15.0, 14.0), Vector2(30.0, 4.0)), Color(0.18, 0.16, 0.12), true)
+	if kind in ["normal", "flag", "conehead", "buckethead", "screen_door"]:
+		CombatDetails.jacket(self, torso, shirt, pants)
 	# Arms
 	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-24.0 - arm_swing - bite_ratio * 4.0, 8.0 + arm_swing * 0.25 - bite_ratio * 6.0), Color(0.54, 0.62, 0.52), 4.0)
 	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(24.0 + arm_swing + bite_ratio * 14.0, 8.0 - arm_swing * 0.25 + bite_ratio * 6.0), Color(0.54, 0.62, 0.52), 4.0)
@@ -33341,53 +33247,24 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 					Color(0.95, 0.16, 0.16),
 				])
 			)
-		"conehead":
+		"conehead", "buckethead":
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				_draw_ink_polygon(
-					PackedVector2Array([
-						torso + Vector2(0.0, -58.0),
-						torso + Vector2(-13.0, -34.0),
-						torso + Vector2(13.0, -34.0),
-					]),
-					PackedColorArray([
-						Color(0.95, 0.54, 0.15),
-						Color(0.84, 0.44, 0.1),
-						Color(0.84, 0.44, 0.1),
-					])
-				)
-				_draw_ink_polygon(
-					PackedVector2Array([
-						torso + Vector2(0.0, -58.0),
-						torso + Vector2(-4.0, -42.0),
-						torso + Vector2(4.0, -42.0),
-					]),
-					PackedColorArray([
-						Color(1.0, 0.8, 0.4),
-						Color(0.98, 0.66, 0.24),
-						Color(0.98, 0.66, 0.24),
-					])
-				)
-		"buckethead":
-			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				_draw_ink_rect(Rect2(torso + Vector2(-15.0, -48.0), Vector2(30.0, 18.0)), Color(0.56, 0.56, 0.6), true)
-				_draw_ink_rect(Rect2(torso + Vector2(-13.0, -46.0), Vector2(26.0, 6.0)), Color(0.72, 0.72, 0.76), true)
-				_draw_ink_rect(Rect2(torso + Vector2(-17.0, -52.0), Vector2(34.0, 6.0)), Color(0.66, 0.66, 0.7), true)
+				var shield_ratio := float(zombie.shield_health) / maxf(1.0, float(zombie.get("max_shield_health", Defs.ZOMBIES[kind].get("shield_health", 1.0))))
+				CombatDetails.equipment(self, torso, kind, shield_ratio)
 		"pole_vault":
 			_draw_ink_line(torso + Vector2(-10.0, -46.0), torso + Vector2(10.0, -46.0), Color(0.96, 0.96, 0.98), 4.0)
 			_draw_ink_rect(Rect2(torso + Vector2(-12.0, -4.0), Vector2(24.0, 10.0)), Color(0.96, 0.96, 0.98), true)
 			if not bool(zombie.get("has_vaulted", true)) or bool(zombie.get("jumping", false)):
 				_draw_ink_line(torso + Vector2(-28.0, -42.0), torso + Vector2(34.0, -60.0), Color(0.54, 0.38, 0.18), 4.0)
 		"newspaper":
+			_draw_ink_rect(Rect2(torso + Vector2(-14, -12), Vector2(28, 14)), Color("#777878"), true)
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				_draw_ink_rect(Rect2(torso + Vector2(8.0, -30.0), Vector2(24.0, 34.0)), Color(0.9, 0.9, 0.9), true)
-				_draw_ink_rect(Rect2(torso + Vector2(10.0, -28.0), Vector2(20.0, 30.0)), Color(1.0, 1.0, 1.0), true)
-				for line_y in range(4):
-					_draw_ink_line(torso + Vector2(12.0, -22.0 + line_y * 7.0), torso + Vector2(28.0, -22.0 + line_y * 7.0), Color(0.38, 0.38, 0.38), 1.0)
+				var shield_ratio := float(zombie.shield_health) / maxf(1.0, float(zombie.get("max_shield_health", Defs.ZOMBIES[kind].get("shield_health", 1.0))))
+				CombatDetails.equipment(self, torso, kind, shield_ratio)
 			else:
-				_draw_ink_line(torso + Vector2(-8.0, -38.0), torso + Vector2(-2.0, -34.0), Color(0.22, 0.12, 0.08), 3.0)
-				_draw_ink_line(torso + Vector2(2.0, -38.0), torso + Vector2(8.0, -34.0), Color(0.22, 0.12, 0.08), 3.0)
-				draw_arc(torso + Vector2(0.0, -18.0), 10.0, 0.0, PI, 12, Color(0.18, 0.06, 0.06), 2.0)
-			_draw_ink_rect(Rect2(torso + Vector2(-14.0, -12.0), Vector2(28.0, 14.0)), Color(0.42, 0.42, 0.46), true)
+				_draw_ink_line(torso + Vector2(-8, -38), torso + Vector2(-2, -34), Color(0.22, 0.12, 0.08), 3.0)
+				_draw_ink_line(torso + Vector2(2, -38), torso + Vector2(8, -34), Color(0.22, 0.12, 0.08), 3.0)
+				draw_arc(torso + Vector2(0, -18), 10, 0, PI, 12, Color(0.18, 0.06, 0.06), 2.0)
 		"screen_door":
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
 				_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 48.0)), Color(0.46, 0.58, 0.68, 0.92), true)
@@ -34421,9 +34298,14 @@ func _draw_coin_icon(center: Vector2, size_scale: float) -> void:
 
 
 func _draw_health_bar(center: Vector2, width: float, ratio: float, fill_color: Color) -> void:
-	var bar_rect = Rect2(center + Vector2(-width * 0.5, 0.0), Vector2(width, 6.0))
-	draw_rect(bar_rect, Color(0.0, 0.0, 0.0, 0.3), true)
-	draw_rect(Rect2(bar_rect.position, Vector2(width * clampf(ratio, 0.0, 1.0), 6.0)), fill_color, true)
+	var height := clampf(width * 6.0 / 58.0, 2.5, 6.0)
+	var inset := minf(1.0, height * 0.2)
+	var bar_rect := Rect2(center + Vector2(-width * 0.5, 0), Vector2(width, height))
+	draw_rect(bar_rect, Color("#203c37", 0.85))
+	var fill := ThemeLib.progress_fill_rect(bar_rect.grow(-inset), ratio)
+	if fill.size.x > 0:
+		draw_rect(fill, fill_color)
+		draw_line(fill.position, fill.position + Vector2(fill.size.x, 0), Color(1, 1, 1, 0.32), inset, true)
 
 
 func _draw_rect_full(fill_color: Color) -> void:

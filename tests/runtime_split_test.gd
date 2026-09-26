@@ -108,9 +108,11 @@ func _test_plant_food_runtime_covers_every_plant_kind() -> bool:
 	if runtime_script.get_script_constant_map().has("SUPPORTED_KINDS"):
 		actual = runtime_script.SUPPORTED_KINDS
 	else:
-		var runtime = runtime_script.new(_make_game())
+		var game = _make_game()
+		var runtime = runtime_script.new(game)
 		if runtime.has_method("supported_kinds"):
 			actual = runtime.supported_kinds()
+		_free_game(game)
 	var passed = _assert_true(not actual.is_empty(), "plant food runtime should expose a supported kind list")
 	if not passed:
 		return false
@@ -126,11 +128,13 @@ func _test_plant_update_runtime_exists_and_exposes_core_entrypoints() -> bool:
 	var passed = _assert_true(runtime_script != null, "expected plant update runtime module to exist at scripts/runtime/plant_runtime.gd")
 	if not passed:
 		return false
-	var runtime = runtime_script.new(_make_game())
+	var game = _make_game()
+	var runtime = runtime_script.new(game)
 	passed = _assert_true(runtime.has_method("update_plants"), "plant update runtime should expose the main update_plants entrypoint") and passed
 	passed = _assert_true(runtime.has_method("update_threepeater"), "plant update runtime should expose threepeater updates for direct tests") and passed
 	passed = _assert_true(runtime.has_method("update_fume_shroom"), "plant update runtime should expose fume shroom updates for direct tests") and passed
 	passed = _assert_true(runtime.has_method("update_wind_orchid"), "plant update runtime should expose wind orchid updates for direct tests") and passed
+	_free_game(game)
 	return passed
 
 
@@ -139,11 +143,13 @@ func _test_projectile_runtime_exists_and_exposes_core_entrypoints() -> bool:
 	var passed = _assert_true(runtime_script != null, "expected projectile runtime module to exist at scripts/runtime/projectile_runtime.gd")
 	if not passed:
 		return false
-	var runtime = runtime_script.new(_make_game())
+	var game = _make_game()
+	var runtime = runtime_script.new(game)
 	passed = _assert_true(runtime.has_method("spawn_projectile"), "projectile runtime should expose spawn_projectile") and passed
 	passed = _assert_true(runtime.has_method("update_projectiles"), "projectile runtime should expose update_projectiles") and passed
 	passed = _assert_true(runtime.has_method("update_rollers"), "projectile runtime should expose update_rollers") and passed
 	passed = _assert_true(runtime.has_method("update_boomerang_projectile"), "projectile runtime should expose boomerang updates for direct tests") and passed
+	_free_game(game)
 	return passed
 
 

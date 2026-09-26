@@ -29,6 +29,9 @@ class Pose extends GameScript:
 				draw_set_transform(motion.center, motion.rotation, motion.scale)
 				center = Vector2.ZERO
 			_draw_plant_body(subject, center, 1.0, 0.0, 1.0, pose_state)
+		elif category == "effects":
+			effects = [{"shape": "projectile_impact", "impact_style": subject, "position": center, "radius": 26.0, "time": 0.17, "duration": 0.2, "color": Color(0.6, 0.8, 0.4, 0.7)}]
+			_draw_effects()
 		else:
 			var state := {"kind": subject, "flash": 0.0, "slow_timer": 0.0, "shield_health": float(Defs.ZOMBIES[subject].get("shield_health", 0.0)), "has_vaulted": false, "portrait": true}
 			state.merge(pose_state, true)
@@ -120,10 +123,16 @@ func _run() -> void:
 		["zombies", "newspaper", {"shield_health": 100.0}, {"shield_health": 0.0}],
 		["zombies", "balloon_zombie", {"balloon_flying": true}, {"balloon_flying": false}],
 	]
+	for kind in ["conehead", "buckethead", "newspaper"]:
+		states.append(["zombies", kind, {"shield_health": 100.0, "max_shield_health": 100.0}, {"shield_health": 35.0, "max_shield_health": 100.0}])
 	for entry in states:
 		var a := await capture(surface, pose, entry[0], entry[1], entry[2])
 		var b := await capture(surface, pose, entry[0], entry[1], entry[3])
 		check(difference(a, b, false) > 0.01, "Gameplay state must visibly change %s" % entry[1])
+	var ordinary_hit := await capture(surface, pose, "effects", "leaf")
+	for element in ["fire", "ice", "armor"]:
+		var element_hit := await capture(surface, pose, "effects", element)
+		check(difference(ordinary_hit, element_hit, false) > 0.1, "Elemental hit must use its own visible shape: %s" % element)
 	pose.animated = true
 	for subject in ["peashooter", "chomper", "sunflower"]:
 		var idle := await capture(surface, pose, "plants", subject)
@@ -131,5 +140,5 @@ func _run() -> void:
 		check(difference(idle, action, false) > 0.1, "Action motion must be visible: %s" % subject)
 	pose.save_dirty = false
 	surface.free()
-	print("Unit visual identity: 12 silhouette pairs, 7 state changes, 3 action poses; %d failure(s)" % failures)
+	print("Unit visual identity: 12 silhouette pairs, 10 state changes, 3 elemental impacts, 3 action poses; %d failure(s)" % failures)
 	quit(1 if failures else 0)

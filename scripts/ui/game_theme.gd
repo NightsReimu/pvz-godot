@@ -21,6 +21,18 @@ static func progress_fill_rect(rect: Rect2, ratio: float) -> Rect2:
 	return Rect2(rect.position, Vector2(rect.size.x * clampf(ratio, 0.0, 1.0), rect.size.y))
 
 
+static func seed_card_layout(rect: Rect2, conveyor: bool = false) -> Dictionary:
+	var compact := rect.size.y < 68.0
+	var label_height := 12.0 if compact else 18.0
+	var footer_height := 6.0 if conveyor else label_height
+	var header := Rect2(rect.position + Vector2(4, 2), Vector2(rect.size.x - 8, label_height))
+	var footer := Rect2(Vector2(rect.position.x + 4, rect.end.y - footer_height - 2), Vector2(rect.size.x - 8, footer_height))
+	var portrait := Rect2(Vector2(rect.position.x + 3, header.end.y + 1), Vector2(rect.size.x - 6, footer.position.y - header.end.y - 2))
+	return {"header": header, "portrait": portrait, "footer": footer,
+		"icon_scale": minf(1.1, minf(portrait.size.x / 58.0, portrait.size.y / 52.0)),
+		"compact": compact}
+
+
 static func scroll_knob_rect(track_rect: Rect2, view_length: float, content_length: float, scroll: float, min_length: float = 46.0) -> Rect2:
 	if content_length <= 0.0 or view_length <= 0.0 or content_length <= view_length:
 		return track_rect

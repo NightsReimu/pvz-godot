@@ -150,7 +150,9 @@ func _run() -> void:
 	check(drawing.drew, "The live CanvasItem drawing path must execute")
 	check(drawing.plant_count == Defs.PLANTS.size(), "Every plant must render through both card and preview paths")
 	check(drawing.zombie_count == Defs.ZOMBIES.size(), "Every zombie must render through the icon path")
-	check(bosses == 18 and drawing.textures_used.size() == bosses, "All 18 Touhou bosses must reach the original image pipeline")
+	check(bosses == GameScript.TouhouSpriteDefs.IDLE_HEIGHTS.size() and drawing.textures_used.size() == bosses, "Every calibrated Touhou boss must reach the original image pipeline")
+	for kind in GameScript.TouhouSpriteDefs.IDLE_HEIGHTS:
+		check(drawing.textures_used.get(kind, false), "Missing original Touhou image set: %s" % kind)
 	check(not drawing.wrong_texture and not drawing.missing_texture, "Each Touhou boss must use its own existing image frames")
 	print("Unit identity: %d plants, %d zombies, %d original Touhou image sets; %d failure(s)" % [drawing.plant_count, drawing.zombie_count, bosses, failures])
 	drawing.save_dirty = false
