@@ -2995,7 +2995,7 @@ func update_fume_shroom(plant: Dictionary, delta: float, row: int, col: int) -> 
 				var distance = float(zombie["x"]) - burst_center.x
 				if distance < -20.0 or distance > burst_range:
 					continue
-				zombie = game._apply_zombie_damage(zombie, burst_damage, 0.16, 0.0, true)
+				zombie = game._apply_zombie_damage(zombie, burst_damage, 0.16, 0.0, false, true)
 				game.zombies[i] = zombie
 				burst_hit = true
 			if game._damage_obstacles_in_radius(row, burst_center.x + burst_range * 0.5, burst_range * 0.5, burst_damage):

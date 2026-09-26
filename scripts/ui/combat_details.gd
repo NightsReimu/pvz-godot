@@ -119,17 +119,18 @@ static func equipment(canvas: CanvasItem, c: Vector2, kind: String, ratio: float
 				canvas.draw_polyline(PackedVector2Array([c+Vector2(11,-45),c+Vector2(3,-41),c+Vector2(10,-37),c+Vector2(1,-34)]),Color("#4a6166"),2,true)
 				canvas.draw_line(c+Vector2(-6,-43),c+Vector2(0,-39),Color("#dee6dd"),2,true)
 		"newspaper":
-			var page := [Vector2(7,-29),Vector2(19,-31),Vector2(33,-28),Vector2(32,6),Vector2(20,3),Vector2(7,6)]
+			# Paper is held in front: images mirror the left-facing walk direction.
+			var page := [Vector2(-7,-29),Vector2(-19,-31),Vector2(-33,-28),Vector2(-32,6),Vector2(-20,3),Vector2(-7,6)]
 			if worn:
-				page = [Vector2(7,-29),Vector2(19,-31),Vector2(33,-28),Vector2(32,-9),Vector2(26,-5),Vector2(30,0),Vector2(24,-2),Vector2(20,3),Vector2(16,-2),Vector2(7,1)]
+				page = [Vector2(-7,-29),Vector2(-19,-31),Vector2(-33,-28),Vector2(-32,-9),Vector2(-26,-5),Vector2(-30,0),Vector2(-24,-2),Vector2(-20,3),Vector2(-16,-2),Vector2(-7,1)]
 			polygon(canvas,c,1,page,Color("#f3ebd7"),1.4)
-			canvas.draw_line(c+Vector2(20,-27),c+Vector2(20,1),Color("#baae96"),1,true)
-			canvas.draw_rect(Rect2(c+Vector2(10,-25),Vector2(18,3)),Color("#59696a"))
-			canvas.draw_rect(Rect2(c+Vector2(10,-18),Vector2(7,7)),Color("#a1aea1"))
+			canvas.draw_line(c+Vector2(-20,-27),c+Vector2(-20,1),Color("#baae96"),1,true)
+			canvas.draw_rect(Rect2(c+Vector2(-28,-25),Vector2(18,3)),Color("#59696a"))
+			canvas.draw_rect(Rect2(c+Vector2(-17,-18),Vector2(7,7)),Color("#a1aea1"))
 			for y in range(-18, -3 if worn else 1, 4):
-				canvas.draw_line(c+Vector2(23,y),c+Vector2(29,y),Color("#8e9486"),1,true)
+				canvas.draw_line(c+Vector2(-29,y),c+Vector2(-23,y),Color("#8e9486"),1,true)
 			for y in [-8,-4]:
-				canvas.draw_line(c+Vector2(10,y),c+Vector2(17,y),Color("#8e9486"),1,true)
+				canvas.draw_line(c+Vector2(-17,y),c+Vector2(-10,y),Color("#8e9486"),1,true)
 
 
 static func impact_style(projectile: Dictionary, target: Dictionary) -> String:

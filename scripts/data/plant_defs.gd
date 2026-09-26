@@ -246,7 +246,7 @@ const PLANTS: Dictionary = {
 		"health": 999.0,
 		"fuse": 0.75,
 		"radius": 155.0, "blast_cells": 3,
-		"damage": 1600.0,
+		"damage": 1800.0,
 	},
 	"wallnut": {
 		"name": "坚果墙",

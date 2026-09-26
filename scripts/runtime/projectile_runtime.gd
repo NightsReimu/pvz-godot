@@ -677,7 +677,12 @@ func update_projectiles(delta: float) -> void:
 				game.projectiles.remove_at(i)
 				continue
 
-			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]), bool(projectile.get("ignore_shield", false)))
+			# Boomerangs sail through handheld gear (they still bounce off headgear).
+			var pierce_handheld := bool(projectile.get("pierce_handheld", false)) \
+				or String(projectile.get("kind", "")).find("boomerang") != -1
+			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]),
+				bool(projectile.get("ignore_shield", false)), pierce_handheld,
+				float(Vector2(projectile.get("position", Vector2.ZERO)).x))
 			if projectile_kind == "mist_bloom":
 				var reveal_duration = float(projectile.get("reveal_duration", 0.0))
 				if reveal_duration > 0.0:

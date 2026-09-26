@@ -15293,7 +15293,7 @@ func _apply_ash_hits_in_row_segment(row: int, min_x: float, max_x: float, hits: 
 		zombies[i] = zombie
 
 
-func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12, slow_duration: float = 0.0, ignore_shield: bool = false) -> Dictionary:
+func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12, slow_duration: float = 0.0, ignore_shield: bool = false, pierce_handheld: bool = false, from_x: float = INF) -> Dictionary:
 	if damage <= 0.0 or bool(zombie.get("touhou_invulnerable", false)):
 		return zombie
 
@@ -15312,7 +15312,15 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 			remaining_damage /= pow(float(Defs.ZOMBIES["router_zombie"].get("aura_health_mult", 1.0)), router_count)
 	var kind = String(zombie["kind"])
 	var shield_health = float(zombie.get("shield_health", 0.0))
-	if shield_health > 0.0 and not ignore_shield:
+	# Handheld gear guards the front arc only: boomerangs and smoke pass through it, and a
+	# blow landed from behind bypasses it. Headgear guards every angle and resists piercing.
+	var gear_bypass := ignore_shield
+	if not gear_bypass and String(Defs.ZOMBIES.get(kind, {}).get("armor_kind", "headgear")) == "handheld":
+		if pierce_handheld:
+			gear_bypass = true
+		elif from_x < INF and from_x > float(zombie.get("x", 0.0)):
+			gear_bypass = true
+	if shield_health > 0.0 and not gear_bypass:
 		var shield_damage = remaining_damage * _endless_shield_damage_mult()
 		if shield_damage >= shield_health:
 			var spill_ratio = maxf(0.0, shield_damage - shield_health) / maxf(shield_damage, 0.001)
@@ -29748,7 +29756,8 @@ func _draw_ladder_zombie(center: Vector2, zombie: Dictionary) -> void:
 	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(20.0 + step * 3.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
 	if float(zombie.get("shield_health", 0.0)) > 0.0:
 		# Wooden ladder: two stiles, lit rungs and a steel top hook.
-		var ladder_top: Vector2 = torso + Vector2(11.0, -50.0)
+		# Carried out in front (-x) as the zombie walks left.
+		var ladder_top: Vector2 = torso + Vector2(-37.0, -50.0)
 		var ladder_h := 68.0
 		var wood := Color(0.68, 0.5, 0.26).lerp(Color(1, 1, 1), flash * 1.2).lerp(Color(0.5, 0.66, 0.9), slow_tint * 0.6)
 		var wood_dark := Color(0.44, 0.3, 0.15)
@@ -32594,12 +32603,13 @@ func _draw_barrel_screen_zombie(center: Vector2, zombie: Dictionary) -> void:
 	_draw_ink_disc(torso + Vector2(0.0, -28.0), 16.0, skin)
 	draw_circle(torso + Vector2(-5.0, -30.0), 2.2, Color.BLACK)
 	draw_circle(torso + Vector2(5.0, -30.0), 2.2, Color.BLACK)
-	# Left arm grips the door edge, right arm swings.
-	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-22.0 - step * 3.0, 9.0), Color(0.56, 0.64, 0.54), 4.0)
-	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(25.0, 3.0), Color(0.56, 0.64, 0.54), 4.0)
+	# Left arm reaches out to the door in front, right arm swings.
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-26.0, 2.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(22.0 + step * 3.0, 9.0), Color(0.56, 0.64, 0.54), 4.0)
 	if float(zombie.get("shield_health", 0.0)) > 0.0:
 		# Riveted iron door held out front.
-		var door := Rect2(torso + Vector2(8.0, -22.0), Vector2(30.0, 54.0))
+		# Held out in front of the walk direction (-x).
+		var door := Rect2(torso + Vector2(-37.0, -22.0), Vector2(30.0, 54.0))
 		_draw_ink_rect(door.grow(2.2), Color(0.3, 0.34, 0.4).lerp(Color(1, 1, 1), flash * 1.2), true)
 		_draw_ink_rect(door, Color(0.52, 0.6, 0.68).lerp(Color(1, 1, 1), flash * 1.5), true)
 		_draw_ink_rect(Rect2(door.position + Vector2(3.0, 3.0), door.size - Vector2(6.0, 6.0)), Color(0.4, 0.48, 0.56), false, 1.6)
@@ -33315,7 +33325,8 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 				draw_arc(torso + Vector2(0, -18), 10, 0, PI, 12, Color(0.18, 0.06, 0.06), 2.0)
 		"screen_door":
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				var door := Rect2(torso + Vector2(7.0, -20.0), Vector2(31.0, 52.0))
+				# Zombies walk left, so the front arc is -x: the door is held out in front.
+				var door := Rect2(torso + Vector2(-38.0, -20.0), Vector2(31.0, 52.0))
 				_draw_ground_shadow(door.get_center() + Vector2(0.0, door.size.y * 0.5), 15.0, 0.5)
 				# Frame with thickness, then the mesh panel inside it.
 				_draw_ink_rect(door.grow(2.6), Color(0.3, 0.36, 0.42).lerp(Color(1, 1, 1), flash * 1.2), true)
@@ -33339,10 +33350,10 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 				_draw_ink_line(door.position + Vector2(1.4, 4.0), door.position + Vector2(1.4, door.size.y - 4.0), Color(1.0, 1.0, 1.0, 0.3), 2.0)
 			else:
 				# Torn remnant: a bent frame corner plus crossed strands of mesh.
-				_draw_ink_rect(Rect2(torso + Vector2(7.0, -20.0), Vector2(9.0, 15.0)), Color(0.34, 0.4, 0.46), true)
-				_draw_ink_line(torso + Vector2(11.0, -14.0), torso + Vector2(33.0, 29.0), Color(0.54, 0.58, 0.64), 2.6)
-				_draw_ink_line(torso + Vector2(30.0, -13.0), torso + Vector2(14.0, 27.0), Color(0.54, 0.58, 0.64), 2.6)
-				_draw_ink_line(torso + Vector2(16.0, -2.0), torso + Vector2(28.0, 6.0), Color(0.87, 0.94, 0.99, 0.5), 1.0)
+				_draw_ink_rect(Rect2(torso + Vector2(-16.0, -20.0), Vector2(9.0, 15.0)), Color(0.34, 0.4, 0.46), true)
+				_draw_ink_line(torso + Vector2(-11.0, -14.0), torso + Vector2(-32.0, 29.0), Color(0.54, 0.58, 0.64), 2.6)
+				_draw_ink_line(torso + Vector2(-29.0, -13.0), torso + Vector2(-13.0, 27.0), Color(0.54, 0.58, 0.64), 2.6)
+				_draw_ink_line(torso + Vector2(-15.0, -2.0), torso + Vector2(-27.0, 6.0), Color(0.87, 0.94, 0.99, 0.5), 1.0)
 		"football":
 			_draw_ink_rect(Rect2(torso + Vector2(-22.0, -16.0), Vector2(44.0, 16.0)), Color(0.96, 0.96, 0.98), true)
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
