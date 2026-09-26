@@ -18875,6 +18875,29 @@ func _damage_zombies_in_row_segment(row: int, min_x: float, max_x: float, damage
 	return hit
 
 
+func _damage_zombies_in_square(origin_row: int, origin_col: int, cells: int, damage: float, knockback_chance: float = 0.0) -> bool:
+	# Square area attack `cells` wide and tall, centred on the plant's own cell.
+	var half := maxi(0, (maxi(cells, 1) - 1) / 2)
+	var did_hit := false
+	for i in range(zombies.size()):
+		var zombie = zombies[i]
+		if not _is_enemy_zombie(zombie):
+			continue
+		if absi(int(zombie["row"]) - origin_row) > half:
+			continue
+		if absi(_zombie_cell_col(float(zombie["x"])) - origin_col) > half:
+			continue
+		zombie = _apply_zombie_damage(zombie, damage, 0.12)
+		if knockback_chance > 0.0 and rng.randf() < knockback_chance:
+			# Shoved back up the lane, away from the plant, with a brief stagger.
+			zombie["x"] = float(zombie["x"]) + CELL_SIZE.x * 0.42
+			zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.3)
+			zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.28)
+		zombies[i] = zombie
+		did_hit = true
+	return did_hit
+
+
 func _damage_zombies_in_circle(center: Vector2, radius: float, damage: float) -> bool:
 	var hit := false
 	for i in range(zombies.size()):

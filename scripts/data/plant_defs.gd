@@ -341,6 +341,8 @@ const PLANTS: Dictionary = {
 		"pulse_interval": 3.6,
 		"damage": 30.0,
 		"radius": 175.0,
+		"area_cells": 5,
+		"knockback_chance": 0.2,
 	},
 	"sun_bean": {
 		"name": "金豆荚",
@@ -464,6 +466,7 @@ const PLANTS: Dictionary = {
 		"damage": 26.0,
 		"radius": 140.0,
 		"wake_radius": 190.0,
+		"area_cells": 3,
 	},
 	"meteor_gourd": {
 		"name": "陨星葫芦",

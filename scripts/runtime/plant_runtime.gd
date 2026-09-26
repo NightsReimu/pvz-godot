@@ -2919,18 +2919,13 @@ func update_pulse_bulb(plant: Dictionary, delta: float, row: int, col: int) -> v
 	if float(plant["pulse_timer"]) > 0.0:
 		return
 	var center = game._cell_center(row, col)
-	var radius = float(Defs.PLANTS["pulse_bulb"].get("radius", 175.0))
-	var did_hit = false
-	for i in range(game.zombies.size()):
-		var zombie = game.zombies[i]
-		if not game._is_enemy_zombie(zombie):
-			continue
-		var zombie_pos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
-		if zombie_pos.distance_to(center) > radius:
-			continue
-		zombie = game._apply_zombie_damage(zombie, float(Defs.PLANTS["pulse_bulb"]["damage"]), 0.12)
-		game.zombies[i] = zombie
-		did_hit = true
+	# Square footprint: 5x5 cells, with a chance to shove zombies back out of it.
+	var cells = int(Defs.PLANTS["pulse_bulb"].get("area_cells", 5))
+	var radius = float(maxi(cells, 1)) * 0.5 * game.CELL_SIZE.x
+	var did_hit = game._damage_zombies_in_square(
+		row, col, cells,
+		float(Defs.PLANTS["pulse_bulb"]["damage"]),
+		float(Defs.PLANTS["pulse_bulb"].get("knockback_chance", 0.0)))
 	if game._damage_obstacles_in_circle(center, radius, float(Defs.PLANTS["pulse_bulb"]["damage"])):
 		did_hit = true
 	if did_hit:
@@ -3149,9 +3144,11 @@ func update_lantern_bloom(plant: Dictionary, _delta: float, row: int, col: int) 
 	if float(plant["support_timer"]) > 0.0:
 		return
 	var center = game._cell_center(row, col)
-	var radius = float(Defs.PLANTS["lantern_bloom"]["radius"])
+	# Square footprint: 3x3 cells.
+	var cells = int(Defs.PLANTS["lantern_bloom"].get("area_cells", 3))
+	var radius = float(maxi(cells, 1)) * 0.5 * game.CELL_SIZE.x
 	var wake_radius = float(Defs.PLANTS["lantern_bloom"]["wake_radius"])
-	var did_hit = game._damage_zombies_in_circle(center, radius, float(Defs.PLANTS["lantern_bloom"]["damage"]))
+	var did_hit = game._damage_zombies_in_square(row, col, cells, float(Defs.PLANTS["lantern_bloom"]["damage"]))
 	var woke = game._wake_plants_in_radius(center, wake_radius)
 	if did_hit or woke > 0:
 		game.effects.append({
