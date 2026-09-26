@@ -28,7 +28,7 @@ func _run() -> void:
 	failed = not _test_tesla_tulip_chain_damage_scales_with_more_targets() or failed
 	failed = not _test_roof_vane_continuous_wind_hits_front_arc() or failed
 	failed = not _test_tornado_zombie_finishes_entry_and_slows_down() or failed
-	failed = not _test_ice_shroom_permanently_slows_current_zombies() or failed
+	failed = not _test_ice_shroom_freezes_then_chills_current_zombies() or failed
 	failed = not _test_frost_boomerang_projectile_returns_to_anchor() or failed
 	failed = not _test_wake_support_plants_ignore_sleep_effects() or failed
 	failed = not _test_medic_zombie_heals_nearby_zombies() or failed
@@ -523,14 +523,23 @@ func _test_tornado_zombie_finishes_entry_and_slows_down() -> bool:
 	return passed
 
 
-func _test_ice_shroom_permanently_slows_current_zombies() -> bool:
+func _test_ice_shroom_freezes_then_chills_current_zombies() -> bool:
 	var game = _make_game()
 	game._spawn_zombie_at("normal", 1, game._cell_center(1, 4).x)
 	game._spawn_zombie_at("conehead", 3, game._cell_center(3, 6).x)
 	game._trigger_ice_shroom(2, 2, false)
+	var freeze := float(Defs.PLANTS["ice_shroom"]["freeze_duration"])
+	var chill := float(Defs.PLANTS["ice_shroom"]["slow_duration"])
 	var passed := true
 	for zombie in game.zombies:
-		passed = _assert_true(float(zombie.get("slow_timer", 0.0)) >= 9999.0, "ice_shroom should permanently slow every zombie currently on the field") and passed
+		passed = _assert_true(is_equal_approx(float(zombie.get("frozen_timer", 0.0)), freeze), "ice_shroom should freeze every zombie currently on the field") and passed
+		passed = _assert_true(float(zombie.get("slow_timer", 0.0)) >= freeze + chill - 0.01, "the chill must outlast the freeze so it lingers after thawing") and passed
+		passed = _assert_true(float(game._current_zombie_speed(zombie)) == 0.0, "a frozen zombie must not move at all") and passed
+	# Once thawed it keeps moving, but slowed.
+	for zombie in game.zombies:
+		zombie["frozen_timer"] = 0.0
+	var thawed = game.zombies[0]
+	passed = _assert_true(float(game._current_zombie_speed(thawed)) < float(thawed["base_speed"]), "after thawing the zombie stays slowed") and passed
 	_free_game(game)
 	return passed
 

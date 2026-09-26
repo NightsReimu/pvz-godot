@@ -12425,6 +12425,7 @@ func _update_zombies(delta: float) -> void:
 			zombie = _update_sakuya_time_stop_relocation(zombie, delta)
 		zombie["flash"] = maxf(0.0, float(zombie["flash"]) - delta)
 		zombie["slow_timer"] = maxf(0.0, float(zombie["slow_timer"]) - delta)
+		zombie["frozen_timer"] = maxf(0.0, float(zombie.get("frozen_timer", 0.0)) - delta)
 		zombie["rooted_timer"] = maxf(0.0, float(zombie.get("rooted_timer", 0.0)) - delta)
 		zombie["bite_timer"] = maxf(0.0, float(zombie.get("bite_timer", 0.0)) - delta)
 		zombie["bite_sfx_timer"] = maxf(0.0, float(zombie.get("bite_sfx_timer", 0.0)) - delta)
@@ -18390,6 +18391,9 @@ func _current_zombie_speed(zombie: Dictionary) -> float:
 		speed *= 0.42
 	if String(zombie.get("kind", "")) == "subway_zombie" and terrain == "rail":
 		speed *= 2.35
+	if float(zombie.get("frozen_timer", 0.0)) > 0.0:
+		# Ice freeze: locked solid until it thaws, then the chill lingers as slow.
+		return 0.0
 	if float(zombie["slow_timer"]) > 0.0:
 		speed *= 0.5
 	if float(zombie.get("rooted_timer", 0.0)) > 0.0:
@@ -18675,7 +18679,9 @@ func _trigger_ice_shroom(row: int, col: int, boosted: bool = false) -> void:
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		zombie["slow_timer"] = maxf(float(zombie["slow_timer"]), 9999.0 + slow_duration + freeze_duration)
+		# Freeze solid for a while, then keep them chilled once they thaw.
+		zombie["frozen_timer"] = maxf(float(zombie.get("frozen_timer", 0.0)), freeze_duration)
+		zombie["slow_timer"] = maxf(float(zombie["slow_timer"]), freeze_duration + slow_duration)
 		zombie["flash"] = 0.22
 		zombies[i] = zombie
 
@@ -28125,6 +28131,12 @@ func _draw_hypno_shroom(center: Vector2, size_scale: float, flash: float, alpha:
 	draw_circle(cap + Vector2(-8.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
 	draw_circle(cap + Vector2(8.0 * size_scale, -8.0 * size_scale), 2.2 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
 	draw_circle(cap + Vector2(2.0 * size_scale, -13.0 * size_scale), 1.8 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
+	# Drifting hypnotic spiral across the cap, opposite the eye rotation.
+	for spiral_index in range(3):
+		var spiral_r = (15.0 - float(spiral_index) * 4.2) * size_scale
+		draw_arc(cap, spiral_r, -swirl_phase * 0.6 + float(spiral_index) * 0.7,
+			-swirl_phase * 0.6 + float(spiral_index) * 0.7 + PI * 1.15, 14,
+			Color(0.64, 0.32, 0.8, alpha * 0.38), 1.4 * size_scale)
 	# Spiral hypno eyes (3 rings each, counter-rotating)
 	for eye_offset in [-5.0, 5.0]:
 		var eye_center = cap + Vector2(eye_offset * size_scale, -3.0 * size_scale)
@@ -28145,6 +28157,14 @@ func _draw_scaredy_shroom(center: Vector2, size_scale: float, flash: float, hidi
 	draw_circle(cap_center + Vector2(6.0 * size_scale, -2.0 * size_scale), 4.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
 	draw_circle(cap_center + Vector2(-6.0 * size_scale, -2.0 * size_scale), 1.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
 	draw_circle(cap_center + Vector2(6.0 * size_scale, -2.0 * size_scale), 1.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
+	# Cap spots
+	draw_circle(cap_center + Vector2(-11.0 * size_scale, -9.0 * size_scale), 2.6 * size_scale, Color(0.56, 0.32, 0.72, alpha * 0.55))
+	draw_circle(cap_center + Vector2(9.0 * size_scale, -11.0 * size_scale), 2.1 * size_scale, Color(0.56, 0.32, 0.72, alpha * 0.55))
+	draw_circle(cap_center + Vector2(1.0 * size_scale, -14.0 * size_scale), 1.6 * size_scale, Color(0.56, 0.32, 0.72, alpha * 0.45))
+	# Nervous beads of sweat sliding down the rim
+	var sweat_drop = fposmod(level_time * 0.8, 1.0)
+	draw_circle(cap_center + Vector2(14.0 * size_scale, (-6.0 + sweat_drop * 7.0) * size_scale), 2.0 * size_scale, Color(0.74, 0.92, 1.0, alpha * 0.8))
+	draw_circle(cap_center + Vector2(17.0 * size_scale, (-3.0 + sweat_drop * 5.0) * size_scale), 1.4 * size_scale, Color(0.74, 0.92, 1.0, alpha * 0.6))
 	if hiding:
 		draw_arc(cap_center + Vector2(0.0, 5.0 * size_scale), 5.0 * size_scale, PI, TAU, 12, Color(0.08, 0.08, 0.08, alpha), 2.0 * size_scale)
 	else:
@@ -28176,6 +28196,12 @@ func _draw_ice_shroom(center: Vector2, size_scale: float, flash: float, alpha: f
 	# Half-closed sleepy eyes
 	_draw_ink_line(cap + Vector2(-9.0 * size_scale, 1.0 * size_scale), cap + Vector2(-3.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
 	_draw_ink_line(cap + Vector2(3.0 * size_scale, 1.0 * size_scale), cap + Vector2(9.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
+	# Breath of frost curling off the rim
+	for breath in range(3):
+		var breath_from = cap + Vector2(19.0 * size_scale, (-2.0 + float(breath) * 2.2) * size_scale)
+		var drift := sin(level_time * 2.2 + float(breath)) * 3.5 * size_scale
+		draw_line(breath_from, breath_from + Vector2(9.0 * size_scale + drift, 2.0 * size_scale),
+			Color(0.88, 0.97, 1.0, alpha * (0.5 - float(breath) * 0.1)), 1.8 * size_scale)
 	# Shivering mouth
 	draw_arc(cap + Vector2(0.0, 8.0 * size_scale), 4.0 * size_scale, 0.1, PI - 0.1, 8, Color(0.1, 0.16, 0.28, alpha), 1.6 * size_scale)
 
@@ -28202,6 +28228,16 @@ func _draw_doom_shroom(center: Vector2, size_scale: float, flash: float, alpha: 
 	draw_circle(cap + Vector2(-9.0 * size_scale, -6.0 * size_scale), 4.0 * size_scale, Color(0.04, 0.03, 0.03, alpha))
 	draw_circle(cap + Vector2(9.0 * size_scale, -6.0 * size_scale), 4.0 * size_scale, Color(0.04, 0.03, 0.03, alpha))
 	draw_circle(cap + Vector2(-9.0 * size_scale, -6.0 * size_scale), 1.6 * size_scale, Color(0.98, 0.7, 0.34, alpha))
+	# Cracks radiating out of the core
+	for crack in range(4):
+		var crack_dir = Vector2.from_angle(TAU * float(crack) / 4.0 + 0.4)
+		_draw_ink_line(cap + crack_dir * 12.0 * size_scale, cap + crack_dir * 21.0 * size_scale,
+			Color(0.26, 0.04, 0.1, alpha * 0.8), 1.8 * size_scale)
+	# Embers drifting upward as it charges
+	for ember in range(3):
+		var ember_t = fposmod(level_time * 0.6 + float(ember) * 0.33, 1.0)
+		var ember_pos = cap + Vector2((-10.0 + float(ember) * 10.0) * size_scale, (-26.0 - ember_t * 18.0) * size_scale)
+		draw_circle(ember_pos, (2.2 - ember_t * 1.2) * size_scale, Color(0.98, 0.5, 0.24, alpha * (0.7 - ember_t * 0.5)))
 	draw_circle(cap + Vector2(9.0 * size_scale, -6.0 * size_scale), 1.6 * size_scale, Color(0.98, 0.7, 0.34, alpha))
 	# Gritted teeth mouth
 	_draw_ink_line(cap + Vector2(-7.0 * size_scale, 4.0 * size_scale), cap + Vector2(7.0 * size_scale, 4.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 2.4 * size_scale)
