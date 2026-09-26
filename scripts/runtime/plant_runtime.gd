@@ -912,7 +912,7 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 		"boomerang":
 			spawn_boomerang_projectile(row, spawn_position, center.x, base_damage * 1.04, 3)
 		"sakura_petal":
-			spawn_sakura_projectile(row, spawn_position, base_damage * 0.94, game.rng.randf_range(-64.0, 64.0))
+			spawn_sakura_projectile(row, spawn_position, base_damage * 0.94, game.rng.randf_range(-12.0, 12.0))
 		"mist_bloom":
 			spawn_mist_projectile(row, spawn_position, base_damage * 0.88, 0.85, 54.0, 1.6)
 		"glow_seed":
@@ -920,17 +920,34 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 		"heather_thorn":
 			spawn_heather_projectile(row, spawn_position, base_damage * 0.92, 6.0 * damage_mult, 2.6, 0.18, game.rng.randf_range(-36.0, 36.0))
 		"origami_plane":
-			game._spawn_projectile(row, spawn_position, Color(0.96, 0.9, 0.74), base_damage, 0.0, 500.0, 7.0)
-			if not game.projectiles.is_empty():
+			# spawn_projectile hardcodes kind "pea", so the visual has to be retagged here.
+			# Only touch the shot this call actually created, never a neighbour's.
+			var plane_before: int = game.projectiles.size()
+			game._spawn_projectile(row, spawn_position, Color(0.96, 0.9, 0.74), base_damage, 0.0, 500.0, 7.0, "origami_plane")
+			if game.projectiles.size() > plane_before:
 				game.projectiles[game.projectiles.size() - 1]["kind"] = "origami_plane"
 		"snow_pea":
-			game._spawn_projectile(row, spawn_position, Color(0.58, 0.88, 1.0), base_damage, 8.0, 480.0, 8.0)
-			if not game.projectiles.is_empty():
+			var snow_before: int = game.projectiles.size()
+			game._spawn_projectile(row, spawn_position, Color(0.58, 0.88, 1.0), base_damage, 8.0, 480.0, 8.0, "snow_pea")
+			if game.projectiles.size() > snow_before:
 				game.projectiles[game.projectiles.size() - 1]["kind"] = "snow_pea"
 		"fire_pea":
 			game._spawn_fire_projectile(row, spawn_position, base_damage, 500.0, 9.0)
 		"star_shot":
-			spawn_starfruit_projectile(row, spawn_position, 460.0, game.rng.randf_range(-120.0, 120.0))
+			# Small vertical spray only: a wide fan made the flower look like it was missing.
+			spawn_starfruit_projectile(row, spawn_position, 460.0, game.rng.randf_range(-14.0, 14.0))
+		"pea":
+			game._spawn_projectile(row, spawn_position, Color(0.4, 0.84, 0.32), base_damage, 0.0, 480.0, 8.0, "pea")
+		"moonforge_shot":
+			game._spawn_projectile(row, spawn_position, Color(1.0, 0.72, 0.34), base_damage * 1.06, 0.0, 500.0, 8.5, "moonforge_shot")
+		"prism_pea":
+			game._spawn_projectile(row, spawn_position, Color(0.66, 0.94, 1.0), base_damage * 0.96, 0.0, 520.0, 8.0, "prism_pea")
+		"shadow_pea":
+			game._spawn_projectile(row, spawn_position, Color(0.5, 0.4, 0.78), base_damage * 1.02, 0.0, 470.0, 8.0, "shadow_pea")
+		"spiral_bamboo":
+			game._spawn_projectile(row, spawn_position, Color(0.64, 0.86, 0.44), base_damage * 0.94, 0.0, 460.0, 7.5, "spiral_bamboo")
+		"cluster_boomerang":
+			spawn_boomerang_projectile(row, spawn_position, center.x, base_damage, 2)
 		"moonforge_shot":
 			var moonforge_target_x = center.x + 220.0
 			var moonforge_target = Vector2(moonforge_target_x, game._row_center_y(row) - 10.0)
