@@ -29747,13 +29747,22 @@ func _draw_ladder_zombie(center: Vector2, zombie: Dictionary) -> void:
 	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-22.0 - step * 4.0, 8.0), Color(0.56, 0.64, 0.54), 4.0)
 	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(20.0 + step * 3.0, 12.0), Color(0.56, 0.64, 0.54), 4.0)
 	if float(zombie.get("shield_health", 0.0)) > 0.0:
-		var ladder = Rect2(torso + Vector2(12.0, -48.0), Vector2(26.0, 64.0))
-		_draw_ink_rect(ladder, Color(0.66, 0.48, 0.24), false, 3.0)
-		_draw_ink_line(ladder.position + Vector2(9.0, 4.0), ladder.position + Vector2(9.0, ladder.size.y - 4.0), Color(0.66, 0.48, 0.24), 3.0)
-		_draw_ink_line(ladder.position + Vector2(17.0, 4.0), ladder.position + Vector2(17.0, ladder.size.y - 4.0), Color(0.66, 0.48, 0.24), 3.0)
-		for rung in range(5):
-			var y = ladder.position.y + 10.0 + rung * 11.0
-			_draw_ink_line(Vector2(ladder.position.x + 2.0, y), Vector2(ladder.position.x + ladder.size.x - 2.0, y), Color(0.66, 0.48, 0.24), 2.0)
+		# Wooden ladder: two stiles, lit rungs and a steel top hook.
+		var ladder_top: Vector2 = torso + Vector2(11.0, -50.0)
+		var ladder_h := 68.0
+		var wood := Color(0.68, 0.5, 0.26).lerp(Color(1, 1, 1), flash * 1.2).lerp(Color(0.5, 0.66, 0.9), slow_tint * 0.6)
+		var wood_dark := Color(0.44, 0.3, 0.15)
+		_draw_ink_rect(Rect2(ladder_top, Vector2(5.0, ladder_h)), wood, true)
+		_draw_ink_rect(Rect2(ladder_top + Vector2(21.0, 0.0), Vector2(5.0, ladder_h)), wood, true)
+		_draw_ink_line(ladder_top + Vector2(1.2, 2.0), ladder_top + Vector2(1.2, ladder_h - 2.0), Color(0.86, 0.7, 0.42, 0.8), 1.4)
+		_draw_ink_line(ladder_top + Vector2(22.2, 2.0), ladder_top + Vector2(22.2, ladder_h - 2.0), Color(0.86, 0.7, 0.42, 0.8), 1.4)
+		for rung in range(6):
+			var ry := ladder_top.y + 9.0 + float(rung) * 10.6
+			_draw_ink_rect(Rect2(Vector2(ladder_top.x + 1.0, ry), Vector2(24.0, 3.6)), wood_dark, true)
+			_draw_ink_line(Vector2(ladder_top.x + 2.0, ry + 0.8), Vector2(ladder_top.x + 24.0, ry + 0.8), Color(0.88, 0.72, 0.44, 0.85), 1.1)
+		_draw_ink_line(ladder_top + Vector2(2.0, -4.5), ladder_top + Vector2(24.0, -4.5), Color(0.6, 0.64, 0.68), 3.2)
+		_draw_ink_disc(ladder_top + Vector2(2.0, -4.5), 2.0, Color(0.72, 0.76, 0.8))
+		_draw_ink_disc(ladder_top + Vector2(24.0, -4.5), 2.0, Color(0.72, 0.76, 0.8))
 
 
 func _draw_catapult_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -32572,15 +32581,54 @@ func _draw_excavator_zombie(center: Vector2, zombie: Dictionary) -> void:
 
 func _draw_barrel_screen_zombie(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie.get("flash", 0.0))
-	var torso = center + Vector2(0.0, -4.0)
-	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
-	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), Color(0.28, 0.44, 0.62).lerp(Color(1.0, 1.0, 1.0), flash * 1.6), true)
-	_draw_ink_disc(torso + Vector2(0.0, -28.0), 16.0, Color(0.74, 0.82, 0.7))
-	_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(30.0, 48.0)), Color(0.44, 0.56, 0.66, 0.92), true)
-	_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(30.0, 48.0)), Color(0.24, 0.28, 0.34), false, 2.0)
-	_draw_ink_rect(Rect2(torso + Vector2(-18.0, -54.0), Vector2(36.0, 24.0)), Color(0.62, 0.62, 0.66), true)
-	_draw_ink_rect(Rect2(torso + Vector2(-22.0, -60.0), Vector2(44.0, 8.0)), Color(0.72, 0.72, 0.76), true)
+	var slow_tint = 0.55 if float(zombie.get("slow_timer", 0.0)) > 0.0 else 0.0
+	var moving = float(zombie.get("special_pause_timer", 0.0)) <= 0.0
+	var step = sin(level_time * 3.1 + float(zombie.get("anim_phase", 0.0))) if moving else 0.0
+	var torso = center + Vector2(0.0, -4.0 - absf(step) * 1.6)
+	var skin = Color(0.74, 0.82, 0.7).lerp(Color(1.0, 1.0, 1.0), flash * 2.0).lerp(Color(0.64, 0.84, 1.0), slow_tint)
+	var coat = Color(0.28, 0.44, 0.62).lerp(Color(1.0, 1.0, 1.0), flash * 1.6).lerp(Color(0.46, 0.64, 0.9), slow_tint)
+	_draw_ink_line(torso + Vector2(-8.0, 24.0), torso + Vector2(-14.0 - step * 4.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 4.0, 42.0), Color(0.22, 0.22, 0.22), 4.0)
+	_draw_ink_rect(Rect2(torso + Vector2(-16.0, -10.0), Vector2(32.0, 38.0)), coat, true)
+	_draw_ink_rect(Rect2(torso + Vector2(-14.0, -8.0), Vector2(28.0, 9.0)), coat.lightened(0.1), true)
+	_draw_ink_disc(torso + Vector2(0.0, -28.0), 16.0, skin)
+	draw_circle(torso + Vector2(-5.0, -30.0), 2.2, Color.BLACK)
+	draw_circle(torso + Vector2(5.0, -30.0), 2.2, Color.BLACK)
+	# Left arm grips the door edge, right arm swings.
+	_draw_ink_line(torso + Vector2(-10.0, 0.0), torso + Vector2(-22.0 - step * 3.0, 9.0), Color(0.56, 0.64, 0.54), 4.0)
+	_draw_ink_line(torso + Vector2(10.0, 0.0), torso + Vector2(25.0, 3.0), Color(0.56, 0.64, 0.54), 4.0)
+	if float(zombie.get("shield_health", 0.0)) > 0.0:
+		# Riveted iron door held out front.
+		var door := Rect2(torso + Vector2(8.0, -22.0), Vector2(30.0, 54.0))
+		_draw_ink_rect(door.grow(2.2), Color(0.3, 0.34, 0.4).lerp(Color(1, 1, 1), flash * 1.2), true)
+		_draw_ink_rect(door, Color(0.52, 0.6, 0.68).lerp(Color(1, 1, 1), flash * 1.5), true)
+		_draw_ink_rect(Rect2(door.position + Vector2(3.0, 3.0), door.size - Vector2(6.0, 6.0)), Color(0.4, 0.48, 0.56), false, 1.6)
+		for rib in range(2):
+			var ry := door.position.y + 15.0 + float(rib) * 22.0
+			_draw_ink_line(Vector2(door.position.x + 4.0, ry), Vector2(door.end.x - 4.0, ry), Color(0.34, 0.4, 0.48), 2.4)
+		for rivet in range(4):
+			var rx := door.position.x + 5.5 + float(rivet % 2) * (door.size.x - 11.0)
+			var ry2 := door.position.y + 6.5 + float(rivet / 2) * (door.size.y - 13.0)
+			_draw_ink_disc(Vector2(rx, ry2), 1.8, Color(0.8, 0.86, 0.92))
+		_draw_ink_disc(door.position + Vector2(door.size.x - 7.0, door.size.y * 0.5), 3.0, Color(0.84, 0.9, 0.96))
+		# Wooden barrel worn over the head: staves, two hoops and a lid seen at an angle.
+		var barrel_wood := Color(0.63, 0.45, 0.26).lerp(Color(1, 1, 1), flash * 1.2).lerp(Color(0.5, 0.66, 0.9), slow_tint * 0.6)
+		var barrel := PackedVector2Array([
+			torso + Vector2(-15.0, -43.0), torso + Vector2(15.0, -43.0),
+			torso + Vector2(18.0, -29.0), torso + Vector2(15.0, -13.0),
+			torso + Vector2(-15.0, -13.0), torso + Vector2(-18.0, -29.0)])
+		draw_colored_polygon(barrel, barrel_wood)
+		for grain in [-9.0, 0.0, 9.0]:
+			_draw_ink_line(torso + Vector2(grain, -41.0), torso + Vector2(grain * 0.9, -15.0), Color(0.46, 0.32, 0.18, 0.55), 1.2)
+		for hoop in [-37.0, -21.0]:
+			var half_w: float = 17.4 - (absf(hoop + 29.0) / 15.0) * 1.4
+			_draw_ink_line(torso + Vector2(-half_w, hoop), torso + Vector2(half_w, hoop), Color(0.44, 0.46, 0.5), 3.0)
+			_draw_ink_line(torso + Vector2(-half_w, hoop - 1.2), torso + Vector2(half_w, hoop - 1.2), Color(0.68, 0.7, 0.74), 1.0)
+		# Lid and base ellipses give the barrel its round silhouette.
+		CombatDetails.ellipse(self, torso + Vector2(0.0, -13.0), Vector2(15.0, 4.2), Color(0.42, 0.3, 0.17).lerp(Color(1, 1, 1), flash * 0.8))
+		CombatDetails.ellipse(self, torso + Vector2(0.0, -43.0), Vector2(15.0, 5.2), Color(0.72, 0.54, 0.32).lerp(Color(1, 1, 1), flash * 1.2), 1.6)
+		CombatDetails.ellipse(self, torso + Vector2(0.0, -43.2), Vector2(9.6, 3.0), Color(0.6, 0.44, 0.25))
+		_draw_ink_line(torso + Vector2(-9.6, -43.2), torso + Vector2(9.6, -43.2), Color(0.4, 0.28, 0.15), 1.1)
 
 
 func _draw_tornado_zombie(center: Vector2, zombie: Dictionary) -> void:
@@ -33267,15 +33315,34 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 				draw_arc(torso + Vector2(0, -18), 10, 0, PI, 12, Color(0.18, 0.06, 0.06), 2.0)
 		"screen_door":
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
-				_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 48.0)), Color(0.46, 0.58, 0.68, 0.92), true)
-				for grid_x in range(3):
-					_draw_ink_line(torso + Vector2(12.0 + grid_x * 8.0, -16.0), torso + Vector2(12.0 + grid_x * 8.0, 28.0), Color(0.82, 0.9, 0.96), 1.0)
-				for grid_y in range(5):
-					_draw_ink_line(torso + Vector2(10.0, -14.0 + grid_y * 10.0), torso + Vector2(34.0, -14.0 + grid_y * 10.0), Color(0.82, 0.9, 0.96), 1.0)
-				_draw_ink_rect(Rect2(torso + Vector2(8.0, -18.0), Vector2(28.0, 48.0)), Color(0.28, 0.34, 0.4), false, 2.0)
+				var door := Rect2(torso + Vector2(7.0, -20.0), Vector2(31.0, 52.0))
+				_draw_ground_shadow(door.get_center() + Vector2(0.0, door.size.y * 0.5), 15.0, 0.5)
+				# Frame with thickness, then the mesh panel inside it.
+				_draw_ink_rect(door.grow(2.6), Color(0.3, 0.36, 0.42).lerp(Color(1, 1, 1), flash * 1.2), true)
+				_draw_ink_rect(door, Color(0.5, 0.62, 0.72, 0.94).lerp(Color(1, 1, 1), flash * 1.5), true)
+				var mesh := door.grow(-3.2)
+				for grid_x in range(1, 5):
+					var gx := mesh.position.x + mesh.size.x * float(grid_x) / 5.0
+					_draw_ink_line(Vector2(gx, mesh.position.y), Vector2(gx, mesh.end.y), Color(0.87, 0.94, 0.99, 0.72), 0.9)
+				for grid_y in range(1, 7):
+					var gy := mesh.position.y + mesh.size.y * float(grid_y) / 7.0
+					_draw_ink_line(Vector2(mesh.position.x, gy), Vector2(mesh.end.x, gy), Color(0.87, 0.94, 0.99, 0.72), 0.9)
+				# Mid rail splits the two mesh panels.
+				var rail_y := door.position.y + door.size.y * 0.42
+				_draw_ink_rect(Rect2(Vector2(door.position.x, rail_y), Vector2(door.size.x, 4.0)), Color(0.36, 0.43, 0.5), true)
+				# Handle + hinge plate.
+				_draw_ink_rect(Rect2(Vector2(door.position.x, door.position.y + 5.0), Vector2(4.0, 9.0)), Color(0.72, 0.78, 0.84), true)
+				_draw_ink_rect(Rect2(Vector2(door.position.x, door.end.y - 14.0), Vector2(4.0, 9.0)), Color(0.72, 0.78, 0.84), true)
+				var knob := door.position + Vector2(door.size.x - 6.5, door.size.y * 0.5)
+				_draw_ink_disc(knob, 3.2, Color(0.82, 0.88, 0.94))
+				_draw_ink_disc(knob, 3.2, Color(0.34, 0.4, 0.46), false, 1.2)
+				_draw_ink_line(door.position + Vector2(1.4, 4.0), door.position + Vector2(1.4, door.size.y - 4.0), Color(1.0, 1.0, 1.0, 0.3), 2.0)
 			else:
-				_draw_ink_line(torso + Vector2(10.0, -16.0), torso + Vector2(32.0, 26.0), Color(0.52, 0.56, 0.62), 3.0)
-				_draw_ink_line(torso + Vector2(30.0, -16.0), torso + Vector2(12.0, 26.0), Color(0.52, 0.56, 0.62), 3.0)
+				# Torn remnant: a bent frame corner plus crossed strands of mesh.
+				_draw_ink_rect(Rect2(torso + Vector2(7.0, -20.0), Vector2(9.0, 15.0)), Color(0.34, 0.4, 0.46), true)
+				_draw_ink_line(torso + Vector2(11.0, -14.0), torso + Vector2(33.0, 29.0), Color(0.54, 0.58, 0.64), 2.6)
+				_draw_ink_line(torso + Vector2(30.0, -13.0), torso + Vector2(14.0, 27.0), Color(0.54, 0.58, 0.64), 2.6)
+				_draw_ink_line(torso + Vector2(16.0, -2.0), torso + Vector2(28.0, 6.0), Color(0.87, 0.94, 0.99, 0.5), 1.0)
 		"football":
 			_draw_ink_rect(Rect2(torso + Vector2(-22.0, -16.0), Vector2(44.0, 16.0)), Color(0.96, 0.96, 0.98), true)
 			if float(zombie.get("shield_health", 0.0)) > 0.0:
