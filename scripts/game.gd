@@ -29072,32 +29072,60 @@ func _draw_melon_pult(center: Vector2, size_scale: float, flash: float, alpha: f
 func _draw_origami_blossom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var stem = Color(0.3, 0.62, 0.2, alpha)
 	var paper = Color(0.96, 0.9, 0.76, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.6)
-	var crease = Color(0.72, 0.52, 0.34, alpha)
-	_draw_ink_line(center + Vector2(-4.0 * size_scale, 12.0 * size_scale), center + Vector2(-6.0 * size_scale, 34.0 * size_scale), stem, 4.0 * size_scale)
-	_draw_ink_line(center + Vector2(6.0 * size_scale, 10.0 * size_scale), center + Vector2(8.0 * size_scale, 34.0 * size_scale), stem, 4.0 * size_scale)
+	var crease = Color(0.72, 0.52, 0.34, alpha * 0.85)
+	var magic = Color(0.86, 0.66, 1.0, alpha)
+	var magic_phase = level_time * 2.4
+	_draw_ground_shadow(center, 16.0 * size_scale, 1.0, 34.0 * size_scale)
+	# Stem, bent slightly, with one folded leaf.
+	_draw_ink_line(center + Vector2(-4.0, 12.0) * size_scale, center + Vector2(-7.0, 34.0) * size_scale, stem, 4.5 * size_scale)
 	_draw_ink_polygon(
 		PackedVector2Array([
-			center + Vector2(-22.0 * size_scale, -4.0 * size_scale),
-			center + Vector2(-4.0 * size_scale, -24.0 * size_scale),
-			center + Vector2(8.0 * size_scale, -6.0 * size_scale),
-			center + Vector2(-10.0 * size_scale, 4.0 * size_scale),
+			center + Vector2(-6.0, 20.0) * size_scale,
+			center + Vector2(-21.0, 14.0) * size_scale,
+			center + Vector2(-8.0, 28.0) * size_scale,
 		]),
-		PackedColorArray([paper, paper, paper.darkened(0.04), paper.darkened(0.08)])
+		PackedColorArray([stem, stem.darkened(0.16), stem.lightened(0.14)])
 	)
+	# Four origami petals fanned around the head, each with a folded spine.
+	for petal_index in range(4):
+		var petal_angle = -PI * 0.5 + (float(petal_index) - 1.5) * 0.74
+		var petal_dir = Vector2.from_angle(petal_angle)
+		var petal_side = petal_dir.orthogonal()
+		var tip = center + petal_dir * 27.0 * size_scale
+		var flank_a = center + (petal_dir * 3.0 + petal_side * 13.0) * size_scale
+		var flank_b = center + (petal_dir * 3.0 - petal_side * 13.0) * size_scale
+		var spine = center + petal_dir * 7.0 * size_scale
+		var shade = paper.darkened(0.04 + float(petal_index) * 0.018)
+		_draw_ink_polygon(
+			PackedVector2Array([tip, flank_a, spine, flank_b]),
+			PackedColorArray([paper, shade, paper, shade])
+		)
+		_draw_ink_line(spine, tip, crease, 1.4 * size_scale)
+		_draw_ink_line(spine, flank_a, crease, 1.0 * size_scale)
+		_draw_ink_line(spine, flank_b, crease, 1.0 * size_scale)
+	# Folded paper core.
 	_draw_ink_polygon(
 		PackedVector2Array([
-			center + Vector2(22.0 * size_scale, -6.0 * size_scale),
-			center + Vector2(4.0 * size_scale, -24.0 * size_scale),
-			center + Vector2(-8.0 * size_scale, -6.0 * size_scale),
-			center + Vector2(10.0 * size_scale, 4.0 * size_scale),
+			center + Vector2(0.0, -11.0) * size_scale,
+			center + Vector2(7.5, -2.0) * size_scale,
+			center + Vector2(0.0, 6.5) * size_scale,
+			center + Vector2(-7.5, -2.0) * size_scale,
 		]),
-		PackedColorArray([paper, paper, paper.darkened(0.04), paper.darkened(0.08)])
+		PackedColorArray([
+			Color(0.98, 0.84, 0.5, alpha), Color(0.94, 0.72, 0.4, alpha),
+			Color(0.9, 0.62, 0.34, alpha), Color(0.96, 0.78, 0.46, alpha),
+		])
 	)
-	_draw_ink_line(center + Vector2(-18.0 * size_scale, -6.0 * size_scale), center + Vector2(18.0 * size_scale, -6.0 * size_scale), crease, 1.6 * size_scale)
-	_draw_ink_line(center + Vector2(0.0, -24.0 * size_scale), center + Vector2(0.0, 4.0 * size_scale), crease, 1.6 * size_scale)
-	draw_circle(center + Vector2(-4.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.1, 0.08, 0.08, alpha))
-	draw_circle(center + Vector2(4.0 * size_scale, -8.0 * size_scale), 2.0 * size_scale, Color(0.1, 0.08, 0.08, alpha))
-
+	# Eyes, with a specular dot so the flower reads as alive.
+	for eye_x in [-4.0, 4.0]:
+		draw_circle(center + Vector2(eye_x, -3.0) * size_scale, 2.2 * size_scale, Color(0.1, 0.08, 0.08, alpha))
+		draw_circle(center + Vector2(eye_x - 0.6, -3.9) * size_scale, 0.85 * size_scale, Color(1.0, 1.0, 1.0, alpha))
+	# Magic motes drifting out of the blossom.
+	for mote in range(5):
+		var mote_t = fposmod(level_time * 0.55 + float(mote) * 0.2, 1.0)
+		var mote_angle = TAU * float(mote) / 5.0 + magic_phase * 0.3
+		var mote_pos = center + Vector2(0.0, -6.0) * size_scale + Vector2.from_angle(mote_angle) * (16.0 + mote_t * 18.0) * size_scale
+		draw_circle(mote_pos, (2.4 - mote_t * 1.4) * size_scale, Color(magic.r, magic.g, magic.b, alpha * (0.72 - mote_t * 0.52)))
 
 func _draw_chimney_pepper(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	var brick = Color(0.62, 0.28, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.4)
