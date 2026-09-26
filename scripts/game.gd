@@ -25783,6 +25783,12 @@ func _draw_effects() -> void:
 			draw_circle(beam_origin, flame_width * 0.2, Color(1.0, 0.94, 0.82, effect_color.a * 0.82))
 			draw_circle(beam_target, flame_width * 0.42, Color(1.0, 0.34, 0.08, effect_color.a * 0.62))
 			draw_circle(beam_target, flame_width * 0.24, Color(1.0, 0.96, 0.88, effect_color.a * 0.7))
+			# Radial sparks so the landing point reads as an impact rather than a fade-out.
+			for impact_spark in range(6):
+				var spark_dir = Vector2.from_angle(TAU * float(impact_spark) / 6.0 + level_time * 2.4)
+				var spark_len = flame_width * (0.42 + 0.2 * sin(level_time * 8.0 + float(impact_spark)))
+				draw_line(beam_target + spark_dir * flame_width * 0.24, beam_target + spark_dir * spark_len,
+					Color(1.0, 0.82, 0.42, effect_color.a * 0.66), 2.2)
 			continue
 		if shape == "sniper_focus":
 			var focus_origin = Vector2(effect["position"])
@@ -28443,6 +28449,16 @@ func _draw_pepper_mortar(center: Vector2, size_scale: float, flash: float, alpha
 	# Muzzle ring + glow
 	draw_circle(center + Vector2(18.0 * size_scale, -11.0 * size_scale), 7.0 * size_scale, Color(0.12, 0.1, 0.12, alpha))
 	draw_circle(center + Vector2(18.0 * size_scale, -11.0 * size_scale), 4.0 * size_scale, Color(0.98, 0.66, 0.22, alpha * (0.7 + flash * 1.5)))
+	# Reinforcing bands along the tube, perpendicular to the barrel axis.
+	var tube_axis = Vector2(28.0, -20.0).normalized()
+	var tube_normal = Vector2(-tube_axis.y, tube_axis.x)
+	for band_t in [0.3, 0.62]:
+		var band_center = center + Vector2(-14.0 + 36.0 * band_t, 6.0 - 20.0 * band_t) * size_scale
+		_draw_ink_line(band_center - tube_normal * 10.5 * size_scale, band_center + tube_normal * 10.5 * size_scale,
+			Color(0.16, 0.13, 0.16, alpha), 2.6 * size_scale)
+		_draw_ink_line(band_center - tube_normal * 10.5 * size_scale + tube_axis * 1.4 * size_scale,
+			band_center + tube_normal * 10.5 * size_scale + tube_axis * 1.4 * size_scale,
+			Color(0.62, 0.5, 0.52, alpha * 0.75), 1.0 * size_scale)
 	# Pepper body cradled at base
 	_draw_ink_disc(center + Vector2(-2.0 * size_scale, 8.0 * size_scale), 13.0 * size_scale, pepper_color)
 	draw_circle(center + Vector2(-6.0 * size_scale, 4.0 * size_scale), 4.5 * size_scale, pepper_color.lightened(0.2))
