@@ -261,10 +261,42 @@ static func _fallback_plant_lines(kind: String) -> Array:
 	if plant_def.is_empty():
 		return ["图鉴资料同步中。", "该植物的正式说明会在后续版本里补齐。"]
 	var plant_name := String(plant_def.get("name", kind))
-	return [
-		_describe_plant_role(plant_name, plant_def),
-		_describe_plant_ultimate(plant_def),
-	]
+	var lines: Array = [_describe_plant_role(plant_name, plant_def)]
+	var stats := _describe_plant_stats(plant_def)
+	if stats != "":
+		lines.append(stats)
+	lines.append(_describe_plant_ultimate(plant_def))
+	return lines
+
+
+static func _describe_plant_stats(plant_def: Dictionary) -> String:
+	# Concrete numbers so the almanac answers "how far / how hard / how fast".
+	# Ranges are converted to tiles using the nominal 100px cell.
+	var parts: Array = []
+	var health := float(plant_def.get("health", 0.0))
+	if health > 0.0:
+		parts.append("耐久 %d" % int(health))
+	var attack_range := float(plant_def.get("range", 0.0))
+	var cone_range := float(plant_def.get("cone_range", 0.0))
+	var radius := float(plant_def.get("radius", 0.0))
+	if attack_range > 0.0:
+		parts.append("射程约 %.1f 格" % (attack_range / 100.0))
+	elif cone_range > 0.0:
+		parts.append("扇形半径约 %.1f 格" % (cone_range / 100.0))
+	elif radius > 0.0:
+		parts.append("作用半径约 %.1f 格" % (radius / 100.0))
+	var damage := float(plant_def.get("damage", 0.0))
+	if damage > 0.0:
+		parts.append("单次伤害 %d" % int(damage))
+	for cadence_key in ["shoot_interval", "attack_interval", "pulse_interval", "support_interval"]:
+		if plant_def.has(cadence_key):
+			parts.append("每 %.1f 秒出手一次" % float(plant_def[cadence_key]))
+			break
+	if plant_def.has("sun_interval"):
+		parts.append("每 %.0f 秒产出 %d 阳光" % [float(plant_def.get("sun_interval", 0.0)), int(float(plant_def.get("sun_amount", 25.0)))])
+	if parts.is_empty():
+		return ""
+	return "数值：%s。" % "，".join(parts)
 
 
 static func _describe_plant_role(plant_name: String, plant_def: Dictionary) -> String:
@@ -310,8 +342,23 @@ static func _describe_plant_ultimate(plant_def: Dictionary) -> String:
 	var prefix := ""
 	if bool(plant_def.get("gacha_only", false)):
 		prefix = "%s抽卡植物，" % _rarity_label(String(plant_def.get("rarity", "")))
-	if plant_def.has("ultimate_name"):
-		return "%s点击大招「%s」会把它的核心能力瞬间推到极限。" % [prefix, String(plant_def.get("ultimate_name", ""))]
+	var ultimate_name := String(plant_def.get("ultimate_name", ""))
+	# Describe the effect from the tuning knobs the ultimate actually uses.
+	var effects: Array = []
+	if plant_def.has("ultimate_damage"):
+		effects.append("对范围内敌人造成约 %d 伤害" % int(float(plant_def["ultimate_damage"])))
+	if plant_def.has("ultimate_heal"):
+		effects.append("为全场植物回复约 %d 生命" % int(float(plant_def["ultimate_heal"])))
+	if plant_def.has("ultimate_shield"):
+		effects.append("为全场植物叠加约 %d 护盾" % int(float(plant_def["ultimate_shield"])))
+	if plant_def.has("ultimate_sun"):
+		effects.append("立即获得约 %d 阳光" % int(float(plant_def["ultimate_sun"])))
+	if plant_def.has("freeze_duration"):
+		effects.append("附带最长 %.1f 秒冻结" % float(plant_def["freeze_duration"]))
+	if ultimate_name != "":
+		if effects.is_empty():
+			return "%s点击大招「%s」会把它的核心能力瞬间推到极限。" % [prefix, ultimate_name]
+		return "%s点击大招「%s」：%s。" % [prefix, ultimate_name, "，".join(effects)]
 	return "%s能量豆会进一步放大它的主要作用。" % prefix
 
 
@@ -329,7 +376,16 @@ static func _rarity_label(rarity: String) -> String:
 
 static func zombie_lines(kind: String) -> Array:
 	if ZombieDefs.ZOMBIES.get(kind, {}).has("almanac"):
-		return ZombieDefs.ZOMBIES[kind]["almanac"]
+		var written: Array = ZombieDefs.ZOMBIES[kind]["almanac"]
+		if written.size() >= 2:
+			return written
+		# A one-line hand note still gets the generated stats + role appended.
+		var merged: Array = written.duplicate()
+		var generated := _fallback_zombie_lines(kind)
+		for extra_line in generated:
+			if not merged.has(extra_line):
+				merged.append(extra_line)
+		return merged
 	match kind:
 		"normal":
 			return ["最基础的僵尸，没有额外能力。", "任何防线的默认压力来源。"]
@@ -520,4 +576,57 @@ static func zombie_lines(kind: String) -> Array:
 		"volcano_boss":
 			return ["熔岩尸王盘踞在火山口深处，全身覆盖岩浆裂纹。", "它会把所有火山系僵尸混编进终章，是火山世界的最终 Boss。"]
 		_:
-			return ["资料暂未填写。"]
+			return _fallback_zombie_lines(kind)
+
+
+static func _fallback_zombie_lines(kind: String) -> Array:
+	# Generated profile so every zombie has readable stats even without hand-written text.
+	var data: Dictionary = ZombieDefs.ZOMBIES.get(kind, {})
+	if data.is_empty():
+		return ["图鉴资料同步中。", "该僵尸的正式说明会在后续版本里补齐。"]
+	var zombie_name := String(data.get("name", kind))
+	var stats: Array = []
+	var health := float(data.get("health", 0.0))
+	if health > 0.0:
+		stats.append("生命 %d" % int(health))
+	var speed := float(data.get("speed", 0.0))
+	if speed > 0.0:
+		stats.append("移速 %.0f" % int(speed))
+	else:
+		stats.append("原地不动")
+	var dps := float(data.get("attack_dps", 0.0))
+	if dps > 0.0:
+		stats.append("啃咬 %d/秒" % int(dps))
+	else:
+		stats.append("不啃食植物")
+	var shield := float(data.get("shield_health", 0.0))
+	if shield > 0.0:
+		var gear := "护具"
+		var armor_kind := String(data.get("armor_kind", ""))
+		if armor_kind == "headgear":
+			gear = "头戴护具"
+		elif armor_kind == "handheld":
+			gear = "手持护具"
+		var gear_note := ""
+		if armor_kind == "headgear":
+			gear_note = "（全方位防护，免疫穿透）"
+		elif armor_kind == "handheld":
+			gear_note = "（只挡正面，可被回旋镖与烟雾穿透，从背后可绕过）"
+		stats.append("%s耐久 %d%s" % [gear, int(shield), gear_note])
+	var traits: Array = []
+	if bool(data.get("boss", false)):
+		traits.append("首领单位，不啃食植物也不会进入房屋")
+	if bool(data.get("boss_summon", false)):
+		traits.append("由首领召唤或放置")
+	if bool(data.get("non_mainline_special", false)):
+		traits.append("仅在特定关卡登场")
+	if bool(data.get("volcano_expansion", false)):
+		traits.append("火山扩展单位")
+	if data.has("reward"):
+		traits.append("击杀奖励 %d 金币" % int(data.get("reward", 0)))
+	var lines: Array = ["%s的基础数值：%s。" % [zombie_name, "，".join(stats)]]
+	if not traits.is_empty():
+		lines.append("定位：%s。" % "；".join(traits))
+	else:
+		lines.append("没有额外机制，依靠基础数值持续推进。")
+	return lines
