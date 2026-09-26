@@ -250,7 +250,7 @@ func _test_switching_to_zombie_almanac_queues_boss_assets() -> bool:
 	game.call("_enter_almanac_mode", "plants")
 	var passed = _assert_true(int(game.asset_prewarm_queue.size()) == 0, "opening the plant almanac should not prewarm zombie boss art yet")
 	if passed:
-		game.call("_handle_almanac_click", Vector2(260.0, 136.0))
+		game.call("_handle_almanac_click", GameScript.ALMANAC_ZOMBIE_TAB_RECT.get_center())
 		passed = _assert_true(game.almanac_tab == "zombies", "clicking the zombie tab should switch the almanac tab") and passed
 		passed = _assert_true(int(game.asset_prewarm_queue.size()) > 0, "switching to the zombie almanac should queue Touhou boss art before the user scrolls to it") and passed
 		game.call("_drain_asset_prewarm_queue")

@@ -512,6 +512,16 @@ const ZOMBIES: Dictionary = {
 		"reinforcement_interval_base": 4.8, "reinforcement_interval_phase_scale": 0.35, "reinforcement_interval_min": 2.6,
 		"almanac": ["永夜抄六面A。道中为「壶中的天地」，生命为终末的12%，击破后才会离开回廊。终末依次展开神代记忆、生命游戏、思兼、Apollo 13、天文密葬法与蓬莱之药。", "原创世界切换：水、岩浆、屋顶格提前2秒预警，10秒后恢复。Normal追加狂暴药剂，Hard追加禁疗，Lunatic追加万象临床。药瓶可被击破以解除对应效果。"],
 	},
+	"hakutaku_boss": {
+		"name": "上白泽慧音（半兽）", "health": 9600.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 240,
+		"skill_interval_base": 4.8, "skill_interval_min": 3.0, "reinforcement_interval_base": 7.0, "reinforcement_interval_min": 5.0,
+		"almanac": ["满月下的白泽。3-25道中依次展开旧秘境史、一条归桥、新幻想史。EX+追加封存花圃：标记两秒后暂停格内植物行动，三秒后恢复。"],
+	},
+	"mokou_boss": {
+		"name": "藤原妹红", "health": 52000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 1000,
+		"skill_interval_base": 4.8, "skill_interval_min": 3.0, "reinforcement_interval_base": 7.0, "reinforcement_interval_min": 5.0,
+		"almanac": ["永夜抄EX终末。十一张原作符卡按顺序展开，凤凭依与Imperishable Shooting为限时生存；最终符在本作中必定出现。", "原创烈焰乒乓：随机侧发球，红线预告每次穿越，可用镜芦苇反弹或冰弹熄灭。余烬格预警后灼烧，冰系弹丸与寒冰菇可扑灭。EX+增加双球连打与留有安全中心的涅槃火圈。"],
+	},
 	"kaguya_boss": {
 		"name": "蓬莱山辉夜", "health": 44000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 900,
 		"skill_interval_base": 4.8, "skill_interval_phase_scale": 0.3, "skill_interval_min": 2.8,

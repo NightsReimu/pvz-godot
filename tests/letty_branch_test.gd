@@ -5,6 +5,17 @@ const Defs = preload("res://scripts/game_defs.gd")
 const AlmanacText = preload("res://scripts/data/almanac_text.gd")
 
 
+# BGM tests temporarily enter the tree; they must not rebuild the player's UI
+# over the detached fixture controls or read/write the real save.
+class BranchGame extends GameScript:
+	func _ready() -> void:
+		set_process(false)
+		set_process_unhandled_input(false)
+
+	func _save_game() -> void:
+		pass
+
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -20,6 +31,8 @@ func _run() -> void:
 	failed = not _test_cirno_midboss_does_not_steal_letty_finale_bgm() or failed
 	failed = not _test_letty_skills_create_bounded_winter_pressure() or failed
 	failed = not _test_temporary_frozen_cells_restore_to_land() or failed
+	await process_frame
+	await process_frame
 	quit(1 if failed else 0)
 
 
@@ -38,7 +51,7 @@ func _find_level_index(level_id: String) -> int:
 
 
 func _make_game() -> Control:
-	var game := GameScript.new()
+	var game := BranchGame.new()
 	game.current_level = {"id": "test", "terrain": "day", "events": []}
 	game.active_rows = [0, 1, 2, 3, 4]
 	game.water_rows = []
@@ -73,6 +86,10 @@ func _make_game() -> Control:
 
 
 func _free_game(game: Control) -> void:
+	for child in game.get_children():
+		if child is AudioStreamPlayer:
+			child.stop()
+			child.stream = null
 	if is_instance_valid(game.toast_label):
 		game.toast_label.free()
 	if is_instance_valid(game.banner_label):

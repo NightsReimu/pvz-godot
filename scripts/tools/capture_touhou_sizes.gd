@@ -5,7 +5,7 @@ class Gallery extends PreviewGame:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("121f27"))
 		_draw_text("东方 Boss · 统一人物高度 / 原始动作比例", Vector2(30, 34), 24, Color("e5dcc1"))
 		var index := 0
-		for kind in TouhouDifficulty.EXTENSIONS:
+		for kind in TouhouDifficulty.boss_kinds():
 			var x := 135.0 + (index % 6) * 265.0
 			var y := 242.0 + (index / 6) * 255.0
 			var unit := {"kind": kind, "boss_phase": 0, "health": 100.0, "rumia_state": "idle", "animation_time": 0.0, "flash": 0.0, "anim_phase": 0.0, "slow_timer": 0.0}

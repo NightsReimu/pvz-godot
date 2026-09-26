@@ -43,5 +43,18 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 				dm._ring(c, point, 20 + rank * 3 + night * 2, turn, (105 + night * 15) * s, COLORS[night], "rice", extra)
 				if night >= 3:
 					dm._fan(c, o, 7 + rank, aim, 1.05, 195 * s, COLORS[(night + 2) % 5], "orb", extra)
-			elif p.begins_with("pressure_eternity"):
+			elif p == "pressure_eternity":
 				dm._ring(c, o, 18 + rank * 2, -wave * 0.26, 120 * s, COLORS[4], "rice", extra)
+
+			elif p == "pressure_eternity_crossfire":
+				for side in [-1, 1]:
+					var point: Vector2 = dm._point(0.83, 0.5 + side * 0.42)
+					var end: Vector2 = dm._point(0.18, 0.5 - side * 0.3)
+					dm._beam(c, point, end, COLORS[2], 1.25, 7 * s, {"damage": 54.0})
+					dm._fan(c, point, 6 + rank, (end-point).angle(), 0.65, 145 * s, COLORS[3], "orb", extra)
+			elif p == "pressure_eternity_domain":
+				for node in range(4):
+					var point: Vector2 = dm._point(0.44 + 0.16 * (node % 2), 0.16 + node * 0.22)
+					var eternity := extra.duplicate()
+					eternity["angular_speed"] = 0.38 if node % 2 else -0.38
+					dm._ring(c, point, 8 + rank, node * 0.4 + wave * 0.2, 95 * s, COLORS[node], "rice", eternity)

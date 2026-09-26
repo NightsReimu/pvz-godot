@@ -3,6 +3,8 @@ extends RefCounted
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const DURATION := 1.65
 const THEMES := {
+	"hakutaku_boss": [Color("aee69b"), "ofuda"],
+	"mokou_boss": [Color("ff9869"), "petal"],
 	"kaguya_boss": [Color("efb7d6"), "clock"],
 	"eirin_boss": [Color("ff9aaa"), "cross"],
 	"reisen_boss": [Color("fa668d"), "eye"],

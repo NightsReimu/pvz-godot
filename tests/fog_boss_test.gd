@@ -163,21 +163,25 @@ func _test_fog_boss_can_create_bog_pool_pressure() -> bool:
 
 
 func _test_fog_boss_uses_layered_screen_effects() -> bool:
-	var game = _make_game()
-	game._spawn_zombie("fog_boss", 2)
-	var boss = game.zombies[0]
-	boss["boss_skill_cycle"] = 2
-	game.zombies[0] = boss
-	game.zombies[0] = game._trigger_boss_skill(boss)
-	var shape_counts := {}
-	for effect in game.effects:
-		var shape = String(effect.get("shape", "circle"))
-		shape_counts[shape] = int(shape_counts.get(shape, 0)) + 1
-	var passed = _assert_true(game.effects.size() >= 5, "fog_boss burst skill should stack several screen effects instead of a single flash") \
-		and _assert_true(int(shape_counts.get("circle", 0)) >= 1, "fog_boss burst skill should keep a large central shockwave") \
-		and _assert_true(int(shape_counts.get("lane_spray", 0)) >= 2, "fog_boss burst skill should add sweeping lane pressure visuals") \
-		and _assert_true(int(shape_counts.get("mist_cloud", 0)) >= 2, "fog_boss burst skill should add fog cloud overlays")
-	_free_game(game)
+	var passed := true
+	# The boss guarantees its own lane; additional lane sprays are random.
+	# Check the guaranteed layers across seeds instead of requiring two lucky rolls.
+	for seed_value in range(32):
+		var game = _make_game()
+		game.rng.seed = seed_value
+		game._spawn_zombie("fog_boss", 2)
+		var boss = game.zombies[0]
+		boss["boss_skill_cycle"] = 2
+		game.zombies[0] = game._trigger_boss_skill(boss)
+		var shape_counts := {}
+		for effect in game.effects:
+			var shape = String(effect.get("shape", "circle"))
+			shape_counts[shape] = int(shape_counts.get(shape, 0)) + 1
+		passed = _assert_true(game.effects.size() >= 4, "fog_boss burst must retain four guaranteed effect layers") and passed
+		passed = _assert_true(int(shape_counts.get("circle", 0)) >= 1, "fog_boss burst must keep a central shockwave") and passed
+		passed = _assert_true(int(shape_counts.get("lane_spray", 0)) >= 1, "fog_boss must always sweep its own lane") and passed
+		passed = _assert_true(int(shape_counts.get("mist_cloud", 0)) >= 2, "fog_boss burst must keep both fog overlays") and passed
+		_free_game(game)
 	return passed
 
 

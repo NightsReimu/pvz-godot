@@ -2,6 +2,7 @@ extends RefCounted
 class_name PoolLevelDefs
 
 const EirinLevel = preload("res://scripts/data/eirin_level_defs.gd")
+const MokouLevel = preload("res://scripts/data/mokou_level_defs.gd")
 const KaguyaLevel = preload("res://scripts/data/kaguya_level_defs.gd")
 
 static var LEVELS = [
@@ -806,6 +807,7 @@ static var LEVELS = [
 		},
 		EirinLevel.LEVEL,
 		KaguyaLevel.level(),
+	MokouLevel.LEVEL,
 		{
 			"id": "3-S1",
 			"title": "守住防线",

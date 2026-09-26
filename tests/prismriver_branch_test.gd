@@ -6,6 +6,17 @@ const PlantDefs = preload("res://scripts/data/plant_defs.gd")
 const AlmanacText = preload("res://scripts/data/almanac_text.gd")
 
 
+# BGM tests temporarily enter the tree; they must not rebuild the player's UI
+# over the detached fixture controls or read/write the real save.
+class BranchGame extends GameScript:
+	func _ready() -> void:
+		set_process(false)
+		set_process_unhandled_input(false)
+
+	func _save_game() -> void:
+		pass
+
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -22,6 +33,8 @@ func _run() -> void:
 	failed = not _test_prismriver_finale_bgm_starts_only_for_prismriver() or failed
 	failed = not _test_lily_and_prismriver_skills_create_bounded_stage_four_pressure() or failed
 	failed = not _test_cotton_candy_cloud_plant_and_passive_support() or failed
+	await process_frame
+	await process_frame
 	quit(1 if failed else 0)
 
 
@@ -40,7 +53,7 @@ func _find_level_index(level_id: String) -> int:
 
 
 func _make_game() -> Control:
-	var game := GameScript.new()
+	var game := BranchGame.new()
 	game.current_level = {"id": "test", "terrain": "day", "events": []}
 	game.active_rows = [0, 1, 2, 3, 4]
 	game.water_rows = []
@@ -78,6 +91,10 @@ func _make_game() -> Control:
 
 
 func _free_game(game: Control) -> void:
+	for child in game.get_children():
+		if child is AudioStreamPlayer:
+			child.stop()
+			child.stream = null
 	if is_instance_valid(game.toast_label):
 		game.toast_label.free()
 	if is_instance_valid(game.banner_label):

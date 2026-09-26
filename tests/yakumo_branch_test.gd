@@ -5,6 +5,17 @@ const Defs = preload("res://scripts/game_defs.gd")
 const AlmanacText = preload("res://scripts/data/almanac_text.gd")
 
 
+# BGM tests temporarily enter the tree; they must not rebuild the player's UI
+# over the detached fixture controls or read/write the real save.
+class BranchGame extends GameScript:
+	func _ready() -> void:
+		set_process(false)
+		set_process_unhandled_input(false)
+
+	func _save_game() -> void:
+		pass
+
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -20,6 +31,8 @@ func _run() -> void:
 	failed = not _test_yakumo_phase_pressure_and_render_scale() or failed
 	failed = not _test_yukari_gap_geometry_stays_in_boss_local_space() or failed
 	failed = not _test_hakugyokurou_preview_style() or failed
+	await process_frame
+	await process_frame
 	quit(1 if failed else 0)
 
 
@@ -38,7 +51,7 @@ func _find_level_index(level_id: String) -> int:
 
 
 func _make_game() -> Control:
-	var game := GameScript.new()
+	var game := BranchGame.new()
 	game.current_level = {"id": "test", "title": "测试关卡", "terrain": "day", "sky_sun_range": Vector2(999.0, 999.0), "events": []}
 	game.active_rows = [0, 1, 2, 3, 4]
 	game.water_rows = []
@@ -71,6 +84,10 @@ func _make_game() -> Control:
 
 
 func _free_game(game: Control) -> void:
+	for child in game.get_children():
+		if child is AudioStreamPlayer:
+			child.stop()
+			child.stream = null
 	for node in [game.toast_label, game.banner_label, game.message_label, game.action_button, game.message_panel]:
 		if is_instance_valid(node):
 			node.free()
@@ -265,8 +282,8 @@ func _test_yakumo_phase_pressure_and_render_scale() -> bool:
 			has_yukari_phase_fx = has_yukari_phase_fx or shape.begins_with("yukari_")
 		passed = _assert_true(has_ran_phase_fx, "Ran phase shifts should produce dedicated fox-shikigami FX") and passed
 		passed = _assert_true(has_yukari_phase_fx, "Yukari phase shifts should produce dedicated boundary FX") and passed
-		passed = _assert_true(float(game.call("_ran_draw_scale", 3)) <= 0.72, "Ran render scale should remain inside the normalized boss height band") and passed
-		passed = _assert_true(float(game.call("_yukari_draw_scale", 3)) <= 0.69, "Yukari render scale should remain inside the normalized boss height band") and passed
+		passed = _assert_true(is_equal_approx(float(game.call("_ran_draw_scale", 3)) * float(game.TouhouSpriteDefs.IDLE_HEIGHTS["ran_boss"]), game.TouhouSpriteDefs.BODY_HEIGHT), "Ran render scale should remain inside the normalized boss height band") and passed
+		passed = _assert_true(is_equal_approx(float(game.call("_yukari_draw_scale", 3)) * float(game.TouhouSpriteDefs.IDLE_HEIGHTS["yukari_boss"]), game.TouhouSpriteDefs.BODY_HEIGHT), "Yukari render scale should remain inside the normalized boss height band") and passed
 	_free_game(game)
 	return passed
 

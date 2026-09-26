@@ -49,7 +49,22 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 			dm._ring(c, dm._point(0.72, 0.5), 24 + rank * 3, wave * 0.22, 130 * scale, RED if wave % 2 == 0 else BLUE, "rice", extra)
 			if wave % 2 == 0:
 				dm._fan(c, origin, 9, aim, 1.1, 190 * scale, GOLD, "rice", extra)
-		"pressure_medicine", "pressure_medicine_crossfire", "pressure_medicine_domain":
+		"pressure_medicine":
 			for side in [-1, 1]:
 				var point: Vector2 = dm._point(0.83, 0.5 + side * 0.28)
 				dm._fan(c, point, 9 + rank, PI + sin(wave * 0.65) * 0.3, 1.2, 155 * scale, RED if side < 0 else BLUE, "rice", extra)
+
+		"pressure_medicine_crossfire":
+			for side in [-1, 1]:
+				var point: Vector2 = dm._point(0.7, 0.5 + side * 0.43)
+				var end: Vector2 = dm._point(0.12, 0.5 - side * 0.32)
+				dm._beam(c, point, end, BLUE if side < 0 else RED, 1.2, 6 * scale, {"damage": 52.0})
+				dm._fan(c, point, 7 + rank, (end-point).angle(), 0.8, 145 * scale, GOLD, "rice", extra)
+		"pressure_medicine_domain":
+			for node in range(3):
+				var point: Vector2 = dm._point(0.38 + node * 0.2, 0.24 if (node + wave) % 2 == 0 else 0.76)
+				var medicine := extra.duplicate()
+				medicine["freeze_at"] = 0.5
+				medicine["thaw_at"] = 1.25
+				medicine["angular_speed"] = 0.25 if node % 2 == 0 else -0.25
+				dm._ring(c, point, 9 + rank, wave * 0.22, 100 * scale, BLUE if node % 2 else RED, "orb", medicine)

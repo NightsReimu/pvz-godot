@@ -81,7 +81,7 @@ func update(delta: float) -> void:
 	var owners := {}
 	var backdrop_active := false
 	for zombie in game.zombies:
-		if String(zombie.kind) in [KIND, "marisa_boss"] and float(zombie.health) > 0:
+		if String(zombie.kind) in [KIND, "marisa_boss", "hakutaku_boss", "mokou_boss"] and float(zombie.health) > 0:
 			backdrop_active = true
 		if String(zombie.kind) == KIND and float(zombie.health) > 0.0:
 			owners[int(zombie.uid)] = true

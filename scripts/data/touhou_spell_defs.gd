@@ -6,12 +6,15 @@ const Marisa = preload("res://scripts/data/marisa_spell_defs.gd")
 const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
 const Reisen = preload("res://scripts/data/reisen_spell_defs.gd")
 const Eirin = preload("res://scripts/data/eirin_spell_defs.gd")
+const Mokou = preload("res://scripts/data/mokou_spell_defs.gd")
 const Kaguya = preload("res://scripts/data/kaguya_spell_defs.gd")
 
 # TH06/TH07 Normal routes, followed by Extra/Phantasm where specified.
 # Columns: reference ID, display name, pattern, animation pose.
 # Sources and the tower-defense adaptations are documented in docs/touhou-spells.md.
 const CARDS := {
+	"hakutaku_boss": Mokou.KEINE,
+	"mokou_boss": Mokou.MOKOU,
 	"eirin_boss": [["th08-124", "觉神「神代的记忆」", "eirin_memories", "shot"]],
 	"kaguya_boss": [["th08-152", "难题「龙颈之玉 -五色的弹丸-」", "kaguya_dragon", "shot"]],
 	"reisen_boss": Reisen.ROUTES.easy,
@@ -200,6 +203,8 @@ const NONSPELLS := {
 
 
 static func phases_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind in ["hakutaku_boss", "mokou_boss"]:
+		return Mokou.phases(kind, level)
 	var phases: Array = []
 	var originals: Array = []
 	for base_entry in cards_for(kind, level):
@@ -231,6 +236,8 @@ static func card_from_entry(entry: Array) -> Dictionary:
 
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind in ["hakutaku_boss", "mokou_boss"]:
+		return Mokou.cards(kind)
 	if kind == "kaguya_boss":
 		return Kaguya.cards(level)
 	if kind == "eirin_boss":

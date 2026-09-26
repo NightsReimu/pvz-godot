@@ -42,6 +42,12 @@ const EXTENSIONS := {
 
 # Each column is a different move, retained by all subsequent difficulty tiers.
 # The first uses the character's pursuit pattern, then crossfire, then a domain.
+# These bosses provide their own EX/EX+ phase lists in MokouSpellDefs.
+const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss"]
+
+static func boss_kinds() -> Array:
+	return EXTENSIONS.keys() + CUSTOM_EXTRA_BOSSES
+
 const MOVE_NAMES := {
 	"eternity": ["永恒「停长的月下花圃」", "须臾「一瞬千年的收割」", "蓬莱「万象倒映时庭」"],
 	"medicine": ["药符「朱月狂剂」", "禁疗「月都处方」", "虚月「万象临床」"],
@@ -74,6 +80,8 @@ const MOVE_NAMES := {
 # TH08 4A/B authored low fixed damage per projectile, so late phases previously
 # fell behind other bosses. Keep character tuning separate from difficulty.
 const ATTACK_TUNING := {
+	"hakutaku_boss": {"damage": 1.25, "phase_damage": 0.08, "speed": 1.0, "density": 1.0, "cadence": 1.0},
+	"mokou_boss": {"damage": 1.4, "beam_damage": 1.3, "phase_damage": 0.08, "speed": 1.0, "density": 1.06, "cadence": 0.98},
 	"kaguya_boss": {"damage": 1.35, "beam_damage": 1.3, "phase_damage": 0.10, "speed": 1.02, "density": 1.08, "cadence": 0.94},
 	"eirin_boss": {"damage": 1.35, "beam_damage": 1.35, "phase_damage": 0.10, "speed": 1.02, "density": 1.08, "cadence": 0.94},
 	"reisen_boss": {"damage": 1.35, "beam_damage": 1.18, "phase_damage": 0.12, "speed": 1.08, "density": 1.16, "cadence": 0.86},
@@ -102,9 +110,9 @@ static func attack_damage(kind: String, level: Dictionary, phase: int, beam: boo
 
 static func is_touhou(level: Dictionary) -> bool:
 	for event in level.get("events", []):
-		if EXTENSIONS.has(String(event.get("kind", ""))):
+		if String(event.get("kind", "")) in boss_kinds():
 			return true
-	return EXTENSIONS.has(String(level.get("mid_boss_kind", "")))
+	return String(level.get("mid_boss_kind", "")) in boss_kinds()
 
 
 static func is_extra(level: Dictionary) -> bool:

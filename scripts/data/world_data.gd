@@ -28,8 +28,8 @@ const WORLDS: Array = [
 	{
 		"key": "pool",
 		"title": "泳池时代",
-		"subtitle": "Adventure 3-1 ~ 3-10",
-		"description": "六行泳池、中央水路、冰道与游泳系僵尸同时展开，末段还会进入两张高压传送带关卡。",
+		"subtitle": "Adventure 3-1 ~ 3-25",
+		"description": "六行泳池与永夜竹林交错展开。通过永琳、辉夜的终末后，3-25将迎来半兽慧音与藤原妹红的EX挑战。",
 		"accent": Color(0.18, 0.66, 0.9),
 		"accent_dark": Color(0.08, 0.28, 0.5),
 		"panel": Color(0.84, 0.96, 1.0),

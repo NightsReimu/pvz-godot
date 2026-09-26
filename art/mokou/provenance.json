@@ -1,0 +1,18 @@
+{
+  "character": "mokou",
+  "source": "codex-clipboard-22c2ce7b-3710-446c-b24a-fb1426f73cb3.png",
+  "source_sha256": "972e4e826f8341ca05215e4b7b3bf1de747c6a7d6b2161630bd242b8fc3b2bbc",
+  "cutout_provider": "image_gen transparent_background=true",
+  "generated_file": "exec-cf4573e6-62f0-4f8b-9017-9704bb5ea5d8.png",
+  "prompt": "Remove blurred background to genuine transparent alpha. Preserve 24 poses, 6x4 layout, character design and spell effects. No redraw or rearrangement.",
+  "sheet_size": [
+    1536,
+    1024
+  ],
+  "frame_size": [
+    256,
+    256
+  ],
+  "frame_order": "row-major; crops only, no rescale or background processing",
+  "calibration": "Idle opaque silhouette height, shared 180px body-height; original-pose atlas remains fixed."
+}

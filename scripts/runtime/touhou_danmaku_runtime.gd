@@ -7,6 +7,7 @@ const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
 const ReisenDanmaku = preload("res://scripts/runtime/reisen_danmaku.gd")
 const EirinDanmaku = preload("res://scripts/runtime/eirin_danmaku.gd")
+const MokouDanmaku = preload("res://scripts/runtime/mokou_danmaku.gd")
 const KaguyaDanmaku = preload("res://scripts/runtime/kaguya_danmaku.gd")
 const ExtraDanmaku = preload("res://scripts/runtime/touhou_extra_danmaku.gd")
 const DeclarationFX = preload("res://scripts/runtime/spell_declaration_fx.gd")
@@ -61,6 +62,8 @@ func cast(boss: Dictionary) -> Dictionary:
 	var duration := 3.4
 	if String(boss.kind) in ["reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
 		duration = float(card.get("duration", 4.8))
+	if String(boss.kind) in ["hakutaku_boss", "mokou_boss"]:
+		duration = float(card.get("duration", 6.0))
 	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
 		duration = 2.2
 	if pattern == "pressure_lunar_domain":
@@ -236,6 +239,9 @@ func _update_actors(c: Dictionary) -> void:
 
 
 func _emit_wave(c: Dictionary) -> void:
+	if String(c.kind) in ["hakutaku_boss", "mokou_boss"]:
+		MokouDanmaku.emit(self, c)
+		return
 	if String(c.kind) == "kaguya_boss":
 		KaguyaDanmaku.emit(self, c)
 		return
@@ -764,6 +770,8 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			before = MarisaDanmaku.advance_bullet(b, before, motion_delta)
 		elif String(b.kind) == "reisen_boss":
 			before = ReisenDanmaku.advance_bullet(b, before)
+		if String(b.kind) == "mokou_boss":
+			MokouDanmaku.advance_bullet(b, motion_delta)
 		var hit := false
 		if age >= float(b.get("arming_time", 0.0)) and not bool(b.get("reisen_phantom", false)):
 			if bool(b.get("reflected", false)):
@@ -891,7 +899,7 @@ func draw() -> void:
 	for c in casts:
 		DeclarationFX.draw(game, c)
 		var cast_age = float(c.age)
-		var cue_scale: float = game._battle_unit_scale() if String(c.kind) in ["reimu_boss", "marisa_boss"] else 1.0
+		var cue_scale: float = game._battle_unit_scale() if String(c.kind) in ["reimu_boss", "marisa_boss", "hakutaku_boss", "mokou_boss"] else 1.0
 		var pulse_window = clampf(1.0 - (float(c.next_wave) - cast_age) / 0.38, 0.0, 1.0)
 		var pulse_center = Vector2(c.center) + Vector2(0, 34 * cue_scale)
 		var pulse_radius = (42.0 + pulse_window * 34.0) * cue_scale

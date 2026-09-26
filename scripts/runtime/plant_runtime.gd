@@ -83,6 +83,8 @@ func update_plants(delta: float) -> void:
 
 			if game._plant_charm_blocks_actions(plant):
 				continue
+			if game.mokou_runtime != null and game.mokou_runtime.plant_stilled(row, col):
+				continue
 			if game.kaguya_runtime != null and game.kaguya_runtime.plant_stilled(row, col):
 				continue
 
@@ -910,6 +912,7 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 	var base_damage = maxf(float(Defs.PLANTS["origami_blossom"]["damage"]) * damage_mult, 12.0)
 	if game.has_method("_play_firing_sfx"):
 		game._play_firing_sfx(_magic_flower_sound_kind(chosen_kind))
+	var projectile_start: int = game.projectiles.size()
 	match chosen_kind:
 		"amber_pea":
 			game._spawn_amber_projectile(row, spawn_position, base_damage * 0.96, 500.0, 8.4)
@@ -940,18 +943,9 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 		"star_shot":
 			# Small vertical spray only: a wide fan made the flower look like it was missing.
 			spawn_starfruit_projectile(row, spawn_position, 460.0, game.rng.randf_range(-14.0, 14.0))
+			game.projectiles.back().damage *= base_damage / float(Defs.PLANTS.starfruit.damage)
 		"pea":
 			game._spawn_projectile(row, spawn_position, Color(0.4, 0.84, 0.32), base_damage, 0.0, 480.0, 8.0, "pea")
-		"moonforge_shot":
-			game._spawn_projectile(row, spawn_position, Color(1.0, 0.72, 0.34), base_damage * 1.06, 0.0, 500.0, 8.5, "moonforge_shot")
-		"prism_pea":
-			game._spawn_projectile(row, spawn_position, Color(0.66, 0.94, 1.0), base_damage * 0.96, 0.0, 520.0, 8.0, "prism_pea")
-		"shadow_pea":
-			game._spawn_projectile(row, spawn_position, Color(0.5, 0.4, 0.78), base_damage * 1.02, 0.0, 470.0, 8.0, "shadow_pea")
-		"spiral_bamboo":
-			game._spawn_projectile(row, spawn_position, Color(0.64, 0.86, 0.44), base_damage * 0.94, 0.0, 460.0, 7.5, "spiral_bamboo")
-		"cluster_boomerang":
-			spawn_boomerang_projectile(row, spawn_position, center.x, base_damage, 2)
 		"frost_boomerang":
 			game._spawn_frost_boomerang_projectile(row, spawn_position, center.x, base_damage * 1.02, 3.0, 460.0, 9.0)
 		"amber_ultimate_shard":
@@ -960,6 +954,7 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 			# The roller wants a column; derive it from the flower centre since this helper has no col.
 			var mango_col: int = clampi(int(round((center.x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x - 0.5)), 0, game.COLS - 1)
 			game._ensure_projectile_runtime().spawn_mango_roller(row, mango_col, false)
+			game.rollers.back().damage *= base_damage / float(Defs.PLANTS.mango_bowling.damage)
 		"phoenix_flame":
 			# spawn_fire_projectile hardcodes its own kind, so retag only the shot we just made.
 			var flame_before: int = game.projectiles.size()
@@ -977,12 +972,12 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 		"spiral_bamboo":
 			spawn_spiral_bamboo_projectile(row, spawn_position, center.x, base_damage * 1.04, 3, base_damage * 0.6)
 		"cluster_boomerang":
-			var cluster_col = clampi(int(round((center.x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x)), 0, game.COLS - 1)
+			var cluster_col = clampi(int(round((center.x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x - 0.5)), 0, game.COLS - 1)
 			spawn_cluster_boomerang_projectile(row, cluster_col, row, spawn_position, center.x, base_damage * 1.08, 3)
 		_:
 			game._spawn_projectile(row, spawn_position, Color(0.96, 0.88, 0.72), base_damage, 0.0, 490.0, 7.6)
-	if not game.projectiles.is_empty():
-		game.projectiles[game.projectiles.size() - 1]["anti_air"] = true
+	for index in range(projectile_start, game.projectiles.size()):
+		game.projectiles[index]["anti_air"] = true
 	return chosen_kind
 
 
@@ -2586,7 +2581,7 @@ func spawn_moonforge_projectile(origin: Vector2, target: Vector2, damage: float,
 	var delta = target - origin
 	var speed = 310.0
 	var travel_time = maxf(delta.x / speed, 0.14)
-	var row = clampi(int(round((target.y - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y)), 0, game.ROWS - 1)
+	var row = clampi(int(round((target.y - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y - 0.5)), 0, game.ROWS - 1)
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, origin, "moonforge"))
 	game.projectiles.append({
 		"kind": "moon_meteor",
@@ -2961,11 +2956,12 @@ func update_pulse_bulb(plant: Dictionary, delta: float, row: int, col: int) -> v
 		row, col, cells,
 		float(Defs.PLANTS["pulse_bulb"]["damage"]),
 		float(Defs.PLANTS["pulse_bulb"].get("knockback_chance", 0.0)))
-	if game._damage_obstacles_in_circle(center, radius, float(Defs.PLANTS["pulse_bulb"]["damage"])):
+	if game._damage_obstacles_in_square(row, col, cells, float(Defs.PLANTS["pulse_bulb"]["damage"])):
 		did_hit = true
 	if did_hit:
 		game.effects.append({
 			"shape": "pulse_bulb_wave",
+			"area_rect": game._plant_square_rect(row, col, cells),
 			"position": center,
 			"radius": radius,
 			"time": 0.24,
@@ -3181,11 +3177,12 @@ func update_lantern_bloom(plant: Dictionary, _delta: float, row: int, col: int) 
 	var center = game._cell_center(row, col)
 	# Square footprint: 3x3 cells.
 	var cells = int(Defs.PLANTS["lantern_bloom"].get("area_cells", 3))
-	var radius = float(maxi(cells, 1)) * 0.5 * game.CELL_SIZE.x
 	var wake_radius = float(Defs.PLANTS["lantern_bloom"]["wake_radius"])
 	var did_hit = game._damage_zombies_in_square(row, col, cells, float(Defs.PLANTS["lantern_bloom"]["damage"]))
 	var woke = game._wake_plants_in_radius(center, wake_radius)
-	if did_hit or woke > 0:
+	if did_hit:
+		game.effects.append({"shape": "lantern_bloom_square", "position": center, "area_rect": game._plant_square_rect(row, col, cells), "time": 0.28, "duration": 0.28, "color": Color(1.0, 0.82, 0.34, 0.32)})
+	if woke > 0:
 		game.effects.append({
 			"position": center,
 			"radius": wake_radius,

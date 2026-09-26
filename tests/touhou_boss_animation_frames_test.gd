@@ -181,7 +181,7 @@ func _test_touhou_boss_prepared_frames_keep_complete_silhouettes() -> bool:
 func _test_uniform_touhou_render_height() -> bool:
 	var game := _make_game()
 	var passed := true
-	for kind in game.TouhouDifficulty.EXTENSIONS:
+	for kind in game.TouhouDifficulty.boss_kinds():
 		var image := Image.new()
 		var path: String = game._boss_frame_folder_for_kind(kind) + "/frame_00.png"
 		passed = _assert_true(image.load(ProjectSettings.globalize_path(path)) == OK, "Calibration source must load: " + kind) and passed

@@ -33,6 +33,8 @@ func _run() -> void:
 			game._drain_asset_prewarm_queue()
 			game._try_play_pending_bgm()
 			game.rng.seed = 913
+			# Clocktower strikes legitimately damage both sides; isolate boss timer HP here.
+			game.scarlet_clock_hazard_timer = 1000.0
 			# Keep the battle alive while exercising the real frame loop and director.
 			for row in game.active_rows:
 				var blocker: Dictionary = game._create_plant("wallnut", row, 0)
@@ -81,8 +83,13 @@ func _run() -> void:
 			if capture:
 				await _save_capture(game, "%s-%d-finale" % [id, viewport.x])
 		game.save_dirty = false
+		for child in game.get_children():
+			if child is AudioStreamPlayer:
+				child.stop()
+				child.stream = null
 		game.free()
-	await process_frame
+	# Audio mixing releases stopped playback handles asynchronously.
+	await create_timer(0.2).timeout
 	print("Self-midboss live frames: road minions, fixed waves, damage defeat, resumed events, music and desktop/mobile HUD; %d failure(s)" % failures)
 	quit(1 if failures else 0)
 

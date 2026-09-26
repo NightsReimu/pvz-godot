@@ -153,7 +153,7 @@ func draw() -> void:
 func finale_summary(level: Dictionary) -> Dictionary:
 	var summary := {"kind": "", "phases": 0, "attacks": 0}
 	for event in level.events:
-		if Difficulty.EXTENSIONS.has(String(event.kind)) and (String(event.kind) != String(level.get("mid_boss_kind", "")) or bool(level.get("mid_boss_final_preview", false))):
+		if String(event.kind) in Difficulty.boss_kinds() and (String(event.kind) != String(level.get("mid_boss_kind", "")) or bool(level.get("mid_boss_final_preview", false))):
 			summary.kind = String(event.kind)
 	for kind in [summary.kind, String(level.get("boss_successor_kind", ""))]:
 		for phase in Spells.phases_for(kind, level):

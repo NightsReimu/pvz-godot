@@ -1,0 +1,18 @@
+{
+  "character": "hakutaku",
+  "source": "codex-clipboard-e59053f7-c325-4fc4-a994-a9c9e52d6a5b.png",
+  "source_sha256": "0454918a36bfcfc69fd43ed26a60aa82f6cc59a574526301102125bf5fa8c05b",
+  "cutout_provider": "image_gen transparent_background=true",
+  "generated_file": "exec-4ab68246-2a74-4e0b-b65d-89509c201c36.png",
+  "prompt": "Remove blurred background to genuine transparent alpha. Preserve 24 poses, 6x4 layout, character design and spell effects. No redraw or rearrangement.",
+  "sheet_size": [
+    1536,
+    1024
+  ],
+  "frame_size": [
+    256,
+    256
+  ],
+  "frame_order": "row-major; crops only, no rescale or background processing",
+  "calibration": "Idle opaque silhouette height, shared 180px body-height; original-pose atlas remains fixed."
+}

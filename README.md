@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.124** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.138** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -24,12 +24,14 @@
 | 内容 | 当前规模 |
 | --- | ---: |
 | 植物定义 | 146 |
-| 僵尸与 Boss 定义 | 127 |
-| 关卡定义 | 189 |
+| 僵尸与 Boss 定义 | 129 |
+| 关卡定义 | 190 |
 | 主世界 | 7 |
-| 自动测试入口 | 116 |
+| 自动测试入口 | 122 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
+
+**v1.0.138 单位美术与战斗细节更新**：逐项复查全部 146 种植物和 129 种僵尸/Boss，为 144 种植物重绘可编辑 SVG，保留火炬树桩实时火焰与坚果保龄球的派生造型；更新僵尸五官、身体、装备破损和落地阴影。修复魔术花特殊子弹、方形攻击范围及特殊僵尸的绘制偏移。新增 3-25「蓬莱人形」EX / EX+，半兽慧音道中与妹红终末。详见 [完整版本说明](docs/releases/v1.0.138.md)。
 
 ## English Summary
 
@@ -38,6 +40,8 @@ This repository contains a fan-made lane-defense game built with Godot 4.6. It e
 The original source code is available under the MIT License. Bundled artwork, audio, fonts, character names, Touhou Project derivative content, and other media are **not** covered by MIT. Original Touhou music in this repository has no verified redistribution license; distributors must obtain permission or replace those tracks. This is an unofficial, noncommercial fan project and is not endorsed by the relevant rights holders.
 
 ## 视觉预览
+
+![v1.0.138 植物与僵尸实战预览](docs/readme/unit-art-v138.png)
 
 <table>
 <tr>
@@ -106,7 +110,7 @@ The original source code is available under the MIT License. Bundled artwork, au
 
 项目目前包含三组主要东方主题支线。Boss 技能参考角色设定和对应原作关卡的符卡主题重新设计，并适配植物防守玩法；不是对原作弹幕的逐帧复制。
 
-点击已解锁的东方关卡后选择难度。常规东方关卡提供 **Easy / Normal / Hard / Lunatic**；芙兰 EX 和蓝紫终幕提供 **EX / EX+**。Easy 与 EX 保留既有路线，较高档增加 Boss 生命、阶段、追击招式、弹幕密度和小怪波次。Lunatic 与 EX+ 先自选植物，再以正常阳光费用和冷却作战；其余档使用传送带。重开保留难度与选卡，通关按关卡和难度分别记录。
+点击已解锁的东方关卡后选择难度。常规东方关卡提供 **Easy / Normal / Hard / Lunatic**；芙兰 EX、蓝紫终幕和 3-25 永夜抄 EX 提供 **EX / EX+**。Easy 与 EX 保留既有路线，较高档增加 Boss 生命、阶段、追击招式、弹幕密度和小怪波次。Lunatic 与 EX+ 先自选植物，再以正常阳光费用和冷却作战；其余档使用传送带。重开保留难度与选卡，通关按关卡和难度分别记录。
 
 ### 红魔乡主题
 
@@ -145,6 +149,8 @@ v1.0.104 统一要求**难度越高，招式越多**：所有东方 Boss（含�
 
 
 **v1.0.108 符卡伤害与 3-23 压力调整**：根据实战反馈，东方 Boss 血量保持不变，统一符卡伤害系数调整为 Easy / Normal / Hard / Lunatic `0.50 / 0.60 / 0.72 / 0.86`，EX / EX+ 为 `0.50 / 0.82`；通用弹体基础伤害由 22 提高到 32，阶段成长由 4 提高到 6。铃仙额外提高角色伤害、光束伤害、后段成长、弹速、密度和施法频率，狂气之瞳标记的植物会周期性受到真实伤害。3-23 的道中和终盘援军改为月兔与挖掘、气球、足球、铁门、忍者、暗影、巫师、暗黑足球、巨人等已有僵尸的混编，终盘保持数量上限以控制弹幕性能。
+
+**v1.0.138 新增 3-25「蓬莱人形」**：通过 3-24-a 与 3-24-b 后解锁，提供 EX / EX+。道中为上白泽慧音半兽形态，终末为藤原妹红；使用用户提供的两组 24 帧动作与两首 BGM。参照永夜抄 Extra 的三张慧音符卡、妹红十张符卡及 Last Spell，加入烈焰乒乓球、余烬种植格等塔防机制。EX+ 增加历史档案、双侧击球和复燃追击；深夜竹林在终末登场后逐渐增强光照。敌人池限制为近战僵尸和月兔，不出现气球、矿工或远程攻击僵尸。
 
 **v1.0.124 界面质感与战斗信息优化**：面板与卡片补齐此前未生效的顶部高光，护甲与护盾统一为同一族蓝色，血条填充不再溢出并给濒死单位加红边，战斗配色收敛到共享调色板。[完整版本说明](docs/releases/v1.0.124.md)。
 

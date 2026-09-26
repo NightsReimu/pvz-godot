@@ -4,6 +4,8 @@ extends RefCounted
 # Height excludes transparent canvas padding and faint spell glows.
 const BODY_HEIGHT := 180.0
 const IDLE_HEIGHTS := {
+	"mokou_boss": 209.0,
+	"hakutaku_boss": 238.0,
 	"kaguya_boss": 208.0,
 	"eirin_boss": 216.0,
 	"tewi_boss": 222.0,
@@ -34,6 +36,8 @@ const IDLE_HEIGHTS := {
 }
 
 const IDLE_BOTTOM := {
+	"mokou_boss": 243.0,
+	"hakutaku_boss": 254.0,
 	"kaguya_boss": 236.0,
 	"eirin_boss": 246.0,
 	"tewi_boss": 246.0,

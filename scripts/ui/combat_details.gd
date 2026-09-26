@@ -22,161 +22,6 @@ static func ellipse(canvas: CanvasItem, center: Vector2, radius: Vector2, color:
 		canvas.draw_polyline(points, Color(GameTheme.INK.r, GameTheme.INK.g, GameTheme.INK.b, color.a), outline, true)
 
 
-static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: String, flash: float, alpha: float, mature: bool = true, pose: String = "") -> void:
-	# Shared mushroom skeleton: shadow, stipe, gill ring, pleats, dome, sheen,
-	# spots, then eyes with a specular dot. Specialty shrooms only override colours
-	# and their signature features so they read as one family.
-	var sun := kind == "sun_shroom"
-	var fume := kind == "fume_shroom"
-	var hypno := kind == "hypno_shroom"
-	var scaredy := kind == "scaredy_shroom"
-	var ice := kind == "ice_shroom"
-	var doom := kind == "doom_shroom"
-	var specialty := hypno or scaredy or ice or doom
-	var hiding := scaredy and pose == "hiding"
-	var growth := 1.0 if not sun or mature else 0.72
-	var s := scale * growth
-	var origin := center + Vector2(0, 34 * scale * (1.0 - growth))
-	var base_colour := "#9b65bc" if fume else ("#e8af38" if sun else "#b287c9")
-	if hypno:
-		base_colour = "#a866d4"
-	elif scaredy:
-		base_colour = "#9c7fd0"
-	elif ice:
-		base_colour = "#6fb9de"
-	elif doom:
-		base_colour = "#241a22"
-	var cap := Color(base_colour, alpha)
-	cap = cap.lerp(Color(1, 1, 1, alpha), clampf(flash * 1.8, 0, 1))
-	var cream := Color("#f2e4bf" if not ice else "#dff2fb", alpha).lerp(Color(1, 1, 1, alpha), clampf(flash, 0, 1))
-	if doom:
-		cream = Color("#b8ada0", alpha).lerp(Color(1, 1, 1, alpha), clampf(flash, 0, 1))
-	var ink := Color(GameTheme.INK.r, GameTheme.INK.g, GameTheme.INK.b, alpha)
-	var width := 29.0 if fume else (26.0 if sun else 23.0)
-	var height := 28.0 if fume else 24.0
-	# Each specialty shroom gets its own silhouette, otherwise they read as one cap recoloured.
-	if hypno:
-		width = 29.0
-		height = 18.0
-	elif scaredy:
-		width = 17.0
-		height = 32.0
-	elif ice:
-		width = 26.0
-		height = 16.0
-	elif doom:
-		width = 32.0
-		height = 27.0
-	var spot_tint := Color("#eedaf3", alpha * 0.88)
-	if hypno:
-		spot_tint = Color("#e9c6ff", alpha * 0.9)
-	elif ice:
-		spot_tint = Color("#f2fbff", alpha * 0.95)
-	elif doom:
-		spot_tint = Color("#ff9a6a", alpha * 0.7)
-	ellipse(canvas, origin + Vector2(0, 36) * s, Vector2(22, 4) * s, Color(0.12, 0.24, 0.16, alpha * 0.16))
-	polygon(canvas, origin, s, [Vector2(-11,-6), Vector2(10,-6), Vector2(11,15), Vector2(16,30), Vector2(9,35), Vector2(-10,35), Vector2(-16,30), Vector2(-11,13)], cream)
-	polygon(canvas, origin, s, [Vector2(-11,0), Vector2(-6,0), Vector2(-6,27), Vector2(-10,31), Vector2(-14,29)], Color("#cabb98", alpha), 0)
-	ellipse(canvas, origin + Vector2(0,-6) * s, Vector2(width,8) * s, Color(cap.darkened(0.32), alpha), 1.6*s)
-	for i in range(-3,4):
-		canvas.draw_line(origin + Vector2(i*5,-7)*s, origin + Vector2(i*7,-2)*s, Color("#ebcddd",alpha*0.5), s, true)
-	var dome: Array = []
-	for i in range(21):
-		var angle := PI + PI*i/20.0
-		dome.append(Vector2(cos(angle)*width, -10+sin(angle)*height))
-	dome.append_array([Vector2(width*0.7,-4), Vector2(0,-5), Vector2(-width*0.7,-4)])
-	polygon(canvas,origin,s,dome,cap)
-	ellipse(canvas, origin+Vector2(-8,-23)*s, Vector2(9,4)*s, Color(cap.lightened(0.3), alpha*0.8))
-	for spot in [Vector3(-16,-13,3.5),Vector3(7,-25,4.3),Vector3(17,-13,3.0)]:
-		ellipse(canvas,origin+Vector2(spot.x,spot.y)*s,Vector2(spot.z,spot.z*0.65)*s,Color("#fff0b6" if sun else "#eedaf3",alpha*0.88))
-	if doom:
-		# Sunken sockets with a burning light behind them.
-		for x in [-6,6]:
-			ellipse(canvas, origin+Vector2(x,9)*s,Vector2(4.2,5.0)*s,Color(0.04,0.03,0.03,alpha))
-			ellipse(canvas, origin+Vector2(x,9.5)*s,Vector2(2.0,2.4)*s,Color(1.0,0.62,0.24,alpha*0.9))
-			canvas.draw_circle(origin+Vector2(x-0.4,8.6)*s,0.8*s,Color(1,1,1,alpha),true,-1,true)
-		if not hiding:
-			polygon(canvas, origin, s, [Vector2(-7,17),Vector2(-2,15),Vector2(0,19),Vector2(2,15),Vector2(7,17),Vector2(4,22),Vector2(-4,22)], ink, 0.9)
-	elif hiding:
-		# Squeezed-shut eyes while it cowers.
-		for x in [-6,6]:
-			canvas.draw_arc(origin+Vector2(x,9)*s, 3.4*s, PI, TAU, 12, ink, 1.8*s, true)
-		canvas.draw_arc(origin+Vector2(0,19)*s, 4.0*s, 0.15, PI-0.15, 12, ink, 1.6*s, true)
-	elif ice:
-		# Frosted and glaring, matching the original's annoyed ice shroom.
-		for x in [-6,6]:
-			ellipse(canvas, origin+Vector2(x,9)*s,Vector2(3.0,3.8)*s,Color(0.06,0.14,0.3,alpha))
-			canvas.draw_circle(origin+Vector2(x-0.5,7.8)*s,1.0*s,Color(1,1,1,alpha),true,-1,true)
-			# Angled brow pointing inward: the scowl.
-			var brow_in := 1.0 if x < 0 else -1.0
-			canvas.draw_line(origin+Vector2(x-4.0*brow_in,4.0)*s, origin+Vector2(x+4.0*brow_in,6.5)*s, ink, 2.2*s, true)
-		canvas.draw_arc(origin+Vector2(0,18)*s, 3.6*s, 0.15, PI-0.15, 10, ink, 1.5*s, true)
-	elif hypno:
-		# Counter-rotating spiral eyes.
-		var span := float(Time.get_ticks_msec()) / 1000.0 * 3.4
-		for x in [-6,6]:
-			for ring in range(3):
-				var ring_r := (5.6 - float(ring) * 1.7) * s
-				var ring_col := Color(0.92,0.22,0.26,alpha*(0.6+float(ring)*0.16)) if ring % 2 == 0 else Color(1.0,0.78,0.72,alpha*(0.5+float(ring)*0.16))
-				canvas.draw_arc(origin+Vector2(x,9)*s, ring_r, span+float(ring)*0.5, span+float(ring)*0.5+PI*1.5, 16, ring_col, 1.8*s, true)
-			canvas.draw_circle(origin+Vector2(x,9)*s, 1.1*s, Color(0.92,0.22,0.26,alpha), true, -1, true)
-		canvas.draw_arc(origin+Vector2(0,18)*s, 4.2*s, 0.15, PI-0.15, 12, ink, 1.6*s, true)
-	else:
-		for x in [-5,5]:
-			ellipse(canvas, origin+Vector2(x,9)*s,Vector2(2.6,3.8)*s,ink)
-			canvas.draw_circle(origin+Vector2(x-0.5,7.8)*s,0.9*s,Color(1,1,1,alpha),true,-1,true)
-	if scaredy and not hiding:
-		# Beads of sweat, plus oversized worried brows.
-		for x in [-6,6]:
-			canvas.draw_line(origin+Vector2(x-3,4)*s, origin+Vector2(x+3,1)*s, ink, 1.6*s, true)
-		canvas.draw_circle(origin+Vector2(15,-2)*s, 2.0*s, Color(0.74,0.92,1.0,alpha*0.85), true, -1, true)
-		canvas.draw_circle(origin+Vector2(18,3)*s, 1.4*s, Color(0.74,0.92,1.0,alpha*0.65), true, -1, true)
-	if hypno:
-		# Tie-dye blotches over deep purple, like the original psychedelic cap.
-		for blotch in range(8):
-			var blotch_angle := PI + PI * (float(blotch) + 0.5) / 8.0
-			var blotch_pos := origin + Vector2(cos(blotch_angle) * width * 0.56, -8.0 + sin(blotch_angle) * height * 0.6) * s
-			var blotch_r := (5.0 + float(blotch % 3) * 2.2) * s
-			canvas.draw_circle(blotch_pos, blotch_r, Color(0.44, 0.74, 0.98, alpha * 0.45), true, -1, true)
-			canvas.draw_circle(blotch_pos + Vector2(-1.0, -1.0) * s, blotch_r * 0.45, Color(0.86, 0.96, 1.0, alpha * 0.5), true, -1, true)
-		for swirl in range(3):
-			var swirl_r := (width * 0.5 - float(swirl) * 4.5) * s
-			canvas.draw_arc(origin + Vector2(0, -8) * s, swirl_r, -0.6 + float(swirl) * 0.9, 2.4 + float(swirl) * 0.9, 18,
-				Color(0.92, 0.82, 1.0, alpha * (0.5 - float(swirl) * 0.1)), 1.6 * s, true)
-	elif ice:
-		# A raised cluster of ice spikes instead of flat shards.
-		for spike in range(5):
-			var spike_x := -15.0 + float(spike) * 7.5
-			var spike_h := 7.0 + float((spike * 3) % 4) * 3.2
-			polygon(canvas, origin, s, [Vector2(spike_x - 3.4, -20), Vector2(spike_x, -20 - spike_h), Vector2(spike_x + 3.4, -20)],
-				Color(0.88, 0.97, 1.0, alpha * 0.95), 0.9)
-			canvas.draw_line(origin + Vector2(spike_x - 1.0, -21) * s, origin + Vector2(spike_x, -22 - spike_h * 0.7) * s,
-				Color(1, 1, 1, alpha * 0.7), 1.0 * s, true)
-	elif doom:
-		# Warty growths bulging off the cap, with ember cracks between them.
-		for wart in range(6):
-			var wart_angle := PI + PI * (float(wart) + 0.5) / 6.0
-			var wart_pos := origin + Vector2(cos(wart_angle) * width * 0.66, -8.0 + sin(wart_angle) * height * 0.66) * s
-			var wart_r := (3.6 + float(wart % 3) * 1.1) * s
-			canvas.draw_circle(wart_pos, wart_r, Color(0.55, 0.1, 0.18, alpha), true, -1, true)
-			canvas.draw_circle(wart_pos + Vector2(-0.8, -0.8) * s, wart_r * 0.42, Color(0.86, 0.36, 0.3, alpha * 0.85), true, -1, true)
-		for crack in range(4):
-			var crack_dir := Vector2.from_angle(TAU * float(crack) / 4.0 + 0.4)
-			canvas.draw_line(origin + crack_dir * 9.0 * s, origin + crack_dir * 20.0 * s, Color(0.3, 0.02, 0.08, alpha * 0.85), 2.0 * s, true)
-	if sun:
-		canvas.draw_arc(origin+Vector2(0,17)*s,4*s,0.15,PI-0.15,12,ink,1.4*s,true)
-		ellipse(canvas,origin+Vector2(-9,16)*s,Vector2(3,1.6)*s,Color("#ecaa68",alpha*0.65))
-	elif specialty:
-		# Specialty shrooms get their own mouth above; a spore nozzle would read as a fume shroom.
-		pass
-	else:
-		var muzzle := Vector2(17,15) if fume else Vector2(13,16)
-		var reach := 16.0 if fume else 8.0
-		polygon(canvas,origin,s,[muzzle+Vector2(-8,-7),muzzle+Vector2(reach,-9),muzzle+Vector2(reach,8),muzzle+Vector2(-8,6)],Color(cap.lightened(0.18),alpha))
-		ellipse(canvas,origin+(muzzle+Vector2(reach,0))*s,Vector2(5,8)*s,Color(cap.lightened(0.32),alpha),1.5*s)
-		ellipse(canvas,origin+(muzzle+Vector2(reach+0.5,0))*s,Vector2(2.8,5)*s,Color(cap.darkened(0.55),alpha))
-
-
 static func torchwood(canvas: CanvasItem, center: Vector2, s: float, flash: float, alpha: float, time: float) -> void:
 	var bark := Color("#986039",alpha).lerp(Color(1,1,1,alpha),clampf(flash*1.6,0,1))
 	var dark := Color("#603d2b",alpha)
@@ -278,3 +123,95 @@ static func impact(canvas: CanvasItem, center: Vector2, radius: float, life: flo
 			ellipse(canvas,point,Vector2(2.2,3.0)*fade,Color(color,fade*0.85))
 	if style == "fire":
 		canvas.draw_arc(center,spread*0.7,0.2,PI*1.7,20,Color(1,0.57,0.2,fade*0.55),1.6,true)
+
+
+# Rounded anatomy built from a closed quadratic contour. The sparse points are
+# species landmarks, not per-frame tessellation of a full SVG document.
+static func contour(canvas: CanvasItem, c: Vector2, s: float, anchors: Array, fill: Color, stroke: float = 1.6) -> void:
+	var outline: Array = []
+	for i in range(anchors.size()):
+		var previous: Vector2 = anchors[posmod(i - 1, anchors.size())]
+		var current: Vector2 = anchors[i]
+		var next: Vector2 = anchors[(i + 1) % anchors.size()]
+		var begin := (previous + current) * 0.5
+		var end := (current + next) * 0.5
+		for sample in range(5):
+			var t := float(sample) / 5.0
+			outline.append((1.0 - t) * (1.0 - t) * begin + 2.0 * (1.0 - t) * t * current + t * t * end)
+	polygon(canvas, c, s, outline, fill, stroke)
+
+
+static func zombie_head(canvas: CanvasItem, c: Vector2, radius: float, skin: Color, bite: float = 0.0) -> void:
+	var s := radius / 17.0
+	var ink := Color("#2d4039", skin.a)
+	contour(canvas, c, s, [Vector2(-18,-5), Vector2(-16,-16), Vector2(0,-18), Vector2(17,-12), Vector2(17,4), Vector2(10,8), Vector2(9,17), Vector2(-8,19), Vector2(-17,11), Vector2(-15,3), Vector2(-20,2)], skin)
+	contour(canvas, c, s, [Vector2(-14,-10),Vector2(-9,-14),Vector2(1,-13),Vector2(-4,-9),Vector2(-12,-7)],skin.lightened(0.16),0)
+	ellipse(canvas,c+Vector2(15,2)*s,Vector2(4,6)*s,skin.darkened(0.08),1.2*s)
+	canvas.draw_arc(c+Vector2(15,2)*s,2.3*s,-1.5,1.6,8,skin.darkened(0.38),s,true)
+	for eye_data in [Vector3(-7,-4,5.7),Vector3(5,-3,5.0)]:
+		var point := c+Vector2(eye_data.x,eye_data.y)*s
+		ellipse(canvas,point,Vector2(eye_data.z,eye_data.z*1.12)*s,Color("#f2e8cc", skin.a),1.2*s)
+		ellipse(canvas,point+Vector2(-1.4,1)*s,Vector2(1.8,2.2)*s,ink)
+		canvas.draw_circle(point+Vector2(-1.8,0.1)*s,.6*s,Color("#fff8e2", skin.a),true,-1,true)
+	polygon(canvas,c,s,[Vector2(-5,0),Vector2(-10,5),Vector2(-3,5)],skin.darkened(0.18),.9)
+	contour(canvas,c,s,[Vector2(-12,9),Vector2(-6,8),Vector2(1,10),Vector2(8,9),Vector2(7,15+bite*3),Vector2(-4,16+bite*3),Vector2(-12,13)],Color("#59463c", skin.a),1)
+	for x in [-8.0,0.0]:
+		polygon(canvas,c,s,[Vector2(x,9),Vector2(x+3,9.5),Vector2(x+3,13),Vector2(x,12.5)],Color("#ece2c8", skin.a),.6)
+	canvas.draw_line(c+Vector2(-13,-12)*s,c+Vector2(-5,-11)*s,skin.darkened(.35),1.2*s,true)
+	canvas.draw_line(c+Vector2(3,-11)*s,c+Vector2(10,-10)*s,skin.darkened(.35),1.2*s,true)
+	canvas.draw_line(c+Vector2(-11,19)*s,c+Vector2(0,20)*s,skin.darkened(.28),s,true)
+
+
+static func zombie_body(canvas: CanvasItem, c: Vector2, shirt: Color, pants: Color, skin: Color, step: float, arms: float, bite: float = 0.0) -> void:
+	# Feet point toward the lawn. Sleeves, elbows, palms and torn hems remain
+	# separate from armor so losing a held item reveals a complete body.
+	for side in [-1.0,1.0]:
+		var knee := Vector2(side*10+step*side*.5,32)
+		var foot := Vector2(side*13+step*side,43)
+		polygon(canvas,c,1,[Vector2(side*6-5,19),Vector2(side*6+5,19),knee+Vector2(4,0),foot+Vector2(3,0),foot+Vector2(-4,0),knee+Vector2(-4,0)],pants,1.5)
+		contour(canvas,c+foot,1,[Vector2(-5,-3),Vector2(3,-3),Vector2(7,3),Vector2(5,6),Vector2(-12,6),Vector2(-15,2),Vector2(-11,-1)],Color("#514d3e"),1.5)
+		canvas.draw_line(c+foot+Vector2(-11,3),c+foot+Vector2(4,3),Color("#b7b298"),1,true)
+	contour(canvas,c,1,[Vector2(-13,-11),Vector2(4,-12),Vector2(16,-3),Vector2(19,17),Vector2(13,28),Vector2(-13,27),Vector2(-18,11)],shirt,1.8)
+	polygon(canvas,c,1,[Vector2(-9,-9),Vector2(1,-9),Vector2(4,21),Vector2(-8,22)],Color("#d8d1b7"),0)
+	polygon(canvas,c,1,[Vector2(-15,19),Vector2(-5,23),Vector2(-10,30),Vector2(-14,26),Vector2(-18,28)],shirt,1)
+	polygon(canvas,c,1,[Vector2(8,18),Vector2(18,17),Vector2(15,28),Vector2(9,25),Vector2(6,29)],shirt.darkened(.1),1)
+	jacket(canvas,c,shirt,pants)
+	for side in [-1.0,1.0]:
+		var elbow := Vector2(side*20,7+arms*.25*side)
+		var hand := Vector2(side*(25+arms+4*bite),12-5*bite)
+		contour(canvas,c,1,[Vector2(side*11,-7),Vector2(side*17,-4),elbow+Vector2(side*3,-1),elbow+Vector2(-side*3,5),Vector2(side*10,5)],shirt,1.5)
+		canvas.draw_line(c+elbow,c+hand,Color("#2d4039"),6.5,true)
+		canvas.draw_line(c+elbow,c+hand,skin.darkened(.1),4.3,true)
+		contour(canvas,c+hand,1,[Vector2(-5,-2),Vector2(3,-3),Vector2(5,1),Vector2(2,6),Vector2(-4,4)],skin,1.2)
+		for finger in [-2.0,1.0]:
+			canvas.draw_line(c+hand+Vector2(finger,1),c+hand+Vector2(finger-1,4),skin.darkened(.35),.8,true)
+	zombie_head(canvas,c+Vector2(0,-28),17,skin,bite)
+
+
+static func coat_panel(canvas: CanvasItem, rect: Rect2, fill: Color) -> void:
+	var c := rect.position + Vector2(rect.size.x * 0.5, 0)
+	var w := rect.size.x * 0.5
+	var h := rect.size.y
+	contour(canvas,c,1,[Vector2(-w*.7,0),Vector2(w*.6,0),Vector2(w,9),Vector2(w*.92,h-4),Vector2(w*.4,h),Vector2(0,h-3),Vector2(-w*.9,h),Vector2(-w,10)],fill,1.7)
+	polygon(canvas,c,1,[Vector2(-w*.6,1),Vector2(0,4),Vector2(-4,14),Vector2(-w*.8,7)],fill.lightened(.22),.9)
+	polygon(canvas,c,1,[Vector2(w*.5,1),Vector2(0,4),Vector2(4,14),Vector2(w*.8,7)],fill.lightened(.13),.9)
+	canvas.draw_line(c+Vector2(0,13),c+Vector2(1,h-6),fill.darkened(.32),1.2,true)
+	for y in [16.0,24.0]:
+		if y<h-3: canvas.draw_circle(c+Vector2(3,y),1.2,Color("#c5be9c"),true,-1,true)
+	canvas.draw_line(c+Vector2(-w*.7,h-8),c+Vector2(-w*.3,h-10),fill.darkened(.22),1,true)
+
+
+static func football_gear(canvas: CanvasItem, c: Vector2, dark: bool, ratio: float) -> void:
+	var red := Color("#544e64" if dark else "#b95049")
+	for side in [-1.0,1.0]:
+		contour(canvas,c+Vector2(side*17,-5),1,[Vector2(-10,-8),Vector2(3,-11),Vector2(12,-5),Vector2(10,6),Vector2(-8,5)],red,1.7)
+		canvas.draw_line(c+Vector2(side*19,-11),c+Vector2(side*24,-4),Color("#e8dbc4"),2,true)
+	if ratio <= 0: return
+	contour(canvas,c,1,[Vector2(-20,-36),Vector2(-20,-46),Vector2(-10,-54),Vector2(9,-53),Vector2(20,-43),Vector2(17,-25),Vector2(10,-20),Vector2(6,-36)],red,1.8)
+	canvas.draw_line(c+Vector2(-4,-51),c+Vector2(3,-48),Color("#eadcbd"),3,true)
+	ellipse(canvas,c+Vector2(11,-32),Vector2(5,6),red.lightened(.18),1.2)
+	ellipse(canvas,c+Vector2(11,-32),Vector2(1.5,2),Color("#3c4040"))
+	canvas.draw_polyline(PackedVector2Array([c+Vector2(10,-29),c+Vector2(-21,-29),c+Vector2(-21,-20),c+Vector2(5,-20),c+Vector2(10,-29)]),Color("#b8c1b8"),2.1,true)
+	canvas.draw_line(c+Vector2(-12,-29),c+Vector2(-12,-20),Color("#b8c1b8"),1.7,true)
+	if ratio < 0.5:
+		canvas.draw_polyline(PackedVector2Array([c+Vector2(7,-49),c+Vector2(2,-43),c+Vector2(8,-41),c+Vector2(3,-37)]),Color("#373e38"),1.8,true)

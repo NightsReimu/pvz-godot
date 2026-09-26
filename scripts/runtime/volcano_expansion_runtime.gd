@@ -484,6 +484,11 @@ func polygon(center: Vector2, scale: float, points: Array, color: Color) -> void
 
 
 func draw_plant(kind: String, center: Vector2, scale: float = 1.0, flash: float = 0.0, alpha: float = 1.0, plant: Dictionary = {}) -> void:
+	if kind in game.VectorUnitArt.Manifest.KINDS:
+		var health_ratio := float(plant.get("health", 1.0)) / maxf(float(plant.get("max_health", 1.0)), 0.01)
+		var state := ("critical" if health_ratio < 0.34 else ("damaged" if health_ratio < 0.67 else "")) if kind == "pumice_wall" else ""
+		game.VectorUnitArt.draw_plant(game, kind, center, scale, flash, alpha, state)
+		return
 	var ink = Color("#213b3a", alpha)
 	var green = Color("#398451", alpha)
 	var bright = tint(kind).lerp(Color.WHITE, clampf(flash * 3.0, 0.0, 0.8))
@@ -579,20 +584,8 @@ func draw_zombie(center: Vector2, z: Dictionary) -> void:
 	var step = sin(game.level_time * 6.0 + float(z.get("anim_phase", 0))) * 5.0
 	if float(z.get("basalt_brace_until", 0.0)) > game.level_time:
 		step = 0.0
-	for side in [-1, 1]:
-		game.draw_line(center + Vector2(side * 8, 19), center + Vector2(side * 12 + step * side, 39), ink, 9)
-		oval(center + Vector2(side * 12 + step * side - 3, 40), Vector2(10, 4), ink)
-	polygon(center, 1.0, [Vector2(-17, -12), Vector2(14, -13), Vector2(19, 24), Vector2(-20, 24)], ink)
-	polygon(center, 1.0, [Vector2(-13, -9), Vector2(11, -10), Vector2(15, 19), Vector2(-16, 19)], accent.darkened(0.38))
-	game.draw_line(center + Vector2(4, -7), center + Vector2(-6, 18), accent, 4)
-	game.draw_line(center + Vector2(-13, -6), center + Vector2(-28, 9 + step * 0.2), skin, 8)
-	oval(center + Vector2(-2, -28), Vector2(20, 19), ink)
-	oval(center + Vector2(-3, -29), Vector2(17, 16), skin)
-	for x in [-10, 1]:
-		oval(center + Vector2(x, -32), Vector2(6, 6), Color("#f9f8d9"))
-		game.draw_circle(center + Vector2(x - 2, -31), 2.4, ink)
-	game.draw_line(center + Vector2(-14, -20), center + Vector2(3, -18), ink, 3)
-	game.draw_rect(Rect2(center + Vector2(-5, -21), Vector2(4, 5)), Color("#f8f2d7"))
+	game._draw_ground_shadow(center, 16.0, 1.0, 46.0)
+	game.CombatDetails.zombie_body(game, center, accent.darkened(0.38), Color("#39464a"), skin, step, step * 0.4)
 	match kind:
 		"basalt_guard":
 			if float(z.get("shield_health", 0)) > 0.0 or float(z.get("basalt_brace_until", 0)) > game.level_time:
