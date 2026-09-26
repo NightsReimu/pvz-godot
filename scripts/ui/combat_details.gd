@@ -45,7 +45,7 @@ static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: St
 	elif ice:
 		base_colour = "#6fb9de"
 	elif doom:
-		base_colour = "#7d1526"
+		base_colour = "#241a22"
 	var cap := Color(base_colour, alpha)
 	cap = cap.lerp(Color(1, 1, 1, alpha), clampf(flash * 1.8, 0, 1))
 	var cream := Color("#f2e4bf" if not ice else "#dff2fb", alpha).lerp(Color(1, 1, 1, alpha), clampf(flash, 0, 1))
@@ -103,11 +103,13 @@ static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: St
 			canvas.draw_arc(origin+Vector2(x,9)*s, 3.4*s, PI, TAU, 12, ink, 1.8*s, true)
 		canvas.draw_arc(origin+Vector2(0,19)*s, 4.0*s, 0.15, PI-0.15, 12, ink, 1.6*s, true)
 	elif ice:
-		# Half-lidded, frosted over.
+		# Frosted and glaring, matching the original's annoyed ice shroom.
 		for x in [-6,6]:
-			ellipse(canvas, origin+Vector2(x,9)*s,Vector2(2.8,3.6)*s,Color(0.08,0.16,0.3,alpha))
-			canvas.draw_circle(origin+Vector2(x-0.5,7.8)*s,0.9*s,Color(1,1,1,alpha),true,-1,true)
-			canvas.draw_line(origin+Vector2(x-4,7)*s, origin+Vector2(x+4,7)*s, Color(0.86,0.96,1.0,alpha*0.9), 2.0*s, true)
+			ellipse(canvas, origin+Vector2(x,9)*s,Vector2(3.0,3.8)*s,Color(0.06,0.14,0.3,alpha))
+			canvas.draw_circle(origin+Vector2(x-0.5,7.8)*s,1.0*s,Color(1,1,1,alpha),true,-1,true)
+			# Angled brow pointing inward: the scowl.
+			var brow_in := 1.0 if x < 0 else -1.0
+			canvas.draw_line(origin+Vector2(x-4.0*brow_in,4.0)*s, origin+Vector2(x+4.0*brow_in,6.5)*s, ink, 2.2*s, true)
 		canvas.draw_arc(origin+Vector2(0,18)*s, 3.6*s, 0.15, PI-0.15, 10, ink, 1.5*s, true)
 	elif hypno:
 		# Counter-rotating spiral eyes.
@@ -115,9 +117,9 @@ static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: St
 		for x in [-6,6]:
 			for ring in range(3):
 				var ring_r := (5.6 - float(ring) * 1.7) * s
-				var ring_col := Color(0.44,0.72,1.0,alpha*(0.55+float(ring)*0.16)) if ring % 2 == 0 else Color(0.94,0.96,1.0,alpha*(0.45+float(ring)*0.16))
+				var ring_col := Color(0.92,0.22,0.26,alpha*(0.6+float(ring)*0.16)) if ring % 2 == 0 else Color(1.0,0.78,0.72,alpha*(0.5+float(ring)*0.16))
 				canvas.draw_arc(origin+Vector2(x,9)*s, ring_r, span+float(ring)*0.5, span+float(ring)*0.5+PI*1.5, 16, ring_col, 1.8*s, true)
-			canvas.draw_circle(origin+Vector2(x,9)*s, 1.1*s, Color(0.44,0.72,1.0,alpha), true, -1, true)
+			canvas.draw_circle(origin+Vector2(x,9)*s, 1.1*s, Color(0.92,0.22,0.26,alpha), true, -1, true)
 		canvas.draw_arc(origin+Vector2(0,18)*s, 4.2*s, 0.15, PI-0.15, 12, ink, 1.6*s, true)
 	else:
 		for x in [-5,5]:
@@ -130,12 +132,13 @@ static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: St
 		canvas.draw_circle(origin+Vector2(15,-2)*s, 2.0*s, Color(0.74,0.92,1.0,alpha*0.85), true, -1, true)
 		canvas.draw_circle(origin+Vector2(18,3)*s, 1.4*s, Color(0.74,0.92,1.0,alpha*0.65), true, -1, true)
 	if hypno:
-		# Pale radiating stripes plus a swirl, the classic hypno cap.
-		for stripe in range(9):
-			var stripe_angle := PI + PI * (float(stripe) + 0.5) / 9.0
-			var stripe_from := origin + Vector2(cos(stripe_angle) * width * 0.42, -8.0 + sin(stripe_angle) * height * 0.42) * s
-			var stripe_to := origin + Vector2(cos(stripe_angle) * width * 0.96, -8.0 + sin(stripe_angle) * height * 0.96) * s
-			canvas.draw_line(stripe_from, stripe_to, Color(0.72, 0.44, 0.92, alpha * 0.5), 2.2 * s, true)
+		# Tie-dye blotches over deep purple, like the original psychedelic cap.
+		for blotch in range(8):
+			var blotch_angle := PI + PI * (float(blotch) + 0.5) / 8.0
+			var blotch_pos := origin + Vector2(cos(blotch_angle) * width * 0.56, -8.0 + sin(blotch_angle) * height * 0.6) * s
+			var blotch_r := (5.0 + float(blotch % 3) * 2.2) * s
+			canvas.draw_circle(blotch_pos, blotch_r, Color(0.44, 0.74, 0.98, alpha * 0.45), true, -1, true)
+			canvas.draw_circle(blotch_pos + Vector2(-1.0, -1.0) * s, blotch_r * 0.45, Color(0.86, 0.96, 1.0, alpha * 0.5), true, -1, true)
 		for swirl in range(3):
 			var swirl_r := (width * 0.5 - float(swirl) * 4.5) * s
 			canvas.draw_arc(origin + Vector2(0, -8) * s, swirl_r, -0.6 + float(swirl) * 0.9, 2.4 + float(swirl) * 0.9, 18,

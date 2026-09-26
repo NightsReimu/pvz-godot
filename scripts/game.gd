@@ -19099,11 +19099,13 @@ func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: 
 	if chain_indices.is_empty():
 		return 0
 	_play_electric_hit_sfx()
+	var chain_points: Array = []
 	for order in range(chain_indices.size()):
 		var zombie_index = int(chain_indices[order])
 		var zombie = zombies[zombie_index]
 		var damage = first_damage if order == 0 else chain_damage
 		var strike_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0)
+		chain_points.append(strike_center)
 		zombie = _apply_zombie_damage(zombie, damage, 0.2)
 		zombies[zombie_index] = zombie
 		if String(zombie.get("kind", "")) == "kite_trap":
@@ -19114,6 +19116,17 @@ func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: 
 			"time": 0.18,
 			"duration": 0.18,
 			"color": Color(0.92, 0.92, 0.36, 0.28),
+		})
+	# Visible arcs jumping between consecutive victims, so the chain reads as a path.
+	for arc_index in range(chain_points.size() - 1):
+		effects.append({
+			"shape": "thunder_chain_arc",
+			"position": chain_points[arc_index],
+			"target": chain_points[arc_index + 1],
+			"time": 0.18,
+			"duration": 0.18,
+			"color": Color(0.96, 0.98, 0.72, 0.8),
+			"anim_speed": 14.0,
 		})
 	return chain_indices.size()
 
@@ -25821,6 +25834,32 @@ func _draw_effects() -> void:
 				var spark_len = flame_width * (0.42 + 0.2 * sin(level_time * 8.0 + float(impact_spark)))
 				draw_line(beam_target + spark_dir * flame_width * 0.24, beam_target + spark_dir * spark_len,
 					Color(1.0, 0.82, 0.42, effect_color.a * 0.66), 2.2)
+			continue
+		if shape == "thunder_chain_arc":
+			var arc_from = Vector2(effect["position"])
+			var arc_to = Vector2(effect.get("target", arc_from))
+			var arc_delta = arc_to - arc_from
+			var arc_length = maxf(arc_delta.length(), 1.0)
+			var arc_dir = arc_delta / arc_length
+			var arc_normal = Vector2(-arc_dir.y, arc_dir.x)
+			for arc_layer in range(3):
+				var arc_points := PackedVector2Array()
+				var arc_segments := 8
+				for arc_step in range(arc_segments + 1):
+					var arc_t := float(arc_step) / float(arc_segments)
+					var arc_base := arc_from.lerp(arc_to, arc_t)
+					var arc_fade := 1.0 - absf(arc_t * 2.0 - 1.0)
+					var arc_jitter := 0.0
+					if arc_step > 0 and arc_step < arc_segments:
+						arc_jitter = sin(arc_t * 11.0 + level_time * 24.0 + float(arc_layer) * 2.1) * 10.0 * arc_fade
+					arc_points.append(arc_base + arc_normal * arc_jitter * ratio)
+				var arc_colour: Color = [
+					Color(0.98, 0.98, 0.76, effect_color.a),
+					Color(0.66, 0.84, 1.0, effect_color.a * 0.7),
+					Color(1.0, 1.0, 1.0, effect_color.a * 0.5),
+				][arc_layer]
+				var arc_width: float = [3.6, 2.2, 1.1][arc_layer]
+				draw_polyline(arc_points, arc_colour, arc_width, true)
 			continue
 		if shape == "sniper_focus":
 			var focus_origin = Vector2(effect["position"])
