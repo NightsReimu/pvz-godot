@@ -1,6 +1,26 @@
 extends RefCounted
 class_name GameTheme
 
+# --- Shared battle/UI palette ---
+# One place for the ink outline, health/shield colors, golds and panel greens that the battle, card
+# and panel renderers all draw with. Values match the v1.0.123 vector pass.
+
+const INK := Color("#283d37")
+const INK_SOFT := Color("#213b3a")
+const ARMOR_BLUE := Color(0.38, 0.72, 0.96)
+const SHIELD_BLUE := Color(0.62, 0.8, 0.96)
+const HEALTH_GREEN := Color(0.32, 0.86, 0.24)
+const PLANT_GREEN := Color(0.24, 0.82, 0.28)
+const ZOMBIE_RED := Color(0.92, 0.28, 0.22)
+const GOLD := Color("#b58b32")
+const COST_GOLD := Color("#68532b")
+const BAR_TRACK := Color("#203c37")
+const PANEL_CREAM := Color("#e4efd5")
+const BAR_LOW_RIM := Color(0.98, 0.42, 0.34)
+# Peak alpha of the glossy hairline on a panel's top edge. Independent of the body accent so the
+# highlight reads on a light garden panel without going chalky on a dark HUD chip.
+const PANEL_GLOSS := 0.4
+
 
 static func ease_ui(value: float) -> float:
 	var t = clampf(value, 0.0, 1.0)
@@ -116,16 +136,77 @@ static func draw_glow_circle(canvas: CanvasItem, center: Vector2, radius: float,
 
 # --- Rounded Panel (improved draw_panel_shell) ---
 
-static func draw_rounded_panel(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, corner_radius: float = 8.0, shadow_alpha: float = 0.22, _accent_alpha: float = 0.16) -> void:
+static func draw_rounded_panel(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, corner_radius: float = 8.0, shadow_alpha: float = 0.22, accent_alpha: float = 0.16) -> void:
+	var radius := minf(corner_radius, minf(rect.size.x, rect.size.y) * 0.5)
 	var panel := StyleBoxFlat.new()
 	panel.bg_color = fill_color
 	panel.border_color = Color(border_color, border_color.a * 0.55)
 	panel.set_border_width_all(1)
-	panel.set_corner_radius_all(roundi(minf(corner_radius, minf(rect.size.x, rect.size.y) * 0.5)))
+	panel.set_corner_radius_all(roundi(radius))
 	panel.shadow_color = Color(0.015, 0.035, 0.025, shadow_alpha * 0.65)
 	panel.shadow_size = 5 if shadow_alpha > 0.05 else 0
 	panel.shadow_offset = Vector2(0, 3)
 	canvas.draw_style_box(panel, rect)
+	draw_panel_highlight(canvas, rect, radius, accent_alpha, fill_color.get_luminance())
+
+
+# Alpha of the crisp gloss hairline for a given panel fill. Shared with the regression test so the
+# renderer and the test cannot drift apart.
+static func panel_gloss_alpha(fill_luminance: float) -> float:
+	return PANEL_GLOSS * lerpf(1.0, 0.45, clampf(fill_luminance, 0.0, 1.0))
+
+
+# Body-strip share of the caller's accent for a given panel fill.
+static func panel_highlight_share(fill_luminance: float) -> float:
+	return lerpf(1.0, 0.3, clampf(fill_luminance, 0.0, 1.0))
+
+
+# Glossy top edge for panels and cards. Callers pass accent_alpha, and the strip scales with the
+# panel's own luminance so a near-black HUD chip still reads as raised while a pale garden panel
+# keeps a soft edge instead of turning chalky. Skipped when the panel cannot hold a strip.
+static func draw_panel_highlight(canvas: CanvasItem, rect: Rect2, corner_radius: float, accent_alpha: float, fill_luminance: float = 0.5) -> void:
+	if accent_alpha <= 0.0 or rect.size.y < 12.0 or rect.size.x < 12.0:
+		return
+	# Dark fills get the full gloss; pale fills get a smaller share of it so the edge stays a gloss
+	# instead of a chalk line. Only the body strip is scaled, since the hairline carries the effect.
+	accent_alpha *= panel_highlight_share(fill_luminance)
+	var inset := maxf(1.5, corner_radius * 0.45)
+	var strip_height := clampf(rect.size.y * 0.16, 2.0, 3.5)
+	var strip_start := rect.position.x + inset
+	var strip_width := rect.size.x - inset * 2.0
+	if strip_width <= 0.0 or strip_height <= 0.0:
+		return
+	# Gradient polygons rather than repeated draw_rect segments: per-segment rects quantise to whole
+	# pixels and read as a dashed line along the top edge. Three bands give a symmetric fade with the
+	# peak in the middle, since one polygon can only interpolate linearly between its own vertices.
+	var top := rect.position.y + 0.5
+	var clear := Color(1.0, 1.0, 1.0, 0.0)
+	var mid := Color(1.0, 1.0, 1.0, accent_alpha)
+	# The gloss fades with the caller's accent but keeps its own peak, so a faint accent still reads
+	# as a glossy edge instead of a flat panel.
+	var hairline := Color(1.0, 1.0, 1.0, panel_gloss_alpha(fill_luminance))
+	var third := strip_width / 3.0
+	var cuts := [strip_start, strip_start + third, strip_start + third * 2.0, strip_start + strip_width]
+	var colours := [clear, mid, mid, clear]
+	for i in range(3):
+		var x0: float = cuts[i]
+		var x1: float = cuts[i + 1]
+		var c0: Color = colours[i]
+		var c1: Color = colours[i + 1]
+		canvas.draw_polygon(
+			PackedVector2Array([Vector2(x0, top), Vector2(x1, top), Vector2(x1, top + strip_height), Vector2(x0, top + strip_height)]),
+			PackedColorArray([c0, c1, c1, c0])
+		)
+	# Crisp hairline on the very top row so the gloss still reads against light panel fills.
+	canvas.draw_polygon(
+		PackedVector2Array([Vector2(cuts[0], top), Vector2(cuts[3], top), Vector2(cuts[3], top + 1.0), Vector2(cuts[0], top + 1.0)]),
+		PackedColorArray([
+			Color(1.0, 1.0, 1.0, 0.0),
+			Color(1.0, 1.0, 1.0, 0.0),
+			hairline,
+			hairline,
+		])
+	)
 
 
 static func draw_panel_shell(canvas: CanvasItem, rect: Rect2, fill_color: Color, border_color: Color, shadow_alpha: float = 0.22, accent_alpha: float = 0.16) -> void:
@@ -197,14 +278,15 @@ static func draw_ambient_particles(canvas: CanvasItem, viewport_size: Vector2, u
 				var hue_shift = fmod(seed_val, 3.0)
 				var leaf_color = Color(0.5 + hue_shift * 0.06, 0.7 - hue_shift * 0.04, 0.24, 0.22 + 0.08 * sin(ui_time + seed_val))
 				# soft halo + pointed leaf (two triangles) + vein
-				canvas.draw_circle(Vector2(x, y), sz * 1.6, Color(leaf_color.r, leaf_color.g, leaf_color.b, leaf_color.a * 0.25))
+				var origin = Vector2(x, y)
+				canvas.draw_circle(origin, sz * 1.6, Color(leaf_color.r, leaf_color.g, leaf_color.b, leaf_color.a * 0.25))
 				var dir = Vector2(cos(rot), sin(rot))
 				var perp = Vector2(-dir.y, dir.x)
 				canvas.draw_polygon(
-					PackedVector2Array([Vector2(x, y) + dir * sz, Vector2(x, y) - dir * sz + perp * sz * 0.6, Vector2(x, y) - dir * sz - perp * sz * 0.6]),
+					PackedVector2Array([origin + dir * sz, origin - dir * sz + perp * sz * 0.6, origin - dir * sz - perp * sz * 0.6]),
 					PackedColorArray([leaf_color, leaf_color, leaf_color])
 				)
-				canvas.draw_line(Vector2(x, y) + dir * sz, Vector2(x, y) - dir * sz, leaf_color.darkened(0.18), 1.2)
+				canvas.draw_line(origin + dir * sz, origin - dir * sz, leaf_color.darkened(0.18), 1.2)
 		"fireflies":
 			for i in range(count):
 				var seed_val = float(i) * 47.7
@@ -214,9 +296,10 @@ static func draw_ambient_particles(canvas: CanvasItem, viewport_size: Vector2, u
 				y += cos(ui_time * 0.6 + seed_val * 0.5) * 20.0
 				var brightness = 0.4 + 0.6 * maxf(0.0, sin(ui_time * 2.8 + seed_val * 1.3))
 				# layered warm glow
-				canvas.draw_circle(Vector2(x, y), 11.0, Color(1.0, 0.95, 0.5, brightness * 0.05))
-				canvas.draw_circle(Vector2(x, y), 6.0, Color(1.0, 0.95, 0.52, brightness * 0.1))
-				canvas.draw_circle(Vector2(x, y), 2.6, Color(1.0, 0.98, 0.62, brightness * 0.6))
+				var origin = Vector2(x, y)
+				canvas.draw_circle(origin, 11.0, Color(1.0, 0.95, 0.5, brightness * 0.05))
+				canvas.draw_circle(origin, 6.0, Color(1.0, 0.95, 0.52, brightness * 0.1))
+				canvas.draw_circle(origin, 2.6, Color(1.0, 0.98, 0.62, brightness * 0.6))
 		"snowflakes":
 			for i in range(count):
 				var seed_val = float(i) * 61.9
@@ -224,8 +307,9 @@ static func draw_ambient_particles(canvas: CanvasItem, viewport_size: Vector2, u
 				var y = fmod(ui_time * (28.0 + fmod(seed_val * 0.6, 6.0)) + seed_val * 2.9, viewport_size.y + 30.0) - 15.0
 				var sz = 1.8 + fmod(seed_val, 2.4)
 				var a = 0.28 + 0.1 * sin(ui_time * 1.4 + seed_val)
-				canvas.draw_circle(Vector2(x, y), sz * 2.0, Color(1.0, 1.0, 1.0, a * 0.2))
-				canvas.draw_circle(Vector2(x, y), sz, Color(1.0, 1.0, 1.0, a))
+				var origin = Vector2(x, y)
+				canvas.draw_circle(origin, sz * 2.0, Color(1.0, 1.0, 1.0, a * 0.2))
+				canvas.draw_circle(origin, sz, Color(1.0, 1.0, 1.0, a))
 		"fog_wisps":
 			for i in range(mini(count, 8)):
 				var seed_val = float(i) * 53.3
@@ -234,7 +318,8 @@ static func draw_ambient_particles(canvas: CanvasItem, viewport_size: Vector2, u
 				var wisp_w = 90.0 + fmod(seed_val, 60.0)
 				var wisp_h = 22.0 + fmod(seed_val * 0.5, 16.0)
 				# soft layered wisp
-				canvas.draw_circle(Vector2(x, y), wisp_h * 0.9, Color(0.74, 0.8, 0.84, 0.05 + 0.025 * sin(ui_time * 0.7 + seed_val)))
+				var origin = Vector2(x, y)
+				canvas.draw_circle(origin, wisp_h * 0.9, Color(0.74, 0.8, 0.84, 0.05 + 0.025 * sin(ui_time * 0.7 + seed_val)))
 				canvas.draw_circle(Vector2(x + wisp_w * 0.3, y), wisp_h * 0.7, Color(0.78, 0.84, 0.88, 0.04 + 0.02 * sin(ui_time * 0.7 + seed_val)))
 		"dust_motes":
 			for i in range(count):
@@ -243,8 +328,9 @@ static func draw_ambient_particles(canvas: CanvasItem, viewport_size: Vector2, u
 				var y = fmod(seed_val * 4.7 + sin(ui_time * 0.4 + seed_val) * 40.0, viewport_size.y)
 				var sz = 1.2 + fmod(seed_val, 2.0)
 				var a = 0.16 + 0.07 * sin(ui_time * 1.8 + seed_val)
-				canvas.draw_circle(Vector2(x, y), sz * 2.4, Color(1.0, 0.94, 0.78, a * 0.3))
-				canvas.draw_circle(Vector2(x, y), sz, Color(1.0, 0.94, 0.78, a))
+				var origin = Vector2(x, y)
+				canvas.draw_circle(origin, sz * 2.4, Color(1.0, 0.94, 0.78, a * 0.3))
+				canvas.draw_circle(origin, sz, Color(1.0, 0.94, 0.78, a))
 
 
 # --- Fluffy Cloud ---

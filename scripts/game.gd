@@ -22042,8 +22042,8 @@ func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: b
 
 	var layout := ThemeLib.seed_card_layout(card_rect_draw)
 	_draw_card_icon(kind, Rect2(layout.portrait).get_center(), float(layout.icon_scale))
-	ThemeLib.draw_label(self, ui_font, layout.header, String(Defs.PLANTS[kind]["name"]), 13, Color("#283d37"), HORIZONTAL_ALIGNMENT_CENTER, 8)
-	ThemeLib.draw_label(self, ui_font, layout.footer, str(Defs.PLANTS[kind]["cost"]), 15, Color("#68532b"), HORIZONTAL_ALIGNMENT_LEFT, 9)
+	ThemeLib.draw_label(self, ui_font, layout.header, String(Defs.PLANTS[kind]["name"]), 13, ThemeLib.INK, HORIZONTAL_ALIGNMENT_CENTER, 8)
+	ThemeLib.draw_label(self, ui_font, layout.footer, str(Defs.PLANTS[kind]["cost"]), 15, ThemeLib.COST_GOLD, HORIZONTAL_ALIGNMENT_LEFT, 9)
 
 
 func _draw_almanac_entry(kind: String, rect: Rect2, selected: bool, is_plant: bool, allow_hover: bool = true) -> void:
@@ -24160,7 +24160,7 @@ func _draw_seed_bank() -> void:
 
 		_draw_panel_shell(draw_rect_local, card_color, Color(0.38, 0.28, 0.16), 0.08, 0.05)
 		if selected:
-			ThemeLib.draw_rounded_panel(self, draw_rect_local.grow(2), Color("#e4efd5"), GardenMenus.GREEN, 8, 0.0)
+			ThemeLib.draw_rounded_panel(self, draw_rect_local.grow(2), ThemeLib.PANEL_CREAM, GardenMenus.GREEN, 8, 0.0)
 			ThemeLib.draw_rounded_panel(self, Rect2(draw_rect_local.position + Vector2(6, 1), Vector2(draw_rect_local.size.x - 12, 3)), GardenMenus.GREEN, GardenMenus.GREEN, 2, 0.0)
 
 		var layout := ThemeLib.seed_card_layout(draw_rect_local, _is_conveyor_level())
@@ -24175,7 +24175,7 @@ func _draw_seed_bank() -> void:
 			draw_rect(recharge, Color("#3a5146"))
 			draw_rect(ThemeLib.progress_fill_rect(recharge, 1.0 - cooling_ratio), Color("#b6d57f"))
 
-		ThemeLib.draw_label(self, ui_font, layout.header, String(data["name"]), 12, Color("#283d37"), HORIZONTAL_ALIGNMENT_CENTER, 8)
+		ThemeLib.draw_label(self, ui_font, layout.header, String(data["name"]), 12, ThemeLib.INK, HORIZONTAL_ALIGNMENT_CENTER, 8)
 		var enhance_level := int(plant_enhance_levels.get(kind, 0))
 		if enhance_level > 0:
 			var badge_scale := 0.48 if bool(layout.compact) else 0.68
@@ -24183,10 +24183,10 @@ func _draw_seed_bank() -> void:
 		if not _is_conveyor_level():
 			var cost_rect: Rect2 = layout.footer
 			cost_rect.size.x *= 0.64
-			ThemeLib.draw_label(self, ui_font, cost_rect, str(draw_cost), 15, Color("#68532b") if affordable else Color("#9b4436"), HORIZONTAL_ALIGNMENT_LEFT, 9)
+			ThemeLib.draw_label(self, ui_font, cost_rect, str(draw_cost), 15, ThemeLib.COST_GOLD if affordable else Color("#9b4436"), HORIZONTAL_ALIGNMENT_LEFT, 9)
 		if plant_stars.has(kind) and int(plant_stars[kind]) > 0:
 			for star_i in range(mini(int(plant_stars[kind]), 3)):
-				draw_circle(Vector2(draw_rect_local.end.x - 6 - star_i * 4, Rect2(layout.footer).get_center().y), 1.5, Color("#b58b32"), true, -1, true)
+				draw_circle(Vector2(draw_rect_local.end.x - 6 - star_i * 4, Rect2(layout.footer).get_center().y), 1.5, ThemeLib.GOLD, true, -1, true)
 
 	if _is_whack_level():
 		var hammer_rect = _shovel_rect()
@@ -24870,7 +24870,7 @@ func _draw_plants() -> void:
 					support_draw_center + Vector2(0.0, -26.0 * unit_scale),
 					48.0 * unit_scale,
 					clampf(float(support["health"]) / float(support["max_health"]), 0.0, 1.0),
-					Color(0.24, 0.82, 0.28)
+					ThemeLib.PLANT_GREEN
 				)
 
 	for row in range(ROWS):
@@ -24931,13 +24931,13 @@ func _draw_plants() -> void:
 						draw_center + Vector2(0.0, -52.0 * unit_scale),
 						58.0 * unit_scale,
 						clampf(float(plant["armor_health"]) / float(plant["max_armor_health"]), 0.0, 1.0),
-						Color(0.38, 0.72, 0.96)
+						ThemeLib.ARMOR_BLUE
 					)
 				_draw_health_bar(
 					draw_center + Vector2(0.0, -42.0 * unit_scale),
 					58.0 * unit_scale,
 					clampf(float(plant["health"]) / float(plant["max_health"]), 0.0, 1.0),
-					Color(0.32, 0.86, 0.24)
+					ThemeLib.HEALTH_GREEN
 				)
 			if float(plant.get("sleep_timer", 0.0)) > 0.0:
 				_draw_text("Z", draw_center + Vector2(-10.0, -62.0) * unit_scale, maxi(8, roundi(18 * unit_scale)), Color(0.86, 0.9, 1.0, 0.9))
@@ -25300,13 +25300,13 @@ func _draw_zombies() -> void:
 				draw_center + Vector2(0.0, -64.0 * unit_scale),
 				58.0 * unit_scale,
 				clampf(float(zombie["shield_health"]) / float(zombie["max_shield_health"]), 0.0, 1.0),
-				Color(0.62, 0.8, 0.96)
+				ThemeLib.SHIELD_BLUE
 			)
 		_draw_health_bar(
 			draw_center + Vector2(0.0, -56.0 * unit_scale),
 			58.0 * unit_scale,
 			clampf(float(zombie["health"]) / float(zombie["max_health"]), 0.0, 1.0),
-			Color(0.92, 0.28, 0.22)
+			ThemeLib.ZOMBIE_RED
 		)
 
 
@@ -34299,13 +34299,20 @@ func _draw_coin_icon(center: Vector2, size_scale: float) -> void:
 
 func _draw_health_bar(center: Vector2, width: float, ratio: float, fill_color: Color) -> void:
 	var height := clampf(width * 6.0 / 58.0, 2.5, 6.0)
-	var inset := minf(1.0, height * 0.2)
+	var border := 1.0 if height >= 4.0 else 0.0
 	var bar_rect := Rect2(center + Vector2(-width * 0.5, 0), Vector2(width, height))
-	draw_rect(bar_rect, Color("#203c37", 0.85))
-	var fill := ThemeLib.progress_fill_rect(bar_rect.grow(-inset), ratio)
-	if fill.size.x > 0:
+	draw_rect(bar_rect, Color(ThemeLib.BAR_TRACK.r, ThemeLib.BAR_TRACK.g, ThemeLib.BAR_TRACK.b, 0.8))
+	var inner := bar_rect.grow(-border) if border > 0.0 else bar_rect
+	# Fill is measured against the inner track, so the bar never spills past its own border.
+	var clamped := clampf(ratio, 0.0, 1.0)
+	if clamped > 0.0:
+		var fill := ThemeLib.progress_fill_rect(inner, clamped)
 		draw_rect(fill, fill_color)
-		draw_line(fill.position, fill.position + Vector2(fill.size.x, 0), Color(1, 1, 1, 0.32), inset, true)
+		if fill.size.y >= 2.0:
+			draw_line(fill.position, fill.position + Vector2(fill.size.x, 0.0), Color(1, 1, 1, 0.32), minf(1.0, fill.size.y * 0.4), true)
+	# A nearly-empty bar stays findable in a crowded lane.
+	if clamped > 0.0 and clamped <= 0.2:
+		draw_rect(bar_rect, Color(ThemeLib.BAR_LOW_RIM.r, ThemeLib.BAR_LOW_RIM.g, ThemeLib.BAR_LOW_RIM.b, 0.85), false, maxf(1.0, border))
 
 
 func _draw_rect_full(fill_color: Color) -> void:

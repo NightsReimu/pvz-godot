@@ -9,7 +9,7 @@ static func polygon(canvas: CanvasItem, center: Vector2, scale: float, vertices:
 	canvas.draw_colored_polygon(points, color)
 	if outline > 0:
 		points.append(points[0])
-		canvas.draw_polyline(points, Color("#283d37", color.a), outline * scale, true)
+		canvas.draw_polyline(points, Color(GameTheme.INK.r, GameTheme.INK.g, GameTheme.INK.b, color.a), outline * scale, true)
 
 
 static func ellipse(canvas: CanvasItem, center: Vector2, radius: Vector2, color: Color, outline: float = 0.0) -> void:
@@ -19,7 +19,7 @@ static func ellipse(canvas: CanvasItem, center: Vector2, radius: Vector2, color:
 	canvas.draw_colored_polygon(points, color)
 	if outline > 0:
 		points.append(points[0])
-		canvas.draw_polyline(points, Color("#283d37", color.a), outline, true)
+		canvas.draw_polyline(points, Color(GameTheme.INK.r, GameTheme.INK.g, GameTheme.INK.b, color.a), outline, true)
 
 
 static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: String, flash: float, alpha: float, mature: bool = true) -> void:
@@ -31,7 +31,7 @@ static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: St
 	var cap := Color("#9b65bc" if fume else ("#e8af38" if sun else "#b287c9"), alpha)
 	cap = cap.lerp(Color(1, 1, 1, alpha), clampf(flash * 1.8, 0, 1))
 	var cream := Color("#f2e4bf", alpha).lerp(Color(1, 1, 1, alpha), clampf(flash, 0, 1))
-	var ink := Color("#283d37", alpha)
+	var ink := Color(GameTheme.INK.r, GameTheme.INK.g, GameTheme.INK.b, alpha)
 	var width := 29.0 if fume else (26.0 if sun else 23.0)
 	var height := 28.0 if fume else 24.0
 	ellipse(canvas, origin + Vector2(0, 36) * s, Vector2(22, 4) * s, Color(0.12, 0.24, 0.16, alpha * 0.16))
