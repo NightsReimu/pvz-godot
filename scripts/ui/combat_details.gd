@@ -22,18 +22,45 @@ static func ellipse(canvas: CanvasItem, center: Vector2, radius: Vector2, color:
 		canvas.draw_polyline(points, Color(GameTheme.INK.r, GameTheme.INK.g, GameTheme.INK.b, color.a), outline, true)
 
 
-static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: String, flash: float, alpha: float, mature: bool = true) -> void:
+static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: String, flash: float, alpha: float, mature: bool = true, pose: String = "") -> void:
+	# Shared mushroom skeleton: shadow, stipe, gill ring, pleats, dome, sheen,
+	# spots, then eyes with a specular dot. Specialty shrooms only override colours
+	# and their signature features so they read as one family.
 	var sun := kind == "sun_shroom"
 	var fume := kind == "fume_shroom"
+	var hypno := kind == "hypno_shroom"
+	var scaredy := kind == "scaredy_shroom"
+	var ice := kind == "ice_shroom"
+	var doom := kind == "doom_shroom"
+	var specialty := hypno or scaredy or ice or doom
+	var hiding := scaredy and pose == "hiding"
 	var growth := 1.0 if not sun or mature else 0.72
 	var s := scale * growth
 	var origin := center + Vector2(0, 34 * scale * (1.0 - growth))
-	var cap := Color("#9b65bc" if fume else ("#e8af38" if sun else "#b287c9"), alpha)
+	var base_colour := "#9b65bc" if fume else ("#e8af38" if sun else "#b287c9")
+	if hypno:
+		base_colour = "#a866d4"
+	elif scaredy:
+		base_colour = "#9c7fd0"
+	elif ice:
+		base_colour = "#6fb9de"
+	elif doom:
+		base_colour = "#7d1526"
+	var cap := Color(base_colour, alpha)
 	cap = cap.lerp(Color(1, 1, 1, alpha), clampf(flash * 1.8, 0, 1))
-	var cream := Color("#f2e4bf", alpha).lerp(Color(1, 1, 1, alpha), clampf(flash, 0, 1))
+	var cream := Color("#f2e4bf" if not ice else "#dff2fb", alpha).lerp(Color(1, 1, 1, alpha), clampf(flash, 0, 1))
+	if doom:
+		cream = Color("#b8ada0", alpha).lerp(Color(1, 1, 1, alpha), clampf(flash, 0, 1))
 	var ink := Color(GameTheme.INK.r, GameTheme.INK.g, GameTheme.INK.b, alpha)
 	var width := 29.0 if fume else (26.0 if sun else 23.0)
 	var height := 28.0 if fume else 24.0
+	var spot_tint := Color("#eedaf3", alpha * 0.88)
+	if hypno:
+		spot_tint = Color("#e9c6ff", alpha * 0.9)
+	elif ice:
+		spot_tint = Color("#f2fbff", alpha * 0.95)
+	elif doom:
+		spot_tint = Color("#ff9a6a", alpha * 0.7)
 	ellipse(canvas, origin + Vector2(0, 36) * s, Vector2(22, 4) * s, Color(0.12, 0.24, 0.16, alpha * 0.16))
 	polygon(canvas, origin, s, [Vector2(-11,-6), Vector2(10,-6), Vector2(11,15), Vector2(16,30), Vector2(9,35), Vector2(-10,35), Vector2(-16,30), Vector2(-11,13)], cream)
 	polygon(canvas, origin, s, [Vector2(-11,0), Vector2(-6,0), Vector2(-6,27), Vector2(-10,31), Vector2(-14,29)], Color("#cabb98", alpha), 0)
@@ -49,12 +76,62 @@ static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: St
 	ellipse(canvas, origin+Vector2(-8,-23)*s, Vector2(9,4)*s, Color(cap.lightened(0.3), alpha*0.8))
 	for spot in [Vector3(-16,-13,3.5),Vector3(7,-25,4.3),Vector3(17,-13,3.0)]:
 		ellipse(canvas,origin+Vector2(spot.x,spot.y)*s,Vector2(spot.z,spot.z*0.65)*s,Color("#fff0b6" if sun else "#eedaf3",alpha*0.88))
-	for x in [-5,5]:
-		ellipse(canvas, origin+Vector2(x,9)*s,Vector2(2.6,3.8)*s,ink)
-		canvas.draw_circle(origin+Vector2(x-0.5,7.8)*s,0.9*s,Color(1,1,1,alpha),true,-1,true)
+	if doom:
+		# Sunken sockets with a burning light behind them.
+		for x in [-6,6]:
+			ellipse(canvas, origin+Vector2(x,9)*s,Vector2(4.2,5.0)*s,Color(0.04,0.03,0.03,alpha))
+			ellipse(canvas, origin+Vector2(x,9.5)*s,Vector2(2.0,2.4)*s,Color(1.0,0.62,0.24,alpha*0.9))
+			canvas.draw_circle(origin+Vector2(x-0.4,8.6)*s,0.8*s,Color(1,1,1,alpha),true,-1,true)
+		if not hiding:
+			polygon(canvas, origin, s, [Vector2(-7,17),Vector2(-2,15),Vector2(0,19),Vector2(2,15),Vector2(7,17),Vector2(4,22),Vector2(-4,22)], ink, 0.9)
+	elif hiding:
+		# Squeezed-shut eyes while it cowers.
+		for x in [-6,6]:
+			canvas.draw_arc(origin+Vector2(x,9)*s, 3.4*s, PI, TAU, 12, ink, 1.8*s, true)
+		canvas.draw_arc(origin+Vector2(0,19)*s, 4.0*s, 0.15, PI-0.15, 12, ink, 1.6*s, true)
+	elif ice:
+		# Half-lidded, frosted over.
+		for x in [-6,6]:
+			ellipse(canvas, origin+Vector2(x,9)*s,Vector2(2.8,3.6)*s,Color(0.08,0.16,0.3,alpha))
+			canvas.draw_circle(origin+Vector2(x-0.5,7.8)*s,0.9*s,Color(1,1,1,alpha),true,-1,true)
+			canvas.draw_line(origin+Vector2(x-4,7)*s, origin+Vector2(x+4,7)*s, Color(0.86,0.96,1.0,alpha*0.9), 2.0*s, true)
+		canvas.draw_arc(origin+Vector2(0,18)*s, 3.6*s, 0.15, PI-0.15, 10, ink, 1.5*s, true)
+	elif hypno:
+		# Counter-rotating spiral eyes.
+		var span := float(Time.get_ticks_msec()) / 1000.0 * 3.4
+		for x in [-6,6]:
+			for ring in range(3):
+				var ring_r := (5.6 - float(ring) * 1.7) * s
+				var ring_col := Color(0.44,0.72,1.0,alpha*(0.55+float(ring)*0.16)) if ring % 2 == 0 else Color(0.94,0.96,1.0,alpha*(0.45+float(ring)*0.16))
+				canvas.draw_arc(origin+Vector2(x,9)*s, ring_r, span+float(ring)*0.5, span+float(ring)*0.5+PI*1.5, 16, ring_col, 1.8*s, true)
+			canvas.draw_circle(origin+Vector2(x,9)*s, 1.1*s, Color(0.44,0.72,1.0,alpha), true, -1, true)
+		canvas.draw_arc(origin+Vector2(0,18)*s, 4.2*s, 0.15, PI-0.15, 12, ink, 1.6*s, true)
+	else:
+		for x in [-5,5]:
+			ellipse(canvas, origin+Vector2(x,9)*s,Vector2(2.6,3.8)*s,ink)
+			canvas.draw_circle(origin+Vector2(x-0.5,7.8)*s,0.9*s,Color(1,1,1,alpha),true,-1,true)
+	if scaredy and not hiding:
+		# Beads of sweat, plus oversized worried brows.
+		for x in [-6,6]:
+			canvas.draw_line(origin+Vector2(x-3,4)*s, origin+Vector2(x+3,1)*s, ink, 1.6*s, true)
+		canvas.draw_circle(origin+Vector2(15,-2)*s, 2.0*s, Color(0.74,0.92,1.0,alpha*0.85), true, -1, true)
+		canvas.draw_circle(origin+Vector2(18,3)*s, 1.4*s, Color(0.74,0.92,1.0,alpha*0.65), true, -1, true)
+	if ice or doom:
+		# Crystal shards on the ice cap, ember cracks on the doom cap.
+		if ice:
+			for shard in range(4):
+				var shard_x := -14.0 + float(shard) * 9.0
+				polygon(canvas, origin, s, [Vector2(shard_x,-24),Vector2(shard_x+3,-32),Vector2(shard_x+6,-24)], Color(0.9,0.98,1.0,alpha*0.92), 0.8)
+		else:
+			for crack in range(4):
+				var crack_dir := Vector2.from_angle(TAU*float(crack)/4.0+0.4)
+				canvas.draw_line(origin+crack_dir*12.0*s, origin+crack_dir*22.0*s, Color(0.28,0.04,0.1,alpha*0.85), 1.8*s, true)
 	if sun:
 		canvas.draw_arc(origin+Vector2(0,17)*s,4*s,0.15,PI-0.15,12,ink,1.4*s,true)
 		ellipse(canvas,origin+Vector2(-9,16)*s,Vector2(3,1.6)*s,Color("#ecaa68",alpha*0.65))
+	elif specialty:
+		# Specialty shrooms get their own mouth above; a spore nozzle would read as a fume shroom.
+		pass
 	else:
 		var muzzle := Vector2(17,15) if fume else Vector2(13,16)
 		var reach := 16.0 if fume else 8.0

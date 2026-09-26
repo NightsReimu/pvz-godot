@@ -28119,135 +28119,17 @@ func _draw_grave_buster(center: Vector2, size_scale: float, flash: float, alpha:
 
 
 func _draw_hypno_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var cap = center + Vector2(0.0, -4.0 * size_scale)
-	var cap_color = Color(0.86, 0.5, 0.92, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	var swirl_phase = level_time * 3.4
-	# Mesmerizing aura rings
-	draw_arc(cap, 24.0 * size_scale, swirl_phase, swirl_phase + PI * 1.6, 24, Color(0.62, 0.4, 0.94, alpha * 0.22), 2.4 * size_scale)
-	draw_arc(cap, 28.0 * size_scale, -swirl_phase * 0.7, -swirl_phase * 0.7 + PI * 1.3, 20, Color(0.4, 0.58, 0.98, alpha * 0.16), 2.0 * size_scale)
-	# Stem
-	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
-	# Cap
-	_draw_ink_disc(cap, 18.0 * size_scale, cap_color)
-	draw_circle(cap, 12.0 * size_scale, cap_color.lightened(0.08))
-	# Cap freckles
-	draw_circle(cap + Vector2(-8.0 * size_scale, -10.0 * size_scale), 2.2 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
-	draw_circle(cap + Vector2(8.0 * size_scale, -8.0 * size_scale), 2.2 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
-	draw_circle(cap + Vector2(2.0 * size_scale, -13.0 * size_scale), 1.8 * size_scale, Color(0.7, 0.4, 0.86, alpha * 0.7))
-	# Drifting hypnotic spiral across the cap, opposite the eye rotation.
-	for spiral_index in range(3):
-		var spiral_r = (15.0 - float(spiral_index) * 4.2) * size_scale
-		draw_arc(cap, spiral_r, -swirl_phase * 0.6 + float(spiral_index) * 0.7,
-			-swirl_phase * 0.6 + float(spiral_index) * 0.7 + PI * 1.15, 14,
-			Color(0.64, 0.32, 0.8, alpha * 0.38), 1.4 * size_scale)
-	# Spiral hypno eyes (3 rings each, counter-rotating)
-	for eye_offset in [-5.0, 5.0]:
-		var eye_center = cap + Vector2(eye_offset * size_scale, -3.0 * size_scale)
-		for ring_index in range(3):
-			var ring_r = (5.5 - ring_index * 1.8) * size_scale
-			var ring_color = Color(0.24, 0.58, 0.98, alpha * (0.5 + ring_index * 0.2)) if ring_index % 2 == 0 else Color(0.9, 0.94, 1.0, alpha * (0.4 + ring_index * 0.2))
-			draw_arc(eye_center, ring_r, swirl_phase + ring_index * 0.5, swirl_phase + ring_index * 0.5 + PI * 1.5, 16, ring_color, 1.8 * size_scale)
-		draw_circle(eye_center, 1.0 * size_scale, Color(0.24, 0.58, 0.98, alpha))
-	# Wavy smile (swaying)
-	draw_arc(cap + Vector2(0.0, 5.0 * size_scale), 5.0 * size_scale, 0.2 + sin(swirl_phase) * 0.15, PI - 0.2 + sin(swirl_phase) * 0.15, 12, Color(0.1, 0.08, 0.1, alpha), 1.8 * size_scale)
-
+	# Specialty shrooms share the detailed mushroom builder so they match the core family.
+	CombatDetails.mushroom(self, center, size_scale, "hypno_shroom", flash, alpha)
 
 func _draw_scaredy_shroom(center: Vector2, size_scale: float, flash: float, hiding: bool, alpha: float = 1.0) -> void:
-	var cap_center = center + Vector2(0.0, -6.0 * size_scale if not hiding else 4.0 * size_scale)
-	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.82, 0.82, 0.72, alpha), 6.0 * size_scale)
-	_draw_ink_disc(cap_center, 17.0 * size_scale, Color(0.74, 0.5, 0.9, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0))
-	draw_circle(cap_center + Vector2(-6.0 * size_scale, -2.0 * size_scale), 4.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
-	draw_circle(cap_center + Vector2(6.0 * size_scale, -2.0 * size_scale), 4.0 * size_scale, Color(1.0, 1.0, 1.0, alpha))
-	draw_circle(cap_center + Vector2(-6.0 * size_scale, -2.0 * size_scale), 1.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	draw_circle(cap_center + Vector2(6.0 * size_scale, -2.0 * size_scale), 1.4 * size_scale, Color(0.08, 0.08, 0.08, alpha))
-	# Cap spots
-	draw_circle(cap_center + Vector2(-11.0 * size_scale, -9.0 * size_scale), 2.6 * size_scale, Color(0.56, 0.32, 0.72, alpha * 0.55))
-	draw_circle(cap_center + Vector2(9.0 * size_scale, -11.0 * size_scale), 2.1 * size_scale, Color(0.56, 0.32, 0.72, alpha * 0.55))
-	draw_circle(cap_center + Vector2(1.0 * size_scale, -14.0 * size_scale), 1.6 * size_scale, Color(0.56, 0.32, 0.72, alpha * 0.45))
-	# Nervous beads of sweat sliding down the rim
-	var sweat_drop = fposmod(level_time * 0.8, 1.0)
-	draw_circle(cap_center + Vector2(14.0 * size_scale, (-6.0 + sweat_drop * 7.0) * size_scale), 2.0 * size_scale, Color(0.74, 0.92, 1.0, alpha * 0.8))
-	draw_circle(cap_center + Vector2(17.0 * size_scale, (-3.0 + sweat_drop * 5.0) * size_scale), 1.4 * size_scale, Color(0.74, 0.92, 1.0, alpha * 0.6))
-	if hiding:
-		draw_arc(cap_center + Vector2(0.0, 5.0 * size_scale), 5.0 * size_scale, PI, TAU, 12, Color(0.08, 0.08, 0.08, alpha), 2.0 * size_scale)
-	else:
-		draw_arc(cap_center + Vector2(0.0, 5.0 * size_scale), 5.0 * size_scale, 0.1, PI - 0.1, 12, Color(0.08, 0.08, 0.08, alpha), 2.0 * size_scale)
-
+	CombatDetails.mushroom(self, center, size_scale, "scaredy_shroom", flash, alpha, true, "hiding" if hiding else "")
 
 func _draw_ice_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var cap = center + Vector2(0.0, -6.0 * size_scale)
-	var cap_color = Color(0.62, 0.88, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	var frost = Color(0.9, 0.98, 1.0, alpha)
-	# Cold mist aura
-	var mist_phase = level_time * 2.0
-	draw_arc(cap, 26.0 * size_scale, mist_phase, mist_phase + PI * 1.4, 20, Color(0.8, 0.94, 1.0, alpha * 0.18), 2.2 * size_scale)
-	draw_arc(cap, 30.0 * size_scale, -mist_phase * 0.6, -mist_phase * 0.6 + PI * 1.2, 18, Color(0.86, 0.96, 1.0, alpha * 0.12), 1.6 * size_scale)
-	# Stem
-	_draw_ink_line(center + Vector2(0.0, 12.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.86, 0.92, 1.0, alpha), 6.0 * size_scale)
-	# Cap
-	_draw_ink_disc(cap, 20.0 * size_scale, cap_color)
-	draw_circle(cap + Vector2(-6.0 * size_scale, -6.0 * size_scale), 9.0 * size_scale, cap_color.lightened(0.14))
-	# Ice crystals on cap
-	draw_circle(cap + Vector2(-9.0 * size_scale, -13.0 * size_scale), 6.0 * size_scale, frost)
-	draw_circle(cap + Vector2(9.0 * size_scale, -11.0 * size_scale), 5.0 * size_scale, frost)
-	draw_circle(cap + Vector2(0.0 * size_scale, -18.0 * size_scale), 4.0 * size_scale, frost)
-	for crystal_index in range(4):
-		var cx = cap.x + (-12.0 + float(crystal_index) * 8.0) * size_scale
-		_draw_ink_line(Vector2(cx, cap.y - 4.0 * size_scale), Vector2(cx, cap.y - 12.0 * size_scale), frost, 1.6 * size_scale)
-	# Frosty brow line
-	_draw_ink_line(cap + Vector2(-18.0 * size_scale, -4.0 * size_scale), cap + Vector2(18.0 * size_scale, -4.0 * size_scale), frost, 2.4 * size_scale)
-	# Half-closed sleepy eyes
-	_draw_ink_line(cap + Vector2(-9.0 * size_scale, 1.0 * size_scale), cap + Vector2(-3.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
-	_draw_ink_line(cap + Vector2(3.0 * size_scale, 1.0 * size_scale), cap + Vector2(9.0 * size_scale, 1.0 * size_scale), Color(0.1, 0.16, 0.28, alpha), 2.4 * size_scale)
-	# Breath of frost curling off the rim
-	for breath in range(3):
-		var breath_from = cap + Vector2(19.0 * size_scale, (-2.0 + float(breath) * 2.2) * size_scale)
-		var drift := sin(level_time * 2.2 + float(breath)) * 3.5 * size_scale
-		draw_line(breath_from, breath_from + Vector2(9.0 * size_scale + drift, 2.0 * size_scale),
-			Color(0.88, 0.97, 1.0, alpha * (0.5 - float(breath) * 0.1)), 1.8 * size_scale)
-	# Shivering mouth
-	draw_arc(cap + Vector2(0.0, 8.0 * size_scale), 4.0 * size_scale, 0.1, PI - 0.1, 8, Color(0.1, 0.16, 0.28, alpha), 1.6 * size_scale)
-
+	CombatDetails.mushroom(self, center, size_scale, "ice_shroom", flash, alpha)
 
 func _draw_doom_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	var cap = center + Vector2(0.0, -2.0 * size_scale)
-	var cap_color = Color(0.42, 0.08, 0.18, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 1.8)
-	var core_glow = Color(0.98, 0.4, 0.28, alpha)
-	# Ominous pulsing aura
-	var pulse_phase = level_time * 3.2
-	draw_arc(cap, 30.0 * size_scale, pulse_phase, pulse_phase + PI * 1.5, 24, Color(0.86, 0.18, 0.28, alpha * 0.24), 2.6 * size_scale)
-	draw_arc(cap, 34.0 * size_scale, -pulse_phase * 0.7, -pulse_phase * 0.7 + PI * 1.2, 20, Color(0.96, 0.3, 0.34, alpha * 0.16), 2.0 * size_scale)
-	# Stem (gnarled, dark)
-	_draw_ink_line(center + Vector2(0.0, 14.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.58, 0.52, 0.46, alpha), 7.0 * size_scale)
-	_draw_ink_line(center + Vector2(-3.0 * size_scale, 16.0 * size_scale), center + Vector2(-4.0 * size_scale, 30.0 * size_scale), Color(0.42, 0.36, 0.32, alpha), 2.0 * size_scale)
-	# Cap layers
-	_draw_ink_disc(cap, 24.0 * size_scale, cap_color)
-	draw_circle(cap, 17.0 * size_scale, cap_color.lightened(0.06))
-	# Glowing power core
-	_draw_ink_disc(cap, 11.0 * size_scale, core_glow)
-	draw_circle(cap, 7.0 * size_scale, core_glow.lightened(0.3))
-	draw_circle(cap, 3.0 * size_scale, Color(1.0, 0.96, 0.82, alpha))
-	# Dark eye sockets (skull-like)
-	draw_circle(cap + Vector2(-9.0 * size_scale, -6.0 * size_scale), 4.0 * size_scale, Color(0.04, 0.03, 0.03, alpha))
-	draw_circle(cap + Vector2(9.0 * size_scale, -6.0 * size_scale), 4.0 * size_scale, Color(0.04, 0.03, 0.03, alpha))
-	draw_circle(cap + Vector2(-9.0 * size_scale, -6.0 * size_scale), 1.6 * size_scale, Color(0.98, 0.7, 0.34, alpha))
-	# Cracks radiating out of the core
-	for crack in range(4):
-		var crack_dir = Vector2.from_angle(TAU * float(crack) / 4.0 + 0.4)
-		_draw_ink_line(cap + crack_dir * 12.0 * size_scale, cap + crack_dir * 21.0 * size_scale,
-			Color(0.26, 0.04, 0.1, alpha * 0.8), 1.8 * size_scale)
-	# Embers drifting upward as it charges
-	for ember in range(3):
-		var ember_t = fposmod(level_time * 0.6 + float(ember) * 0.33, 1.0)
-		var ember_pos = cap + Vector2((-10.0 + float(ember) * 10.0) * size_scale, (-26.0 - ember_t * 18.0) * size_scale)
-		draw_circle(ember_pos, (2.2 - ember_t * 1.2) * size_scale, Color(0.98, 0.5, 0.24, alpha * (0.7 - ember_t * 0.5)))
-	draw_circle(cap + Vector2(9.0 * size_scale, -6.0 * size_scale), 1.6 * size_scale, Color(0.98, 0.7, 0.34, alpha))
-	# Gritted teeth mouth
-	_draw_ink_line(cap + Vector2(-7.0 * size_scale, 4.0 * size_scale), cap + Vector2(7.0 * size_scale, 4.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 2.4 * size_scale)
-	for tooth_index in range(4):
-		var tooth_x = (-5.0 + float(tooth_index) * 3.3) * size_scale
-		_draw_ink_line(cap + Vector2(tooth_x, 4.0 * size_scale), cap + Vector2(tooth_x, 7.0 * size_scale), Color(0.04, 0.03, 0.03, alpha), 1.4 * size_scale)
-
+	CombatDetails.mushroom(self, center, size_scale, "doom_shroom", flash, alpha)
 
 func _draw_sea_shroom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	draw_arc(center + Vector2(0.0, 18.0 * size_scale), 26.0 * size_scale, PI * 0.06, PI * 0.94, 18, Color(0.22, 0.66, 0.72, alpha * 0.74), 5.0 * size_scale)
