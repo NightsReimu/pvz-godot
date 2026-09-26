@@ -54,6 +54,19 @@ static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: St
 	var ink := Color(GameTheme.INK.r, GameTheme.INK.g, GameTheme.INK.b, alpha)
 	var width := 29.0 if fume else (26.0 if sun else 23.0)
 	var height := 28.0 if fume else 24.0
+	# Each specialty shroom gets its own silhouette, otherwise they read as one cap recoloured.
+	if hypno:
+		width = 29.0
+		height = 18.0
+	elif scaredy:
+		width = 17.0
+		height = 32.0
+	elif ice:
+		width = 26.0
+		height = 16.0
+	elif doom:
+		width = 32.0
+		height = 27.0
 	var spot_tint := Color("#eedaf3", alpha * 0.88)
 	if hypno:
 		spot_tint = Color("#e9c6ff", alpha * 0.9)
@@ -116,16 +129,37 @@ static func mushroom(canvas: CanvasItem, center: Vector2, scale: float, kind: St
 			canvas.draw_line(origin+Vector2(x-3,4)*s, origin+Vector2(x+3,1)*s, ink, 1.6*s, true)
 		canvas.draw_circle(origin+Vector2(15,-2)*s, 2.0*s, Color(0.74,0.92,1.0,alpha*0.85), true, -1, true)
 		canvas.draw_circle(origin+Vector2(18,3)*s, 1.4*s, Color(0.74,0.92,1.0,alpha*0.65), true, -1, true)
-	if ice or doom:
-		# Crystal shards on the ice cap, ember cracks on the doom cap.
-		if ice:
-			for shard in range(4):
-				var shard_x := -14.0 + float(shard) * 9.0
-				polygon(canvas, origin, s, [Vector2(shard_x,-24),Vector2(shard_x+3,-32),Vector2(shard_x+6,-24)], Color(0.9,0.98,1.0,alpha*0.92), 0.8)
-		else:
-			for crack in range(4):
-				var crack_dir := Vector2.from_angle(TAU*float(crack)/4.0+0.4)
-				canvas.draw_line(origin+crack_dir*12.0*s, origin+crack_dir*22.0*s, Color(0.28,0.04,0.1,alpha*0.85), 1.8*s, true)
+	if hypno:
+		# Pale radiating stripes plus a swirl, the classic hypno cap.
+		for stripe in range(9):
+			var stripe_angle := PI + PI * (float(stripe) + 0.5) / 9.0
+			var stripe_from := origin + Vector2(cos(stripe_angle) * width * 0.42, -8.0 + sin(stripe_angle) * height * 0.42) * s
+			var stripe_to := origin + Vector2(cos(stripe_angle) * width * 0.96, -8.0 + sin(stripe_angle) * height * 0.96) * s
+			canvas.draw_line(stripe_from, stripe_to, Color(0.72, 0.44, 0.92, alpha * 0.5), 2.2 * s, true)
+		for swirl in range(3):
+			var swirl_r := (width * 0.5 - float(swirl) * 4.5) * s
+			canvas.draw_arc(origin + Vector2(0, -8) * s, swirl_r, -0.6 + float(swirl) * 0.9, 2.4 + float(swirl) * 0.9, 18,
+				Color(0.92, 0.82, 1.0, alpha * (0.5 - float(swirl) * 0.1)), 1.6 * s, true)
+	elif ice:
+		# A raised cluster of ice spikes instead of flat shards.
+		for spike in range(5):
+			var spike_x := -15.0 + float(spike) * 7.5
+			var spike_h := 7.0 + float((spike * 3) % 4) * 3.2
+			polygon(canvas, origin, s, [Vector2(spike_x - 3.4, -20), Vector2(spike_x, -20 - spike_h), Vector2(spike_x + 3.4, -20)],
+				Color(0.88, 0.97, 1.0, alpha * 0.95), 0.9)
+			canvas.draw_line(origin + Vector2(spike_x - 1.0, -21) * s, origin + Vector2(spike_x, -22 - spike_h * 0.7) * s,
+				Color(1, 1, 1, alpha * 0.7), 1.0 * s, true)
+	elif doom:
+		# Warty growths bulging off the cap, with ember cracks between them.
+		for wart in range(6):
+			var wart_angle := PI + PI * (float(wart) + 0.5) / 6.0
+			var wart_pos := origin + Vector2(cos(wart_angle) * width * 0.66, -8.0 + sin(wart_angle) * height * 0.66) * s
+			var wart_r := (3.6 + float(wart % 3) * 1.1) * s
+			canvas.draw_circle(wart_pos, wart_r, Color(0.55, 0.1, 0.18, alpha), true, -1, true)
+			canvas.draw_circle(wart_pos + Vector2(-0.8, -0.8) * s, wart_r * 0.42, Color(0.86, 0.36, 0.3, alpha * 0.85), true, -1, true)
+		for crack in range(4):
+			var crack_dir := Vector2.from_angle(TAU * float(crack) / 4.0 + 0.4)
+			canvas.draw_line(origin + crack_dir * 9.0 * s, origin + crack_dir * 20.0 * s, Color(0.3, 0.02, 0.08, alpha * 0.85), 2.0 * s, true)
 	if sun:
 		canvas.draw_arc(origin+Vector2(0,17)*s,4*s,0.15,PI-0.15,12,ink,1.4*s,true)
 		ellipse(canvas,origin+Vector2(-9,16)*s,Vector2(3,1.6)*s,Color("#ecaa68",alpha*0.65))
