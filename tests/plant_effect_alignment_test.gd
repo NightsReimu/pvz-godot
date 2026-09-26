@@ -182,6 +182,9 @@ func _test_vine_lasher_reaches_an_extra_tile() -> bool:
 	var plant = game._create_plant("vine_lasher", row, col)
 	plant["attack_timer"] = 0.0
 	game._update_vine_lasher(plant, 0.1, row, col)
+	# The lash now throws a travelling dart, so let it fly before reading health.
+	for _f in range(90):
+		game._update_projectiles(1.0 / 60.0)
 	var after = float(game.zombies[0].get("health", 0.0))
 	var passed = _assert_true(after < before, "vine_lasher should now hit one extra tile farther than before")
 	_free_game(game)

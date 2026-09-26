@@ -753,6 +753,19 @@ func update_projectiles(delta: float) -> void:
 		if projectile_kind == "frost_boomerang":
 			# Outbound until the board edge, then reverse and return to anchor.
 			projectile["spin_angle"] = float(projectile.get("spin_angle", 0.0)) + delta * 15.0
+			# Vine-lash darts weave as they fly: a circle for the basic attack, a figure
+			# eight for the ultimate volley. Collision still follows the dart's own row.
+			var weave_amp := float(projectile.get("figure8_amplitude", 0.0))
+			var orbit_r := float(projectile.get("orbit_radius", 0.0))
+			if weave_amp > 0.0 or orbit_r > 0.0:
+				projectile["orbit_angle"] = float(projectile.get("orbit_angle", 0.0)) + delta * float(projectile.get("orbit_speed", 6.0))
+				var weave_t := float(projectile["orbit_angle"])
+				var weave_base := float(projectile.get("lane_center_y", projectile_pos.y))
+				if weave_amp > 0.0:
+					projectile_pos.y = weave_base + sin(weave_t * 2.0) * weave_amp
+				else:
+					projectile_pos.y = weave_base + sin(weave_t) * orbit_r
+				projectile["position"] = projectile_pos
 			if bool(projectile.get("outbound", true)):
 				if projectile_pos.x >= game.BOARD_ORIGIN.x + game.board_size.x:
 					projectile["outbound"] = false

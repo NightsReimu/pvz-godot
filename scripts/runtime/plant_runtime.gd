@@ -2857,9 +2857,8 @@ func update_vine_lasher(plant: Dictionary, delta: float, row: int, col: int) -> 
 			return
 		hit = true
 	else:
-		var zombie = game.zombies[target_index]
-		zombie = game._apply_zombie_damage(zombie, float(Defs.PLANTS["vine_lasher"]["damage"]), 0.16, float(Defs.PLANTS["vine_lasher"]["slow_duration"]))
-		game.zombies[target_index] = zombie
+		# Launch a frost dart that corkscrews forward along a circular path.
+		game._spawn_vine_lash_dart(row, col, game.zombies[target_index])
 		hit = true
 	if hit:
 		game.effects.append({

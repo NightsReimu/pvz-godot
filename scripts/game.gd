@@ -10863,16 +10863,34 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.56, 0.98, 0.46, 0.28)})
 			_trigger_screen_shake(4.0)
 		"vine_lasher":
-			for zi in range(zombies.size()):
-				var vl = zombies[zi]
-				if not _is_enemy_zombie(vl): continue
-				if absf(int(vl["row"]) - row) > 1 or float(vl["x"]) - center.x < -30.0 or float(vl["x"]) - center.x > 350.0: continue
-				vl = _apply_zombie_damage(vl, 100.0, 0.22, 3.0)
-				vl["x"] = maxf(float(vl["x"]) - 60.0, center.x - 10.0)
-				vl["special_pause_timer"] = maxf(float(vl.get("special_pause_timer",0.0)), 0.4)
-				zombies[zi] = vl
-			_damage_obstacles_in_radius(row, center.x + 170.0, 170.0, 100.0)
-			effects.append({"shape": "lane_spray", "position": center + Vector2(16.0, -6.0), "length": 350.0, "width": 80.0, "radius": 180.0, "time": 0.32, "duration": 0.32, "color": Color(0.38, 0.92, 0.28, 0.3)})
+			# Figure-eight volley: a spread of frost darts weaving down the lane.
+			var dart_lanes: Array = [row - 1, row, row + 1]
+			var dart_count := 9
+			for d in range(dart_count):
+				var lane := int(dart_lanes[d % dart_lanes.size()])
+				if lane < 0 or lane >= ROWS or not _is_row_active(lane):
+					lane = row
+				_ensure_projectile_runtime().spawn_frost_boomerang_projectile(
+					lane,
+					_cell_center(row, col) + Vector2(18.0, -8.0),
+					BOARD_ORIGIN.x + board_size.x + 200.0,
+					float(Defs.PLANTS["vine_lasher"].get("ultimate_damage", 130.0)),
+					float(Defs.PLANTS["vine_lasher"].get("slow_duration", 2.0)) + 1.5,
+					float(Defs.PLANTS["vine_lasher"].get("ultimate_speed", 460.0)) + float(d % 4) * 14.0,
+					9.0
+				)
+				if projectiles.is_empty():
+					continue
+				var ul_dart: Dictionary = projectiles[projectiles.size() - 1]
+				ul_dart["figure8_amplitude"] = 26.0 + float(d % 3) * 7.0
+				ul_dart["orbit_angle"] = TAU * float(d) / float(dart_count)
+				ul_dart["orbit_speed"] = 5.6
+				ul_dart["lane_center_y"] = _row_center_y(lane) - 10.0
+				ul_dart["pierce_handheld"] = true
+				ul_dart["max_hits"] = 6
+				projectiles[projectiles.size() - 1] = ul_dart
+			_damage_obstacles_in_radius(row, center.x + 170.0, 170.0, 90.0)
+			effects.append({"shape": "lane_spray", "position": center + Vector2(16.0, -6.0), "length": 420.0, "width": 120.0, "radius": 210.0, "time": 0.36, "duration": 0.36, "color": Color(0.6, 0.92, 1.0, 0.3)})
 			_trigger_screen_shake(5.0)
 		"anchor_fern":
 			for zi in range(zombies.size()):
@@ -14902,6 +14920,30 @@ func _try_reflect_row_hostile_beam(zombie: Dictionary, row: int, beam_start_x: f
 		"reflected": true,
 		"zombie": _reflect_shot_with_mirror_reed(zombie, mirror_cell, shooter_origin, damage, incoming_shape, incoming_color),
 	}
+
+
+func _spawn_vine_lash_dart(row: int, col: int, target: Dictionary) -> void:
+	# Frost dart that corkscrews forward along a circle as it advances down the lane.
+	var data: Dictionary = Defs.PLANTS["vine_lasher"]
+	var anchor_x: float = maxf(float(target.get("x", 0.0)), _cell_center(row, col).x + 60.0)
+	_ensure_projectile_runtime().spawn_frost_boomerang_projectile(
+		row,
+		_cell_center(row, col) + Vector2(20.0, -10.0),
+		anchor_x,
+		float(data.get("damage", 45.0)),
+		float(data.get("slow_duration", 2.0)),
+		float(data.get("dart_speed", 380.0)),
+		float(data.get("dart_radius", 7.0))
+	)
+	if projectiles.is_empty():
+		return
+	var dart: Dictionary = projectiles[projectiles.size() - 1]
+	dart["orbit_radius"] = float(data.get("orbit_radius", 22.0))
+	dart["orbit_speed"] = float(data.get("orbit_speed", 7.5))
+	dart["lane_center_y"] = _row_center_y(row) - 10.0
+	# Frost darts slip through handheld gear.
+	dart["pierce_handheld"] = true
+	projectiles[projectiles.size() - 1] = dart
 
 
 func _summon_mirror_reed_sniper_support(row: int, col: int, shot_count: int = 1, damage_mult: float = 1.0) -> int:
