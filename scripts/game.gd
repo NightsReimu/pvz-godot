@@ -10081,12 +10081,15 @@ func _execute_generic_ultimate(plant: Dictionary, kind: String, row: int, col: i
 					continue
 				_damage_zombies_in_row_segment(lane, center.x + 16.0, BOARD_ORIGIN.x + board_size.x + 24.0, beam_damage, beam_slow)
 				_damage_obstacles_in_radius(lane, center.x + board_size.x * 0.5, board_size.x * 0.5, beam_damage)
+				# The beam must end where the damage ends, not run off past the board edge.
+				var trident_start = _cell_center(lane, col).x + 16.0
+				var trident_end = BOARD_ORIGIN.x + board_size.x + 24.0
 				effects.append({
 					"shape": "rainbow_beam",
-					"position": _cell_center(lane, col) + Vector2(18.0, -4.0),
-					"length": board_size.x,
+					"position": Vector2(trident_start, _row_center_y(lane) - 4.0),
+					"length": maxf(trident_end - trident_start, 24.0),
 					"width": 48.0,
-					"radius": board_size.x * 0.5,
+					"radius": maxf(trident_end - trident_start, 24.0) * 0.5,
 					"time": 0.28,
 					"duration": 0.28,
 					"color": Color(0.92, 0.98, 1.0, 0.32),
@@ -28641,20 +28644,44 @@ func _draw_moon_lotus(center: Vector2, size_scale: float, flash: float, alpha: f
 
 
 func _draw_prism_grass(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
-	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(0.0, 34.0 * size_scale), Color(0.22, 0.56, 0.2, alpha), 6.0 * size_scale)
-	_draw_ink_polygon(
-		PackedVector2Array([
-			center + Vector2(0.0, -24.0 * size_scale),
-			center + Vector2(-18.0 * size_scale, 4.0 * size_scale),
-			center + Vector2(18.0 * size_scale, 4.0 * size_scale),
-		]),
-		PackedColorArray([
-			Color(0.72, 0.96, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0),
-			Color(0.42, 0.84, 0.96, alpha),
-			Color(0.42, 0.84, 0.96, alpha),
-		])
-	)
-	_draw_ink_disc(center + Vector2(0.0, 8.0 * size_scale), 10.0 * size_scale, Color(0.28, 0.72, 0.24, alpha))
+	var crystal = Color(0.72, 0.96, 1.0, alpha).lerp(Color(1.0, 1.0, 1.0, alpha), flash * 2.0)
+	var crystal_deep = Color(0.42, 0.84, 0.96, alpha)
+	var leaf = Color(0.28, 0.72, 0.24, alpha)
+	var sparkle_phase = level_time * 2.6
+	_draw_ground_shadow(center, 15.0 * size_scale, 1.0, 34.0 * size_scale)
+	# Stem, very slightly bent.
+	_draw_ink_line(center + Vector2(0.0, 10.0 * size_scale), center + Vector2(-1.5 * size_scale, 30.0 * size_scale), Color(0.22, 0.56, 0.2, alpha), 6.0 * size_scale)
+	# Base leaves fanning out under the crystal.
+	for blade in range(3):
+		var blade_angle = PI * (0.18 + float(blade) * 0.32)
+		var tip = center + Vector2(cos(blade_angle) * 23.0 * size_scale, (8.0 - sin(blade_angle) * 13.0) * size_scale)
+		_draw_ink_polygon(
+			PackedVector2Array([center + Vector2(0.0, 8.0 * size_scale), tip, tip + Vector2(6.0, 5.0) * size_scale]),
+			PackedColorArray([leaf, leaf.darkened(0.14), leaf.darkened(0.26)]))
+	_draw_ink_disc(center + Vector2(0.0, 8.0 * size_scale), 11.0 * size_scale, leaf.darkened(0.1))
+	draw_circle(center + Vector2(-3.0, 6.0) * size_scale, 4.0 * size_scale, leaf.lightened(0.22))
+	# Faceted crystal: apex, two lower corners, split down the middle for a cut-gem read.
+	var apex = center + Vector2(0.0, -30.0 * size_scale)
+	var left_corner = center + Vector2(-19.0, 2.0) * size_scale
+	var right_corner = center + Vector2(19.0, 2.0) * size_scale
+	var mid_low = center + Vector2(0.0, 2.0) * size_scale
+	_draw_ink_polygon(PackedVector2Array([apex, left_corner, right_corner]), PackedColorArray([crystal, crystal_deep, crystal_deep]))
+	_draw_ink_polygon(PackedVector2Array([apex, left_corner, mid_low]), PackedColorArray([crystal.lightened(0.22), crystal.lightened(0.1), crystal]))
+	_draw_ink_polygon(PackedVector2Array([apex, right_corner, mid_low]), PackedColorArray([crystal.darkened(0.06), crystal_deep, crystal_deep.darkened(0.1)]))
+	# Interior highlight.
+	_draw_ink_line(apex + Vector2(0.0, 8.0) * size_scale, center + Vector2(0.0, -4.0) * size_scale, Color(1.0, 1.0, 1.0, alpha * 0.45), 2.0 * size_scale)
+	# Pulsing sparkle at the tip.
+	var sparkle = 0.5 + 0.5 * sin(sparkle_phase)
+	draw_circle(apex, (3.0 + sparkle * 2.6) * size_scale, Color(1.0, 1.0, 1.0, alpha * (0.5 + sparkle * 0.4)))
+	draw_circle(apex, (7.0 + sparkle * 4.0) * size_scale, Color(0.86, 0.96, 1.0, alpha * 0.16), false, 1.6 * size_scale)
+	# Refracted rainbow glints along the base edge.
+	var glints = [
+		Color(1.0, 0.32, 0.3, alpha * 0.6), Color(1.0, 0.78, 0.24, alpha * 0.6),
+		Color(0.4, 0.92, 0.42, alpha * 0.6), Color(0.36, 0.78, 1.0, alpha * 0.6),
+		Color(0.86, 0.5, 1.0, alpha * 0.6)]
+	for glint in range(glints.size()):
+		var glint_t = float(glint) / float(maxi(glints.size() - 1, 1))
+		draw_circle(left_corner.lerp(right_corner, glint_t) + Vector2(0.0, -3.0) * size_scale, 2.2 * size_scale, glints[glint])
 
 
 func _draw_lantern_bloom(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
