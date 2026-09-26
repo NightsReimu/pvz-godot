@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.138** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.140** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -30,6 +30,8 @@
 | 自动测试入口 | 122 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
+
+**v1.0.140 投手朝向修正**：卷心菜投手、玉米投手、西瓜投手、天窗瓜炮、龙泡泡投手、喷气冬瓜与剧毒口香糖投手的脸朝向右侧，投臂位于左后方；选卡、图鉴、种植预览和实战同步修正，并保留 v1.0.139 的图鉴数值与大招说明。[版本说明](docs/releases/v1.0.140.md)。
 
 **v1.0.138 单位美术与战斗细节更新**：逐项复查全部 146 种植物和 129 种僵尸/Boss，为 144 种植物重绘可编辑 SVG，保留火炬树桩实时火焰与坚果保龄球的派生造型；更新僵尸五官、身体、装备破损和落地阴影。修复魔术花特殊子弹、方形攻击范围及特殊僵尸的绘制偏移。新增 3-25「蓬莱人形」EX / EX+，半兽慧音道中与妹红终末。详见 [完整版本说明](docs/releases/v1.0.138.md)。
 

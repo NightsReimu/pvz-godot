@@ -303,7 +303,9 @@ def pult(kind,col='url(#leaf)'):
     else:
         b+=ell(19,-36,14,13,col,INK)+ell(14,-41,4,2.5,'#ecf3d3')
         if kind=='dragon_bubble_pult': b+=petal(14,-43,-35,12,5,'url(#rose)')+petal(26,-44,35,13,5,'url(#rose)')
-    return b
+    # Plants attack to the right: the loaded throwing arm rests behind the face.
+    # Mirror this family only; shooters and split-pea rear heads keep their own axes.
+    return group(b, 'scale(-1 1)')
 
 def special(kind,state=''):
     b=base()
