@@ -19,6 +19,10 @@ const MAGIC_FLOWER_PROJECTILES := [
 	"shadow_pea",
 	"spiral_bamboo",
 	"cluster_boomerang",
+	"frost_boomerang",
+	"amber_ultimate_shard",
+	"mango",
+	"phoenix_flame",
 ]
 
 var game: Control
@@ -948,6 +952,20 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 			game._spawn_projectile(row, spawn_position, Color(0.64, 0.86, 0.44), base_damage * 0.94, 0.0, 460.0, 7.5, "spiral_bamboo")
 		"cluster_boomerang":
 			spawn_boomerang_projectile(row, spawn_position, center.x, base_damage, 2)
+		"frost_boomerang":
+			game._spawn_frost_boomerang_projectile(row, spawn_position, center.x, base_damage * 1.02, 3.0, 460.0, 9.0)
+		"amber_ultimate_shard":
+			game._spawn_amber_ultimate_projectile(row, spawn_position, base_damage * 1.1, 560.0, 10.0)
+		"mango":
+			# The roller wants a column; derive it from the flower centre since this helper has no col.
+			var mango_col: int = clampi(int(round((center.x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x - 0.5)), 0, game.COLS - 1)
+			game._ensure_projectile_runtime().spawn_mango_roller(row, mango_col, false)
+		"phoenix_flame":
+			# spawn_fire_projectile hardcodes its own kind, so retag only the shot we just made.
+			var flame_before: int = game.projectiles.size()
+			game._spawn_fire_projectile(row, spawn_position, base_damage * 1.08, 520.0, 10.0, "phoenix_tree")
+			if game.projectiles.size() > flame_before:
+				game.projectiles[game.projectiles.size() - 1]["kind"] = "phoenix_flame"
 		"moonforge_shot":
 			var moonforge_target_x = center.x + 220.0
 			var moonforge_target = Vector2(moonforge_target_x, game._row_center_y(row) - 10.0)
