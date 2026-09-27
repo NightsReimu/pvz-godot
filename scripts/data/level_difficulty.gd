@@ -87,9 +87,13 @@ static func _is_spawn_event(event: Dictionary) -> bool:
 	return kind != "" and kind != "flag" and not bool(event.get("wave", false)) and ZombieDefs.ZOMBIES.has(kind)
 
 static func _hard_profile(base: Dictionary) -> Dictionary:
-	var parts := String(base.get("id", "1-1")).split("-")
+	var level_id := String(base.get("id", "1-1"))
+	var parts := level_id.split("-")
 	var world := int(parts[0]) if not parts.is_empty() and String(parts[0]).is_valid_int() else 1
-	var stage := int(parts[1]) if parts.size() > 1 and String(parts[1]).is_valid_int() else 1
+	var stage_token := String(parts[1]) if parts.size() > 1 else "1"
+	# Branch stages such as 1-S4 receive their own slots after the numbered
+	# stages instead of silently reusing the 1-1 design.
+	var stage := int(stage_token) if stage_token.is_valid_int() else (20 + int(stage_token.trim_prefix("S")) if stage_token.trim_prefix("S").is_valid_int() else 1)
 	var profiles: Dictionary = {
 		1: [
 			{"label": "路障先锋与撑杆跳突袭", "extra_kinds": ["conehead", "pole_vault"], "extra_stride": 6},
@@ -149,6 +153,23 @@ static func _hard_profile(base: Dictionary) -> Dictionary:
 		if ZombieDefs.ZOMBIES.has(kind) and not bool(ZombieDefs.ZOMBIES[kind].get("boss", false)):
 			valid.append(kind)
 	selected["extra_kinds"] = valid
+	var variant_pools: Dictionary = {
+		1: ["normal", "conehead", "pole_vault", "buckethead", "newspaper", "screen_door", "football", "dancing", "ninja", "basketball"],
+		2: ["newspaper", "dancing", "digger_zombie", "basketball", "jack_in_the_box_zombie", "dark_football", "pogo_zombie", "ninja", "squash_zombie", "football"],
+		3: ["ducky_tube", "lifebuoy_cone", "lifebuoy_bucket", "snorkel", "dolphin_rider", "balloon_zombie", "bobsled_team", "zomboni", "lifebuoy_normal", "digger_zombie"],
+		4: ["balloon_zombie", "digger_zombie", "ninja", "tornado_zombie", "camel_zombie", "enderman_zombie", "wizard_zombie", "shade_zombie", "screen_door", "pogo_zombie"],
+		5: ["ladder_zombie", "bungee_zombie", "catapult_zombie", "pole_vault", "digger_zombie", "balloon_zombie", "gargantuar", "bobsled_team", "zomboni", "football"],
+		6: ["programmer_zombie", "router_zombie", "shieldbearer_zombie", "medic_zombie", "saboteur_zombie", "rift_zombie", "dragon_boat", "bomber_zombie", "wither_zombie", "enderman_zombie"],
+		7: ["cinder_runner", "basalt_guard", "kiln_mason", "sulfur_carrier", "ash_bell", "geode_zombie", "vent_tunneler", "cinder_runner", "basalt_guard", "geode_zombie"],
+	}
+	var variant_pool: Array = variant_pools.get(world, variant_pools[1])
+	var variant_kind := String(variant_pool[posmod(stage - 1, variant_pool.size())])
+	if variant_kind != "normal" and ZombieDefs.ZOMBIES.has(variant_kind) and not bool(ZombieDefs.ZOMBIES[variant_kind].get("boss", false)) and not valid.has(variant_kind):
+		valid.append(variant_kind)
+	selected["extra_kinds"] = valid
+	selected["level_id"] = level_id
+	selected["design_index"] = stage
+	selected["label"] = "%s（%s）" % [String(selected.get("label", "强化敌群")), level_id]
 	selected["extra_offset"] = posmod(stage + world, int(selected.get("extra_stride", 6)))
 	selected["wave_bonus"] = 1 if stage >= 10 else 0
 	return selected

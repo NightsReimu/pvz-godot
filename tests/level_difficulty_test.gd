@@ -16,6 +16,8 @@ func _run() -> void:
 			continue
 		var base_events: Array = Array(level.get("events", []))
 		var hard: Dictionary = LevelDifficulty.build_hard_level(level)
+		if String(Dictionary(hard.get("hard_profile", {})).get("level_id", "")) != String(level.get("id", "")):
+			_fail("Hard profile is not bound to concrete level %s" % level.id)
 		var hard_events: Array = Array(hard.get("events", []))
 		var base_zombies := _count_regular_events(base_events)
 		var hard_zombies := _count_regular_events(hard_events)
