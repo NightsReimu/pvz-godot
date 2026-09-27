@@ -3,6 +3,7 @@ extends Control
 const Defs = preload("res://scripts/game_defs.gd")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const VectorUnitArt = preload("res://scripts/ui/vector_unit_art.gd")
+const CombatVectorArt = preload("res://scripts/ui/combat_vector_art.gd")
 const CombatDetails = preload("res://scripts/ui/combat_details.gd")
 const GardenMenus = preload("res://scripts/ui/garden_menus.gd")
 const MinigameDefs = preload("res://scripts/data/minigame_defs.gd")
@@ -25638,7 +25639,20 @@ func _try_draw_image2_projectile(projectile_kind: String, position: Vector2, rad
 
 
 func _try_draw_polished_projectile(projectile_kind: String, position: Vector2, radius: float, trail_dir: float, tint: Color) -> bool:
-	return _try_draw_image2_projectile(projectile_kind, position, radius, trail_dir, tint)
+	var texture := CombatVectorArt.projectile_texture(projectile_kind)
+	if texture == null:
+		return _try_draw_image2_projectile(projectile_kind, position, radius, trail_dir, tint)
+	# Keep the moving glow and tail from the old renderer, then place the
+	# authored SVG on top. This preserves the existing animation language while
+	# giving every projectile its own silhouette and palette.
+	for trail_index in range(3):
+		var trail_ratio := float(trail_index + 1) / 3.0
+		var trail_pos := position + Vector2(-trail_dir * trail_ratio * 11.0, 0.0)
+		draw_circle(trail_pos, radius * (0.82 - trail_ratio * 0.12), Color(tint.r, tint.g, tint.b, 0.16 - trail_ratio * 0.035))
+	draw_circle(position, radius * 1.78, Color(tint.r, tint.g, tint.b, 0.08))
+	var texture_size := Vector2(radius * 4.4, radius * 4.4)
+	draw_texture_rect(texture, Rect2(position - texture_size * 0.5, texture_size), false, Color(1.0, 1.0, 1.0, clampf(tint.a, 0.2, 1.0)))
+	return true
 
 
 func _try_draw_image2_plant(kind: String, center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> bool:
@@ -25735,7 +25749,9 @@ func _image2_flipped_zombie_texture(kind: String, source: Texture2D) -> Texture2
 
 
 func _try_draw_image2_effect(shape: String, effect: Dictionary, ratio: float, effect_color: Color) -> bool:
-	var texture := _image2_texture("effects", shape)
+	var texture := CombatVectorArt.effect_texture(shape)
+	if texture == null:
+		texture = _image2_texture("effects", shape)
 	if texture == null:
 		return false
 	var center := Vector2(effect.get("position", Vector2.ZERO))
