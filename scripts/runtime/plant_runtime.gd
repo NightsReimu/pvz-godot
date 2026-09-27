@@ -32,6 +32,43 @@ func _init(game_owner: Control) -> void:
 	game = game_owner
 
 
+func _update_cork_plug_support(support: Dictionary, delta: float, row: int, col: int) -> bool:
+	# The plug seals the cell immediately, then remains visible for exactly three
+	# seconds. Its final 0.45 seconds are an animated lift-and-fade transition;
+	# removing only the support layer leaves the plant and sealed terrain intact.
+	var lifetime := maxf(float(support.get("support_lifetime", 3.0)), 0.1)
+	var remove_duration := clampf(float(support.get("support_remove_duration", 0.45)), 0.1, lifetime)
+	var elapsed := minf(lifetime, float(support.get("support_elapsed", 0.0)) + maxf(delta, 0.0))
+	support["support_elapsed"] = elapsed
+	var remove_start := lifetime - remove_duration
+	if elapsed >= remove_start:
+		support["support_removing"] = true
+		support["support_remove_progress"] = clampf((elapsed - remove_start) / remove_duration, 0.0, 1.0)
+		if not bool(support.get("support_release_effect_emitted", false)):
+			support["support_release_effect_emitted"] = true
+			support["flash"] = maxf(float(support.get("flash", 0.0)), 0.24)
+			game.effects.append({
+				"shape": "volcano_cork_seal",
+				"position": game._cell_center(row, col),
+				"radius": game.CELL_SIZE.x * 0.44,
+				"time": remove_duration,
+				"duration": remove_duration,
+				"color": Color(0.92, 0.72, 0.34, 0.34),
+			})
+	if float(support.get("support_remove_progress", 0.0)) >= 1.0:
+		game.support_grid[row][col] = null
+		game.effects.append({
+			"shape": "volcano_cork_seal",
+			"position": game._cell_center(row, col),
+			"radius": game.CELL_SIZE.x * 0.58,
+			"time": 0.24,
+			"duration": 0.24,
+			"color": Color(0.92, 0.72, 0.34, 0.24),
+		})
+		return true
+	return false
+
+
 func update_plants(delta: float) -> void:
 	for row in range(game.ROWS):
 		for col in range(game.COLS):
@@ -424,6 +461,9 @@ func update_plants(delta: float) -> void:
 			if support_variant == null:
 				continue
 			var support = support_variant
+			if String(support.get("kind", "")) == "cork_plug":
+				if _update_cork_plug_support(support, delta, row, col):
+					continue
 			if float(support.get("health", 0.0)) <= 0.0:
 				continue
 			support["flash"] = maxf(0.0, float(support.get("flash", 0.0)) - delta)

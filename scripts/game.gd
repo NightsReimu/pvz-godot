@@ -8234,6 +8234,13 @@ func _is_roof_support_present(row: int, col: int) -> bool:
 	return support != null and String(support.get("kind", "")) == "flower_pot"
 
 
+func _is_volcano_support_present(row: int, col: int) -> bool:
+	var support = _support_plant_at(row, col)
+	if support == null:
+		return false
+	return String(support.get("kind", "")) in ["flower_pot", "cork_plug"]
+
+
 func _is_ladderable_plant(plant: Dictionary) -> bool:
 	var kind = String(plant.get("kind", ""))
 	return kind == "wallnut" or kind == "tallnut" or kind == "pumpkin" or _has_pumpkin_shell(plant)
@@ -8952,22 +8959,22 @@ func _placement_error(kind: String, row: int, col: int) -> String:
 			return "这里只能唤醒睡着的蘑菇"
 		return ""
 	if kind == "flower_pot":
-		if terrain != "roof" and terrain != "city_tile" and terrain != "rail" and terrain != "snowfield" and terrain != "volcano_tile":
-			return "花盆只能种在屋顶、瓷砖、轨道或雪地"
-		if top_plant != null or support_plant != null:
-			return "这个格子已经被占用了"
+		if terrain != "land" and terrain != "roof" and terrain != "city_tile" and terrain != "rail" and terrain != "snowfield" and terrain != "volcano_tile":
+			return "花盆只能种在草地、屋顶、瓷砖、轨道、雪地或已封堵的火山岩"
+		if support_plant != null:
+			return "这里已经有底座"
 		return ""
 	if kind == "cork_plug":
 		if terrain != "lava":
 			return "木塞子只能塞在火山岩浆格上"
-		if top_plant != null or support_plant != null:
-			return "这个格子已经被占用了"
+		if support_plant != null:
+			return "这个格子已经有底座"
 		return ""
 	if kind == "lily_pad":
 		if terrain != "water":
 			return "睡莲只能种在水路"
-		if top_plant != null or support_plant != null:
-			return "这个格子已经被占用了"
+		if support_plant != null:
+			return "这个格子已经有底座"
 		return ""
 	if kind == "cotton_candy":
 		if terrain != "cloud" and terrain != "sky_gap":
@@ -9022,8 +9029,8 @@ func _placement_error(kind: String, row: int, col: int) -> String:
 	if terrain == "volcano_tile":
 		if top_plant != null:
 			return "这个格子已经被占用了"
-		if not _is_roof_support_present(row, col):
-			return "火山岩需要先放花盆"
+		if not _is_volcano_support_present(row, col):
+			return "火山岩需要先放花盆或木塞子"
 		return ""
 	if terrain == "lava":
 		return "岩浆格在喷射火焰，先用木塞子堵住"
@@ -9033,7 +9040,7 @@ func _placement_error(kind: String, row: int, col: int) -> String:
 		if support_plant == null or String(support_plant.get("kind", "")) != "flower_pot":
 			return "这里需要先放花盆"
 		return ""
-	if _is_eirin_level() and terrain == "land" and top_plant == null and support_plant != null and String(support_plant.kind) in ["flower_pot", "lily_pad", "cork_plug"]:
+	if terrain == "land" and top_plant == null and support_plant != null and String(support_plant.get("kind", "")) == "flower_pot":
 		return ""
 	if top_plant != null or support_plant != null:
 		return "这个格子已经被占用了"
@@ -9394,6 +9401,12 @@ func _create_plant(kind: String, row: int, col: int) -> Dictionary:
 		"mystia_being_cooked": false,
 		"rooted_timer": 0.0,
 		"support_timer": 0.0,
+		"support_elapsed": 0.0,
+		"support_lifetime": 0.0,
+		"support_remove_duration": 0.45,
+		"support_remove_progress": 0.0,
+		"support_removing": false,
+		"support_release_effect_emitted": false,
 		"contact_timer": 0.0,
 		"action_timer": 0.0,
 		"action_duration": 0.18,
@@ -9426,6 +9439,12 @@ func _create_plant(kind: String, row: int, col: int) -> Dictionary:
 	}
 
 	match kind:
+		"cork_plug":
+			# Cork plugs are a temporary counter to Eirin's lava cells. Keep the
+			# sealed terrain after the plug leaves so the plant underneath remains
+			# playable on the newly cooled tile.
+			plant["support_lifetime"] = 3.0
+			plant["support_remove_duration"] = 0.45
 		"sunflower":
 			plant["sun_timer"] = float(stats.get("first_sun_delay", data["first_sun_delay"]))
 		"peashooter", "snow_pea", "puff_shroom", "scaredy_shroom", "sea_shroom", "cactus":
@@ -22359,6 +22378,15 @@ func _plant_draw_motion(plant: Dictionary, base_center: Vector2) -> Dictionary:
 		if float(plant.get("rooted_timer", 0.0)) > 0.0:
 			scale_y += 0.03 * sin(level_time * 5.2 + phase)
 			center_offset.y += absf(sin(level_time * 5.2 + phase)) * 1.5
+	if kind == "cork_plug" and bool(plant.get("support_removing", false)):
+		# Corks wobble, lift from the sealed vent, and shrink as the temporary
+		# support layer fades out. The board plant stays anchored underneath.
+		var release_ratio := clampf(float(plant.get("support_remove_progress", 0.0)), 0.0, 1.0)
+		var release_wave := sin(release_ratio * PI)
+		center_offset += Vector2(sin(level_time * 24.0 + phase) * 3.0 * release_wave, -18.0 * release_ratio)
+		scale_x *= lerpf(1.0, 0.52, release_ratio)
+		scale_y *= lerpf(1.0, 0.32, release_ratio)
+		sway += sin(release_ratio * PI * 2.0) * 0.18
 	if float(plant.get("youmu_charm_timer", 0.0)) > 0.0:
 		scale_x *= -1.0
 		sway -= 0.08 + 0.03 * sin(level_time * 8.0 + phase)
@@ -25015,9 +25043,12 @@ func _draw_plants() -> void:
 			var support_draw_center = Vector2(support_motion["center"])
 			_set_combat_transform(support_draw_center, float(support_motion["rotation"]), Vector2(support_motion["scale"]) * unit_scale)
 			var support_kind := String(support["kind"])
-			_draw_plant_body(support_kind, Vector2.ZERO, 1.0, float(support.get("flash", 0.0)), 1.0, support)
+			var support_alpha := 1.0
+			if support_kind == "cork_plug" and bool(support.get("support_removing", false)):
+				support_alpha = 1.0 - clampf(float(support.get("support_remove_progress", 0.0)), 0.0, 1.0)
+			_draw_plant_body(support_kind, Vector2.ZERO, 1.0, float(support.get("flash", 0.0)), support_alpha, support)
 			_set_combat_transform()
-			if grid[row][col] == null:
+			if grid[row][col] == null and support_alpha > 0.05:
 				_draw_click_ultimate_indicator(support_draw_center, support)
 				_draw_health_bar(
 					support_draw_center + Vector2(0.0, -26.0 * unit_scale),
