@@ -35,6 +35,14 @@ func click(mouse_pos: Vector2) -> void:
 func input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE or event.is_action_pressed("ui_cancel")):
 		close()
+		return
+	# game.gd routes all input to the modal while it is open, so mouse releases
+	# must be handled here instead of waiting for the normal scene click path.
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		click(game._event_local_position(event))
+		return
+	if event is InputEventScreenTouch and not event.pressed:
+		click(game._event_local_position(event))
 
 func draw() -> void:
 	if level_index < 0 or level_index >= game.Defs.LEVELS.size():
