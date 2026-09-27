@@ -33,6 +33,8 @@ const KaguyaBossRuntime = preload("res://scripts/runtime/kaguya_boss_runtime.gd"
 const TouhouEnemyRuntime = preload("res://scripts/runtime/touhou_enemy_runtime.gd")
 const TouhouDifficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const TouhouDifficultyMenu = preload("res://scripts/runtime/touhou_difficulty_menu.gd")
+const LevelDifficulty = preload("res://scripts/data/level_difficulty.gd")
+const LevelDifficultyMenu = preload("res://scripts/runtime/level_difficulty_menu.gd")
 const ObjectiveRuntime = preload("res://scripts/runtime/objective_runtime.gd")
 const EffectGlowLayer = preload("res://scripts/effect_glow_layer.gd")
 
@@ -669,6 +671,7 @@ var board_size := Vector2(COLS * CELL_SIZE.x, DEFAULT_BOARD_ROWS * CELL_SIZE.y)
 var map_time := 0.0
 var selected_level_index := -1
 var touhou_difficulty_menu: RefCounted
+var level_difficulty_menu: RefCounted
 var touhou_difficulty_choices: Dictionary = {}
 var touhou_difficulty_clears: Dictionary = {}
 var minigame_clears: Dictionary = {}
@@ -2163,6 +2166,9 @@ func _handle_primary_click(mouse_pos: Vector2) -> void:
 	if _touhou_difficulty_is_open():
 		touhou_difficulty_menu.click(mouse_pos)
 		return
+	if _level_difficulty_is_open():
+		level_difficulty_menu.click(mouse_pos)
+		return
 	if mode == MODE_HOME:
 		_handle_home_click(mouse_pos)
 		return
@@ -2263,6 +2269,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _touhou_difficulty_is_open():
 		touhou_difficulty_menu.input(event)
+		return
+	if _level_difficulty_is_open():
+		level_difficulty_menu.input(event)
 		return
 
 	var mouse_pos = _event_local_position(event)
@@ -5693,11 +5702,39 @@ func _start_level(level_index: int) -> void:
 	if TouhouDifficulty.is_touhou(level):
 		_open_touhou_difficulty(level_index)
 		return
+	_open_level_difficulty(level_index)
+
+
+func _open_level_difficulty(level_index: int) -> void:
+	_enter_map_mode()
+	selected_level_index = level_index
+	_reset_touch_navigation()
+	if level_difficulty_menu == null:
+		level_difficulty_menu = LevelDifficultyMenu.new(self)
+	level_difficulty_menu.open(level_index)
+
+
+func _regular_level_cleared(level_index: int) -> bool:
+	return level_index >= 0 and level_index < completed_levels.size() and bool(completed_levels[level_index])
+
+
+func _start_regular_difficulty(level_index: int, hard: bool) -> void:
+	if level_index < 0 or level_index >= Defs.LEVELS.size():
+		return
+	var base: Dictionary = Defs.LEVELS[level_index]
+	if TouhouDifficulty.is_touhou(base):
+		return
+	if hard and not _regular_level_cleared(level_index):
+		_show_toast("先通关普通难度，才能解锁困难")
+		return
+	var level := LevelDifficulty.build_hard_level(base) if hard else base.duplicate(true)
+	if level_difficulty_menu != null:
+		level_difficulty_menu.close()
 	_queue_level_boss_asset_prewarm(level)
 	if _requires_seed_selection(level):
-		_enter_seed_selection(level_index)
+		_enter_seed_selection(level_index, level)
 		return
-	_begin_level(level_index, _default_level_cards(level))
+	_begin_level(level_index, _default_level_cards(level), level)
 
 
 func _touhou_difficulty_is_open() -> bool:
@@ -20549,6 +20586,12 @@ func _draw() -> void:
 	_draw_mode_scene(mode, Vector2.ZERO)
 	if _touhou_difficulty_is_open():
 		touhou_difficulty_menu.draw()
+	if _level_difficulty_is_open():
+		level_difficulty_menu.draw()
+
+
+func _level_difficulty_is_open() -> bool:
+	return level_difficulty_menu != null and int(level_difficulty_menu.level_index) >= 0
 
 
 func _draw_startup_loading_scene() -> void:
