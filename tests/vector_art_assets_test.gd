@@ -7,6 +7,7 @@ var primary_signatures := {}
 var primary_masks := {}
 
 func _initialize() -> void:
+	_check_classic_plant_contracts()
 	for kind in Manifest.KINDS:
 		if not Defs.PLANTS.has(kind): fail("Unknown species: " + kind)
 	var files := DirAccess.get_files_at("res://art/vector/plants")
@@ -46,6 +47,31 @@ func _initialize() -> void:
 		fail("Expected one unique sampled silhouette per species, got %d for %d species" % [primary_masks.size(), Manifest.KINDS.size()])
 	print("Vector assets: %d species, %d SVGs, %d unique signatures, %d unique silhouettes, %d failures" % [Manifest.KINDS.size(), count, primary_signatures.size(), primary_masks.size(), failures])
 	quit(1 if failures else 0)
+
+func _check_classic_plant_contracts() -> void:
+	var grave := _svg_source("grave_buster")
+	if grave.find('fill="url(#leaf)"') == -1:
+		fail("Grave Buster must keep its green leaf body")
+	if grave.find('fill="url(#plum)"') != -1:
+		fail("Grave Buster must not fall back to the Chomper purple palette")
+
+	var hypno := _svg_source("hypno_shroom")
+	for marker in ["id=\"hypno\"", "#d77be2", "#713b91", "#9b4eae"]:
+		if hypno.find(marker) == -1:
+			fail("Hypno-shroom is missing its purple hypnotic marker: " + marker)
+
+	var repeater := _svg_source("repeater")
+	if repeater.find('data-plant-kind="repeater"') == -1 or repeater.count('translate(') < 3:
+		fail("Repeater must retain its distinct two-headed silhouette")
+	if _svg_source("marigold").find('url(#fire)') == -1:
+		fail("Marigold must retain its orange fire-petal palette")
+	if _svg_source("squash").find('Q-34 3 -25 -15') == -1:
+		fail("Squash must retain its broad ribbed PVZ silhouette")
+	if _svg_source("sea_shroom").find('id=\"sea\"') == -1:
+		fail("Sea-shroom must retain its blue aquatic palette")
+
+func _svg_source(kind: String) -> String:
+	return FileAccess.get_file_as_string("res://art/vector/plants/" + kind + ".svg")
 
 func fail(message: String) -> void:
 	failures += 1

@@ -129,7 +129,7 @@ def pea(kind,col='url(#pea)'):
     h+=path('M-21 -17 Q-21 -31 -10 -31 Q-3 -33 -1 -29 Q-14 -28 -15 -17Z','#d2ed93','none')
     h+=ell(29,-14,7,10,col,INK)+ell(31,-14,3.6,6,'#294e37')+ell(31,-16,1.4,2.4,'#112f2a')+eye(-9,-22,2.7,4.8)
     h+=line('M-17 -7 Q-11 -3 -4 -6','#437347',1)
-    if kind in ['repeater','shadow_pea','prism_pea','plasma_shooter','split_pea']:
+    if kind in ['repeater','sakura_shooter','shadow_pea','prism_pea','plasma_shooter','split_pea']:
         h+=leaf(-16,-32,50,15,col)+leaf(-14,-33,80,16,col)+line('M-14 -28 L-6 -26',INK,1.8)
     if kind=='snow_pea':
         h+=crystal(-15,-31,12,angle=-20)+crystal(-6,-34,13)+star(-16,-12,3,'#efffff')
@@ -142,10 +142,16 @@ def pea(kind,col='url(#pea)'):
     if kind=='threepeater':
         b=base()+path('M-1 21 Q-22 14 -22 -1 M2 21 Q24 9 23 -1','none','#355c35',6)
         return b+group(h,'translate(-19 8) scale(.62)')+group(h,'translate(18 6) scale(.66)')+group(h,'translate(0 -17) scale(.8)')
+    if kind=='repeater':
+        # The original Repeater has two pea heads, unlike the single-headed Peashooter.
+        return base()+group(h,'translate(-10 7) scale(.82)')+group(h,'translate(10 1) scale(.88)')
     if kind=='split_pea': return base()+group(h,'translate(-9 11) scale(-.55 .55)')+h
     return base()+h
 
 def sunflower(kind='sunflower',petals='url(#gold)',core='url(#sun)'):
+    if kind=='marigold':
+        petals='url(#fire)'
+        core='url(#gold)'
     b=base(); count=12
     for i in range(count): b+=petal(0,-12,i*360/count+15,33,6.5,petals)
     for i in range(count): b+=petal(0,-12,i*360/count,29,6.8,petals)
@@ -181,7 +187,7 @@ def nut(kind,state=''):
     return b
 
 def shroom(kind,state=''):
-    colours={'puff_shroom':'url(#violet)','sun_shroom':'url(#gold)','fume_shroom':'url(#plum)','hypno_shroom':'url(#violet)','scaredy_shroom':'url(#plum)','ice_shroom':'url(#ice)','doom_shroom':'url(#night)','sea_shroom':'url(#mint)','magnet_shroom':'url(#rose)','nether_shroom':'url(#night)','void_shroom':'url(#night)','mirror_shroom':'url(#ice)','plasma_shroom':'url(#violet)','chaos_shroom':'url(#rose)'}
+    colours={'puff_shroom':'url(#violet)','sun_shroom':'url(#gold)','fume_shroom':'url(#plum)','hypno_shroom':'url(#hypno)','scaredy_shroom':'url(#plum)','ice_shroom':'url(#ice)','doom_shroom':'url(#night)','sea_shroom':'url(#sea)','magnet_shroom':'url(#rose)','nether_shroom':'url(#night)','void_shroom':'url(#night)','mirror_shroom':'url(#ice)','plasma_shroom':'url(#violet)','chaos_shroom':'url(#rose)'}
     col=colours[kind]; w=31 if kind in ['fume_shroom','doom_shroom','hypno_shroom'] else 25
     tall=kind=='scaredy_shroom'; y=-13 if tall else -3
     b=ell(0,35,22,4,'#233e2b').replace('/>',' opacity=".14"/>')
@@ -191,6 +197,8 @@ def shroom(kind,state=''):
     if kind=='scaredy_shroom':
         cap='M-19 -15 Q-22 -42 -8 -46 Q5 -51 14 -38 Q20 -24 19 -15 Q3 -7 -19 -15Z'
     elif kind=='ice_shroom': cap='M-28 -5 L-24 -19 L-17 -17 L-10 -33 L0 -24 L10 -35 L17 -16 L25 -22 L28 -5 Q0 3 -28 -5Z'
+    elif kind=='sea_shroom': cap='M-31 -4 Q-29 -26 -13 -37 Q0 -47 14 -38 Q29 -28 31 -4 Q22 7 12 1 Q0 10 -12 1 Q-23 7 -31 -4Z'
+    elif kind=='hypno_shroom': cap='M-30 -5 Q-32 -24 -19 -36 Q-9 -46 2 -42 Q17 -47 28 -34 Q35 -23 29 -5 Q3 5 -30 -5Z'
     elif kind=='mirror_shroom': cap='M-29 -5 L-18 -30 L2 -39 L23 -26 L29 -5 L3 1Z'
     elif kind=='doom_shroom': cap='M-32 -4 C-34 -16 -29 -31 -18 -30 Q-12 -40 0 -32 Q12 -39 20 -29 Q34 -27 32 -4 Q0 6 -32 -4Z'
     else: cap=f'M{-w} {y-2} C{-w-2} {y-20} -17 {y-36} 0 {y-34} C18 {y-36} {w+3} {y-17} {w} {y-2} Q0 {y+5} {-w} {y-2}Z'
@@ -212,7 +220,9 @@ def shroom(kind,state=''):
     if kind in ['ice_shroom','mirror_shroom']:
         b+=line('M-18 -28 L-5 -9 L-25 -9 M-5 -9 L2 -34 L14 -7 L-5 -9 L1 -1 M14 -7 L24 -20','#e5ffff',1.2)
     elif kind=='hypno_shroom':
-        for x,yy,rx in [(-14,-20,6),(4,-29,6),(19,-15,5)]: b+=ell(x,yy,rx,rx*.65,'#72c7c2',INK,.8)+ell(x,yy,rx*.5,rx*.34,'#f5b9c5')
+        for x,yy,rx in [(-14,-20,7),(4,-29,7),(19,-15,6)]:
+            b+=ell(x,yy,rx,rx*.72,'#f5d4e8',INK,.8)
+            b+=path(f'M{x-rx*.62:.1f} {yy:.1f} C{x-rx*.15:.1f} {yy-rx*.72:.1f} {x+rx*.67:.1f} {yy-rx*.45:.1f} {x+rx*.47:.1f} {yy+0.1:.1f} C{x+rx*.22:.1f} {yy+rx*.45:.1f} {x-rx*.42:.1f} {yy+rx*.25:.1f} {x-rx*.18:.1f} {yy-rx*.1:.1f}', 'none', '#9b4eae', 1.6)
     elif kind in ['void_shroom','nether_shroom']:
         b+=path('M9 -30 Q-8 -22 5 -11 Q-16 -13 -10 -26 Q-4 -35 9 -30Z','#baa2df','none')
     elif kind=='plasma_shroom':
@@ -371,7 +381,8 @@ def weapon(kind,col='url(#leaf)'):
     elif kind in ['lotus_lancer','heather_shooter']:
         b+=ell(0,2,15,17,col,INK)+face(0,-2,spacing=5)+path('M12 4 L28 -32 L34 -43 L36 -28 L18 8Z','url(#mint)')+leaf(-10,-9,50,25,col)
     else:
-        b+=pea('repeater',col).replace(base(),'')
+        # Sakura Shooter keeps the original single pea head; Repeater's two-head branch is opt-in.
+        b+=pea(kind,col).replace(base(),'')
         if kind=='sakura_shooter': b+=flower_small(-18,-31,'url(#rose)')
     if kind=='heather_shooter': b+=flower_small(-15,-25,'url(#violet)')+flower_small(-22,-16,'url(#rose)')
     if kind=='frost_fan':
@@ -437,8 +448,18 @@ def special(kind,state=''):
         b+=path('M-26 26 Q-33 11 -20 3 Q-15 -9 1 -4 Q16 -9 23 5 Q32 13 27 28 Q0 40 -26 26Z','url(#bark)')+face(0,12,spacing=7)
         b+=path('M-2 -4 V-16 H3 V-4Z','#908979')+ell(0,-18,7,6,'url(#rose)',INK)+ell(-2,-20,2,1.5,'#fff4d3')
         for x,y in [(-20,14),(17,4),(18,24),(-10,30)]: b+=ell(x,y,1.5,1,'#a37446')
-    elif kind in ['chomper','grave_buster']:
-        col='url(#plum)' if kind=='chomper' else 'url(#leaf)'
+    elif kind=='grave_buster':
+        # PVZ1 Grave Buster: a low, green grave-eating flytrap with a curled stem.
+        # It is flatter than Chomper and has a broad upper jaw with two teeth.
+        b=base(False)
+        b+=path('M-25 20 Q-29 3 -21 -10 Q-12 -29 7 -34 Q24 -37 34 -25 L13 -11 L35 -1 Q30 17 12 25 Q-7 32 -25 20Z','url(#leaf)',INK,2)
+        b+=path('M10 -12 L31 -2 Q24 7 10 9 L-4 2Z','#3a3041',INK,1.2)
+        b+=path('M4 -9 L10 -8 L8 -1Z','#f5eed2',INK,.8)+path('M20 -3 L27 -1 L23 5Z','#f5eed2',INK,.8)
+        b+=eye(-8,-18,2.8,4.7)+line('M-15 -27 Q-8 -31 -2 -27','#407249',1.4)
+        b+=path('M-17 22 Q-24 29 -18 35 Q-9 40 1 34 Q8 29 5 23','none','#416e49',4.2)
+        b+=leaf(-26,21,35,17,'url(#leaf)')+leaf(7,28,156,14,'url(#leaf)')
+    elif kind=='chomper':
+        col='url(#plum)'
         b+=path('M-20 -7 Q-34 -32 -9 -39 Q14 -47 29 -24 L8 -15 L31 -2 Q27 17 1 18 Q-18 18 -20 -7Z',col,INK,2)
         if state=='chewing': b+=line('M-20 -3 Q8 8 29 -4','#463d52',2.8)+ell(20,0,3,4,'#dcccbb')
         else: b+=path('M27 -24 L9 -15 L31 -2 L6 -1 L-7 -12 L10 -28Z','#3c3040')+path('M11 -27 L9 -18 L3 -23 M22 -24 L18 -16 L13 -19 M26 -3 L21 -10 L19 -2 M10 -1 L7 -9 L3 -4Z','#fff0d7',INK,1)
@@ -502,9 +523,16 @@ def special(kind,state=''):
             b+=path(f'M{x-5} 26 Q{x-9} {26-h} {x+3} {23-h} L{x+4} 29Z','url(#leaf)')
         b+=face(0,25,spacing=4)
         if kind=='leyline': b+=line('M-25 34 L-12 27 L2 34 L15 27 L26 32','#b4a3d0',2)
-    elif kind in ['squash','jalapeno']:
-        col='url(#fire)' if kind=='jalapeno' else 'url(#leaf)'
-        b+=path('M-23 24 Q-26 -3 -13 -23 Q0 -44 15 -24 Q27 -10 13 8 Q8 29 30 21 Q25 40 -2 33 Q-19 37 -23 24Z',col)+face(-1,-6,'stern',5)+leaf(2,-30,145,16)
+    elif kind=='squash':
+        # PVZ1 Squash is a broad, ribbed squash with a low profile, rather than a pepper-like stem.
+        b=base(False)
+        b+=path('M-27 21 Q-34 3 -25 -15 Q-18 -34 0 -39 Q18 -34 25 -15 Q34 3 27 21 Q13 36 0 35 Q-15 36 -27 21Z','url(#leaf)',INK,2)
+        for x in [-15,-7,7,15]:
+            b+=path(f'M{x} -27 Q{x-7} -3 {x-3} 23','none','#5b944e',1.5)
+        b+=path('M-16 2 L-5 7 L-1 -1 L5 7 L16 2 L12 14 Q0 21 -12 14Z','#344735',INK,1.2)
+        b+=leaf(1,-34,145,17,'url(#leaf)')+face(0,-12,'stern',6)
+    elif kind=='jalapeno':
+        b+=path('M-23 24 Q-26 -3 -13 -23 Q0 -44 15 -24 Q27 -10 13 8 Q8 29 30 21 Q25 40 -2 33 Q-19 37 -23 24Z','url(#fire)')+face(-1,-6,'stern',5)+leaf(2,-30,145,16)
     elif kind in ['dream_drum','dream_disc','moonforge','mirror_reed','ice_cream']:
         if kind=='dream_drum': b+=path('M-23 -18 L-20 19 Q0 31 20 19 L23 -18Z','url(#rose)')+ell(0,-18,24,11,'url(#cream)',INK)+line('M-20 -9 l10 27 10 -20 10 20 10 -27','#f6d89d',2)
         elif kind=='ice_cream': b+=path('M-20 -5 L0 33 L20 -5Z','url(#bark)')+line('M-13 2 L7 19 M-5 1 L13 10 M12 2 L-6 20','#8c693e',1)+ell(-10,-13,14,15,'url(#cream)',INK)+ell(10,-15,15,17,'url(#rose)',INK)
@@ -567,7 +595,12 @@ DEFS+='</defs>'
 def write(name,body):
     source_kind = name.split('_damaged')[0].split('_critical')[0].split('_unarmed')[0].split('_chewing')[0].split('_young')[0].split('_hiding')[0]
     signature = hashlib.sha1(source_kind.encode('utf-8')).hexdigest()[:12]
-    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="192" height="224" viewBox="-48 -60 96 112" data-plant-kind="{source_kind}" data-art-signature="{signature}">{DEFS}{body}</svg>\n'
+    defs = DEFS
+    if source_kind == 'hypno_shroom':
+        defs = defs.replace('</defs>', '<linearGradient id="hypno" x1=".2" y1="0" x2=".8" y2="1"><stop stop-color="#d77be2"/><stop offset="1" stop-color="#713b91"/></linearGradient></defs>')
+    elif source_kind == 'sea_shroom':
+        defs = defs.replace('</defs>', '<linearGradient id="sea" x1=".2" y1="0" x2=".8" y2="1"><stop stop-color="#a7f4ec"/><stop offset="1" stop-color="#318fa6"/></linearGradient></defs>')
+    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="192" height="224" viewBox="-48 -60 96 112" data-plant-kind="{source_kind}" data-art-signature="{signature}">{defs}{body}</svg>\n'
     (OUT/(name+'.svg')).write_text(svg)
 
 def build_asset(name, fn, args, art_kind='', draw_kind=''):
