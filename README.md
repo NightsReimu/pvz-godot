@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.146** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.147** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -44,6 +44,8 @@
 **v1.0.145 魅惑僵尸朝向与弹丸风格回退**：魅惑后的僵尸整体镜像并面向右侧移动；弹丸恢复此前的程序化渲染，保留特效 SVG 与缓存加载。[版本说明](docs/releases/v1.0.145.md)。
 
 **v1.0.146 非东方关卡困难模式**：普通通关后解锁困难，困难模式将普通僵尸事件和波数提升至至少两倍，并混入额外敌人；东方关卡继续使用原有四档难度。[版本说明](docs/releases/v1.0.146.md)。
+
+**v1.0.147 困难模式分关卡设计**：按白天、夜晚、泳池、浓雾、屋顶、城市和火山世界分别设计困难敌群，每个关卡阶段使用不同的强化僵尸组合、加入节奏差异和后期波次压力，不再所有关卡共用同一套敌人逻辑。[版本说明](docs/releases/v1.0.147.md)。
 
 **v1.0.138 单位美术与战斗细节更新**：逐项复查全部 146 种植物和 129 种僵尸/Boss，为 144 种植物重绘可编辑 SVG，保留火炬树桩实时火焰与坚果保龄球的派生造型；更新僵尸五官、身体、装备破损和落地阴影。修复魔术花特殊子弹、方形攻击范围及特殊僵尸的绘制偏移。新增 3-25「蓬莱人形」EX / EX+，半兽慧音道中与妹红终末。详见 [完整版本说明](docs/releases/v1.0.138.md)。
 
