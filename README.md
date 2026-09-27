@@ -6,7 +6,7 @@
 
 ![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
 
-**Godot 4.6** · **当前版本 v1.0.144** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.145** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -40,6 +40,8 @@
 **v1.0.143 永夜抄动态地形种植修正**：水格、屋顶格和岩浆格在已有普通植物时可以补种对应底座；花盆可以直接种在普通草地。木塞子封堵岩浆后保持 3 秒，随后以抬升、摇摆、缩小和淡出的动画退场，只移除底座并保留已封堵的火山岩与植物。[版本说明](docs/releases/v1.0.143.md)。
 
 **v1.0.144 战斗弹丸与特效 SVG 美化**：新增独立创作的 32 种弹丸与 76 种特效 SVG，保留动态拖尾、碰撞和程序化兜底，并使用缓存降低密集弹幕下的重复加载。[版本说明](docs/releases/v1.0.144.md)。
+
+**v1.0.145 魅惑僵尸朝向与弹丸风格回退**：魅惑后的僵尸整体镜像并面向右侧移动；弹丸恢复此前的程序化渲染，保留特效 SVG 与缓存加载。[版本说明](docs/releases/v1.0.145.md)。
 
 **v1.0.138 单位美术与战斗细节更新**：逐项复查全部 146 种植物和 129 种僵尸/Boss，为 144 种植物重绘可编辑 SVG，保留火炬树桩实时火焰与坚果保龄球的派生造型；更新僵尸五官、身体、装备破损和落地阴影。修复魔术花特殊子弹、方形攻击范围及特殊僵尸的绘制偏移。新增 3-25「蓬莱人形」EX / EX+，半兽慧音道中与妹红终末。详见 [完整版本说明](docs/releases/v1.0.138.md)。
 

@@ -22477,10 +22477,14 @@ func _zombie_draw_motion(zombie: Dictionary, base_center: Vector2) -> Dictionary
 		center_offset += Vector2(0.0, -3.0 - absf(sin(level_time * 3.0 + phase)) * 3.0)
 	if String(zombie["kind"]) == "nezha" and float(zombie.get("burn_timer", 0.0)) > 0.0:
 		lean += 0.05 * sin(level_time * 12.0 + phase)
+	# Hypnotized zombies join the plant side and walk toward the right. Mirror
+	# the whole authored silhouette so their face, held props, and attack hands
+	# all point in the travel direction instead of appearing to turn in place.
+	var facing_scale_x := -1.0 if bool(zombie.get("hypnotized", false)) else 1.0
 	return {
 		"center": base_center + center_offset,
 		"rotation": lean,
-		"scale": Vector2((1.0 + squash) * appear, (1.0 - squash * 0.6) * appear),
+		"scale": Vector2(facing_scale_x * (1.0 + squash) * appear, (1.0 - squash * 0.6) * appear),
 	}
 
 
@@ -25639,20 +25643,10 @@ func _try_draw_image2_projectile(projectile_kind: String, position: Vector2, rad
 
 
 func _try_draw_polished_projectile(projectile_kind: String, position: Vector2, radius: float, trail_dir: float, tint: Color) -> bool:
-	var texture := CombatVectorArt.projectile_texture(projectile_kind)
-	if texture == null:
-		return _try_draw_image2_projectile(projectile_kind, position, radius, trail_dir, tint)
-	# Keep the moving glow and tail from the old renderer, then place the
-	# authored SVG on top. This preserves the existing animation language while
-	# giving every projectile its own silhouette and palette.
-	for trail_index in range(3):
-		var trail_ratio := float(trail_index + 1) / 3.0
-		var trail_pos := position + Vector2(-trail_dir * trail_ratio * 11.0, 0.0)
-		draw_circle(trail_pos, radius * (0.82 - trail_ratio * 0.12), Color(tint.r, tint.g, tint.b, 0.16 - trail_ratio * 0.035))
-	draw_circle(position, radius * 1.78, Color(tint.r, tint.g, tint.b, 0.08))
-	var texture_size := Vector2(radius * 4.4, radius * 4.4)
-	draw_texture_rect(texture, Rect2(position - texture_size * 0.5, texture_size), false, Color(1.0, 1.0, 1.0, clampf(tint.a, 0.2, 1.0)))
-	return true
+	# Keep the established procedural projectile set. CombatVectorArt remains
+	# available for effects, but projectile silhouettes intentionally stay on the
+	# earlier battle renderer until a separate projectile art pass is approved.
+	return _try_draw_image2_projectile(projectile_kind, position, radius, trail_dir, tint)
 
 
 func _try_draw_image2_plant(kind: String, center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> bool:
