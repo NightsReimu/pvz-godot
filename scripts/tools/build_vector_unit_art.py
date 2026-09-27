@@ -5,10 +5,12 @@ Every recipe is chosen for the species; gameplay state variants share its anatom
 """
 from pathlib import Path
 import math
+import hashlib
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'art/vector/plants'
 INK = '#283e35'
+CURRENT_KIND = ''
 
 def path(d, fill, stroke=INK, width=1.7, **attrs):
     return f'<path d="{d}" fill="{fill}" stroke="{stroke}" stroke-width="{width}" stroke-linejoin="round" stroke-linecap="round" '+ ' '.join(f'{k.replace("_", "-")}="{v}"' for k,v in attrs.items())+'/>'
@@ -21,10 +23,82 @@ def line(d,col=INK,w=1.3): return path(d,'none',col,w)
 def leaf(x,y,angle=0,length=24,col='url(#leaf)'):
     return group(path(f'M0 0 Q{-length*.8} {-length*.4} {-length} 0 Q{-length*.5} {length*.63} 0 0Z',col)+line(f'M-2 1 Q{-length*.45} 0 {-length*.84} 0','#488343',.8),f'translate({x} {y}) rotate({angle})')
 
+def _stable_index(kind, modulo):
+    if not kind:
+        return 0
+    return sum((i + 1) * ord(char) for i, char in enumerate(kind)) % modulo
+
+def _plant_family(kind):
+    if 'shroom' in kind:
+        return 'mushroom'
+    if any(token in kind for token in ['lotus', 'lily_pad', 'flower_pot', 'brine_pot', 'cork_plug']):
+        return 'water'
+    if any(token in kind for token in ['tree', 'fern', 'bamboo', 'reed', 'ivy', 'vine', 'grass', 'spikeweed', 'leyline']):
+        return 'rooted'
+    if any(token in kind for token in ['fruit', 'gourd', 'bean', 'mango', 'beet', 'garlic', 'pepper', 'cherry', 'pumpkin']):
+        return 'fruit'
+    if any(token in kind for token in ['cannon', 'mortar', 'sniper', 'pult', 'boomerang', 'shooter', 'lancer', 'fan']):
+        return 'weapon'
+    if any(token in kind for token in ['nut', 'wall', 'potato', 'pumice']):
+        return 'shell'
+    if any(token in kind for token in ['flower', 'orchid', 'daisy', 'bloom', 'rose', 'tulip']):
+        return 'flower'
+    return 'sprout'
+
+def _base_signature(kind, col):
+    """Give every species a readable lower silhouette tied to its gameplay family."""
+    family = _plant_family(kind)
+    style = _stable_index(kind, 8)
+    body = ''
+    if family == 'water':
+        body += path('M-31 29 Q-23 18 -8 24 Q5 15 19 24 Q31 19 34 29 Q20 41 -1 37 Q-20 41 -31 29Z', 'url(#mint)', '#4f8276', 1.2)
+        body += line('M-22 29 Q-8 23 5 31 M4 31 Q17 24 27 29', '#d5f1c7', 1.0)
+    elif family == 'mushroom':
+        body += ell(0, 30, 25, 7, 'url(#plum)', '#564863', 1.1)
+        body += ell(-14, 28, 3, 2, '#f1d4d2', '#76526a', .7) + ell(13, 31, 3, 2, '#f1d4d2', '#76526a', .7)
+        body += line('M-20 34 Q-8 28 0 35 Q9 28 21 34', '#e0b8c5', 1.0)
+    elif family == 'rooted':
+        body += path('M-26 28 Q-17 18 -9 27 Q0 16 8 27 Q17 18 28 29 L23 37 Q11 33 3 38 Q-7 33 -19 38Z', 'url(#bark)', '#76573d', 1.2)
+        body += line('M-17 29 Q-12 34 -8 37 M0 27 V37 M15 29 Q10 34 8 37', '#c9a16b', 1.0)
+    elif family == 'fruit':
+        body += path('M-28 30 Q-14 20 0 27 Q13 19 29 30 Q20 39 0 38 Q-18 40 -28 30Z', 'url(#leaf)', '#47754a', 1.2)
+        body += leaf(-5, 31, -30, 15, col) + leaf(8, 31, 155, 14, col)
+    elif family == 'weapon':
+        body += path('M-28 35 L-24 27 L-8 27 L-4 34 L7 34 L12 25 L28 25 L32 35Z', 'url(#stone)', '#566862', 1.25)
+        body += ell(-16, 31, 3, 3, '#e8d49b', '#495c55', .9) + ell(20, 30, 3, 3, '#e8d49b', '#495c55', .9)
+    elif family == 'shell':
+        body += path('M-28 31 Q-20 21 -8 26 Q0 19 9 26 Q20 21 29 31 Q18 39 0 38 Q-18 40 -28 31Z', 'url(#bark)', '#805936', 1.25)
+        body += line('M-17 30 L-11 36 M0 26 V37 M17 30 L11 36', '#e1bd7d', 1.05)
+    elif family == 'flower':
+        body += path('M-28 34 Q-18 23 -7 29 Q0 20 8 29 Q19 23 29 34 Q17 39 0 37 Q-17 40 -28 34Z', 'url(#leaf)', '#4d7e4f', 1.15)
+        body += path('M-4 35 Q0 25 4 35', 'none', '#f8dc99', 1.5)
+    else:
+        body += path('M-28 34 Q-19 24 -10 30 Q-1 20 9 30 Q19 23 29 34 Q17 40 0 37 Q-17 40 -28 34Z', col, '#47784c', 1.15)
+    # A stable asymmetry keeps same-family cards from collapsing into one silhouette.
+    if style in [0, 3, 6]:
+        body += leaf(-24, 29, 38, 14, col)
+    elif style in [1, 4, 7]:
+        body += leaf(24, 29, 142, 14, col)
+    elif style == 2:
+        body += line('M-24 33 Q-29 24 -24 19 M24 33 Q29 24 24 19', '#9bc774', 1.8)
+    else:
+        body += ell(-23, 31, 3, 2, '#e7c986', '#70563d', .8) + ell(23, 31, 3, 2, '#e7c986', '#70563d', .8)
+    return body
+
 def base(stem=True,col='url(#leaf)'):
-    body=ell(0,35,27,4,'#233e2b',width=0).replace('fill="#233e2b"','fill="#233e2b" opacity=".14"')
-    if stem: body+=path('M-4 32 Q1 17 -3 -5 L4 -5 Q7 13 3 32Z',col)+line('M-1 27 Q3 16 0 4','#a6cd6b',1.5)
-    return body+leaf(-1,31,8,27,col)+leaf(2,32,170,27,col)+leaf(0,34,-35,15,col)
+    kind = CURRENT_KIND
+    style = _stable_index(kind, 12)
+    bend = (style % 5) - 2
+    left_angle = 4 + style * 3
+    right_angle = 176 - style * 4
+    left_len = 22 + (style % 4) * 3
+    right_len = 21 + ((style + 1) % 4) * 3
+    body = ell(0,35,27,4,'#233e2b',width=0).replace('fill="#233e2b"','fill="#233e2b" opacity=".14"')
+    if stem:
+        body += path(f'M-4 32 Q{bend} 17 {-3 + bend} -5 L{4 + bend} -5 Q{7 + bend} 13 3 32Z',col)
+        body += line(f'M-1 27 Q{3 + bend} 16 {bend} 4','#a6cd6b',1.5)
+    body += leaf(-1,31,left_angle,left_len,col)+leaf(2,32,right_angle,right_len,col)+leaf(0,34,-35 - style * 2,15 + style % 3,col)
+    return body + _base_signature(kind, col)
 
 def eye(x,y,rx=2.4,ry=4):
     return ell(x,y,rx,ry,INK)+ell(x-.65,y-1.6,.75,1.1,'#fffbed')
@@ -59,7 +133,9 @@ def pea(kind,col='url(#pea)'):
         h+=leaf(-16,-32,50,15,col)+leaf(-14,-33,80,16,col)+line('M-14 -28 L-6 -26',INK,1.8)
     if kind=='snow_pea':
         h+=crystal(-15,-31,12,angle=-20)+crystal(-6,-34,13)+star(-16,-12,3,'#efffff')
-    if kind=='amber_shooter': h+=ell(-15,-11,4,5,'#f7ac42',INK)+line('M-17 -13 l3 -2','#fff0ad',1.5)
+    if kind=='amber_shooter':
+        h+=ell(-15,-11,4,5,'#f7ac42',INK)+line('M-17 -13 l3 -2','#fff0ad',1.5)
+        h+=path('M-20 -35 Q-31 -45 -23 -54 Q-15 -47 -12 -36Z','url(#fire)',INK,1.1)+star(-24,-51,3,'#fff0ad')
     if kind=='shadow_pea': h+=path('M-18 -38 Q-31 -33 -26 -20 Q-38 -35 -18 -38Z','#bca6ee')
     if kind=='prism_pea': h+=crystal(-21,-19,18,angle=-30)+crystal(-16,-31,13,angle=20)
     if kind=='plasma_shooter': h+=path('M14 -24 Q9 -14 14 -4 M21 -25 Q16 -14 21 -3','none','#62dceb',3)+ell(31,-14,2.8,5,'#b3fcf2')
@@ -94,6 +170,7 @@ def nut(kind,state=''):
         b+=path('M-25 0 h8 v-5 h-10 M22 17 h8 v4 h-12','none','#737dbf',2.8)
     elif kind=='brick_guard':
         b+=line('M-21 -27 H21 M-25 -8 H26 M-25 13 H25 M-6 -45 V-27 M8 -27 V-8 M-10 -8 V13 M6 13 V32','#754b37',1.2)
+        b+=path('M-24 -47 H-14 V-55 H-5 V-48 H5 V-55 H14 V-47 H24 L20 -36 H-20Z','#a16e49',INK,1.1)
     else:
         b+=path(f'M-20 15 Q-25 -8 -15 {top+11} Q-10 {top+3} -7 {top+8} Q-18 -6 -15 14Z','#eac78a','none')
         for d in ['M-19 17 q-5 5 1 10','M16 -17 q5 2 4 7','M-11 -22 q-5 4 -3 8','M16 18 q6 3 0 9','M-4 29 q5 -3 9 0']: b+=line(d,'#9a713e',1)
@@ -118,6 +195,18 @@ def shroom(kind,state=''):
     elif kind=='doom_shroom': cap='M-32 -4 C-34 -16 -29 -31 -18 -30 Q-12 -40 0 -32 Q12 -39 20 -29 Q34 -27 32 -4 Q0 6 -32 -4Z'
     else: cap=f'M{-w} {y-2} C{-w-2} {y-20} -17 {y-36} 0 {y-34} C18 {y-36} {w+3} {y-17} {w} {y-2} Q0 {y+5} {-w} {y-2}Z'
     b+=path(cap,col,INK,2)
+    if kind=='sea_shroom':
+        b+=path(f'M-23 {y-2} Q-37 -12 -28 -27 Q-21 -18 -17 -31 Q-9 -18 -13 {y-2}', 'url(#mint)', INK, 1.1)
+        b+=ell(25,y-22,4,5,'#bfe8eb',INK,1)+line(f'M24 {y-26} q-4 -7 2 -11','#bfe8eb',1.4)
+    elif kind=='sun_shroom':
+        for x,y2 in [(-25,-29),(-19,-39),(0,-47),(19,-39),(25,-29)]:
+            b+=line(f'M{x} {y2+8} L{x} {y2}', '#ffe59b', 2.0)
+    elif kind=='void_shroom':
+        b+=path('M-34 -10 Q-43 -24 -31 -35 M34 -10 Q43 -24 31 -35', 'none', '#bba5df', 2.4)
+    elif kind=='nether_shroom':
+        b+=path('M-28 -17 L-37 -29 L-27 -27 L-31 -43 L-18 -29 M28 -17 L37 -29 L27 -27 L31 -43 L18 -29', 'url(#night)', INK, 1.2)
+    elif kind=='chaos_shroom':
+        b+=path('M-28 -14 L-38 -24 L-28 -31 L-34 -43 L-21 -35 M28 -14 L38 -24 L28 -31 L34 -43 L21 -35', 'url(#rose)', INK, 1.1)
     if kind not in ['ice_shroom','mirror_shroom']:
         b+=path(f'M{-w+6} {y-9} Q{-w+6} {y-25} -8 {y-28}', 'none','#ffffff',2,opacity='.32')
     if kind in ['ice_shroom','mirror_shroom']:
@@ -298,6 +387,10 @@ def pult(kind,col='url(#leaf)'):
         b+=line('M21 -46 L23 -28','#b78439',1)
     elif kind in ['melon_pult','skylight_melon','fumarole_melon']:
         b+=ell(19,-35,15,12,col,INK)+line('M11 -45 Q2 -34 12 -25 M20 -46 Q12 -35 21 -24 M27 -43 Q21 -32 28 -27','#407650',2)
+        if kind=='skylight_melon':
+            b+=path('M10 -44 Q20 -55 30 -47 L27 -38 Q18 -42 10 -36Z','url(#ice)',INK,1.1)+star(31,-49,3,'#eaffff')
+        elif kind=='fumarole_melon':
+            b+=path('M12 -45 Q3 -53 12 -57 Q21 -53 18 -48 M25 -43 Q31 -51 38 -47 Q31 -42 31 -35','none','#c8d7cf',2.2)
     elif kind=='cabbage_pult':
         b+=ell(19,-35,14,13,col,INK)+path('M7 -34 Q10 -42 19 -39 Q23 -48 29 -38 M9 -27 Q19 -23 20 -34 Q29 -39 31 -30','none','#bad39b',1.7)
     else:
@@ -320,6 +413,7 @@ def special(kind,state=''):
     elif kind=='pumice_wall':
         b=nut('wallnut',state).replace('url(#bark)','url(#stone)').replace('#eac78a','#c7c8b1')
         for x,y,r in [(-18,-12,3),(13,-23,3.5),(18,17,3),(-15,22,4),(5,28,2)]: b+=ell(x,y,r,r*.7,'#727d6f')+line(f'M{x-r/2} {y+1} h{r}','#c9cdb9',.8)
+        b+=path('M-18 -31 L-28 -43 L-14 -38 L-7 -49 L1 -38 L12 -47 L18 -34Z','#8d9990',INK,1.1)
     elif kind=='snow_bloom':
         b=base()+''.join(petal(0,-12,a,30,7,'url(#ice)') for a in range(0,360,60))+ell(0,-12,10,11,'url(#cream)',INK)+face(0,-15,spacing=3)
     elif kind=='magma_stream':
@@ -471,19 +565,27 @@ for name,c1,c2 in [('pea','#b7dc7a','#55904d'),('leaf','#88b758','#3d774b'),('go
 DEFS+='</defs>'
 
 def write(name,body):
-    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="192" height="224" viewBox="-48 -60 96 112">{DEFS}{body}</svg>\n'
+    source_kind = name.split('_damaged')[0].split('_critical')[0].split('_unarmed')[0].split('_chewing')[0].split('_young')[0].split('_hiding')[0]
+    signature = hashlib.sha1(source_kind.encode('utf-8')).hexdigest()[:12]
+    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="192" height="224" viewBox="-48 -60 96 112" data-plant-kind="{source_kind}" data-art-signature="{signature}">{DEFS}{body}</svg>\n'
     (OUT/(name+'.svg')).write_text(svg)
+
+def build_asset(name, fn, args, art_kind='', draw_kind=''):
+    global CURRENT_KIND
+    CURRENT_KIND = art_kind or draw_kind or name
+    write(name, fn(draw_kind or name, *args))
 
 def main():
     OUT.mkdir(parents=True,exist_ok=True)
     for name,(fn,args) in RECIPES.items():
-        write(name,fn(name,*args))
+        build_asset(name, fn, args)
         if fn==nut or name in ['pumpkin','pumice_wall','cactus_guard']:
-            for state in ['damaged','critical']: write(name+'_'+state,fn(name,state))
-        if name=='potato_mine': write(name+'_unarmed',special(name,'unarmed'))
-        if name=='chomper': write(name+'_chewing',special(name,'chewing'))
-        if name=='sun_shroom': write(name+'_young',shroom(name,'young'))
-        if name=='scaredy_shroom': write(name+'_hiding',shroom(name,'hiding'))
+            for state in ['damaged','critical']: build_asset(name+'_'+state, fn, [state], name, name)
+        if name=='potato_mine': build_asset(name+'_unarmed', special, ['unarmed'], name, name)
+        if name=='chomper': build_asset(name+'_chewing', special, ['chewing'], name, name)
+        if name=='sun_shroom': build_asset(name+'_young', shroom, ['young'], name, name)
+        if name=='scaredy_shroom': build_asset(name+'_hiding', shroom, ['hiding'], name, name)
+    CURRENT_KIND = ''
     manifest='extends RefCounted\n\n# Generated by scripts/tools/build_vector_unit_art.py.\nconst KINDS := '+str(list(RECIPES)).replace("'",'"')+'\n'
     (ROOT/'scripts/data/vector_plant_manifest.gd').write_text(manifest)
     print(f'Authored {len(RECIPES)} plant models and their gameplay variants.')
