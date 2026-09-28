@@ -924,7 +924,7 @@ const PLANTS: Dictionary = {
 		"cooldown": 10.0,
 		"health": 160.0,
 		"pulse_interval": 3.0,
-		"heal_amount": 65.0,
+		"heal_amount": 120.0,
 		"heal_radius": 150.0,
 		"ultimate_name": "甘露回春",
 		"ultimate_charge_time": 58.0,

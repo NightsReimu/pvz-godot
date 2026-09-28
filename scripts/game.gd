@@ -32895,7 +32895,7 @@ func _plant_almanac_stats(kind: String) -> Array:
 		"holo_nut":
 			stats.append("定位：会自我回复的全息厚墙")
 		"healing_gourd":
-			stats.append("效果：每 3 秒为周围 3×3 植物恢复 65 生命")
+			stats.append("效果：每 3 秒为周围 3×3 植物恢复 120 生命")
 			stats.append("大招：恢复全场植物及承载物生命；不加护甲、不伤敌")
 		"cotton_candy":
 			stats.append("效果：云格专用，3×3 糖云治疗并减速")

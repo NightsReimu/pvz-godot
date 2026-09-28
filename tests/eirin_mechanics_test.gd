@@ -107,7 +107,7 @@ func _test_gourd_and_damage() -> void:
 	rt.update(2.1)
 	gourd.support_timer = 0
 	game._ensure_plant_runtime().update_healing_gourd(gourd, 0.1, 2, 2)
-	check(is_equal_approx(plant.health, 10 + 65 * 0.25), "Actual gourd passive obeys the medical suppression")
+	check(is_equal_approx(plant.health, 10 + 120 * 0.25), "Actual gourd passive obeys the medical suppression")
 	gourd.health = 10
 	gourd.ultimate_charge = 1
 	check(game._try_activate_ultimate(2, 2), "Gourd ultimate remains usable under suppression")

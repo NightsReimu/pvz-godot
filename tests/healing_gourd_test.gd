@@ -1,5 +1,7 @@
 extends "res://tests/click_ultimate_behavior_test.gd"
 
+const EXPECTED_PASSIVE_HEAL := 120.0
+
 func _run() -> void:
 	var passed := _test_passive_heals_health_only()
 	passed = _test_ultimate_heals_and_shields() and passed
@@ -14,6 +16,7 @@ func _test_passive_heals_health_only() -> bool:
 	game.grid[2][2] = gourd
 	var neighbor: Dictionary = game._create_plant("repeater", 1, 1)
 	neighbor.health = 10.0
+	neighbor.max_health = 1000.0
 	neighbor.armor_health = 5.0
 	neighbor.max_armor_health = 100.0
 	game.grid[1][1] = neighbor
@@ -22,6 +25,7 @@ func _test_passive_heals_health_only() -> bool:
 	game.grid[0][2] = outside
 	game._ensure_plant_runtime().update_healing_gourd(gourd, 0.1, 2, 2)
 	var passed := _assert_true(neighbor.health > 10.0 and outside.health == 10.0, "Passive healing includes the 3x3 diagonal and excludes the next row")
+	passed = _assert_true(is_equal_approx(neighbor.health, 10.0 + EXPECTED_PASSIVE_HEAL), "Passive healing restores the full upgraded amount") and passed
 	passed = _assert_true(neighbor.armor_health == 5.0, "Gourd passive must not restore armor") and passed
 	_free_game(game)
 	return passed
