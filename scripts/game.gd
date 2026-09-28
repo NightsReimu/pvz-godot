@@ -203,6 +203,13 @@ const LEGACY_SAVE_PROJECT_NAMES := ["Codex PvZ Prototype", "[unnamed project]"]
 const AUTOSAVE_DEBOUNCE := 1.2
 const AUTOSAVE_BATTLE_RETRY_INTERVAL := 0.35
 const MAX_SEED_SLOTS := 10
+const SELECTION_INTRO_DURATION := 0.82
+const SELECTION_ZOMBIE_ENTRY_DELAY := 0.065
+const SELECTION_ZOMBIE_ENTRY_DURATION := 0.52
+const SELECTION_CARD_FLIGHT_DURATION := 0.34
+const SELECTION_CARD_EXIT_DURATION := 0.18
+const HOVER_PREVIEW_RESPONSE := 18.0
+const BATTLE_INTRO_DURATION := 2.2
 const PREP_SELECTED_PANEL_RECT := Rect2(122.0, 110.0, 1036.0, 128.0)
 const PREP_ZOMBIE_PANEL_RECT := Rect2(122.0, 248.0, 1036.0, 52.0)
 const PREP_POOL_PANEL_RECT := Rect2(122.0, 314.0, 1036.0, 308.0)
@@ -917,12 +924,18 @@ var batch_spawn_remaining := 0
 var batch_spawn_queue: Array = []
 var spawn_director_timer := 0.0
 var selected_tool := ""
+var hover_preview_position := Vector2.ZERO
+var hover_preview_target := Vector2.ZERO
+var hover_preview_initialized := false
+var hover_preview_cell := Vector2i(-1, -1)
 var sun_points := 0
 var plant_food_count := 0
 var total_kills := 0
 var selection_cards: Array = []
 var selection_pool_cards: Array = []
 var selection_pool_scroll := 0.0
+var selection_intro_time := 0.0
+var selection_card_flights: Array = []
 var selection_background_preview_open := false
 var almanac_tab := "plants"
 var almanac_selected_kind := ""
@@ -1000,6 +1013,7 @@ var autosave_timer := 0.0
 
 var toast_timer := 0.0
 var banner_timer := 0.0
+var battle_intro_timer := 0.0
 var ui_time := 0.0
 
 var toast_label: Label
@@ -1199,6 +1213,13 @@ func _smooth_ui_value(current: float, target: float, delta: float, response: flo
 		return target
 	var blend = clampf(1.0 - exp(-maxf(delta, 0.0) * response), 0.0, 1.0)
 	return lerpf(current, target, blend)
+
+
+func _smooth_ui_vector(current: Vector2, target: Vector2, delta: float, response: float) -> Vector2:
+	return Vector2(
+		_smooth_ui_value(current.x, target.x, delta, response),
+		_smooth_ui_value(current.y, target.y, delta, response)
+	)
 
 
 func _spring_ui_value(current: float, target: float, velocity: float, delta: float, stiffness: float, damping: float, snap_distance: float = 0.001, snap_velocity: float = 0.001) -> Dictionary:
@@ -1969,6 +1990,11 @@ func _process(delta: float) -> void:
 	_update_autosave(delta)
 	_update_page_transition(delta)
 	_update_freeze_transition_visual(delta)
+	if mode == MODE_SELECTION:
+		selection_intro_time = minf(SELECTION_INTRO_DURATION + 0.2, selection_intro_time + maxf(delta, 0.0))
+		_update_selection_card_flights(delta)
+	elif mode == MODE_BATTLE and not battle_paused:
+		_update_hover_plant_motion(delta)
 	if not (touch_navigation_dragging and touch_navigation_mode == MODE_WORLD_SELECT):
 		var world_spring = _spring_ui_value(world_select_scroll, float(world_select_index), world_select_velocity, delta, 52.0, 12.0, 0.002, 0.01)
 		world_select_scroll = float(world_spring.get("value", world_select_scroll))
@@ -2123,6 +2149,83 @@ func _process(delta: float) -> void:
 			zombies[i] = ZombieRuntime.update_boss_health_display(zombies[i], delta)
 	_check_end_state()
 	queue_redraw()
+
+
+func _selection_zombie_entry_progress(index: int) -> float:
+	var delay := maxf(0.0, float(index) * SELECTION_ZOMBIE_ENTRY_DELAY)
+	return clampf((selection_intro_time - delay) / SELECTION_ZOMBIE_ENTRY_DURATION, 0.0, 1.0)
+
+
+func _selection_card_flight_progress(flight: Dictionary) -> float:
+	var duration := maxf(float(flight.get("duration", SELECTION_CARD_FLIGHT_DURATION)), 0.01)
+	return clampf(float(flight.get("age", 0.0)) / duration, 0.0, 1.0)
+
+
+func _update_selection_card_flights(delta: float) -> void:
+	for i in range(selection_card_flights.size() - 1, -1, -1):
+		var flight := Dictionary(selection_card_flights[i])
+		flight["age"] = float(flight.get("age", 0.0)) + maxf(delta, 0.0)
+		if _selection_card_flight_progress(flight) >= 1.0:
+			selection_card_flights.remove_at(i)
+		else:
+			selection_card_flights[i] = flight
+
+
+func _update_hover_plant_motion(delta: float) -> void:
+	if selected_tool == "" or selected_tool == "shovel" or selected_tool == "plant_food":
+		hover_preview_initialized = false
+		hover_preview_cell = Vector2i(-1, -1)
+		return
+	var pointer := _pointer_local_position()
+	var cell := _mouse_to_cell(pointer)
+	hover_preview_cell = cell
+	var target := pointer
+	if cell.x >= 0:
+		target = _cell_center(cell.x, cell.y)
+	hover_preview_target = target
+	if not hover_preview_initialized:
+		hover_preview_position = pointer
+		hover_preview_initialized = true
+	hover_preview_position = _smooth_ui_vector(hover_preview_position, target, delta, HOVER_PREVIEW_RESPONSE)
+
+
+func _selection_card_flight_for_slot(slot_index: int) -> Dictionary:
+	for flight_variant in selection_card_flights:
+		var flight := Dictionary(flight_variant)
+		if String(flight.get("mode", "in")) == "in" and int(flight.get("slot", -1)) == slot_index:
+			return flight
+	return {}
+
+
+func _shift_selection_card_flights_after_removal(removed_slot: int) -> void:
+	for i in range(selection_card_flights.size() - 1, -1, -1):
+		var flight := Dictionary(selection_card_flights[i])
+		if String(flight.get("mode", "in")) != "in":
+			continue
+		var slot := int(flight.get("slot", -1))
+		if slot == removed_slot:
+			selection_card_flights.remove_at(i)
+		elif slot > removed_slot:
+			flight["slot"] = slot - 1
+			selection_card_flights[i] = flight
+
+
+func _draw_selection_card_flight(flight: Dictionary) -> void:
+	var kind := String(flight.get("kind", ""))
+	if kind == "" or not Defs.PLANTS.has(kind):
+		return
+	var from := Vector2(flight.get("from", Vector2.ZERO))
+	var to := Vector2(flight.get("to", from))
+	var ratio := _selection_card_flight_progress(flight)
+	var eased := _ease_out_back(ratio)
+	var center := from.lerp(to, eased)
+	var is_exit := String(flight.get("mode", "in")) == "out"
+	var scale := lerpf(0.72, 1.0, clampf(ratio * 1.35, 0.0, 1.0)) if not is_exit else lerpf(1.0, 0.2, ratio)
+	var alpha := clampf(ratio * 2.5, 0.0, 1.0) if not is_exit else (1.0 - ratio)
+	draw_circle(center + Vector2(0.0, 12.0), 34.0 * scale, Color(0.6, 0.78, 0.32, 0.12 * alpha))
+	_draw_card_icon(kind, center, 0.85 * scale)
+	if ratio > 0.72:
+		draw_arc(to, 30.0 + (ratio - 0.72) * 38.0, -PI * 0.2, PI * 1.42, 20, Color(0.86, 1.0, 0.54, (1.0 - ratio) * 0.8), 2.0)
 
 
 func _update_combat_particles(delta: float) -> void:
@@ -4144,6 +4247,10 @@ func _enter_minigames_mode() -> void:
 	battle_paused = false
 	battle_state = BATTLE_PLAYING
 	selected_tool = ""
+	hover_preview_initialized = false
+	hover_preview_position = Vector2.ZERO
+	hover_preview_target = Vector2.ZERO
+	hover_preview_cell = Vector2i(-1, -1)
 	active_cards = []
 	message_panel.visible = false
 	panel_action = ""
@@ -4654,21 +4761,30 @@ func _selection_selected_panel_rect() -> Rect2:
 		rect.size.x = maxf(320.0, safe_rect.size.x - 32.0)
 		rect.size.y = 80.0 if safe_rect.size.y < 380.0 else (92.0 if safe_rect.size.y < 460.0 else 132.0)
 		return rect
+	rect.position.x = maxf(72.0, safe_rect.position.x + 54.0)
 	rect.position.y = maxf(rect.position.y, 150.0)
-	rect.size.x = maxf(760.0, minf(maxf(rect.size.x, size.x - rect.position.x - 24.0), size.x - rect.position.x - 24.0))
-	rect.size.y = maxf(rect.size.y, 140.0)
+	# Keep the zombie preview visible as a right-hand panel on desktop while
+	# leaving the plant pool and footer enough room on the left.
+	var desktop_width := minf(860.0, safe_rect.size.x * 0.61)
+	rect.size.x = maxf(760.0, minf(desktop_width, safe_rect.end.x - rect.position.x - 360.0))
+	rect.size.y = 140.0
 	return rect
 
 
 func _selection_zombie_panel_rect() -> Rect2:
 	var rect = PREP_ZOMBIE_PANEL_RECT
 	var is_mobile = _is_mobile_runtime()
-	rect.position.y = _selection_selected_panel_rect().end.y + 10.0
-	rect.position.x = _selection_selected_panel_rect().position.x
-	rect.size.x = _selection_selected_panel_rect().size.x
+	var selected_rect := _selection_selected_panel_rect()
+	if not is_mobile:
+		rect.position = Vector2(selected_rect.end.x + 18.0, selected_rect.position.y)
+		rect.size.x = maxf(300.0, _viewport_safe_rect().end.x - rect.position.x - 54.0)
+		rect.size.y = selected_rect.size.y
+	else:
+		rect.position.y = selected_rect.end.y + 6.0
+		rect.position.x = selected_rect.position.x
+		rect.size.x = selected_rect.size.x
 	if is_mobile:
-		rect.position.y = _selection_selected_panel_rect().end.y + 6.0
-		rect.size.y = clampf(_viewport_safe_rect().size.y * 0.072, 30.0, 56.0)
+		rect.size.y = clampf(_viewport_safe_rect().size.y * 0.11, 64.0, 86.0)
 	return rect
 
 
@@ -4684,6 +4800,7 @@ func _selection_pool_panel_rect() -> Rect2:
 		rect.position.y = _selection_zombie_panel_rect().end.y + 8.0
 		rect.size.y = minf(520.0, safe_rect.end.y - rect.position.y - 10.0)
 	else:
+		rect.size.x = maxf(760.0, safe_rect.end.x - rect.position.x - 54.0)
 		rect.size.y = clampf(max_height, 188.0, 420.0)
 	return rect
 
@@ -5823,6 +5940,8 @@ func _enter_endless_mode() -> void:
 	selection_pool_cards = _resolved_selection_pool_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
+	selection_intro_time = 0.0
+	selection_card_flights.clear()
 	selection_background_preview_open = false
 	queue_redraw()
 
@@ -6470,6 +6589,8 @@ func _enter_daily_challenge(series_id: String = "", stage_index: int = 0) -> voi
 	selection_pool_cards = _resolved_selection_pool_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
+	selection_intro_time = 0.0
+	selection_card_flights.clear()
 	selection_background_preview_open = false
 	daily_completed_today = daily_challenge_date == _today_string()
 	queue_redraw()
@@ -6490,6 +6611,8 @@ func _enter_seed_selection(level_index: int, level_override: Dictionary = {}) ->
 	selection_pool_cards = _resolved_selection_pool_for_level(current_level)
 	selection_cards = []
 	selection_pool_scroll = 0.0
+	selection_intro_time = 0.0
+	selection_card_flights.clear()
 	selection_background_preview_open = false
 	queue_redraw()
 
@@ -7249,11 +7372,16 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	panel_action = ""
 	message_panel.visible = false
 	selected_tool = ""
+	hover_preview_initialized = false
+	hover_preview_position = Vector2.ZERO
+	hover_preview_target = Vector2.ZERO
+	hover_preview_cell = Vector2i(-1, -1)
 
 	sun_points = int(current_level["start_sun"])
 	plant_food_count = 0
 	total_kills = 0
 	level_time = 0.0
+	battle_intro_timer = BATTLE_INTRO_DURATION
 	lava_eruption_timers.clear()
 	if volcano_expansion != null:
 		volcano_expansion.reset()
@@ -7425,7 +7553,18 @@ func _handle_selection_click(mouse_pos: Vector2) -> void:
 	var selected_index = _selection_slot_at(mouse_pos)
 	if selected_index != -1:
 		if selected_index < selection_cards.size():
+			var removed_kind := String(selection_cards[selected_index])
+			var removed_rect := _selection_slot_rect(selected_index)
 			selection_cards.remove_at(selected_index)
+			_shift_selection_card_flights_after_removal(selected_index)
+			selection_card_flights.append({
+				"kind": removed_kind,
+				"from": removed_rect.get_center(),
+				"to": removed_rect.get_center() + Vector2(0.0, -18.0),
+				"age": 0.0,
+				"duration": SELECTION_CARD_EXIT_DURATION,
+				"mode": "out",
+			})
 			queue_redraw()
 		return
 
@@ -7442,13 +7581,35 @@ func _handle_selection_click(mouse_pos: Vector2) -> void:
 	if kind == "":
 		return
 	if selection_cards.has(kind):
+		var existing_index := selection_cards.find(kind)
+		var existing_rect := _selection_slot_rect(existing_index)
 		selection_cards.erase(kind)
+		_shift_selection_card_flights_after_removal(existing_index)
+		selection_card_flights.append({
+			"kind": kind,
+			"from": existing_rect.get_center(),
+			"to": existing_rect.get_center() + Vector2(0.0, -18.0),
+			"age": 0.0,
+			"duration": SELECTION_CARD_EXIT_DURATION,
+			"mode": "out",
+		})
 		queue_redraw()
 		return
 	if selection_cards.size() >= MAX_SEED_SLOTS:
 		_show_toast("最多只能携带 10 张植物")
 		return
+	var source_rect := _selection_pool_rect(selection_pool_cards.find(kind))
+	var target_slot := selection_cards.size()
 	selection_cards.append(kind)
+	selection_card_flights.append({
+		"kind": kind,
+		"from": source_rect.get_center(),
+		"to": _selection_slot_rect(target_slot).get_center(),
+		"slot": target_slot,
+		"age": 0.0,
+		"duration": SELECTION_CARD_FLIGHT_DURATION,
+		"mode": "in",
+	})
 	queue_redraw()
 
 
@@ -9317,15 +9478,25 @@ func _handle_board_click(cell: Vector2i) -> void:
 	if selected_tool == "cotton_candy" and _cell_terrain_kind(cell.x, cell.y) == "sky_gap":
 		# Cotton candy fills a vacant sky slot and turns it into a stable cloud tile.
 		_set_cell_terrain_kind(cell.x, cell.y, "cloud")
+	effects.append({
+		"shape": "plant_place",
+		"position": _cell_center(cell.x, cell.y) + Vector2(0.0, 22.0),
+		"radius": 54.0,
+		"time": 0.28,
+		"duration": 0.28,
+		"color": Color(0.76, 1.0, 0.42, 0.34),
+	})
 	if _is_conveyor_level():
 		_consume_conveyor_card(selected_tool)
 	selected_tool = ""
+	hover_preview_initialized = false
 	queue_redraw()
 
 
 func _try_select_tool(kind: String) -> void:
 	if _is_conveyor_level():
 		selected_tool = "" if selected_tool == kind else kind
+		hover_preview_initialized = false
 		queue_redraw()
 		return
 	var data = Defs.PLANTS[kind]
@@ -9336,6 +9507,7 @@ func _try_select_tool(kind: String) -> void:
 		_show_toast("%s还在冷却" % data["name"])
 		return
 	selected_tool = "" if selected_tool == kind else kind
+	hover_preview_initialized = false
 	queue_redraw()
 
 
@@ -14351,6 +14523,8 @@ func _show_banner(text: String, duration: float) -> void:
 
 
 func _update_overlay_timers(delta: float) -> void:
+	if mode == MODE_BATTLE and not battle_paused:
+		battle_intro_timer = maxf(0.0, battle_intro_timer - maxf(delta, 0.0))
 	if toast_timer > 0.0:
 		toast_timer = maxf(0.0, toast_timer - delta)
 		toast_label.visible = toast_timer > 0.0
@@ -14368,6 +14542,33 @@ func _update_overlay_timers(delta: float) -> void:
 	banner_label.add_theme_font_size_override("font_size", 15 if size.y < 500 else 24)
 	banner_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	banner_label.position = Vector2((size.x - banner_width) * 0.5, (BOARD_ORIGIN.y + 8 if mode == MODE_BATTLE else 122) - 8 * (1.0 - banner_ratio))
+
+
+func _battle_intro_text() -> String:
+	if battle_intro_timer <= 0.0:
+		return ""
+	var elapsed := BATTLE_INTRO_DURATION - battle_intro_timer
+	if elapsed < 0.68:
+		return "准备"
+	if elapsed < 1.28:
+		return "安放"
+	return "植物！"
+
+
+func _draw_battle_intro_overlay() -> void:
+	var intro_text := _battle_intro_text()
+	if intro_text == "":
+		return
+	var elapsed := BATTLE_INTRO_DURATION - battle_intro_timer
+	var fade_in := clampf((elapsed + 0.06) / 0.18, 0.0, 1.0)
+	var fade_out := clampf(battle_intro_timer / 0.32, 0.0, 1.0)
+	var alpha := minf(fade_in, fade_out)
+	var pulse := 1.0 + 0.035 * sin(ui_time * 9.0)
+	var center := Vector2(size.x * 0.5, BOARD_ORIGIN.y + board_size.y * 0.48)
+	var panel := Rect2(center + Vector2(-194.0 * pulse, -52.0 * pulse), Vector2(388.0 * pulse, 104.0 * pulse))
+	draw_rect(panel, Color(0.02, 0.05, 0.04, alpha * 0.42), true)
+	draw_rect(panel, Color(0.78, 0.94, 0.48, alpha * 0.5), false, 2.0)
+	ThemeLib.draw_label(self, ui_font, panel, intro_text, 42 if size.y >= 500 else 28, Color(0.96, 1.0, 0.78, alpha), HORIZONTAL_ALIGNMENT_CENTER, 10)
 
 
 func _has_zombie_ahead(row: int, plant_x: float, range_limit: float = 10000.0) -> bool:
@@ -22192,16 +22393,36 @@ func _draw_seed_selection_scene() -> void:
 		var slot_rect = _selection_slot_rect(i)
 		_draw_panel_shell(slot_rect, Color("d8e0c8"), Color(0.46, 0.34, 0.16), 0.08, 0.04)
 		if i < selection_cards.size():
-			_draw_selection_card(String(selection_cards[i]), slot_rect, true, false)
+			var slot_flight := _selection_card_flight_for_slot(i)
+			if slot_flight.is_empty():
+				_draw_selection_card(String(selection_cards[i]), slot_rect, true, false)
 		else:
 			ThemeLib.draw_label(self, ui_font, slot_rect, str(i + 1), 24, Color(0.46, 0.36, 0.22, 0.4), HORIZONTAL_ALIGNMENT_CENTER)
 
 	var zombie_kinds = _selection_zombie_kinds()
-	var chip_width = (zombie_panel_rect.size.x - 120.0) / maxf(1.0, zombie_kinds.size())
+	var zombie_columns := clampi(int(floor((zombie_panel_rect.size.x - 116.0) / 68.0)), 4, 9)
+	var zombie_rows := maxi(1, int(ceil(float(zombie_kinds.size()) / float(zombie_columns))))
+	var zombie_row_height: float = (zombie_panel_rect.size.y - 12.0 - float(maxi(zombie_rows - 1, 0)) * 4.0) / float(zombie_rows)
+	var chip_width: float = (zombie_panel_rect.size.x - 116.0 - float(maxi(zombie_columns - 1, 0)) * 5.0) / float(zombie_columns)
 	for i in range(zombie_kinds.size()):
-		var chip_rect = Rect2(zombie_panel_rect.position + Vector2(112.0 + i * chip_width, 6.0), Vector2(chip_width - 6.0, zombie_panel_rect.size.y - 12.0))
-		_draw_panel_shell(chip_rect, Color(0.87, 0.9, 0.84), Color(0.42, 0.35, 0.2), 0.05, 0.04)
-		ThemeLib.draw_label(self, ui_font, chip_rect.grow(-4), String(Defs.ZOMBIES[String(zombie_kinds[i])]["name"]), 15, Color(0.22, 0.16, 0.08), HORIZONTAL_ALIGNMENT_CENTER, 10)
+		var kind := String(zombie_kinds[i])
+		var zombie_col := i % zombie_columns
+		var zombie_row := int(floor(float(i) / float(zombie_columns)))
+		var chip_rect := Rect2(
+			zombie_panel_rect.position + Vector2(106.0 + zombie_col * (chip_width + 5.0), 6.0 + zombie_row * (zombie_row_height + 4.0)),
+			Vector2(chip_width, zombie_row_height)
+		)
+		var entry := _selection_zombie_entry_progress(i)
+		var eased_entry := _ease_out_back(entry)
+		var slide_offset := (1.0 - eased_entry) * minf(120.0, chip_width + 36.0)
+		var entry_rect := chip_rect
+		entry_rect.position.x -= slide_offset
+		var entry_alpha := clampf(entry * 1.7, 0.0, 1.0)
+		_draw_panel_shell(entry_rect, Color(0.87, 0.9, 0.84, 0.96 * entry_alpha), Color(0.42, 0.35, 0.2, 0.78 * entry_alpha), 0.05, 0.04)
+		var compact_icon_scale: float = clampf(minf(0.58, minf(entry_rect.size.x / 104.0, entry_rect.size.y / 82.0)), 0.28, 0.58)
+		var icon_center := entry_rect.position + Vector2(entry_rect.size.x * 0.5, entry_rect.size.y * 0.38)
+		_draw_zombie_icon(kind, icon_center, compact_icon_scale * maxf(entry_alpha, 0.02))
+		ThemeLib.draw_label(self, ui_font, Rect2(entry_rect.position + Vector2(1.0, entry_rect.size.y * 0.62), Vector2(entry_rect.size.x - 2.0, maxf(12.0, entry_rect.size.y * 0.32))), String(Defs.ZOMBIES[kind]["name"]), 11 if not is_mobile else 9, Color(0.22, 0.16, 0.08, entry_alpha), HORIZONTAL_ALIGNMENT_CENTER, 10)
 
 	var pool_view_rect = _selection_pool_view_rect()
 	var pool_hover_rect = _selection_pool_hover_rect()
@@ -22235,6 +22456,8 @@ func _draw_seed_selection_scene() -> void:
 	_draw_fancy_button(preview_rect, "预览背景", Color(0.72, 0.86, 0.9), Color(0.28, 0.46, 0.52), 17)
 	_draw_fancy_button(back_rect, "返回难度" if current_level.has("touhou_difficulty") else "返回地图", back_color, Color(0.42, 0.3, 0.14), 18)
 	_draw_fancy_button(start_rect, "开始战斗", start_color, Color(0.22, 0.36, 0.12), 20)
+	for flight_variant in selection_card_flights:
+		_draw_selection_card_flight(Dictionary(flight_variant))
 	_draw_selection_background_preview_overlay()
 
 
@@ -22706,6 +22929,7 @@ func _draw_battle_scene() -> void:
 	_draw_coins()
 	_draw_plant_food_pickups()
 	_draw_effects()
+	_draw_battle_intro_overlay()
 	if touhou_danmaku != null:
 		touhou_danmaku.draw()
 	if keine_runtime != null:
@@ -25036,7 +25260,10 @@ func _draw_hover() -> void:
 		return
 	# The held plant follows the cursor, using the same procedural/SVG art as the board.
 	if selected_tool != "" and selected_tool != "shovel" and selected_tool != "plant_food":
-		_draw_card_icon(selected_tool, _pointer_local_position(), 0.85)
+		var held_center := hover_preview_position if hover_preview_initialized else _pointer_local_position()
+		var held_pulse := 0.5 + 0.5 * sin(ui_time * 6.0)
+		draw_circle(held_center + Vector2(0.0, 20.0), 28.0 + held_pulse * 3.0, Color(0.8, 1.0, 0.42, 0.08))
+		_draw_card_icon(selected_tool, held_center + Vector2(0.0, -8.0), 0.85)
 	if _is_minigame():
 		if minigame_runtime.help_open: return
 		if MinigameVisuals.draw_column_hover(self,minigame_runtime): return
@@ -25048,7 +25275,7 @@ func _draw_hover() -> void:
 			draw_circle(center, 34.0, Color(1.0, 0.92, 0.38, 0.14))
 			draw_circle(center, 30.0, Color(1.0, 0.9, 0.18, 0.7), false, 2.0)
 		return
-	var cell = _mouse_to_cell(_pointer_local_position())
+	var cell = hover_preview_cell if hover_preview_initialized else _mouse_to_cell(_pointer_local_position())
 	if cell.x == -1:
 		return
 
@@ -25069,7 +25296,9 @@ func _draw_hover() -> void:
 	draw_rect(rect, Color(1.0, 1.0, 1.0, 0.08), false, 2.0)
 
 	if selected_tool != "" and selected_tool != "shovel" and selected_tool != "plant_food" and _placement_error(selected_tool, cell.x, cell.y) == "":
-		_draw_plant_preview(selected_tool, _cell_center(cell.x, cell.y))
+		var preview_center := _cell_center(cell.x, cell.y)
+		var preview_alpha := 0.28 + 0.08 * (0.5 + 0.5 * sin(ui_time * 7.0))
+		_draw_plant_body(selected_tool, preview_center, _battle_unit_scale(), 0.0, preview_alpha)
 
 
 func _battle_unit_scale() -> float:
@@ -25857,6 +26086,17 @@ func _draw_effects() -> void:
 		# Elemental impact shapes take priority over the generic legacy hit texture.
 		if shape == "projectile_impact":
 			CombatDetails.impact(self, Vector2(effect.position), _effect_visual_radius(effect, ratio), ratio, effect_color, String(effect.get("impact_style", "leaf")))
+			continue
+		if shape == "plant_place":
+			var place_center := Vector2(effect["position"])
+			var place_ratio: float = 1.0 - ratio
+			var place_radius := float(effect.get("radius", 54.0)) * (0.38 + place_ratio * 0.72)
+			draw_circle(place_center, place_radius * 0.78, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.16))
+			draw_arc(place_center, place_radius, -PI * 0.18, PI * 1.82, 28, Color(effect_color.r, effect_color.g, effect_color.b, effect_color.a * 0.9), 2.4)
+			for spark_index in range(5):
+				var spark_angle := float(spark_index) * TAU / 5.0 + ui_time * 1.6
+				var spark_pos := place_center + Vector2(cos(spark_angle), sin(spark_angle)) * place_radius * 0.72
+				draw_circle(spark_pos, 2.4 * ratio + 1.0, Color(0.96, 1.0, 0.72, effect_color.a * 0.8))
 			continue
 		if _try_draw_image2_effect(shape, effect, ratio, effect_color):
 			continue
