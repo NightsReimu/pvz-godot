@@ -47,9 +47,16 @@ def main() -> int:
     records = json.loads(metadata_path.read_text(encoding="utf-8"))
     assert_true(len(records) == len(generator.BOSSES), "Touhou boss animation metadata should cover every boss")
     assert_true(
-        {record.get("source") for record in records} == {"gpt-image-2_sheet"},
-        "Touhou boss animation metadata should prove all frames came from gpt-image-2",
+        {record.get("source") for record in records} <= {
+            "gpt-image-2_sheet", "user_sheet_imagegen_background_extraction"
+        },
+        "Touhou boss animation metadata should identify its actual sheet source",
     )
+    supplied = [r for r in records if r.get("source") == "user_sheet_imagegen_background_extraction"]
+    assert_true(len(supplied) == 9, "Scarlet refresh should cover all nine supplied bosses")
+    for record in supplied:
+        assert_true((ROOT / record["source_sheet"]).exists(), "supplied cutout sheets must be preserved")
+        assert_true(len(record["runtime_source_slots"]) == 24, "runtime frames must map to individual supplied poses")
     return 0
 
 
