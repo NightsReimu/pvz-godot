@@ -63,7 +63,7 @@ def main() -> int:
     assert_true({r['kind'] for r in native_alpha} == {
         'wriggle_boss', 'mystia_boss', 'keine_boss', 'mokou_boss',
         'letty_boss', 'chen_boss', 'alice_boss', 'lily_white_boss',
-        'youmu_boss', 'yuyuko_boss', 'ran_boss', 'yukari_boss',
+        'youmu_boss', 'yuyuko_boss', 'ran_boss', 'yukari_boss', 'prismriver_boss',
     }, "the Imperishable and Cherry transparent supplied sheets must be attributed to their actual source")
     for record in native_alpha:
         assert_true(record['source_sha256'] == record['original_sha256'], "the supplied alpha sheets must not be regenerated")

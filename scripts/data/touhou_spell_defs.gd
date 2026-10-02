@@ -89,6 +89,8 @@ const CARDS := {
 	"prismriver_boss": [
 		["th07-046", "骚符「Phantom Dinning」", "phantom_dinning", "phantom_dinning"],
 		["th07-050", "弦奏「Guarneri del Gesù」", "guarneri", "lunasa"],
+		["th07-054", "管灵「Hino Phantasm」", "hino_phantasm", "merlin"],
+		["th07-058", "冥键「Fazioli冥奏」", "fazioli", "lyrica"],
 		["th07-062", "合葬「Prism Concerto」", "prism_concerto", "concerto"],
 		["th07-066", "大合葬「灵车大协奏曲」", "concerto_grosso", "live_poltergeist"],
 	],
@@ -236,6 +238,8 @@ static func card_from_entry(entry: Array) -> Dictionary:
 
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind == "prismriver_boss":
+		return CARDS[kind].map(func(entry): return Difficulty.spell_variant(kind, level, entry))
 	if kind in ["hakutaku_boss", "mokou_boss"]:
 		return Mokou.cards(kind)
 	if kind == "kaguya_boss":

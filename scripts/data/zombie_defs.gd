@@ -925,7 +925,7 @@ const ZOMBIES: Dictionary = {
 		"boss": true,
 		"reward": 560,
 		"hover_shift_interval": 2.9,
-		"skill_cycle_length": 4,
+		"skill_cycle_length": 6,
 		"skill_interval_base": 7.0,
 		"skill_interval_phase_scale": 0.44,
 		"skill_interval_min": 5.0,

@@ -60,6 +60,216 @@
       "mode": "RGBA",
       "sha256": "f09102980c750100ecf3328c076ae42504b7b2520b426ef1ca8f62bb23ccc777",
       "alpha_sha256": "0b0cde8707833969112f34bebc9ef8430729f8b6ede0a3310ea3e1c5fb77ea68"
+    },
+    "darkness_veil": {
+      "path": "art/touhou_spell_fx/darkness_veil.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "b1dd7cfd662a8c5d2aaced663c3a2a2b6c79ac6475afa284d4125d8ba86b4c9e",
+      "alpha_sha256": "d2f42140117c8556003980cac6b2fdfa27357b69c8499a90969d16d695a3b489"
+    },
+    "fairy_garden": {
+      "path": "art/touhou_spell_fx/fairy_garden.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "0fb81af3040cb254baf2ca647e7d5b694cfbd1fbeba9f67f410f560fb28675b9",
+      "alpha_sha256": "ebe15e6be46c85d451ff6dc138b2befee87c599c63d132bfa2be6e37d7a68b70"
+    },
+    "rainbow_dragon": {
+      "path": "art/touhou_spell_fx/rainbow_dragon.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "077ff9ba199621b2383c33af58a5774832ad18fa36656bc28f8a2a8104c742c0",
+      "alpha_sha256": "5b88d6d861e68079deda098a5effbb2b9ff4bcbcaa75cd99c4ddecdb78c0c0ff"
+    },
+    "library_bats": {
+      "path": "art/touhou_spell_fx/library_bats.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "f09c29f38ceca5c1c3352fb611985ee11dab95d5e6d61584f6a3fa5387b519d8",
+      "alpha_sha256": "6f7bc67148242cda00f27d2e84af50c8f445a6ad781f28b035d0ecb9dc0608b3"
+    },
+    "seven_elements": {
+      "path": "art/touhou_spell_fx/seven_elements.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "7b78418a223ed9af7b2ad76867e46fd55b88812d32a9a9c4fd69e3acef40035c",
+      "alpha_sha256": "43172d58147af32268b8255a8e25df32f555815845eb722ee9bb58bbb9345d08"
+    },
+    "clock_knives": {
+      "path": "art/touhou_spell_fx/clock_knives.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "9d889720e4b5d7511d30a21d5d7ba283048df4d5bc80f99838bda5e5259ff271",
+      "alpha_sha256": "32569f53f2a460e795ad9b917407b1d7f613d9c5dd6628308d7e3cd898d6f40f"
+    },
+    "scarlet_lance": {
+      "path": "art/touhou_spell_fx/scarlet_lance.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "df034697d7649bf78e1ab79aec1cdbb761d03ef92bea799423244cee714e708e",
+      "alpha_sha256": "79680195ed4167e27f0abad5d8d6450a5064e07233a35a74c3c48221ba9a23f5"
+    },
+    "doll_threads": {
+      "path": "art/touhou_spell_fx/doll_threads.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "83b557b15aa866ff9569974be89d24bb45ff0c40c23c563550df43f929ecd2e5",
+      "alpha_sha256": "0ec37fca232c6a92ed7b0235b32390c952eedcf17a7ae0a7154505c1953cc026"
+    },
+    "spring_blossom": {
+      "path": "art/touhou_spell_fx/spring_blossom.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "1cceec4801cf4305c131a456126a859125770ecac404e18a6e9dc452c46709ec",
+      "alpha_sha256": "34e8c13e080a33bf8e1eb9c77f339c2aaf8d322cfa6b8f73f445587b2b41c5bc"
+    },
+    "violin_resonance": {
+      "path": "art/touhou_spell_fx/violin_resonance.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "718f9e3e68e60e825a691c164ef34270805c20cdb8f843ff79a51159d140b375",
+      "alpha_sha256": "5589fcae231d99eb7e575be648a085422e5a7135fbcf6220fba3f6e1d5954c1b"
+    },
+    "trumpet_resonance": {
+      "path": "art/touhou_spell_fx/trumpet_resonance.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "e6bd6313504ca39b32c51a6f2380d5a2445827c18aa1bc7c1cf541d48b4cf750",
+      "alpha_sha256": "f38cf7378748f193134683649de871f20ca1b300803680f80804f8ad71ee696e"
+    },
+    "keyboard_resonance": {
+      "path": "art/touhou_spell_fx/keyboard_resonance.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "50a2461bdeaa7158b9c22121681feef3fee2955a8a5507152602a1d04c463a12",
+      "alpha_sha256": "3fa21d4c5ec6f1846fc181d2cd59022c719d305e2466f6f21432dee65246b525"
+    },
+    "fox_seals": {
+      "path": "art/touhou_spell_fx/fox_seals.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "240601ddd307d56a4ff54782f840cdaa349444f2ebed87507487fc663b0ad33a",
+      "alpha_sha256": "d05e6cb5ec87b94ce576e75a5a913aae64b77779cb0eb07ce9d27228b49eb28b"
+    },
+    "firefly_swarm": {
+      "path": "art/touhou_spell_fx/firefly_swarm.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "4c399bb28a950bbd89bebd1ba0424334f37c3c2911ff6732c4b544bb56d6b308",
+      "alpha_sha256": "562ce40499f50ff75a0c4e8b5fae64619a0dae498f5b71b3781b8ad02ac08cbe"
+    },
+    "nightbird_song": {
+      "path": "art/touhou_spell_fx/nightbird_song.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "67a1c4858491aa649a390df42f3e8985f882015fa7284311a87f1295dee08ae6",
+      "alpha_sha256": "ccb7f143cfe390045d033c37bb00fed8d5550fba03b58860d59a3dd7359d3e8e"
+    },
+    "history_scroll": {
+      "path": "art/touhou_spell_fx/history_scroll.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "2c2f20fa103098dadabc06977dd2ac55ad1089a4cb7daac60b34b3023c7a0785",
+      "alpha_sha256": "e63eda2e421d37cbd2c4da5d224f08e5269bb25fecb4736fd9a533e6b1d0860d"
+    },
+    "hakutaku_history": {
+      "path": "art/touhou_spell_fx/hakutaku_history.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "2252dbdb022783cb2f9d5f2819996245579fa220a9e911d0d0707e1a327cde16",
+      "alpha_sha256": "fcb19f726c2ddc36583b141eac2293fe77b537c83ac27f804423abc09c428139"
+    },
+    "lucky_clover": {
+      "path": "art/touhou_spell_fx/lucky_clover.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "00b5b4cfdb909835eb39dd16add16324c6ea89aafdfeec86b2b0cb1c671cdf74",
+      "alpha_sha256": "bc63948bc2d8eda07f1a7aa4b8557699e953d1ef766b2fe821dc6ddb2e85dbd5"
+    },
+    "lunar_illusion": {
+      "path": "art/touhou_spell_fx/lunar_illusion.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "1670c398b72e6f60d12ead574f7a5dce3bd9c696ff34ac196648ff3ccd97ab0b",
+      "alpha_sha256": "dea11e215ea79e0111cc1ed4bc6c100f7a02eb9625a2c3b4f741e23557db029d"
+    },
+    "moon_medicine": {
+      "path": "art/touhou_spell_fx/moon_medicine.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "071e302d98aae466d3338255e994adbe9aca13f8401dce0f71c7f9176f6bc921",
+      "alpha_sha256": "e06d1780a55a2a89250835a0f270c610b8138f0f113987ea35d5b4385c95d96d"
+    },
+    "five_treasures": {
+      "path": "art/touhou_spell_fx/five_treasures.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "4b58f5200e50ff10cdcb15fff8a2797dcb9c9c004c640e27926b18ef325f893d",
+      "alpha_sha256": "6053c5d736d0647e5a4dc9c91aac771810da0b719bb6eb9647cbc87a70a56ce9"
     }
   }
 }

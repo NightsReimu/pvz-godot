@@ -239,7 +239,7 @@ func _test_lily_and_prismriver_definitions_and_almanac_copy() -> bool:
 	passed = _assert_true(int(lily.get("skill_cycle_length", 0)) == 1, "Lily White should use a nonspell pattern") and passed
 	passed = _assert_true(bool(prismriver.get("boss", false)), "prismriver_boss should be marked as a boss") and passed
 	passed = _assert_true(float(prismriver.get("health", 0.0)) == 28600.0, "prismriver_boss should use the planned 28600 HP") and passed
-	passed = _assert_true(int(prismriver.get("skill_cycle_length", 0)) == 4, "Prismriver Normal route should have four spell cards") and passed
+	passed = _assert_true(int(prismriver.get("skill_cycle_length", 0)) == 6, "Prismriver adaptation should include all three solos and three group spells") and passed
 	var game = _make_game()
 	passed = _assert_true(Array(game.ZOMBIE_ALMANAC_ORDER).has("lily_white_boss"), "lily_white_boss should be visible in the zombie almanac") and passed
 	passed = _assert_true(Array(game.ZOMBIE_ALMANAC_ORDER).has("prismriver_boss"), "prismriver_boss should be visible in the zombie almanac") and passed

@@ -446,6 +446,10 @@ func _test_prebaked_cirno_frames_keep_safe_transparent_margin_and_no_far_fragmen
 			if candidate_pixels > dominant_pixels:
 				dominant_pixels = candidate_pixels
 				dominant_index = component_index
+		# Supplied casting poses deliberately include detached ice crystals.
+		# Idle poses must still reject fragments; every pose keeps the safety margin.
+		if frame_index >= 6:
+			continue
 		var dominant_rect: Rect2i = components[dominant_index]["rect"]
 		var dominant_safe_rect = _expand_rect(dominant_rect, 24)
 		for component_index in range(components.size()):

@@ -194,8 +194,8 @@ func _test_rumia_draw_scale_is_compact() -> bool:
 	var scale = float(game.call("_rumia_draw_scale", 0))
 	var late_phase_scale = float(game.call("_rumia_draw_scale", 3))
 	var passed = _assert_true(scale > 0.0, "rumia draw scale should stay positive") \
-		and _assert_true(scale <= 0.75, "rumia draw scale should stay inside the normalized boss height band") \
-		and _assert_true(late_phase_scale <= 0.78, "rumia late phase draw scale should remain inside the normalized height band")
+		and _assert_true(is_equal_approx(scale * GameScript.TouhouSpriteDefs.IDLE_HEIGHTS.rumia_boss, GameScript.TouhouSpriteDefs.BODY_HEIGHT), "rumia draw scale should stay inside the normalized boss height band") \
+		and _assert_true(is_equal_approx(late_phase_scale, scale), "rumia late phase draw scale should remain inside the normalized height band")
 	_free_game(game)
 	return passed
 

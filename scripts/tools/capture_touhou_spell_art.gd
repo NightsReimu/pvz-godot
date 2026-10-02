@@ -4,12 +4,18 @@ const Art = preload("res://scripts/ui/touhou_spell_art.gd")
 var failures := 0
 
 func _run() -> void:
-	var directory := "res://output/touhou-spell-art/native"
+	var directory := "res://output/touhou-spell-art/v156-native"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
 	root.mode = Window.MODE_WINDOWED
 	for viewport in [Vector2i(1600, 900), Vector2i(844, 390)]:
-		for spec in [["reimu_boss", 0], ["marisa_boss", 3], ["cirno_boss", 1], ["yuyuko_boss", 0], ["mokou_boss", 7], ["yukari_boss", 7]]:
+		var specs: Array = []
+		for kind in Art.KIND_ART:
+			specs.append([kind, 0])
+		for cycle in [1, 2, 3, 5]:
+			specs.append(["prismriver_boss", cycle])
+		for spec in specs:
 			var kind: String = spec[0]
+			var capture_name := "%s-card%d" % [kind, int(spec[1])]
 			var surface := SubViewport.new()
 			surface.size = viewport
 			surface.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -19,7 +25,11 @@ func _run() -> void:
 			game.mobile_runtime_override = 1 if viewport.y < 600 else 0
 			surface.add_child(game)
 			game.set_process_unhandled_input(false)
-			var id := "3-25" if kind == "mokou_boss" else ("3-22-b" if kind == "marisa_boss" else "3-22-a")
+			var id := "3-22-a"
+			for configured in GameScript.Defs.LEVELS:
+				if configured.get("events", []).any(func(event): return String(event.get("kind", "")) == kind) or String(configured.get("mid_boss_kind", "")) == kind:
+					id = String(configured.id)
+					break
 			var level: Dictionary = GameScript.Defs.LEVELS[game._find_level_index_by_id(id)].duplicate(true)
 			level.events = [{"time": 99999.0, "kind": kind, "row": 2}]
 			level.erase("mid_boss_kind")
@@ -42,7 +52,7 @@ func _run() -> void:
 			boss.hover_shift_timer = 100.0
 			boss.boss_cast_pending = true
 			boss.boss_skill_timer = game.ZombieRuntime.BOSS_WINDUP * 0.35
-			await _capture_art(game, surface, directory, "%s-%dx%d-windup" % [kind, viewport.x, viewport.y])
+			await _capture_art(game, surface, directory, "%s-%dx%d-windup" % [capture_name, viewport.x, viewport.y])
 			boss.boss_cast_pending = false
 			game.zombies[0] = game._trigger_boss_skill(boss)
 			if game.touhou_danmaku.casts.is_empty() or Art.state(game.touhou_danmaku.casts[0]).is_empty():
@@ -53,13 +63,15 @@ func _run() -> void:
 				while previous + 0.0001 < age:
 					var delta := minf(1.0 / 60.0, age - previous)
 					game.level_time += delta
+					if kind == "prismriver_boss":
+						game.zombies[0] = game._update_prismriver_hovering_boss(game.zombies[0], delta)
 					game.touhou_danmaku.update(delta)
 					if game.reimu_runtime != null: game.reimu_runtime.update(delta)
 					if game.marisa_runtime != null: game.marisa_runtime.update(delta)
 					if game.mokou_runtime != null: game.mokou_runtime.update(delta)
 					game._update_effects(delta)
 					previous += delta
-				await _capture_art(game, surface, directory, "%s-%dx%d-%.2f" % [kind, viewport.x, viewport.y, age])
+				await _capture_art(game, surface, directory, "%s-%dx%d-%.2f" % [capture_name, viewport.x, viewport.y, age])
 			game.save_dirty = false
 			surface.free()
 	print("Native spell art and read-only draw passes: %d failure(s)" % failures)

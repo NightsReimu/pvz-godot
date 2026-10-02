@@ -491,9 +491,9 @@ func has_any_enemy_zombie() -> bool:
 
 func has_zombie_behind(row: int, plant_x: float, range_limit: float = 10000.0) -> bool:
 	for zombie in game.zombies:
-		if int(zombie["row"]) != row or not game._is_enemy_zombie(zombie) or game._is_hidden_from_lane_attacks(zombie):
+		if not game._zombie_has_row(zombie, row) or not game._is_enemy_zombie(zombie) or game._is_hidden_from_lane_attacks(zombie):
 			continue
-		var distance = plant_x - float(zombie["x"])
+		var distance = plant_x - game._zombie_lane_x(zombie, row)
 		if distance > 8.0 and distance <= range_limit:
 			return true
 	return false
@@ -501,11 +501,11 @@ func has_zombie_behind(row: int, plant_x: float, range_limit: float = 10000.0) -
 
 func has_balloon_target_ahead(row: int, plant_x: float, range_limit: float = 10000.0) -> bool:
 	for zombie in game.zombies:
-		if int(zombie["row"]) != row or not game._is_enemy_zombie(zombie):
+		if not game._zombie_has_row(zombie, row) or not game._is_enemy_zombie(zombie):
 			continue
 		if not bool(zombie.get("balloon_flying", false)):
 			continue
-		var distance = float(zombie["x"]) - plant_x
+		var distance = game._zombie_lane_x(zombie, row) - plant_x
 		if distance > 8.0 and distance <= range_limit:
 			return true
 	return false
@@ -516,15 +516,15 @@ func find_lane_or_air_target(row: int, plant_x: float, range_limit: float) -> in
 	var best_distance := 999999.0
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
+		if not game._zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
 			continue
 		var balloon = bool(zombie.get("balloon_flying", false))
 		if game._is_hidden_from_lane_attacks(zombie) and not balloon:
 			continue
-		var distance = float(zombie["x"]) - plant_x
+		var distance = game._zombie_lane_x(zombie, row) - plant_x
 		if distance < -8.0 or distance > range_limit:
 			continue
-		if not balloon and game._is_roof_direct_fire_blocked(plant_x, float(zombie["x"])):
+		if not balloon and game._is_roof_direct_fire_blocked(plant_x, game._zombie_lane_x(zombie, row)):
 			continue
 		if distance < best_distance:
 			best_distance = distance
@@ -544,12 +544,12 @@ func find_magic_flower_target(row: int, plant_x: float, range_limit: float) -> i
 	var behind_x := -999999.0
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
+		if not game._zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
 			continue
 		var balloon = bool(zombie.get("balloon_flying", false))
 		if game._is_hidden_from_lane_attacks(zombie) and not balloon:
 			continue
-		var zombie_x = float(zombie["x"])
+		var zombie_x = game._zombie_lane_x(zombie, row)
 		var distance = zombie_x - plant_x
 		if distance >= -8.0:
 			if zombie_x > ahead_x:
@@ -751,7 +751,7 @@ func update_magnet_shroom(plant: Dictionary, delta: float, row: int, col: int) -
 		var zombie = game.zombies[i]
 		if not game._is_enemy_zombie(zombie):
 			continue
-		if center.distance_to(Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))) > radius:
+		if center.distance_to(game._zombie_target_point(zombie, center)) > radius:
 			continue
 		if not can_magnet_strip(zombie):
 			continue
@@ -805,7 +805,7 @@ func update_amber_shooter(plant: Dictionary, delta: float, row: int, col: int) -
 			var burst_position = center + Vector2(game.board_size.x * 0.42, -8.0)
 			if target_index != -1:
 				var target = game.zombies[target_index]
-				burst_position = Vector2(float(target["x"]), game._row_center_y(int(target["row"])) - 8.0)
+				burst_position = game._zombie_target_point(target, center) + Vector2(0, -8.0)
 			game.effects.append({
 				"shape": "amber_prism_burst",
 				"position": burst_position,
@@ -870,7 +870,7 @@ func update_cabbage_pult(plant: Dictionary, delta: float, row: int, col: int) ->
 			var barrage_target = game._find_throw_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
 			if barrage_target != -1:
 				var barrage_zombie = game.zombies[barrage_target]
-				spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), Vector2(float(barrage_zombie["x"]), game._row_center_y(int(barrage_zombie["row"])) - 8.0), float(Defs.PLANTS["cabbage_pult"]["damage"]) * 1.25, Color(0.56, 0.92, 0.34), 68.0, 10.0, 0.0, 0.0, "cabbage_pult")
+				spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), game._zombie_lane_point(barrage_zombie, row) + Vector2(0, -8.0), float(Defs.PLANTS["cabbage_pult"]["damage"]) * 1.25, Color(0.56, 0.92, 0.34), 68.0, 10.0, 0.0, 0.0, "cabbage_pult")
 				plant["flash"] = maxf(float(plant["flash"]), 0.16)
 				game._trigger_plant_action(plant, 0.16)
 			plant["plant_food_interval"] += 0.18
@@ -882,7 +882,7 @@ func update_cabbage_pult(plant: Dictionary, delta: float, row: int, col: int) ->
 	if target_index == -1:
 		return
 	var zombie = game.zombies[target_index]
-	spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["cabbage_pult"]["damage"]), Color(0.56, 0.92, 0.34), 66.0, 10.0, 0.0, 0.0, "cabbage_pult")
+	spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), game._zombie_lane_point(zombie, row) + Vector2(0, -8.0), float(Defs.PLANTS["cabbage_pult"]["damage"]), Color(0.56, 0.92, 0.34), 66.0, 10.0, 0.0, 0.0, "cabbage_pult")
 	plant["shot_cooldown"] = float(Defs.PLANTS["cabbage_pult"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
 
@@ -897,7 +897,7 @@ func update_kernel_pult(plant: Dictionary, delta: float, row: int, col: int) -> 
 			var barrage_target = game._find_throw_lane_target(row, center.x, game.board_size.x + game.CELL_SIZE.x)
 			if barrage_target != -1:
 				var barrage_zombie = game.zombies[barrage_target]
-				spawn_roof_lobbed_projectile("butter", row, center + Vector2(14.0, -26.0), Vector2(float(barrage_zombie["x"]), game._row_center_y(int(barrage_zombie["row"])) - 6.0), float(Defs.PLANTS["kernel_pult"]["damage"]) * 1.2, Color(1.0, 0.92, 0.42), 64.0, 10.0, 0.0, float(Defs.PLANTS["kernel_pult"]["butter_duration"]) + 1.4, "kernel_pult")
+				spawn_roof_lobbed_projectile("butter", row, center + Vector2(14.0, -26.0), game._zombie_lane_point(barrage_zombie, row) + Vector2(0, -6.0), float(Defs.PLANTS["kernel_pult"]["damage"]) * 1.2, Color(1.0, 0.92, 0.42), 64.0, 10.0, 0.0, float(Defs.PLANTS["kernel_pult"]["butter_duration"]) + 1.4, "kernel_pult")
 				plant["flash"] = maxf(float(plant["flash"]), 0.16)
 				game._trigger_plant_action(plant, 0.16)
 			plant["plant_food_interval"] += 0.2
@@ -913,7 +913,7 @@ func update_kernel_pult(plant: Dictionary, delta: float, row: int, col: int) -> 
 	var projectile_kind = "butter" if game.rng.randf() <= butter_chance else "kernel"
 	var projectile_color = Color(1.0, 0.92, 0.42) if projectile_kind == "butter" else Color(0.98, 0.88, 0.34)
 	var butter_duration = float(Defs.PLANTS["kernel_pult"]["butter_duration"]) if projectile_kind == "butter" else 0.0
-	spawn_roof_lobbed_projectile(projectile_kind, row, center + Vector2(14.0, -26.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 6.0), float(Defs.PLANTS["kernel_pult"]["damage"]), projectile_color, 62.0, 10.0, 0.0, butter_duration, "kernel_pult")
+	spawn_roof_lobbed_projectile(projectile_kind, row, center + Vector2(14.0, -26.0), game._zombie_lane_point(zombie, row) + Vector2(0, -6.0), float(Defs.PLANTS["kernel_pult"]["damage"]), projectile_color, 62.0, 10.0, 0.0, butter_duration, "kernel_pult")
 	plant["shot_cooldown"] = float(Defs.PLANTS["kernel_pult"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
 
@@ -939,7 +939,7 @@ func update_melon_pult(plant: Dictionary, delta: float, row: int, col: int) -> v
 	if target_index == -1:
 		return
 	var zombie = game.zombies[target_index]
-	spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -34.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["melon_pult"]["damage"]), Color(0.42, 0.82, 0.26), 78.0, 14.0, float(Defs.PLANTS["melon_pult"]["splash_radius"]), 0.0, "melon_pult")
+	spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -34.0), game._zombie_lane_point(zombie, row) + Vector2(0, -8.0), float(Defs.PLANTS["melon_pult"]["damage"]), Color(0.42, 0.82, 0.26), 78.0, 14.0, float(Defs.PLANTS["melon_pult"]["splash_radius"]), 0.0, "melon_pult")
 	plant["shot_cooldown"] = float(Defs.PLANTS["melon_pult"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.24)
 
@@ -1100,7 +1100,7 @@ func update_chimney_pepper(plant: Dictionary, delta: float, row: int, col: int) 
 	if target_index == -1:
 		return
 	var zombie = game.zombies[target_index]
-	spawn_roof_lobbed_projectile("chimney_fire", row, center + Vector2(8.0, -38.0), Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0), float(Defs.PLANTS["chimney_pepper"]["damage"]), Color(1.0, 0.54, 0.22), 78.0, 11.0, float(Defs.PLANTS["chimney_pepper"]["splash_radius"]), 0.0, "chimney_pepper")
+	spawn_roof_lobbed_projectile("chimney_fire", row, center + Vector2(8.0, -38.0), game._zombie_lane_point(zombie, row) + Vector2(0, -8.0), float(Defs.PLANTS["chimney_pepper"]["damage"]), Color(1.0, 0.54, 0.22), 78.0, 11.0, float(Defs.PLANTS["chimney_pepper"]["splash_radius"]), 0.0, "chimney_pepper")
 	plant["shot_cooldown"] = float(Defs.PLANTS["chimney_pepper"]["shoot_interval"])
 	game._trigger_plant_action(plant, 0.22)
 
@@ -1151,7 +1151,7 @@ func update_signal_ivy(plant: Dictionary, delta: float, row: int, col: int) -> v
 		var zombie = game.zombies[i]
 		if not game._is_enemy_zombie(zombie):
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
+		var zombie_pos = game._zombie_target_point(zombie, center)
 		if zombie_pos.distance_to(center) > radius:
 			continue
 		zombie = game._apply_zombie_damage(zombie, damage, 0.12)
@@ -1196,9 +1196,9 @@ func update_roof_vane(plant: Dictionary, delta: float, row: int, col: int) -> vo
 		var lane = int(lane_variant)
 		for i in range(game.zombies.size()):
 			var zombie = game.zombies[i]
-			if int(zombie["row"]) != lane or not game._is_enemy_zombie(zombie):
+			if not game._zombie_has_row(zombie, lane) or not game._is_enemy_zombie(zombie):
 				continue
-			var zombie_pos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 10.0)
+			var zombie_pos = game._zombie_target_point(zombie, center) + Vector2(0, -10.0)
 			var lane_gust_center = Vector2(gust_center.x, game._row_center_y(lane) - 6.0)
 			var local = zombie_pos - lane_gust_center
 			if local.x < -gust_radius * 0.58 or local.x > gust_radius * 1.06:
@@ -1422,7 +1422,7 @@ func _apply_leyline_pulse(row: int, center: Vector2, damage: float, stun_duratio
 	var hit = game._damage_zombies_in_row_segment(row, game.BOARD_ORIGIN.x - 24.0, game.BOARD_ORIGIN.x + game.board_size.x + 24.0, damage)
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if int(zombie["row"]) != row or not game._is_enemy_zombie(zombie):
+		if not game._zombie_has_row(zombie, row) or not game._is_enemy_zombie(zombie):
 			continue
 		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), stun_duration)
 		game.zombies[i] = zombie
@@ -1965,7 +1965,7 @@ func _fire_orange_bloom(center: Vector2, row: int, damage: float, splash_radius:
 		return false
 	for target_index in targets:
 		var zombie = game.zombies[int(target_index)]
-		var impact = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 4.0)
+		var impact = game._zombie_target_point(zombie, center) + Vector2(0, -4.0)
 		game._damage_zombies_in_circle(impact, splash_radius, damage)
 		game._damage_obstacles_in_circle(impact, splash_radius * 0.76, damage * 0.65)
 	game.effects.append({
@@ -2011,7 +2011,7 @@ func _frontmost_enemy_indices(count: int, lane_filter: Array = []) -> Array:
 			continue
 		if bool(zombie.get("jumping", false)):
 			continue
-		if not lane_filter.is_empty() and not lane_filter.has(int(zombie.get("row", -1))):
+		if not lane_filter.is_empty() and not lane_filter.any(func(lane): return game._zombie_has_row(zombie, int(lane))):
 			continue
 		candidates.append({
 			"index": zombie_index,
@@ -2032,7 +2032,7 @@ func _sting_hive_target(origin: Vector2, target_index: int, damage: float, splas
 	var zombie = game.zombies[target_index]
 	if not game._is_enemy_zombie(zombie):
 		return false
-	var impact = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 12.0)
+	var impact = game._zombie_target_point(zombie, origin) + Vector2(0, -12.0)
 	game._damage_zombies_in_circle(impact, splash_radius, damage)
 	game.effects.append({
 		"shape": "storm_arc",
@@ -2134,12 +2134,12 @@ func _fire_chambord_shot(origin: Vector2, row: int, target_index: int, damage: f
 	var zombie = game.zombies[target_index]
 	if not game._is_enemy_zombie(zombie):
 		return false
-	var actual_damage = _chambord_damage(damage, float(zombie["x"]))
+	var actual_damage = _chambord_damage(damage, game._zombie_lane_x(zombie, row))
 	game.zombies[target_index] = game._apply_zombie_damage(zombie, actual_damage, 0.2)
 	game.effects.append({
 		"shape": "chambord_rail",
 		"position": origin,
-		"length": maxf(0.0, float(zombie["x"]) - origin.x),
+		"length": maxf(0.0, game._zombie_lane_x(zombie, row) - origin.x),
 		"width": 10.0,
 		"radius": game.board_size.x,
 		"time": 0.18,
@@ -2385,7 +2385,7 @@ func apply_mist_bloom_splash(center: Vector2, projectile: Dictionary, main_uid: 
 				zombie["revealed_timer"] = maxf(float(zombie.get("revealed_timer", 0.0)), reveal_duration)
 				game.zombies[i] = zombie
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
+		var zombie_pos = game._zombie_target_point(zombie, center)
 		if zombie_pos.distance_to(center) > radius:
 			continue
 		zombie = game._apply_zombie_damage(zombie, splash_damage, 0.14, slow_duration)
@@ -2509,9 +2509,9 @@ func emit_glowvine_burst(center: Vector2, origin_row: int, damage: float) -> voi
 		var zombie = game.zombies[i]
 		if not game._is_enemy_zombie(zombie):
 			continue
-		if abs(int(zombie["row"]) - origin_row) > 1:
+		if abs(game._zombie_target_row(zombie, center) - origin_row) > 1:
 			continue
-		var zombie_center = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
+		var zombie_center = game._zombie_target_point(zombie, center)
 		if zombie_center.distance_to(center) > 96.0:
 			continue
 		zombie = game._apply_zombie_damage(zombie, damage, 0.14)
@@ -2759,9 +2759,9 @@ func find_squash_target(row: int, center_x: float, range_limit: float) -> int:
 	var best_distance := 999999.0
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
+		if not game._zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
 			continue
-		var distance = absf(float(zombie["x"]) - center_x)
+		var distance = absf(game._zombie_lane_x(zombie, row) - center_x)
 		if distance > range_limit:
 			continue
 		if distance < best_distance:
@@ -2813,8 +2813,8 @@ func update_squash(plant: Dictionary, row: int, col: int, delta: float = 0.0) ->
 		plant["special_state"] = "windup"
 		plant["special_duration"] = 0.18
 		plant["special_timer"] = 0.18
-		plant["attack_target_x"] = float(target["x"])
-		plant["attack_target_row"] = int(target["row"])
+		plant["attack_target_x"] = game._zombie_lane_x(target, row)
+		plant["attack_target_row"] = row
 		plant["attack_has_hit"] = false
 		plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.14)
 		game._trigger_plant_action(plant, 0.22)
@@ -2849,9 +2849,9 @@ func find_kelp_target(row: int, center_x: float) -> int:
 	var best_distance := 999999.0
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
+		if not game._zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
 			continue
-		var distance = absf(float(zombie["x"]) - center_x)
+		var distance = absf(game._zombie_lane_x(zombie, row) - center_x)
 		if distance > float(Defs.PLANTS["tangle_kelp"]["range"]):
 			continue
 		if distance < best_distance:
@@ -2870,7 +2870,7 @@ func update_tangle_kelp(_plant: Dictionary, row: int, col: int) -> bool:
 	zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.45)
 	game.zombies[target_index] = zombie
 	game.effects.append({
-		"position": Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) + 18.0),
+		"position": game._zombie_target_point(zombie, center) + Vector2(0, 18.0),
 		"radius": 68.0,
 		"time": 0.32,
 		"duration": 0.32,
@@ -2887,9 +2887,9 @@ func update_spikeweed(plant: Dictionary, delta: float, row: int, col: int) -> vo
 	var hit := false
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
+		if not game._zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
 			continue
-		if absf(float(zombie["x"]) - center_x) > 42.0:
+		if absf(game._zombie_lane_x(zombie, row) - center_x) > 42.0:
 			continue
 		zombie = game._apply_zombie_damage(zombie, float(Defs.PLANTS["spikeweed"]["contact_damage"]), 0.1)
 		game.zombies[i] = zombie
@@ -2965,7 +2965,7 @@ func update_pepper_mortar(plant: Dictionary, delta: float, row: int, col: int) -
 		game._damage_obstacles_in_radius(row, obstacle_x, 14.0, damage)
 	else:
 		var zombie = game.zombies[target_index]
-		beam_target = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 10.0)
+		beam_target = game._zombie_target_point(zombie, center) + Vector2(0, -10.0)
 		zombie = game._apply_zombie_damage(zombie, damage, 0.18)
 		game.zombies[target_index] = zombie
 	game.effects.append({
@@ -3055,9 +3055,9 @@ func update_fume_shroom(plant: Dictionary, delta: float, row: int, col: int) -> 
 			var burst_hit := false
 			for i in range(game.zombies.size()):
 				var zombie = game.zombies[i]
-				if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
+				if not game._zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
 					continue
-				var distance = float(zombie["x"]) - burst_center.x
+				var distance = game._zombie_lane_x(zombie, row) - burst_center.x
 				if distance < -20.0 or distance > burst_range:
 					continue
 				zombie = game._apply_zombie_damage(zombie, burst_damage, 0.16, 0.0, false, true)
@@ -3090,9 +3090,9 @@ func update_fume_shroom(plant: Dictionary, delta: float, row: int, col: int) -> 
 	var hit := false
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
+		if not game._zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not game._is_enemy_zombie(zombie):
 			continue
-		var distance = float(zombie["x"]) - center.x
+		var distance = game._zombie_lane_x(zombie, row) - center.x
 		if distance < -20.0 or distance > range_limit:
 			continue
 		zombie = game._apply_zombie_damage(zombie, damage, 0.14, 0.0, true)
@@ -3323,7 +3323,7 @@ func update_wind_orchid(plant: Dictionary, delta: float, row: int, col: int) -> 
 	var center = game._cell_center(row, col)
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if int(zombie["row"]) != row:
+		if not game._zombie_has_row(zombie, row):
 			continue
 		zombie["x"] += float(Defs.PLANTS["wind_orchid"]["push_distance"])
 		zombie["flash"] = 0.1
@@ -3544,7 +3544,7 @@ func update_dragon_fruit(plant: Dictionary, delta: float, row: int, col: int) ->
 		hit = game._damage_zombies_in_row_segment(lane, center.x + 10.0, center.x + range_limit, float(Defs.PLANTS["dragon_fruit"]["damage"]) * game._plant_enhance_multiplier_at_cell(row, col), 0.8) or hit
 		for zombie_index in game._find_closest_zombies_in_radius(Vector2(center.x + range_limit * 0.45, game._row_center_y(lane)), range_limit * 0.5, 6):
 			var zombie = game.zombies[zombie_index]
-			if int(zombie["row"]) != lane or float(zombie["x"]) < center.x:
+			if not game._zombie_has_row(zombie, lane) or game._zombie_lane_x(zombie, lane) < center.x:
 				continue
 			zombie["corrode_timer"] = maxf(float(zombie.get("corrode_timer", 0.0)), burn_duration)
 			zombie["corrode_dps"] = maxf(float(zombie.get("corrode_dps", 0.0)), burn_damage)
@@ -3626,8 +3626,8 @@ func update_void_shroom(plant: Dictionary, delta: float, row: int, col: int) -> 
 	for zombie_index in game._find_closest_zombies_in_radius(center, radius, 8):
 		var zombie = game.zombies[zombie_index]
 		zombie = game._apply_zombie_damage(zombie, float(Defs.PLANTS["void_shroom"]["damage"]) * game._plant_enhance_multiplier_at_cell(row, col), 0.12)
-		var direction = signf(float(zombie["x"]) - center.x)
-		zombie["x"] -= direction * minf(absf(float(zombie["x"]) - center.x), strength)
+		var direction = signf(game._zombie_target_point(zombie, center).x - center.x)
+		zombie["x"] -= direction * minf(absf(game._zombie_target_point(zombie, center).x - center.x), strength)
 		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.12)
 		game.zombies[zombie_index] = zombie
 		hit = true
@@ -3799,9 +3799,9 @@ func update_thorn_cactus(plant: Dictionary, delta: float, row: int, col: int) ->
 	var found := false
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if not game._is_enemy_zombie(zombie) or int(zombie["row"]) != row:
+		if not game._is_enemy_zombie(zombie) or not game._zombie_has_row(zombie, row):
 			continue
-		var dist = float(zombie["x"]) - center.x
+		var dist = game._zombie_lane_x(zombie, row) - center.x
 		if dist > 0.0 and dist < range_dist:
 			game.zombies[i] = game._apply_zombie_damage(zombie, float(data["damage"]) * game._plant_enhance_multiplier_at_cell(row, col), 0.1, 0.0)
 			found = true
@@ -3943,9 +3943,9 @@ func update_honey_blossom(plant: Dictionary, delta: float, row: int, col: int) -
 		plant["honey_timer"] = float(Defs.PLANTS["honey_blossom"]["honey_refresh"])
 		for i in range(game.zombies.size()):
 			var zombie = game.zombies[i]
-			if not game._is_enemy_zombie(zombie) or int(zombie["row"]) != row:
+			if not game._is_enemy_zombie(zombie) or not game._zombie_has_row(zombie, row):
 				continue
-			var zpos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
+			var zpos = game._zombie_target_point(zombie, center)
 			if zpos.distance_to(center) < 98.0:
 				game.zombies[i] = game._apply_zombie_slow(zombie,
 					float(Defs.PLANTS["honey_blossom"]["slow_ratio"]),
@@ -3987,7 +3987,7 @@ func update_glow_ivy(plant: Dictionary, delta: float, row: int, col: int) -> voi
 	var hit := false
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if not game._is_enemy_zombie(zombie) or int(zombie["row"]) != row:
+		if not game._is_enemy_zombie(zombie) or not game._zombie_has_row(zombie, row):
 			continue
 		game.zombies[i] = game._apply_zombie_damage(zombie, float(data["damage"]) * game._plant_enhance_multiplier_at_cell(row, col), 0.08, 0.0)
 		game.zombies[i]["revealed_timer"] = maxf(float(game.zombies[i].get("revealed_timer",0.0)), 3.0)
@@ -4083,7 +4083,7 @@ func update_blast_pomegranate(plant: Dictionary, delta: float, row: int, col: in
 		return
 	var data = Defs.PLANTS["blast_pomegranate"]
 	var target_zombie = game.zombies[target]
-	var impact = Vector2(float(target_zombie["x"]), game._row_center_y(int(target_zombie["row"])) - 8.0)
+	var impact = game._zombie_target_point(target_zombie, center) + Vector2(0, -8.0)
 	game._damage_zombies_in_circle(impact, float(data["splash_radius"]), float(data["damage"]) * game._plant_enhance_multiplier_at_cell(row, col))
 	var cluster_count = int(data["cluster_count"])
 	var cluster_r = float(data["cluster_radius"])
@@ -4111,7 +4111,7 @@ func update_frost_cypress(plant: Dictionary, delta: float, row: int, col: int) -
 		var zombie = game.zombies[i]
 		if not game._is_enemy_zombie(zombie):
 			continue
-		var zpos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
+		var zpos = game._zombie_target_point(zombie, center)
 		if zpos.distance_to(center) > radius:
 			continue
 		zombie = game._apply_zombie_slow(zombie, float(data["slow_ratio"]), 0.4)
@@ -4175,9 +4175,9 @@ func update_chain_lotus(plant: Dictionary, delta: float, row: int, col: int) -> 
 	var best_dist: float = melee_range
 	for i in range(game.zombies.size()):
 		var zombie = game.zombies[i]
-		if not game._is_enemy_zombie(zombie) or int(zombie["row"]) != row:
+		if not game._is_enemy_zombie(zombie) or not game._zombie_has_row(zombie, row):
 			continue
-		var dist = float(zombie["x"]) - center.x
+		var dist = game._zombie_lane_x(zombie, row) - center.x
 		if dist > 0.0 and dist < best_dist:
 			best_dist = dist
 			first_target = i
@@ -4188,7 +4188,7 @@ func update_chain_lotus(plant: Dictionary, delta: float, row: int, col: int) -> 
 	var decay = float(data["chain_decay"])
 	var cur_damage = float(data["damage"]) * game._plant_enhance_multiplier_at_cell(row, col)
 	var hit_indices := [first_target]
-	var last_pos = Vector2(float(game.zombies[first_target]["x"]), game._row_center_y(row))
+	var last_pos = game._zombie_lane_point(game.zombies[first_target], row)
 	game.zombies[first_target] = game._apply_zombie_damage(game.zombies[first_target], cur_damage, 0.12, 0.0)
 	game.effects.append({"position": last_pos, "radius": 36.0, "time": 0.16, "duration": 0.16, "color": Color(0.36, 0.86, 0.72, 0.32)})
 	for _chain in range(max_chains):
@@ -4201,7 +4201,7 @@ func update_chain_lotus(plant: Dictionary, delta: float, row: int, col: int) -> 
 			var zz = game.zombies[j]
 			if not game._is_enemy_zombie(zz):
 				continue
-			var zp = Vector2(float(zz["x"]), game._row_center_y(int(zz["row"])))
+			var zp = game._zombie_target_point(zz, center)
 			var d = zp.distance_to(last_pos)
 			if d < next_dist:
 				next_dist = d
@@ -4209,7 +4209,7 @@ func update_chain_lotus(plant: Dictionary, delta: float, row: int, col: int) -> 
 		if next_i == -1:
 			break
 		hit_indices.append(next_i)
-		last_pos = Vector2(float(game.zombies[next_i]["x"]), game._row_center_y(int(game.zombies[next_i]["row"])))
+		last_pos = game._zombie_target_point(game.zombies[next_i], last_pos)
 		game.zombies[next_i] = game._apply_zombie_damage(game.zombies[next_i], cur_damage, 0.1, 0.0)
 		game.effects.append({"position": last_pos, "radius": 28.0, "time": 0.14, "duration": 0.14, "color": Color(0.36, 0.86, 0.72, 0.28)})
 	game._trigger_plant_action(plant, 0.18)
@@ -4259,7 +4259,7 @@ func update_meteor_flower(plant: Dictionary, delta: float, row: int, col: int) -
 	var target_i = game._find_highest_hp_zombie_in_range(center, game.board_size.length() + game.CELL_SIZE.x)
 	if target_i < 0:
 		return
-	var target_pos = Vector2(float(game.zombies[target_i]["x"]), game._row_center_y(int(game.zombies[target_i]["row"])) - 14.0)
+	var target_pos = game._zombie_target_point(game.zombies[target_i], center) + Vector2(0, -14.0)
 	game.projectiles.append({
 		"kind": "meteor_flower",
 		"row": row,
@@ -4324,7 +4324,7 @@ func update_abyss_tentacle(plant: Dictionary, delta: float, row: int, col: int) 
 		var zombie = game.zombies[i]
 		if not game._is_enemy_zombie(zombie) or bool(zombie.get("grabbed", false)):
 			continue
-		var zpos = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])))
+		var zpos = game._zombie_target_point(zombie, center)
 		var dist = zpos.distance_to(center)
 		if dist < best_dist:
 			best_dist = dist
@@ -4465,7 +4465,7 @@ func update_chaos_shroom(plant: Dictionary, delta: float, row: int, col: int) ->
 			var target_i = damage_target
 			if target_i >= 0:
 				game.zombies[target_i] = game._apply_zombie_damage(game.zombies[target_i], 100.0 * game._plant_enhance_multiplier_at_cell(row, col), 0.2, 0.0)
-				game.effects.append({"position": Vector2(float(game.zombies[target_i]["x"]), game._row_center_y(int(game.zombies[target_i]["row"]))), "radius": 60.0, "time": 0.24, "duration": 0.24, "color": Color(0.8, 0.2, 0.9, 0.4)})
+				game.effects.append({"position": game._zombie_target_point(game.zombies[target_i], center), "radius": 60.0, "time": 0.24, "duration": 0.24, "color": Color(0.8, 0.2, 0.9, 0.4)})
 		1:
 			game._spawn_sun(center + Vector2(0.0, -18.0), center.y - 30.0, "normal", 100)
 		2:
@@ -4508,7 +4508,7 @@ func update_dragon_bubble_pult(plant: Dictionary, delta: float, row: int, col: i
 			var target = Vector2(game.BOARD_ORIGIN.x + game.board_size.x - 8.0, game._row_center_y(row) - 8.0)
 			if barrage_target != -1:
 				var barrage_zombie = game.zombies[barrage_target]
-				target = Vector2(float(barrage_zombie["x"]), game._row_center_y(int(barrage_zombie["row"])) - 8.0)
+				target = game._zombie_target_point(barrage_zombie, center) + Vector2(0, -8.0)
 			spawn_roof_lobbed_projectile("dragon_bubble", row, center + Vector2(12.0, -30.0), target, float(Defs.PLANTS["dragon_bubble_pult"]["damage"]) * 1.45, Color(1.0, 0.5, 0.18), 76.0, 12.0, float(Defs.PLANTS["dragon_bubble_pult"]["splash_radius"]) + 18.0, 0.0, "dragon_bubble_pult")
 			if not game.projectiles.is_empty():
 				var last = game.projectiles[game.projectiles.size() - 1]
@@ -4559,7 +4559,7 @@ func update_toxic_gum_pult(plant: Dictionary, delta: float, row: int, col: int) 
 	if target_index == -1:
 		return
 	var zombie = game.zombies[target_index]
-	var target = Vector2(float(zombie["x"]), game._row_center_y(int(zombie["row"])) - 8.0)
+	var target = game._zombie_target_point(zombie, center) + Vector2(0, -8.0)
 	var damage = float(Defs.PLANTS["toxic_gum_pult"]["damage"])
 	spawn_roof_lobbed_projectile("toxic_gum", row, center + Vector2(12.0, -28.0), target, damage, Color(0.58, 0.92, 0.32), 66.0, 10.0, float(Defs.PLANTS["toxic_gum_pult"]["splash_radius"]), 0.0, "toxic_gum_pult")
 	if not game.projectiles.is_empty():

@@ -8,6 +8,27 @@ const ASSETS := {
 	"sakura_spirit": "res://art/touhou_spell_fx/sakura_spirit.png",
 	"phoenix_fire": "res://art/touhou_spell_fx/phoenix_fire.png",
 	"boundary_gap": "res://art/touhou_spell_fx/boundary_gap.png",
+	"darkness_veil": "res://art/touhou_spell_fx/darkness_veil.png",
+	"fairy_garden": "res://art/touhou_spell_fx/fairy_garden.png",
+	"rainbow_dragon": "res://art/touhou_spell_fx/rainbow_dragon.png",
+	"library_bats": "res://art/touhou_spell_fx/library_bats.png",
+	"seven_elements": "res://art/touhou_spell_fx/seven_elements.png",
+	"clock_knives": "res://art/touhou_spell_fx/clock_knives.png",
+	"scarlet_lance": "res://art/touhou_spell_fx/scarlet_lance.png",
+	"doll_threads": "res://art/touhou_spell_fx/doll_threads.png",
+	"spring_blossom": "res://art/touhou_spell_fx/spring_blossom.png",
+	"violin_resonance": "res://art/touhou_spell_fx/violin_resonance.png",
+	"trumpet_resonance": "res://art/touhou_spell_fx/trumpet_resonance.png",
+	"keyboard_resonance": "res://art/touhou_spell_fx/keyboard_resonance.png",
+	"fox_seals": "res://art/touhou_spell_fx/fox_seals.png",
+	"firefly_swarm": "res://art/touhou_spell_fx/firefly_swarm.png",
+	"nightbird_song": "res://art/touhou_spell_fx/nightbird_song.png",
+	"history_scroll": "res://art/touhou_spell_fx/history_scroll.png",
+	"hakutaku_history": "res://art/touhou_spell_fx/hakutaku_history.png",
+	"lucky_clover": "res://art/touhou_spell_fx/lucky_clover.png",
+	"lunar_illusion": "res://art/touhou_spell_fx/lunar_illusion.png",
+	"moon_medicine": "res://art/touhou_spell_fx/moon_medicine.png",
+	"five_treasures": "res://art/touhou_spell_fx/five_treasures.png",
 }
 const KIND_ART := {
 	"reimu_boss": "crimson_seal", "chen_boss": "crimson_seal",
@@ -15,9 +36,30 @@ const KIND_ART := {
 	"cirno_boss": "frost_crystal", "letty_boss": "frost_crystal",
 	"youmu_boss": "sakura_spirit", "yuyuko_boss": "sakura_spirit",
 	"mokou_boss": "phoenix_fire", "yukari_boss": "boundary_gap",
+	"rumia_boss": "darkness_veil", "daiyousei_boss": "fairy_garden",
+	"meiling_boss": "rainbow_dragon", "koakuma_boss": "library_bats",
+	"patchouli_boss": "seven_elements", "sakuya_boss": "clock_knives",
+	"remilia_boss": "scarlet_lance", "alice_boss": "doll_threads",
+	"lily_white_boss": "spring_blossom", "prismriver_boss": "violin_resonance",
+	"ran_boss": "fox_seals", "wriggle_boss": "firefly_swarm",
+	"mystia_boss": "nightbird_song", "keine_boss": "history_scroll",
+	"hakutaku_boss": "hakutaku_history", "tewi_boss": "lucky_clover",
+	"reisen_boss": "lunar_illusion", "eirin_boss": "moon_medicine",
+	"kaguya_boss": "five_treasures",
 }
+const NONSPELL_ART := ["daiyousei_boss", "koakuma_boss", "lily_white_boss", "tewi_boss"]
 const MAX_ACCENTS := 12
 static var textures: Dictionary = {}
+
+
+static func assets_for_kind(kind: String) -> Array:
+	if kind == "prismriver_boss":
+		return ["violin_resonance", "trumpet_resonance", "keyboard_resonance"]
+	return [KIND_ART[kind]] if KIND_ART.has(kind) else []
+
+
+static func eligible(kind: String, card: Dictionary) -> bool:
+	return KIND_ART.has(kind) and not card.is_empty() and (String(card.get("origin", "")) != "nonspell" or kind in NONSPELL_ART)
 
 
 static func texture(asset: String) -> Texture2D:
@@ -34,7 +76,7 @@ static func state(cast: Dictionary) -> Dictionary:
 	var kind := String(cast.get("kind", ""))
 	var age := float(cast.get("age", -1.0))
 	var duration := float(cast.get("duration", 0.0))
-	if not KIND_ART.has(kind) or card.is_empty() or String(card.get("origin", "")) == "nonspell" or age < 0 or duration <= 0 or age >= duration:
+	if not eligible(kind, card) or age < 0 or duration <= 0 or age >= duration:
 		return {}
 	var asset := String(KIND_ART[kind])
 	var enter := clampf(age / 0.28, 0.0, 1.0)
@@ -73,6 +115,15 @@ static func _boss_center(game: Control, boss: Dictionary, unit_scale: float) -> 
 	return center + Vector2(0, -70.0 * unit_scale)
 
 
+static func _draw_owner_art(game: Control, boss: Dictionary, extent: float, alpha: float, angle: float) -> void:
+	var scale: float = game._battle_unit_scale()
+	if String(boss.kind) == "prismriver_boss":
+		for body in game.PrismriverTrio.bodies(game, boss):
+			_stamp(game, game.PrismriverTrio.ART[int(body.member)], Vector2(body.position) + Vector2(0, -70 * scale), extent * scale, alpha, angle * (1 if int(body.member) % 2 == 0 else -1))
+	else:
+		_stamp(game, String(KIND_ART[boss.kind]), _boss_center(game, boss, scale), extent * scale, alpha, angle)
+
+
 static func draw(game: Control) -> void:
 	var scale: float = game._battle_unit_scale()
 	var owners := {}
@@ -84,25 +135,31 @@ static func draw(game: Control) -> void:
 		owners[int(boss.get("touhou_owner", -1))] = boss
 		if bool(boss.get("boss_cast_pending", false)):
 			var card: Dictionary = game.TouhouSpellDefs.card_for(boss, game.current_level)
-			if String(card.get("origin", "")) == "nonspell":
+			if not eligible(kind, card):
 				continue
 			var progress := clampf(1.0 - float(boss.get("boss_skill_timer", 0.0)) / game.ZombieRuntime.BOSS_WINDUP, 0.0, 1.0)
-			_stamp(game, String(KIND_ART[kind]), _boss_center(game, boss, scale), lerpf(140.0, 226.0, progress) * scale, progress * 0.24, progress * 0.22 if kind != "yukari_boss" else 0.0)
+			_draw_owner_art(game, boss, lerpf(140.0, 226.0, progress), progress * 0.24, progress * 0.22 if kind != "yukari_boss" else 0.0)
 	if game.touhou_danmaku != null:
 		for cast in game.touhou_danmaku.casts:
 			var visual := state(cast)
 			if visual.is_empty() or not owners.has(int(cast.owner)):
 				continue
-			_stamp(game, visual.asset, _boss_center(game, owners[int(cast.owner)], scale), float(visual.extent) * scale, visual.alpha, visual.angle)
+			_draw_owner_art(game, owners[int(cast.owner)], float(visual.extent), visual.alpha, visual.angle)
+			if String(cast.kind) == "alice_boss":
+				for actor in cast.actors:
+					_stamp(game, "doll_threads", Vector2(actor.position) + Vector2(0, -20 * scale), 86 * scale, visual.alpha * 0.75, -visual.angle)
 		var beam_count := 0
 		for beam in game.touhou_danmaku.beams:
-			if String(beam.kind) != "marisa_boss" or beam_count >= MAX_ACCENTS:
+			if not KIND_ART.has(String(beam.kind)) or beam_count >= MAX_ACCENTS:
 				continue
 			var age := float(beam.age)
 			var delay := maxf(float(beam.delay), 0.01)
 			var fade := clampf((delay + float(beam.duration) - age) / 0.2, 0.0, 1.0)
 			var charge := clampf(age / delay, 0.0, 1.0)
-			_stamp(game, "golden_starfield", Vector2(beam.from), lerpf(64.0, 112.0, charge) * scale, (0.12 + charge * 0.24) * fade, age * 0.8)
+			var asset := String(KIND_ART[beam.kind])
+			if String(beam.kind) == "prismriver_boss":
+				asset = String(game.PrismriverTrio.ART[clampi(int(beam.get("instrument", 0)), 0, 2)])
+			_stamp(game, asset, Vector2(beam.from), lerpf(64.0, 112.0, charge) * scale, (0.12 + charge * 0.24) * fade, age * 0.8)
 			beam_count += 1
 	_draw_tiles(game)
 	var accent_count := 0
@@ -110,13 +167,17 @@ static func draw(game: Control) -> void:
 		if accent_count >= MAX_ACCENTS:
 			break
 		var shape := String(effect.get("shape", ""))
-		if shape not in ["yukari_boundary_arrival", "yukari_boundary_expansion", "yukari_evil_eye_screen", "yuyuko_full_bloom", "yuyuko_resurrection", "youmu_half_ghost"]:
+		var asset := ""
+		for kind in KIND_ART:
+			if shape.begins_with(String(kind).trim_suffix("_boss") + "_") and (shape.ends_with("_spell_seal") or shape.ends_with("_phase") or shape.ends_with("_arrival") or shape in ["yukari_boundary_expansion", "yukari_evil_eye_screen", "yuyuko_full_bloom", "yuyuko_resurrection", "youmu_half_ghost", "prismriver_position_chord"]):
+				asset = String(KIND_ART[kind])
+				break
+		if asset == "":
 			continue
 		var duration := maxf(float(effect.get("duration", 0.0)), 0.01)
 		var remaining := clampf(float(effect.get("time", 0.0)) / duration, 0.0, 1.0)
 		var fade := minf(remaining * 3.0, (1.0 - remaining) * 6.0)
 		var gap := shape.begins_with("yukari_")
-		var asset := "boundary_gap" if gap else "sakura_spirit"
 		var extent := clampf(float(effect.get("radius", 70.0)) * 2.2, 90.0 * scale, 260.0 * scale)
 		_stamp(game, asset, Vector2(effect.position), extent, fade * 0.32, 0.0 if gap else (1.0 - remaining) * 0.3)
 		if gap and effect.has("target"):

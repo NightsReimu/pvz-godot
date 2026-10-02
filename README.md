@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6** · **当前版本 v1.0.155** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.156** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -60,6 +60,8 @@
 **v1.0.154 妖妖梦 Boss 素材更新**：蕾蒂、橙、爱丽丝、莉莉霍瓦特、魂魄妖梦、西行寺幽幽子、八云蓝与八云紫换用新提供的素材；按人物和完整特效逐个分离，单独保存 192 帧，保留人偶、半灵、九尾、翅膀和原始透明光效。重新对应待机、移动、施法与受击动作，统一人物高度和脚部锚点。[版本说明](docs/releases/v1.0.154.md)。
 
 ![妖妖梦八位 Boss 素材更新原生截图](docs/readme/cherry-boss-v154.png)
+
+**v1.0.156 骚灵三重奏与东方施法特效**：三姐妹同时现身并共享血量，替换为 72 张独立姿态；补全三人独奏、合奏与四难度符卡，修正植物和投射物对三人的索敌。新增 21 张透明技能插画，29 种东方 Boss 均有施法表现，三姐妹各有乐器共鸣特效。[版本说明](docs/releases/v1.0.156.md)。
 
 **v1.0.155 东方符卡插画特效**：新增六组透明特效插画：封印法阵、星光蓄力、冰晶、樱花灵光、凤凰火焰与隙间；接入十位东方 Boss 的符卡蓄力、展开、持续施法与消散。灵梦封印格、魔理沙光符格和激光蓄力、妹红灼烧格、紫的阶段隙间与幽幽子复活灵光同步使用对应素材；特效随原技能计时播放，并在植物、弹幕和预警下方绘制。[版本说明](docs/releases/v1.0.155.md)。
 

@@ -80,7 +80,7 @@ func finish_encounter(game: EncounterGame) -> void:
 
 
 func _run() -> void:
-	var counts := {"rumia_boss": 2, "daiyousei_boss": 1, "cirno_boss": 3, "meiling_boss": 4, "koakuma_boss": 1, "patchouli_boss": 4, "sakuya_boss": 4, "remilia_boss": 5, "flandre_boss": 10, "letty_boss": 2, "chen_boss": 4, "alice_boss": 4, "lily_white_boss": 1, "prismriver_boss": 4, "youmu_boss": 5, "yuyuko_boss": 6, "ran_boss": 10, "yukari_boss": 11}
+	var counts := {"rumia_boss": 2, "daiyousei_boss": 1, "cirno_boss": 3, "meiling_boss": 4, "koakuma_boss": 1, "patchouli_boss": 4, "sakuya_boss": 4, "remilia_boss": 5, "flandre_boss": 10, "letty_boss": 2, "chen_boss": 4, "alice_boss": 4, "lily_white_boss": 1, "prismriver_boss": 6, "youmu_boss": 5, "yuyuko_boss": 6, "ran_boss": 10, "yukari_boss": 11}
 	for kind in counts:
 		check(Spells.phase_count(kind) == counts[kind], "%s must have its own route's phase count" % kind)
 		_test_full_route(kind)

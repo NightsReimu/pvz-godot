@@ -182,6 +182,17 @@ static func extend_phases(kind: String, level: Dictionary, phases: Array) -> Arr
 
 static func spell_variant(kind: String, level: Dictionary, entry: Array) -> Array:
 	var rank := int(profile(level).rank)
+	if kind == "prismriver_boss" and String(entry[0]).begins_with("th07-"):
+		var base := int(String(entry[0]).trim_prefix("th07-"))
+		if base >= 45 and base <= 68:
+			var group := (base - 45) / 4
+			var variant := entry.duplicate(true)
+			variant[0] = "th07-%03d" % (45 + group * 4 + rank)
+			if rank >= 2:
+				var harder := [["骚符「Live Poltergeist」", "live_poltergeist", "live_poltergeist"], ["伪弦「Pseudo Stradivarius」", "pseudo_stradivarius", "lunasa"], ["管灵「Ghost Clifford」", "ghost_clifford", "merlin"], ["键灵「Bösendorfer神奏」", "bosendorfer", "lyrica"], ["合葬「Prism Concerto」", "prism_concerto", "concerto"], ["大合葬「灵车大协奏曲%s」" % ("改" if rank == 2 else "怪"), "concerto_grosso", "live_poltergeist"]]
+				for field in range(3):
+					variant[field + 1] = harder[group][field]
+			return variant
 	if rank < 2 or is_extra(level):
 		return entry
 	var result := entry.duplicate(true)

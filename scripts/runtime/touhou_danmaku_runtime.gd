@@ -1,6 +1,8 @@
 extends RefCounted
 class_name TouhouDanmakuRuntime
 
+const PrismriverTrio = preload("res://scripts/runtime/prismriver_trio.gd")
+const PrismriverDanmaku = preload("res://scripts/runtime/prismriver_danmaku.gd")
 const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
@@ -84,6 +86,8 @@ func cast(boss: Dictionary) -> Dictionary:
 	boss["touhou_cast_duration"] = duration
 	var center = Vector2(float(boss.get("x", game._boss_anchor_x(String(boss.kind)))), game._row_center_y(int(boss.get("row", 2))) - 12.0)
 	var session := {"owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
+	if String(boss.kind) == "prismriver_boss":
+		session["instrument_points"] = PrismriverTrio.bodies(game, boss).map(func(body): return Vector2(body.position))
 	casts.append(session)
 	if String(card.origin) == "nonspell":
 		game._show_banner(String(card.name), 1.8)
@@ -126,6 +130,8 @@ func _tick(delta: float) -> void:
 		var boss: Dictionary = owners[owner]
 		if game.boss_time_stop_timer > 0.0 and String(boss.kind) != "sakuya_boss":
 			continue
+		if String(boss.kind) == "prismriver_boss":
+			session.instrument_points = PrismriverTrio.bodies(game, boss).map(func(body): return Vector2(body.position))
 		session.age += delta
 		_update_actors(session)
 		boss["touhou_cast_remaining"] = maxf(0.0, float(session.duration) - float(session.age))
@@ -239,6 +245,9 @@ func _update_actors(c: Dictionary) -> void:
 
 
 func _emit_wave(c: Dictionary) -> void:
+	if String(c.kind) == "prismriver_boss":
+		PrismriverDanmaku.emit(self, c)
+		return
 	if String(c.kind) in ["hakutaku_boss", "mokou_boss"]:
 		MokouDanmaku.emit(self, c)
 		return
@@ -457,10 +466,7 @@ func _emit_wave(c: Dictionary) -> void:
 					_fan(c, doll, 7, PI + sin(turn + i) * 0.5, 0.5, 135, violet)
 				else:
 					_fan(c, doll, 7, (_target(doll) - doll).angle(), 0.8, 160, blue)
-		"phantom_dinning", "guarneri", "prism_concerto", "concerto_grosso":
-			for i in range(1 if p == "guarneri" else 3):
-				var instrument = _point(0.82, 0.25 + i * 0.25)
-				_fan(c, instrument, 13 if p == "concerto_grosso" else 9, PI + sin(turn + i) * 0.4, 1.6, 135 + i * 30, COLORS[i], "note", {"angular_speed": 0.12 * (i - 1)})
+
 		"two_hundred_yojana":
 			if wave % 2 == 0:
 				var ghost = Vector2(c.actors[0].position)

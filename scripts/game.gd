@@ -5,6 +5,7 @@ const RumiaDarkSlash: Texture2D = preload("res://art/touhou_pose_extras/rumia/da
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const VectorUnitArt = preload("res://scripts/ui/vector_unit_art.gd")
 const CombatVectorArt = preload("res://scripts/ui/combat_vector_art.gd")
+const PrismriverTrio = preload("res://scripts/runtime/prismriver_trio.gd")
 const TouhouSpellArt = preload("res://scripts/ui/touhou_spell_art.gd")
 const CombatDetails = preload("res://scripts/ui/combat_details.gd")
 const GardenMenus = preload("res://scripts/ui/garden_menus.gd")
@@ -3827,11 +3828,16 @@ func _queue_audio_stream_prewarm(path: String) -> void:
 	})
 
 
-func _queue_boss_frame_set_prewarm(kind: String) -> void:
-	if TouhouSpellArt.KIND_ART.has(kind):
-		var spell_asset := String(TouhouSpellArt.KIND_ART[kind])
-		if not TouhouSpellArt.textures.has(spell_asset):
-			_enqueue_asset_prewarm_task("touhou_spell_art:%s" % spell_asset, {"type": "touhou_spell_art", "asset": spell_asset})
+func _queue_boss_frame_set_prewarm(kind: String, include_spell_art: bool = true) -> void:
+	if include_spell_art:
+		for spell_asset in TouhouSpellArt.assets_for_kind(kind):
+			if not TouhouSpellArt.textures.has(spell_asset):
+				_enqueue_asset_prewarm_task("touhou_spell_art:%s" % spell_asset, {"type": "touhou_spell_art", "asset": spell_asset})
+	if kind == "prismriver_boss":
+		for member in range(3):
+			for frame_index in range(24):
+				if not PrismriverTrio.textures.has("%d:%d" % [member, frame_index]):
+					_enqueue_asset_prewarm_task("trio:%d:%d" % [member, frame_index], {"type": "prismriver_frame", "member": member, "frame_index": frame_index})
 	if not _is_image_backed_hover_boss(kind):
 		return
 	var expected_count = _boss_frame_count_for_kind(kind)
@@ -3851,7 +3857,7 @@ func _queue_boss_frame_set_prewarm(kind: String) -> void:
 		})
 
 
-func _queue_level_boss_asset_prewarm(level: Dictionary) -> void:
+func _queue_level_boss_asset_prewarm(level: Dictionary, include_spell_art: bool = true) -> void:
 	if level.is_empty():
 		return
 	_queue_audio_stream_prewarm(_regular_level_bgm_path(level))
@@ -3874,17 +3880,17 @@ func _queue_level_boss_asset_prewarm(level: Dictionary) -> void:
 	if _is_image_backed_hover_boss(configured_successor):
 		boss_kinds[configured_successor] = true
 	for kind in boss_kinds.keys():
-		_queue_boss_frame_set_prewarm(String(kind))
+		_queue_boss_frame_set_prewarm(String(kind), include_spell_art)
 
 
 func _queue_world_boss_asset_prewarm(world_key: String) -> void:
 	for level_index in _visible_level_indices(world_key):
-		_queue_level_boss_asset_prewarm(Defs.LEVELS[int(level_index)])
+		_queue_level_boss_asset_prewarm(Defs.LEVELS[int(level_index)], false)
 
 
 func _queue_global_boss_asset_prewarm() -> void:
 	for level in Defs.LEVELS:
-		_queue_level_boss_asset_prewarm(Dictionary(level))
+		_queue_level_boss_asset_prewarm(Dictionary(level), false)
 	_queue_almanac_boss_asset_prewarm("zombies")
 
 
@@ -3893,7 +3899,7 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	if target_tab != "zombies":
 		return
 	for kind in TouhouSpriteDefs.IDLE_HEIGHTS:
-		_queue_boss_frame_set_prewarm(String(kind))
+		_queue_boss_frame_set_prewarm(String(kind), false)
 
 
 func _load_single_boss_frame(kind: String, frame_index: int, face_left: bool) -> Texture2D:
@@ -3940,6 +3946,8 @@ func _store_prewarmed_boss_frame(kind: String, frame_index: int, texture: Textur
 
 func _run_asset_prewarm_task(task: Dictionary) -> void:
 	match String(task.get("type", "")):
+		"prismriver_frame":
+			PrismriverTrio.texture(int(task.member), int(task.frame_index))
 		"touhou_spell_art":
 			TouhouSpellArt.texture(String(task.get("asset", "")))
 		"audio":
@@ -14564,9 +14572,9 @@ func _has_zombie_ahead(row: int, plant_x: float, range_limit: float = 10000.0) -
 	if reisen_runtime != null:
 		range_limit = reisen_runtime.range_limit(row, plant_x, range_limit)
 	for zombie in zombies:
-		var distance = float(zombie["x"]) - plant_x
-		if int(zombie["row"]) == row and _is_enemy_zombie(zombie) and not _is_hidden_from_lane_attacks(zombie) and distance > 8.0 and distance <= range_limit:
-			if _is_roof_direct_fire_blocked(plant_x, float(zombie["x"]), row):
+		var distance = _zombie_lane_x(zombie, row) - plant_x
+		if _zombie_has_row(zombie, row) and _is_enemy_zombie(zombie) and not _is_hidden_from_lane_attacks(zombie) and distance > 8.0 and distance <= range_limit:
+			if _is_roof_direct_fire_blocked(plant_x, _zombie_lane_x(zombie, row), row):
 				continue
 			return true
 	for weed in weeds:
@@ -14582,8 +14590,8 @@ func _has_zombie_ahead(row: int, plant_x: float, range_limit: float = 10000.0) -
 
 func _has_lane_threat_ignore_roof_direct_fire(row: int, plant_x: float, range_limit: float = 10000.0) -> bool:
 	for zombie in zombies:
-		var distance = float(zombie["x"]) - plant_x
-		if int(zombie["row"]) == row and _is_enemy_zombie(zombie) and not _is_hidden_from_lane_attacks(zombie) and distance > 8.0 and distance <= range_limit:
+		var distance = _zombie_lane_x(zombie, row) - plant_x
+		if _zombie_has_row(zombie, row) and _is_enemy_zombie(zombie) and not _is_hidden_from_lane_attacks(zombie) and distance > 8.0 and distance <= range_limit:
 			return true
 	for weed in weeds:
 		var weed_distance = float(weed["x"]) - plant_x
@@ -14611,14 +14619,14 @@ func _find_lane_target_ignore_fog(row: int, plant_x: float, range_limit: float) 
 	var best_distance := 999999.0
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not _is_enemy_zombie(zombie):
 			continue
 		if _is_hidden_for_direct_fire_ignoring_fog(zombie):
 			continue
-		var distance = float(zombie["x"]) - plant_x
+		var distance = _zombie_lane_x(zombie, row) - plant_x
 		if distance < -8.0 or distance > range_limit:
 			continue
-		if _is_roof_direct_fire_blocked(plant_x, float(zombie["x"]), row):
+		if _is_roof_direct_fire_blocked(plant_x, _zombie_lane_x(zombie, row), row):
 			continue
 		if distance < best_distance:
 			best_distance = distance
@@ -14631,11 +14639,11 @@ func _find_storm_reed_target(row: int, trigger_x: float) -> int:
 	var best_distance := 999999.0
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or not _is_enemy_zombie(zombie):
 			continue
 		if _is_hidden_for_direct_fire_ignoring_fog(zombie):
 			continue
-		var distance = float(zombie["x"]) - trigger_x
+		var distance = _zombie_lane_x(zombie, row) - trigger_x
 		if distance < 0.0:
 			continue
 		if distance < best_distance:
@@ -14733,11 +14741,11 @@ func _find_zombie_contact_target(self_index: int, row: int, zombie_x: float, tar
 		if i == self_index:
 			continue
 		var other = zombies[i]
-		if int(other["row"]) != row or bool(other.get("jumping", false)):
+		if not _zombie_has_row(other, row) or bool(other.get("jumping", false)):
 			continue
 		if bool(other.get("hypnotized", false)) != target_hypnotized:
 			continue
-		var distance = absf(float(other["x"]) - zombie_x)
+		var distance = absf(_zombie_lane_x(other, row) - zombie_x)
 		if distance > 34.0:
 			continue
 		if distance < best_distance:
@@ -14779,7 +14787,7 @@ func _has_close_zombie(center: Vector2, radius: float) -> bool:
 	for zombie in zombies:
 		if not _is_enemy_zombie(zombie):
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		var zombie_pos = _zombie_target_point(zombie, center)
 		if zombie_pos.distance_to(center) <= radius:
 			return true
 	return false
@@ -14788,9 +14796,9 @@ func _has_close_zombie(center: Vector2, radius: float) -> bool:
 func _mine_has_target(row: int, col: int) -> bool:
 	var center_x = _cell_center(row, col).x
 	for zombie in zombies:
-		if int(zombie["row"]) != row or bool(zombie["jumping"]) or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or bool(zombie["jumping"]) or not _is_enemy_zombie(zombie):
 			continue
-		if absf(float(zombie["x"]) - center_x) <= 42.0:
+		if absf(_zombie_lane_x(zombie, row) - center_x) <= 42.0:
 			return true
 	return false
 
@@ -14806,12 +14814,12 @@ func _find_lane_target(row: int, plant_x: float, range_limit: float) -> int:
 	var best_distance = 999999.0
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or bool(zombie["jumping"]) or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or bool(zombie["jumping"]) or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
 			continue
-		var distance = float(zombie["x"]) - plant_x
+		var distance = _zombie_lane_x(zombie, row) - plant_x
 		if distance < -8.0 or distance > range_limit:
 			continue
-		if _is_roof_direct_fire_blocked(plant_x, float(zombie["x"]), row):
+		if _is_roof_direct_fire_blocked(plant_x, _zombie_lane_x(zombie, row), row):
 			continue
 		if distance < best_distance:
 			best_distance = distance
@@ -14824,9 +14832,9 @@ func _find_lane_target_ignore_roof_direct_fire(row: int, plant_x: float, range_l
 	var best_distance := 999999.0
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or bool(zombie["jumping"]) or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or bool(zombie["jumping"]) or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
 			continue
-		var distance = float(zombie["x"]) - plant_x
+		var distance = _zombie_lane_x(zombie, row) - plant_x
 		if distance < -8.0 or distance > range_limit:
 			continue
 		if distance < best_distance:
@@ -14840,11 +14848,11 @@ func _find_throw_lane_target(row: int, plant_x: float, range_limit: float) -> in
 	var best_distance := 999999.0
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or bool(zombie.get("jumping", false)) or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or bool(zombie.get("jumping", false)) or not _is_enemy_zombie(zombie):
 			continue
 		if _is_hidden_from_lane_attacks(zombie):
 			continue
-		var distance = float(zombie["x"]) - plant_x
+		var distance = _zombie_lane_x(zombie, row) - plant_x
 		if distance < -8.0 or distance > range_limit:
 			continue
 		if distance < best_distance:
@@ -14857,12 +14865,12 @@ func _find_lane_targets(row: int, plant_x: float, range_limit: float, count: int
 	var candidates: Array = []
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or bool(zombie["jumping"]) or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or bool(zombie["jumping"]) or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
 			continue
-		var distance = float(zombie["x"]) - plant_x
+		var distance = _zombie_lane_x(zombie, row) - plant_x
 		if distance < -8.0 or distance > range_limit:
 			continue
-		if _is_roof_direct_fire_blocked(plant_x, float(zombie["x"]), row):
+		if _is_roof_direct_fire_blocked(plant_x, _zombie_lane_x(zombie, row), row):
 			continue
 		candidates.append({"index": i, "distance": distance})
 	var result: Array = []
@@ -14885,9 +14893,10 @@ func _find_global_frontmost_target() -> Dictionary:
 	for zombie in zombies:
 		if bool(zombie.get("jumping", false)) or not _is_enemy_zombie(zombie):
 			continue
-		if float(zombie["x"]) < best_x:
-			best_x = float(zombie["x"])
-			best_row = int(zombie["row"])
+		for point in _zombie_hit_positions(zombie):
+			if point.x < best_x:
+				best_x = point.x
+				best_row = _zombie_target_row(zombie, point)
 	if best_row != -1:
 		return {"row": best_row, "x": best_x}
 	var obstacle_row := -1
@@ -14909,9 +14918,10 @@ func _find_global_rearmost_target() -> Dictionary:
 	for zombie in zombies:
 		if bool(zombie.get("jumping", false)) or not _is_enemy_zombie(zombie):
 			continue
-		if float(zombie["x"]) > best_x:
-			best_x = float(zombie["x"])
-			best_row = int(zombie["row"])
+		for point in _zombie_hit_positions(zombie):
+			if point.x > best_x:
+				best_x = point.x
+				best_row = _zombie_target_row(zombie, point)
 	if best_row != -1:
 		return {"row": best_row, "x": best_x}
 	var obstacle_row := -1
@@ -14950,7 +14960,7 @@ func _spawn_lotus_lancer_converge_barrage(origin: Vector2, target_index: int, sh
 	var target = zombies[target_index]
 	if not _is_enemy_zombie(target):
 		return 0
-	var target_point = Vector2(float(target["x"]), _row_center_y(int(target["row"])) - 10.0)
+	var target_point = _zombie_target_point(target, origin) + Vector2(0, -10)
 	var target_uid = int(target.get("uid", -1))
 	var lotus_data = Defs.PLANTS["lotus_lancer"]
 	var base_damage = maxf(float(lotus_data.get("damage", 24.0)) * damage_mult, 18.0)
@@ -14962,7 +14972,7 @@ func _spawn_lotus_lancer_converge_barrage(origin: Vector2, target_index: int, sh
 		var wobble = Vector2(cos(angle * 3.0), sin(angle * 2.0)) * 10.0
 		projectiles.append({
 			"kind": "lotus_converge_shot",
-			"row": int(target["row"]),
+			"row": _zombie_target_row(target, origin),
 			"position": target_point + orbit + wobble,
 			"speed": 420.0,
 			"velocity_y": 0.0,
@@ -15582,7 +15592,7 @@ func _apply_ash_hits_in_circle(center: Vector2, radius: float, hits: int = 1, da
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		var zombie_pos = _zombie_target_point(zombie, center)
 		if zombie_pos.distance_to(center) > radius:
 			continue
 		if String(zombie.get("kind", "")) == "mech_zombie":
@@ -15596,9 +15606,9 @@ func _apply_ash_hits_in_circle(center: Vector2, radius: float, hits: int = 1, da
 func _apply_ash_hits_in_row_segment(row: int, min_x: float, max_x: float, hits: int = 1, damage: float = 0.0) -> void:
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if not _is_enemy_zombie(zombie) or int(zombie["row"]) != row:
+		if not _is_enemy_zombie(zombie) or not _zombie_has_row(zombie, row):
 			continue
-		var zombie_x = float(zombie["x"])
+		var zombie_x = _zombie_lane_x(zombie, row)
 		if zombie_x < min_x or zombie_x > max_x:
 			continue
 		if String(zombie.get("kind", "")) == "mech_zombie":
@@ -15991,6 +16001,10 @@ func _update_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary:
 
 
 func _update_prismriver_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary:
+	if float(zombie.get("frozen_timer", 0.0)) > 0.0 or float(zombie.get("special_pause_timer", 0.0)) > 0.0:
+		return zombie
+	if not ZombieRuntime.hover_action_locked(zombie):
+		zombie["prismriver_time"] = float(zombie.get("prismriver_time", 0.0)) + delta
 	var kind = "prismriver_boss"
 	var phase = int(zombie.get("boss_phase", 0))
 	var bounds = _prismriver_boss_bounds()
@@ -18881,7 +18895,7 @@ func _explode_cherry(row: int, col: int, mega: bool = false) -> void:
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		if _blast_affects_cell(row, col, int(zombie["row"]), _zombie_cell_col(float(zombie["x"])), blast_cells):
+		if _zombie_in_rect(zombie, _plant_square_rect(row, col, blast_cells)):
 			zombie["health"] -= damage
 			zombie["flash"] = 0.24
 			zombies[i] = zombie
@@ -18991,7 +19005,7 @@ func _trigger_doom_shroom(row: int, col: int, boosted: bool = false) -> void:
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		if _blast_affects_cell(row, col, int(zombie["row"]), _zombie_cell_col(float(zombie["x"])), blast_cells):
+		if _zombie_in_rect(zombie, _plant_square_rect(row, col, blast_cells)):
 			zombie["health"] -= damage
 			zombie["flash"] = 0.28
 			zombies[i] = zombie
@@ -19007,6 +19021,65 @@ func _blast_radius_for_cells(cell_span: int) -> float:
 func _blast_affects_cell(center_row: int, center_col: int, target_row: int, target_col: int, cell_span: int) -> bool:
 	var half_span := maxi(1, cell_span) / 2
 	return abs(target_row - center_row) <= half_span and abs(target_col - center_col) <= half_span
+
+
+func _zombie_hit_positions(zombie: Dictionary) -> Array[Vector2]:
+	if String(zombie.get("kind", "")) == "prismriver_boss":
+		var points: Array[Vector2] = []
+		for body in PrismriverTrio.bodies(self, zombie):
+			points.append(Vector2(body.position))
+		return points
+	return [Vector2(float(zombie.x), _row_center_y(int(zombie.row)))]
+
+
+func _zombie_has_row(zombie: Dictionary, row: int) -> bool:
+	if String(zombie.get("kind", "")) != "prismriver_boss":
+		return int(zombie.row) == row
+	for body in PrismriverTrio.bodies(self, zombie):
+		if int(body.row) == row:
+			return true
+	return false
+
+
+func _zombie_lane_x(zombie: Dictionary, row: int) -> float:
+	if String(zombie.get("kind", "")) != "prismriver_boss":
+		return float(zombie.x)
+	for body in PrismriverTrio.bodies(self, zombie):
+		if int(body.row) == row:
+			return float(Vector2(body.position).x)
+	return _zombie_target_point(zombie, Vector2(float(zombie.x), _row_center_y(row))).x
+
+
+func _zombie_lane_point(zombie: Dictionary, row: int) -> Vector2:
+	return Vector2(_zombie_lane_x(zombie, row), _row_center_y(row))
+
+
+func _zombie_target_point(zombie: Dictionary, origin: Vector2) -> Vector2:
+	var best := Vector2(float(zombie.x), _row_center_y(int(zombie.row)))
+	if String(zombie.get("kind", "")) != "prismriver_boss":
+		return best
+	var distance := INF
+	for point in _zombie_hit_positions(zombie):
+		var candidate := point.distance_squared_to(origin)
+		if candidate < distance:
+			best = point
+			distance = candidate
+	return best
+
+
+func _zombie_target_row(zombie: Dictionary, origin: Vector2) -> int:
+	var point := _zombie_target_point(zombie, origin)
+	for row in active_rows:
+		if absf(point.y - _row_center_y(int(row))) < 1.0:
+			return int(row)
+	return int(zombie.row)
+
+
+func _zombie_in_rect(zombie: Dictionary, area: Rect2) -> bool:
+	for point in _zombie_hit_positions(zombie):
+		if area.has_point(point):
+			return true
+	return false
 
 
 func _find_projectile_target(projectile: Dictionary) -> int:
@@ -19025,23 +19098,22 @@ func _find_projectile_target(projectile: Dictionary) -> int:
 		var can_ignore_hidden = ignore_lane_hide and not _is_hidden_for_direct_fire_ignoring_fog(zombie)
 		if ((hidden and not can_ignore_hidden and not (anti_air and bool(zombie.get("balloon_flying", false)))) or not _is_enemy_zombie(zombie)):
 			continue
-		if free_aim:
-			if absf(_row_center_y(int(zombie["row"])) - projectile_pos.y) > 24.0:
-				continue
-		elif int(zombie["row"]) != int(projectile["row"]):
-			continue
 		if bool(zombie.get("balloon_flying", false)) and not anti_air:
 			continue
 		if ignored_uids.has(int(zombie.get("uid", -1))):
 			continue
-		var distance = float(zombie["x"]) - projectile_pos.x
-		if moving_left:
-			distance = projectile_pos.x - float(zombie["x"])
-		if distance < -20.0 or distance > 20.0 + projectile_radius:
-			continue
-		if distance < best_distance:
-			best_distance = distance
-			best_index = i
+		for point in _zombie_hit_positions(zombie):
+			if free_aim:
+				if absf(point.y - projectile_pos.y) > 24.0:
+					continue
+			elif absf(point.y - _row_center_y(int(projectile.row))) > 1.0:
+				continue
+			var distance: float = projectile_pos.x - point.x if moving_left else point.x - projectile_pos.x
+			if distance < -20.0 or distance > 20.0 + projectile_radius:
+				continue
+			if distance < best_distance:
+				best_distance = distance
+				best_index = i
 	return best_index
 
 
@@ -19085,10 +19157,10 @@ func _find_frontmost_zombie(row: int) -> int:
 	var best_x = 999999.0
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or _is_hidden_from_lane_attacks(zombie) or not _is_enemy_zombie(zombie):
 			continue
-		if float(zombie["x"]) < best_x:
-			best_x = float(zombie["x"])
+		if _zombie_lane_x(zombie, row) < best_x:
+			best_x = _zombie_lane_x(zombie, row)
 			best_index = i
 	return best_index
 
@@ -19143,9 +19215,9 @@ func _can_finish_level_ignoring_obstacles() -> bool:
 func _damage_zombies_in_radius(row: int, center_x: float, radius: float, damage: float) -> void:
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or not _is_enemy_zombie(zombie):
+		if not _zombie_has_row(zombie, row) or not _is_enemy_zombie(zombie):
 			continue
-		if absf(float(zombie["x"]) - center_x) > radius:
+		if absf(_zombie_lane_x(zombie, row) - center_x) > radius:
 			continue
 		zombie = _apply_zombie_damage(zombie, damage, 0.16)
 		zombies[i] = zombie
@@ -19155,9 +19227,9 @@ func _damage_zombies_in_row_segment(row: int, min_x: float, max_x: float, damage
 	var hit := false
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
-		if int(zombie["row"]) != row or not _is_enemy_zombie(zombie) or _is_hidden_from_lane_attacks(zombie):
+		if not _zombie_has_row(zombie, row) or not _is_enemy_zombie(zombie) or _is_hidden_from_lane_attacks(zombie):
 			continue
-		var zombie_x = float(zombie["x"])
+		var zombie_x = _zombie_lane_x(zombie, row)
 		if zombie_x < min_x or zombie_x > max_x:
 			continue
 		zombie = _apply_zombie_damage(zombie, damage, 0.18, slow_duration)
@@ -19192,7 +19264,7 @@ func _damage_zombies_in_square(origin_row: int, origin_col: int, cells: int, dam
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		if not area.has_point(Vector2(float(zombie.x), _row_center_y(int(zombie.row)))):
+		if not _zombie_in_rect(zombie, area):
 			continue
 		zombie = _apply_zombie_damage(zombie, damage, 0.12)
 		if knockback_chance > 0.0 and rng.randf() < knockback_chance:
@@ -19211,7 +19283,7 @@ func _damage_zombies_in_circle(center: Vector2, radius: float, damage: float) ->
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		var zombie_pos = _zombie_target_point(zombie, center)
 		if zombie_pos.distance_to(center) > radius:
 			continue
 		zombie = _apply_zombie_damage(zombie, damage, 0.18)
@@ -19298,7 +19370,7 @@ func _sleep_zombies_in_radius(center: Vector2, radius: float, duration: float, t
 		var zombie = zombies[i]
 		if bool(zombie.get("hypnotized", false)) != target_hypnotized:
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		var zombie_pos = _zombie_target_point(zombie, center)
 		if zombie_pos.distance_to(center) > radius:
 			continue
 		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), duration)
@@ -25738,6 +25810,14 @@ func _draw_zombies() -> void:
 			var fog_position = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
 			if not _is_position_revealed_by_fog_rules(fog_position):
 				continue
+		if String(zombie.kind) == "prismriver_boss":
+			for body in PrismriverTrio.bodies(self, zombie):
+				var body_center := Vector2(body.position)
+				_draw_boss_cast_cue(body_center, zombie)
+				_set_combat_transform(body_center, 0.0, Vector2.ONE * unit_scale)
+				PrismriverTrio.draw_member(self, Vector2.ZERO, zombie, int(body.member), float(zombie.get("prismriver_time", 0.0)))
+				_set_combat_transform()
+			continue
 		var center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) + float(zombie["jump_offset"]))
 		var motion = _zombie_draw_motion(zombie, center)
 		var draw_center = Vector2(motion["center"])
@@ -25775,7 +25855,7 @@ func _draw_boss_cast_cue(center: Vector2, boss: Dictionary) -> void:
 		return
 	var progress = clampf(1.0 - float(boss.get("boss_skill_timer", 0.0)) / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0)
 	var tint = _hover_boss_effect_tint(String(boss["kind"]))
-	var cue_scale: float = _battle_unit_scale() if String(boss.kind) in ["reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss", "eirin_boss", "hakutaku_boss", "mokou_boss"] else 1.0
+	var cue_scale: float = _battle_unit_scale() if TouhouSpriteDefs.IDLE_HEIGHTS.has(String(boss.kind)) else 1.0
 	var anchor = center + Vector2(0.0, -20.0 * cue_scale)
 	var radius = lerpf(82.0, 58.0, progress) * cue_scale
 	draw_arc(anchor, 58.0 * cue_scale, 0.0, TAU, 48, Color(tint.r, tint.g, tint.b, 0.28), 1.5, true)
@@ -30230,34 +30310,7 @@ func _lily_white_frame_index(zombie: Dictionary) -> int:
 
 
 func _prismriver_frame_index(zombie: Dictionary) -> int:
-	var state = String(zombie.get("rumia_state", "idle"))
-	var phase = float(zombie.get("anim_phase", 0.0))
-	match state:
-		"phantom_dinning":
-			return _boss_pose_cycle_frame([2, 3, 4, 3], 6.8, phase * 0.36)
-		"lunasa":
-			return _boss_pose_cycle_frame([5, 2, 5, 1], 7.2, phase * 0.42)
-		"merlin":
-			return _boss_pose_cycle_frame([3, 6, 3, 6], 7.8, phase * 0.46)
-		"lyrica":
-			return _boss_pose_cycle_frame([4, 7, 4, 1], 7.4, phase * 0.44)
-		"concerto":
-			return _boss_pose_cycle_frame([6, 7, 6, 5], 6.6, phase * 0.38)
-		"riverside":
-			return _boss_pose_cycle_frame([5, 6, 5, 2], 6.8, phase * 0.4)
-		"wheel":
-			return _boss_pose_cycle_frame([7, 4, 7, 4], 8.2, phase * 0.48)
-		"live_poltergeist":
-			return _boss_pose_cycle_frame([7, 6, 5, 6], 8.0, phase * 0.46)
-		"phase":
-			return _boss_pose_cycle_frame([6, 7, 6, 5], 6.4, phase * 0.36)
-		"shift":
-			return _boss_pose_cycle_frame([1, 0, 1, 0], 6.4, phase * 0.3)
-		_:
-			if float(zombie.get("special_pause_timer", 0.0)) > 0.0:
-				return _boss_pose_cycle_frame([1, 0, 1], 5.4, phase * 0.24)
-			return _boss_pose_frame(0, 3.0, phase)
-	return _boss_pose_frame(0, 3.0, phase)
+	return PrismriverTrio.frame(zombie, 0, level_time + float(zombie.get("anim_phase", 0.0)))
 
 
 func _youmu_frame_index(zombie: Dictionary) -> int:
@@ -30915,36 +30968,8 @@ func _draw_lily_white_boss(center: Vector2, zombie: Dictionary) -> void:
 
 
 func _draw_prismriver_boss(center: Vector2, zombie: Dictionary) -> void:
-	var frame_index = _prismriver_frame_index(zombie)
-	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = _boss_pose_frame(7, 10.0, float(zombie.get("anim_phase", 0.0)))
-	_ensure_prismriver_frames_loaded()
-	var texture := _try_get_boss_frame_texture("prismriver_boss", frame_index)
-	var draw_scale = _prismriver_draw_scale(int(zombie.get("boss_phase", 0)))
-	var local_phase = float(zombie.get("anim_phase", 0.0))
-	var bob = sin(level_time * 2.0 + local_phase) * 4.8 + sin(level_time * 5.8 + local_phase * 0.68) * 1.2
-	var sway = sin(level_time * 1.35 + local_phase) * 6.0
-	var aura_center = center + Vector2(sway * 0.04, -40.0 + bob * 0.14)
-	draw_circle(center + Vector2(sway * 0.05, 54.0), 24.0, Color(0.05, 0.06, 0.14, 0.18))
-	draw_circle(aura_center, 58.0, Color(0.66, 0.84, 1.0, 0.1 + 0.04 * sin(level_time * 2.8 + local_phase)))
-	for ring_index in range(3):
-		var ring_radius = 42.0 + float(ring_index) * 17.0 + sin(level_time * 2.4 + float(ring_index)) * 3.0
-		draw_arc(aura_center, ring_radius, level_time * (0.7 + ring_index * 0.08), level_time * (0.7 + ring_index * 0.08) + PI * 1.42, 36, Color(0.86, 0.88, 1.0, 0.16), 1.8)
-	for note_index in range(7):
-		var angle = -level_time * 1.55 + float(note_index) * TAU / 7.0 + local_phase * 0.14
-		var note_center = center + Vector2(cos(angle) * (38.0 + float(note_index % 3) * 7.0), -28.0 + sin(angle) * (15.0 + float(note_index % 2) * 4.0) + bob * 0.12)
-		draw_circle(note_center, 4.0, Color(0.92, 0.86, 1.0, 0.7))
-		draw_line(note_center + Vector2(3.0, 0.0), note_center + Vector2(3.0, -13.0), Color(0.72, 0.86, 1.0, 0.46), 1.3)
-		draw_line(note_center + Vector2(3.0, -13.0), note_center + Vector2(10.0, -10.0), Color(0.72, 0.86, 1.0, 0.38), 1.1)
-	if texture != null:
-		var texture_size = texture.get_size() * draw_scale
-		var top_left = center + Vector2(-texture_size.x * 0.5 + sway * 0.04, TouhouSpriteDefs.top_offset("prismriver_boss") + 10.0 + bob)
-		draw_texture_rect(texture, Rect2(top_left, texture_size), false, Color(1.0, 1.0, 1.0, 1.0 - float(zombie.get("flash", 0.0)) * 0.25))
-	else:
-		draw_circle(center + Vector2(0.0, -40.0), 25.0, Color(0.86, 0.82, 1.0))
-		draw_rect(Rect2(center + Vector2(-24.0, -12.0), Vector2(48.0, 62.0)), Color(0.32, 0.36, 0.72), true)
-	if String(zombie.get("rumia_state", "")) == "live_poltergeist":
-		draw_circle(center + Vector2(0.0, -18.0), 88.0 + sin(level_time * 5.0) * 6.0, Color(0.78, 0.82, 1.0, 0.09))
+	for member in range(3):
+		PrismriverTrio.draw_member(self, center + Vector2((member - 1) * 82.0, 0), zombie, member, level_time)
 
 
 func _draw_youmu_boss(center: Vector2, zombie: Dictionary) -> void:
@@ -32760,7 +32785,7 @@ func _find_closest_zombies_in_radius(center: Vector2, radius: float, count: int)
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		var zombie_pos = _zombie_target_point(zombie, center)
 		var distance = zombie_pos.distance_to(center)
 		if distance > radius:
 			continue
@@ -32787,7 +32812,7 @@ func _find_highest_hp_zombie_in_range(center: Vector2, radius: float) -> int:
 		var zombie = zombies[i]
 		if not _is_enemy_zombie(zombie):
 			continue
-		var zombie_pos = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])))
+		var zombie_pos = _zombie_target_point(zombie, center)
 		if zombie_pos.distance_to(center) > radius:
 			continue
 		var effective_health = float(zombie.get("health", 0.0)) + float(zombie.get("shield_health", 0.0))

@@ -28,9 +28,20 @@ func _run() -> void:
 		if task.type == "touhou_spell_art":
 			tasks += 1
 	check(tasks == 1, "Bosses sharing an illustration must queue one prewarm task")
+	prewarm._queue_boss_frame_set_prewarm("prismriver_boss")
+	var trio_tasks := 0
+	for task in prewarm.asset_prewarm_queue:
+		if task.type == "prismriver_frame": trio_tasks += 1
+	check(trio_tasks == 72, "All three performers prewarm independent poses")
 	prewarm._drain_asset_prewarm_queue()
 	check(Art.textures.has("crimson_seal"), "Prewarm must load art before the first spell")
 	release(prewarm)
+	Art.textures.clear()
+	var menus := make_game()
+	menus._queue_global_boss_asset_prewarm()
+	check(not menus.asset_prewarm_queue.any(func(task): return task.type == "touhou_spell_art"), "Menu browsing must not eagerly load all large spell images")
+	release(menus)
+	check(Art.KIND_ART.size() == 29 and Art.ASSETS.size() == 27, "Every Touhou boss has a mapped illustration")
 	var card_count := 0
 	for kind in Spells.CARDS:
 		for cycle in range(Spells.CARDS[kind].size()):
@@ -42,12 +53,12 @@ func _run() -> void:
 			var bullets: Array = runtime.bullets.duplicate(true)
 			var beams: Array = runtime.beams.duplicate(true)
 			var random_state: int = game.rng.state
-			var eligible: bool = Art.KIND_ART.has(kind) and cast.card.origin != "nonspell"
+			var eligible: bool = Art.eligible(kind, cast.card)
 			for age in [0.0, 0.15, 0.6, 1.8, float(cast.duration) - 0.01]:
 				var snapshot := cast.duplicate(true)
 				snapshot.age = age
 				var visual := Art.state(snapshot)
-				check(visual.is_empty() != eligible, "Illustrations apply only to supported named spells")
+				check(visual.is_empty() != eligible, "Illustrations apply only to supported spells and four unnamed midboss attacks")
 				if not visual.is_empty():
 					check(visual.alpha >= 0 and visual.alpha <= 0.42, "Spell illustration opacity is bounded")
 					check(visual.extent > 0 and visual.extent <= 330, "Art must stay local to the boss")
@@ -62,5 +73,5 @@ func _run() -> void:
 			check(runtime.casts.is_empty(), "Phase/death cleanup removes the illustration owner")
 			card_count += 1
 			release(game)
-	print("Spell art: six exact imported alpha hashes, cache/prewarm, %d cards, immutable timing and ownership: %d failure(s)" % [card_count, failures])
+	print("Spell art: 27 exact imported alpha hashes, cache/prewarm, %d cards, immutable timing and ownership: %d failure(s)" % [card_count, failures])
 	quit(1 if failures else 0)
