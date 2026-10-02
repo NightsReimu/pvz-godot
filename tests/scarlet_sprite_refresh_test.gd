@@ -11,6 +11,7 @@ func _run() -> void:
 	var passed := true
 	var supplied: Dictionary = SpriteDefs.SCARLET_ANIMATIONS.duplicate()
 	supplied.merge(SpriteDefs.IMPERISHABLE_ANIMATIONS)
+	supplied.merge(SpriteDefs.CHERRY_ANIMATIONS)
 	for kind in supplied:
 		var animations: Dictionary = supplied[kind]
 		for state in animations:

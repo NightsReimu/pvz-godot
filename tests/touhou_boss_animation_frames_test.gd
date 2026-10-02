@@ -221,21 +221,12 @@ func _test_youmu_frames_share_a_stable_canvas() -> bool:
 
 func _test_youmu_skill_states_use_coherent_frame_ranges() -> bool:
 	var game := _make_game()
-	var state_ranges := {
-		"slash": Vector2i(3, 7),
-		"dash": Vector2i(12, 17),
-		"instant": Vector2i(12, 17),
-		"shift": Vector2i(12, 17),
-		"cross": Vector2i(17, 20),
-		"half_ghost": Vector2i(8, 11),
-		"wraith": Vector2i(8, 11),
-		"six_realms": Vector2i(20, 23),
-		"finale": Vector2i(17, 23),
-		"phase": Vector2i(20, 23),
-	}
+	var state_frames: Dictionary = GameScript.TouhouSpriteDefs.CHERRY_ANIMATIONS.youmu_boss.duplicate()
+	state_frames.erase("hit")
+	state_frames["shift"] = [3, 4, 5, 4]
 	var passed := true
-	for state in state_ranges.keys():
-		var frame_range := Vector2i(state_ranges[state])
+	for state in state_frames.keys():
+		var allowed: Array = state_frames[state]
 		var seen := {}
 		for time in [0.0, 0.14, 0.28, 0.42, 0.56, 0.7, 0.84, 0.98]:
 			game.level_time = float(time)
@@ -247,7 +238,7 @@ func _test_youmu_skill_states_use_coherent_frame_ranges() -> bool:
 			}
 			var frame_index := int(game.call("_boss_frame_index_for_kind", boss))
 			seen[frame_index] = true
-			passed = _assert_true(frame_index >= frame_range.x and frame_index <= frame_range.y, "Youmu %s animation should stay in a coherent frame range %d..%d, got %d" % [String(state), frame_range.x, frame_range.y, frame_index]) and passed
+			passed = _assert_true(allowed.has(frame_index) and frame_index != 22 and not [12, 13, 14].has(frame_index), "Youmu %s must keep live skill poses, got %d" % [String(state), frame_index]) and passed
 		passed = _assert_true(seen.size() >= 2, "Youmu %s animation should still move within its coherent frame range" % String(state)) and passed
 	_free_game(game)
 	return passed

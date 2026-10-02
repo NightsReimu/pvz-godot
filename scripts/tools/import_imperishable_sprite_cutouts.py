@@ -76,14 +76,14 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def extract(name, source):
+def extract(name, source, config=None):
     rgba = np.array(Image.open(source).convert('RGBA'))
     alpha = rgba[:, :, 3]
-    config = LAYOUTS[name]
+    config = LAYOUTS[name] if config is None else config
     # Mystia 07 and 08 touch only through a faint feather glow. Thresholding
     # the ownership seeds separates them; their original soft alpha is restored
     # afterwards rather than cut away along a rectangular grid boundary.
-    mask = (alpha > 32).astype('uint8')
+    mask = (alpha > config.get('seed_alpha', 32)).astype('uint8')
     count, labels, stats, centers = cv2.connectedComponentsWithStats(mask, 8)
     bodies = [label for label in range(1, count) if stats[label, 4] > 10000]
     seeds = [(x, y) for row, y in zip(config['centers'], config['rows']) for x in row]
@@ -100,7 +100,10 @@ def extract(name, source):
         if owners[label] >= 0:
             continue
         x, y = centers[label]
-        row = min(range(4), key=lambda r: abs(y - config['rows'][r]))
+        if 'row_gaps' in config:
+            row = next(r for r in range(4) if config['row_gaps'][r] <= y < config['row_gaps'][r + 1])
+        else:
+            row = min(range(4), key=lambda r: abs(y - config['rows'][r]))
         gaps = config['gaps'][row]
         col = next(c for c in range(len(gaps) - 1) if gaps[c] <= x < gaps[c + 1])
         owners[label] = sum(map(len, config['centers'][:row])) + col
@@ -111,6 +114,22 @@ def extract(name, source):
     ys, xs = np.where(mask > 0)
     nearest_owner[nearest[ys, xs]] = ownership[ys, xs]
     ownership = np.where(mask > 0, ownership, nearest_owner[nearest])
+    if config.get('soft_component_gaps', False):
+        # Entirely faint, detached flakes/petals have no seed. A global nearest
+        # body can borrow them from the preceding row; use their reviewed gaps.
+        soft_count, soft_labels, _, soft_centers = cv2.connectedComponentsWithStats((alpha > 0).astype('uint8'), 8)
+        seeded = np.bincount(soft_labels[mask > 0], minlength=soft_count)
+        soft_owners = np.full(soft_count, -1, dtype='int16')
+        for label in range(1, soft_count):
+            if seeded[label] > 0:
+                continue
+            x, y = soft_centers[label]
+            row = next(r for r in range(4) if config['row_gaps'][r] <= y < config['row_gaps'][r + 1])
+            gaps = config['gaps'][row]
+            col = next(c for c in range(len(gaps) - 1) if gaps[c] <= x < gaps[c + 1])
+            soft_owners[label] = sum(map(len, config['centers'][:row])) + col
+        override = soft_owners[soft_labels]
+        ownership = np.where(override >= 0, override, ownership)
     poses, crops = [], []
     for slot, label in enumerate(main):
         body = labels == label
