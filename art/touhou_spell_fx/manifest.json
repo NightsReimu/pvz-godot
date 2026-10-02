@@ -1,0 +1,65 @@
+{
+  "generation_method": "Built-in image_gen.imagegen",
+  "assets": {
+    "crimson_seal": {
+      "path": "res://art/touhou_spell_fx/crimson_seal.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "bc2d6d978ddd20ba64b66c5b3522f5b5d7cb2bc970c36076e420a2cd6453cdf3",
+      "alpha_sha256": "3bf16a26554d1798cbceabb8d2cb74cfa8af9494f46c547354090e76b4823667"
+    },
+    "golden_starfield": {
+      "path": "res://art/touhou_spell_fx/golden_starfield.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "7dee12ebbb8dc81c13fd6c8edb97e17c9d801581696cdf70448bb4bb31fe1fc3",
+      "alpha_sha256": "c85c421dc2b149a65086a57a3250e1fcfe5e1b73441aa472d6eea0693c89c073"
+    },
+    "frost_crystal": {
+      "path": "res://art/touhou_spell_fx/frost_crystal.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "601572a58168ce9adfaa6c560feda91d82fdab58bcadb77d9fe3f51282cf2b01",
+      "alpha_sha256": "fe8532747f92c37617b60b7b402a4f0f04d0f2c21445f903871a1faf6bd398b0"
+    },
+    "sakura_spirit": {
+      "path": "res://art/touhou_spell_fx/sakura_spirit.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "15dd96bf04e624816456a69aeb75574651ce541dcfbedba65fac18d19314f42f",
+      "alpha_sha256": "a504d80aade39a62f31b04a730fdc5a31aa7eb977620ecb7ec4ae7ac74a7e889"
+    },
+    "phoenix_fire": {
+      "path": "res://art/touhou_spell_fx/phoenix_fire.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "709a19fa3d72fbc6754104134dcd932ffb097555f99c2f2ec02d92db9cbd3cfe",
+      "alpha_sha256": "10b2df39d98ba17acf8d5d49d813c3fe73768019c594a20eb28e99602dbddfcf"
+    },
+    "boundary_gap": {
+      "path": "res://art/touhou_spell_fx/boundary_gap.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "f09102980c750100ecf3328c076ae42504b7b2520b426ef1ca8f62bb23ccc777",
+      "alpha_sha256": "0b0cde8707833969112f34bebc9ef8430729f8b6ede0a3310ea3e1c5fb77ea68"
+    }
+  }
+}

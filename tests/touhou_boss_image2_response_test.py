@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 from pathlib import Path
 
@@ -59,10 +60,15 @@ def main() -> int:
         assert_true((ROOT / record["source_sheet"]).exists(), "supplied cutout sheets must be preserved")
         assert_true(len(record["runtime_source_slots"]) == 24, "runtime frames must map to individual supplied poses")
     native_alpha = [r for r in records if r.get("source") == "user_transparent_sheet_individual_crops"]
-    assert_true({r['kind'] for r in native_alpha} == {'wriggle_boss', 'mystia_boss', 'keine_boss', 'mokou_boss'}, "the transparent supplied sheets must be attributed to their actual source")
+    assert_true({r['kind'] for r in native_alpha} == {
+        'wriggle_boss', 'mystia_boss', 'keine_boss', 'mokou_boss',
+        'letty_boss', 'chen_boss', 'alice_boss', 'lily_white_boss',
+        'youmu_boss', 'yuyuko_boss', 'ran_boss', 'yukari_boss',
+    }, "the Imperishable and Cherry transparent supplied sheets must be attributed to their actual source")
     for record in native_alpha:
         assert_true(record['source_sha256'] == record['original_sha256'], "the supplied alpha sheets must not be regenerated")
         assert_true((ROOT / record['source_sheet']).exists(), "original alpha sheet must be saved")
+        assert_true(hashlib.sha256((ROOT / record['source_sheet']).read_bytes()).hexdigest() == record['original_sha256'], "the archived sheet must match its actual original hash")
         assert_true(len(record['runtime_source_slots']) == 24, "runtime contract remains 24 frames")
     return 0
 

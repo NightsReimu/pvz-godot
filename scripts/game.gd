@@ -5,6 +5,7 @@ const RumiaDarkSlash: Texture2D = preload("res://art/touhou_pose_extras/rumia/da
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const VectorUnitArt = preload("res://scripts/ui/vector_unit_art.gd")
 const CombatVectorArt = preload("res://scripts/ui/combat_vector_art.gd")
+const TouhouSpellArt = preload("res://scripts/ui/touhou_spell_art.gd")
 const CombatDetails = preload("res://scripts/ui/combat_details.gd")
 const GardenMenus = preload("res://scripts/ui/garden_menus.gd")
 const StorybookUI = preload("res://scripts/ui/storybook_ui.gd")
@@ -3827,6 +3828,10 @@ func _queue_audio_stream_prewarm(path: String) -> void:
 
 
 func _queue_boss_frame_set_prewarm(kind: String) -> void:
+	if TouhouSpellArt.KIND_ART.has(kind):
+		var spell_asset := String(TouhouSpellArt.KIND_ART[kind])
+		if not TouhouSpellArt.textures.has(spell_asset):
+			_enqueue_asset_prewarm_task("touhou_spell_art:%s" % spell_asset, {"type": "touhou_spell_art", "asset": spell_asset})
 	if not _is_image_backed_hover_boss(kind):
 		return
 	var expected_count = _boss_frame_count_for_kind(kind)
@@ -3935,6 +3940,8 @@ func _store_prewarmed_boss_frame(kind: String, frame_index: int, texture: Textur
 
 func _run_asset_prewarm_task(task: Dictionary) -> void:
 	match String(task.get("type", "")):
+		"touhou_spell_art":
+			TouhouSpellArt.texture(String(task.get("asset", "")))
 		"audio":
 			_load_audio_stream(String(task.get("path", "")))
 		"boss_frame":
@@ -22895,6 +22902,7 @@ func _draw_battle_scene() -> void:
 		_ensure_eirin_runtime().draw_ground()
 	else:
 		_draw_battle_board()
+	TouhouSpellArt.draw(self)
 	if _is_minigame(): MinigameVisuals.draw_ground(self,minigame_runtime)
 	if _is_infinite_moon_corridor_level():
 		_ensure_reisen_runtime().draw_ground()
