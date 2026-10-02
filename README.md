@@ -1,12 +1,12 @@
 <div align="center">
 
-![植物大战僵尸 SVG 版](art/home_ui/home_title_text.png)
+![植物大战僵尸 SVG 版](art/storybook_ui/title_logo.png)
 
 ![樱花与能量流光装饰](docs/readme/readme-accent.svg)
 
-![植物大战僵尸 SVG 系统信号面板](docs/readme/readme-showcase.svg)
+![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6** · **当前版本 v1.0.152** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.153** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -27,7 +27,7 @@
 | 僵尸与 Boss 定义 | 129 |
 | 关卡定义 | 190 |
 | 主世界 | 7 |
-| 自动测试入口 | 122 |
+| 自动测试入口 | 129 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
 
@@ -55,7 +55,7 @@
 
 **v1.0.151 红魔乡 Boss 素材更新**：露米娅、大妖精、琪露诺、红美玲、小恶魔、帕秋莉、十六夜咲夜、蕾米莉亚与芙兰朵露换用新提供的素材。逐个姿态分离人物和完整特效，单独保存 216 个运行帧，修正相邻蝴蝶、新月与飞刀弧线的归属；重新对应技能与受击动作，并统一人物高度和脚部锚点。[版本说明](docs/releases/v1.0.151.md)。
 
-**v1.0.152 永夜抄 Boss 素材更新与旧帧裁切修复**：莉格露、米斯提亚与上白泽慧音（非半兽形态）换用新提供的透明素材，按实际姿态和粒子归属独立保存运行帧；重新对应技能、移动与受击动作。复查旧素材后，从此前原图重新提取妹红全部 24 帧，修复最后一排错位、相邻半个人物及倒地帧切成特效残片的问题。[版本说明](docs/releases/v1.0.152.md)。
+**v1.0.153 幻想庭院界面更新**：主页面改为手绘庭院告示板，世界选择改为七个目的地的旅行手册；纸张、雕刻木牌、标题与灯笼使用新生成插画。加入平滑悬停、按压、分批入场、灯笼摆动、落叶与萤火、世界插画渐变，以及功能页、选卡、暂停、难度与结果窗口的材质优化。[版本说明](docs/releases/v1.0.153.md)。
 
 **v1.0.138 单位美术与战斗细节更新**：逐项复查全部 146 种植物和 129 种僵尸/Boss，为 144 种植物重绘可编辑 SVG，保留火炬树桩实时火焰与坚果保龄球的派生造型；更新僵尸五官、身体、装备破损和落地阴影。修复魔术花特殊子弹、方形攻击范围及特殊僵尸的绘制偏移。新增 3-25「蓬莱人形」EX / EX+，半兽慧音道中与妹红终末。详见 [完整版本说明](docs/releases/v1.0.138.md)。
 
@@ -69,18 +69,9 @@ The original source code is available under the MIT License. Bundled artwork, au
 
 ![v1.0.138 植物与僵尸实战预览](docs/readme/unit-art-v138.png)
 
-<table>
-<tr>
-<td width="56%"><img src="./art/world_ui/world_background.png" width="100%" alt="世界选择背景预览"></td>
-<td width="22%"><img src="./art/gacha_ui/gacha_heroine.png" width="100%" alt="抽卡角色立绘预览"></td>
-<td width="22%"><img src="./art/home_ui/home_logo.png" width="100%" alt="主页装饰框预览"></td>
-</tr>
-<tr>
-<td colspan="3"><img src="./art/base_ui/base_top_bar.png" width="100%" alt="基建终端资源栏预览"></td>
-</tr>
-</table>
+![v1.0.153 世界旅行手册原生截图](docs/readme/world-ui-v153.png)
 
-首屏的扫光、粒子和轨道动画由仓库内的 SVG 自托管，游戏内的植物、卡面和角色素材仍按各自管线维护。GitHub 禁用动画时，面板会保留静态线框、色块和完整的可读文本。
+主页面与世界手册采用手绘庭院、纸张和雕刻木牌。游戏内有平滑悬停、按压、分批入场、灯笼摆动、落叶、萤火和世界插画渐变；图鉴、小游戏、选卡及功能页使用统一材质。新插画的提示词与来源记录见 [生成记录](docs/storybook-ui-prompts.json)。
 
 ## 游戏内容
 

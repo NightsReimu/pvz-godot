@@ -49,8 +49,7 @@ func draw() -> void:
 		return
 	var level: Dictionary = game.Defs.LEVELS[level_index]
 	var can_hard: bool = game._regular_level_cleared(level_index)
-	game.draw_rect(Rect2(Vector2.ZERO, game.BASE_VIEWPORT_SIZE), Color(0.01, 0.025, 0.03, 0.62), true)
-	game._draw_panel_shell(PANEL, Color(0.045, 0.075, 0.085, 0.98), Color(0.42, 0.72, 0.72, 0.9), 0.22, 0.14)
+	game.storybook_ui.panel(game, PANEL, Color("253b32"), Color("bea66d"), 0.22)
 	game._draw_text("关卡难度", PANEL.position + Vector2(36.0, 58.0), 34, Color(0.94, 0.99, 0.96))
 	game._draw_text(String(level.get("title", level.get("id", "关卡"))), PANEL.position + Vector2(36.0, 92.0), 20, Color(0.58, 0.82, 0.8))
 	game._draw_text("首次挑战从普通开始；通关普通后解锁困难。", PANEL.position + Vector2(36.0, 132.0), 17, Color(0.72, 0.82, 0.82))
@@ -61,7 +60,7 @@ func draw() -> void:
 func _draw_option(rect: Rect2, title: String, subtitle: String, accent: Color, enabled: bool) -> void:
 	var fill := Color(0.11, 0.17, 0.18, 0.98) if enabled else Color(0.06, 0.09, 0.1, 0.92)
 	var edge := Color(accent.r, accent.g, accent.b, 0.9 if enabled else 0.22)
-	game._draw_panel_shell(rect, fill, edge, 0.12, 0.08)
+	game.storybook_ui.panel(game, rect, fill, edge, 0.12)
 	game._draw_text(title, rect.position + Vector2(28.0, 58.0), 30, Color(0.96, 0.98, 0.94) if enabled else Color(0.46, 0.52, 0.52))
 	game._draw_text(subtitle, rect.position + Vector2(28.0, 94.0), 16, Color(0.7, 0.86, 0.78) if enabled else Color(0.4, 0.46, 0.46))
 	game._draw_text("点击进入" if enabled else "普通通关后解锁", rect.position + Vector2(28.0, 142.0), 15, accent if enabled else Color(0.5, 0.54, 0.54))

@@ -271,7 +271,7 @@ func _test_home_image2_decorative_layout_is_reserved() -> bool:
 		var progress_rect: Rect2 = game.call("_home_mainline_progress_rect")
 		passed = _assert_true(viewport_rect.encloses(logo_rect), "home logo plate should stay inside viewport") and passed
 		passed = _assert_true(not logo_rect.intersects(resource_rect), "home logo plate should not overlap the resource bar") and passed
-		passed = _assert_true(chip_rects.size() == 5, "home mainline preview should reserve five world chips") and passed
+		passed = _assert_true(chip_rects.size() == GameScript.WorldDataLib.all().size(), "home mainline preview should show every world") and passed
 		for chip_variant in chip_rects:
 			var chip_rect := Rect2(chip_variant)
 			passed = _assert_true(mainline_rect.encloses(chip_rect), "home mainline world chip should stay inside the main board") and passed

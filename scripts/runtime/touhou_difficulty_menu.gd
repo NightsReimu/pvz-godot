@@ -112,7 +112,7 @@ func draw() -> void:
 	var level: Dictionary = game.Defs.LEVELS[level_index]
 	var settings: Dictionary = Difficulty.PROFILES[choice]
 	game.draw_rect(Rect2(Vector2.ZERO, game.size), Color(0.01, 0.015, 0.02, 0.78))
-	game._draw_panel_shell(panel, Color("18221f"), Color("8ba596"), 0.04, 0.02)
+	game.storybook_ui.panel(game, panel, Color("26372f"), Color("bea66d"), 0.18)
 	_label(Rect2(panel.position + Vector2(24, 16), Vector2(panel.size.x - 98, 32)), "%s · 难度选择" % level.id, 26, Color("f2f3e9"))
 	if panel.size.y >= 350:
 		_label(Rect2(panel.position + Vector2(24, 48), Vector2(panel.size.x - 98, 22)), String(level.title), 16, Color("a6b7ac"))
@@ -126,8 +126,9 @@ func draw() -> void:
 		var rect := choice_rect(index)
 		var selected := choice == id
 		var tint := Color(data.color)
-		game.draw_rect(rect, Color("2e4037") if selected else Color("202c26"))
-		game.draw_rect(rect, tint if selected else Color("44594c"), false, 2 if selected else 1)
+		game.storybook_ui.panel(game, rect, Color("3f5141") if selected else Color("243b32"), tint, 0.12)
+		if selected:
+			game.draw_rect(rect.grow(-4), Color(tint, 0.5), false, 2)
 		game.draw_circle(rect.position + Vector2(19, 25), 6, tint if selected else Color("44594c"))
 		_label(Rect2(rect.position + Vector2(34, 10), Vector2(rect.size.x - 102, 28)), String(data.name), 23, tint)
 		var cleared: bool = game._touhou_difficulty_cleared(level_index, id)
@@ -142,12 +143,12 @@ func draw() -> void:
 	_label(Rect2(Vector2(panel.position.x + 24, info_y), Vector2(panel.size.x - 48, 24)), "终末 %d 阶段 · %d 攻击段    Boss 生命 x%.1f    追加 %d 波" % [summary.phases, summary.attacks, float(settings.health), int(settings.waves)], 16, Color("dce5dc"))
 	_label(Rect2(Vector2(panel.position.x + 24, info_y + 25), Vector2(panel.size.x - 48, 20)), "难度倍率：弹幕密度 x%.2f    Boss伤害 x%.2f" % [float(settings.density), Difficulty.boss_damage_multiplier(chosen)], 14, Color("a9bfb0"))
 	var start := start_rect()
-	game.draw_rect(start, Color(settings.color))
-	_label(start.grow(-10), "选择植物" if settings.select else "开始战斗", 18, Color("17231d"))
+	game.storybook_ui.nine_slice(game, "wood_plaque", start)
+	_label(start.grow(-10), "选择植物" if settings.select else "开始战斗", 18, Color("fff3d6"))
 	if panel.size.x >= 880 and boss_kind != "":
 		var center := Vector2(panel.end.x - 110, panel.position.y + 224)
 		game.draw_arc(center, 78, 0, TAU, 48, Color(Color(settings.color), 0.35), 1.5, true)
-		game._draw_zombie_icon(boss_kind, center, 1.5)
+		game._draw_zombie_icon(boss_kind, center + Vector2(0, sin(game.ui_time * 1.6) * 3), 1.5)
 
 
 func finale_summary(level: Dictionary) -> Dictionary:

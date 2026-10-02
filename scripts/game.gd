@@ -7,6 +7,7 @@ const VectorUnitArt = preload("res://scripts/ui/vector_unit_art.gd")
 const CombatVectorArt = preload("res://scripts/ui/combat_vector_art.gd")
 const CombatDetails = preload("res://scripts/ui/combat_details.gd")
 const GardenMenus = preload("res://scripts/ui/garden_menus.gd")
+const StorybookUI = preload("res://scripts/ui/storybook_ui.gd")
 const MinigameDefs = preload("res://scripts/data/minigame_defs.gd")
 const MinigameMenu = preload("res://scripts/ui/minigame_menu.gd")
 const MinigameRuntime = preload("res://scripts/runtime/minigame_runtime.gd")
@@ -1016,14 +1017,13 @@ var toast_timer := 0.0
 var banner_timer := 0.0
 var battle_intro_timer := 0.0
 var ui_time := 0.0
+var storybook_ui := StorybookUI.new()
 
 var toast_label: Label
 var banner_label: Label
 var message_panel: PanelContainer
 var message_label: Label
 var action_button: Button
-var overlay_panel_style: StyleBoxFlat
-var overlay_button_style: StyleBoxFlat
 var music_player: AudioStreamPlayer
 var current_bgm_path := ""
 var pending_bgm_path := ""
@@ -1529,7 +1529,7 @@ func _home_title_text_rect() -> Rect2:
 func _home_mainline_chip_rects() -> Array:
 	var origin := Rect2(_home_action_rects()["mainline"]).position
 	var result := []
-	for i in range(5):
+	for i in range(WorldDataLib.all().size()):
 		result.append(Rect2(origin + Vector2(32 + i * 78, 254), Vector2(64, 64)))
 	return result
 
@@ -1614,8 +1614,11 @@ func _draw_gacha_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.
 		draw_texture_rect(texture, shadow_rect, false, Color(0.0, 0.0, 0.0, alpha * (1.0 - t * 0.5)))
 
 
-func _draw_gacha_asset_panel(_asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
-	ThemeLib.draw_rounded_panel(self, rect, fallback_fill.lerp(Color("242433"), 0.26) * tint, Color(fallback_border, 0.48), 14, 0.14)
+func _draw_gacha_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
+	if asset_key == "back_button":
+		storybook_ui.nine_slice(self, "wood_plaque", rect, tint)
+		return
+	storybook_ui.panel(self, rect, fallback_fill * tint, fallback_border, 0.18)
 
 
 func _gacha_back_rect() -> Rect2:
@@ -1979,6 +1982,7 @@ func _handle_battle_pause_click(mouse_pos: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	ui_time += delta
+	storybook_ui.update(self, delta)
 	if mode in [MODE_BATTLE, MODE_ENDLESS] and _should_show_mobile_rotate_prompt():
 		queue_redraw()
 		return
@@ -2264,6 +2268,8 @@ func _update_page_transition(delta: float) -> void:
 
 
 func _handle_primary_click(mouse_pos: Vector2) -> void:
+	if StorybookUI.is_menu(mode):
+		storybook_ui.click(mouse_pos)
 	if mode == MODE_MINIGAMES:
 		MinigameMenu.click(self,mouse_pos)
 		return
@@ -2379,6 +2385,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	var mouse_pos = _event_local_position(event)
+	storybook_ui.record_input(self, event, mouse_pos)
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE or event.is_action_pressed("ui_cancel"):
 			if mode == MODE_ALMANAC and almanac_return_mode == MODE_BATTLE:
@@ -2518,36 +2525,6 @@ func _build_overlay_ui() -> void:
 	glow_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	glow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(glow_layer)
-	overlay_panel_style = StyleBoxFlat.new()
-	overlay_panel_style.bg_color = Color(0.14, 0.12, 0.09, 0.9)
-	overlay_panel_style.border_width_left = 3
-	overlay_panel_style.border_width_top = 3
-	overlay_panel_style.border_width_right = 3
-	overlay_panel_style.border_width_bottom = 3
-	overlay_panel_style.border_color = Color(0.92, 0.82, 0.54, 0.9)
-	overlay_panel_style.corner_radius_top_left = 18
-	overlay_panel_style.corner_radius_top_right = 18
-	overlay_panel_style.corner_radius_bottom_right = 18
-	overlay_panel_style.corner_radius_bottom_left = 18
-	overlay_panel_style.shadow_color = Color(0.0, 0.0, 0.0, 0.34)
-	overlay_panel_style.shadow_size = 14
-	overlay_panel_style.shadow_offset = Vector2(0.0, 8.0)
-
-	overlay_button_style = StyleBoxFlat.new()
-	overlay_button_style.bg_color = Color(0.34, 0.68, 0.24, 0.96)
-	overlay_button_style.border_width_left = 2
-	overlay_button_style.border_width_top = 2
-	overlay_button_style.border_width_right = 2
-	overlay_button_style.border_width_bottom = 2
-	overlay_button_style.border_color = Color(0.14, 0.28, 0.1)
-	overlay_button_style.corner_radius_top_left = 14
-	overlay_button_style.corner_radius_top_right = 14
-	overlay_button_style.corner_radius_bottom_right = 14
-	overlay_button_style.corner_radius_bottom_left = 14
-	overlay_button_style.shadow_color = Color(0.0, 0.0, 0.0, 0.22)
-	overlay_button_style.shadow_size = 8
-	overlay_button_style.shadow_offset = Vector2(0.0, 4.0)
-
 	toast_label = Label.new()
 	toast_label.visible = false
 	toast_label.anchor_left = 0.5
@@ -2594,7 +2571,16 @@ func _build_overlay_ui() -> void:
 	message_panel.offset_top = -126.0
 	message_panel.offset_right = 240.0
 	message_panel.offset_bottom = 126.0
-	message_panel.add_theme_stylebox_override("panel", overlay_panel_style)
+	message_panel.add_theme_stylebox_override("panel", storybook_ui.control_style("parchment", Color("334638")))
+	message_panel.visibility_changed.connect(func():
+		if message_panel.visible and message_panel.is_inside_tree():
+			message_panel.pivot_offset = message_panel.size * 0.5
+			message_panel.scale = Vector2(0.95, 0.95)
+			message_panel.modulate.a = 0.0
+			var reveal := message_panel.create_tween().set_parallel(true)
+			reveal.tween_property(message_panel, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			reveal.tween_property(message_panel, "modulate:a", 1.0, 0.18)
+	)
 	add_child(message_panel)
 
 	var margin = MarginContainer.new()
@@ -2623,19 +2609,11 @@ func _build_overlay_ui() -> void:
 	action_button.custom_minimum_size = Vector2(190.0, 52.0)
 	action_button.add_theme_font_override("font", ui_font)
 	action_button.add_theme_font_size_override("font_size", 20)
-	action_button.add_theme_color_override("font_color", Color(0.08, 0.18, 0.06))
-	action_button.add_theme_stylebox_override("normal", overlay_button_style)
-	action_button.add_theme_stylebox_override("hover", overlay_button_style.duplicate())
-	action_button.add_theme_stylebox_override("pressed", overlay_button_style.duplicate())
-	action_button.add_theme_stylebox_override("focus", overlay_button_style.duplicate())
-	var hover_style := action_button.get_theme_stylebox("hover").duplicate() as StyleBoxFlat
-	hover_style.bg_color = Color(0.42, 0.8, 0.28, 0.98)
-	hover_style.shadow_offset = Vector2(0.0, 6.0)
-	action_button.add_theme_stylebox_override("hover", hover_style)
-	var pressed_style := action_button.get_theme_stylebox("pressed").duplicate() as StyleBoxFlat
-	pressed_style.bg_color = Color(0.28, 0.6, 0.2, 0.98)
-	pressed_style.shadow_offset = Vector2(0.0, 2.0)
-	action_button.add_theme_stylebox_override("pressed", pressed_style)
+	action_button.add_theme_stylebox_override("normal", storybook_ui.control_style("wood_plaque"))
+	action_button.add_theme_stylebox_override("hover", storybook_ui.control_style("wood_plaque", Color(1.12, 1.1, 1.03)))
+	action_button.add_theme_stylebox_override("pressed", storybook_ui.control_style("wood_plaque", Color(0.85, 0.85, 0.85)))
+	action_button.add_theme_stylebox_override("focus", storybook_ui.control_style("wood_plaque", Color(1.1, 1.06, 0.92)))
+	action_button.add_theme_color_override("font_color", Color("fff3d6"))
 	action_button.pressed.connect(_on_message_button_pressed)
 	column.add_child(action_button)
 
@@ -5588,9 +5566,12 @@ func _draw_base_asset_shadow(texture: Texture2D, rect: Rect2, alpha: float = 0.2
 
 
 func _draw_base_asset_panel(asset_key: String, rect: Rect2, fallback_fill: Color, fallback_border: Color, tint: Color = Color.WHITE) -> void:
+	if asset_key.begins_with("button"):
+		storybook_ui.nine_slice(self, "wood_plaque", rect, tint)
+		return
 	var fill := fallback_fill.lerp(Color("16302c"), 0.32) * tint
 	var selected := asset_key == "room_card_selected"
-	ThemeLib.draw_rounded_panel(self, rect, fill.lightened(0.07 if selected else 0.0), Color("b9d591") if selected else Color(fallback_border, 0.38), 14, 0.12)
+	storybook_ui.panel(self, rect, fill.lightened(0.07 if selected else 0.0), Color("b9d591") if selected else fallback_border, 0.18)
 	if selected:
 		draw_line(rect.position + Vector2(16, 2), rect.position + Vector2(rect.size.x - 16, 2), Color("c0d594"), 3, true)
 
@@ -7039,23 +7020,23 @@ func _draw_enhance_portrait_panel(kind: String, panel_rect: Rect2) -> void:
 	var level = int(plant_enhance_levels.get(kind, 0))
 	var rarity = String(data.get("rarity", "green"))
 	var rarity_label = "常规" if rarity == "green" else rarity.to_upper()
-	ThemeLib.draw_gradient_rect_v(self, panel_rect, Color(0.065, 0.085, 0.1, 0.96), Color(0.02, 0.03, 0.038, 0.96))
-	draw_rect(panel_rect, Color(role_color.r, role_color.g, role_color.b, 0.5), false, 2.0)
+	storybook_ui.panel(self, panel_rect, Color("20372f"), role_color, 0.2)
 	for line_index in range(8):
 		var x = panel_rect.position.x + 42.0 + float(line_index) * 74.0
 		draw_line(Vector2(x, panel_rect.position.y + 28.0), Vector2(x - 128.0, panel_rect.end.y - 34.0), Color(1.0, 1.0, 1.0, 0.025), 2.0)
 	var top_band = Rect2(panel_rect.position + Vector2(28.0, 26.0), Vector2(panel_rect.size.x - 56.0, 96.0))
 	draw_rect(top_band, Color(role_color.r, role_color.g, role_color.b, 0.12), true)
 	draw_rect(top_band, Color(role_color.r, role_color.g, role_color.b, 0.42), false, 1.0)
-	_draw_text("OPERATOR", top_band.position + Vector2(22.0, 30.0), 15, Color(0.64, 0.76, 0.82))
+	_draw_text("植物伙伴", top_band.position + Vector2(22.0, 30.0), 15, Color(0.75, 0.84, 0.70))
 	ThemeLib.draw_label(self, ui_font, Rect2(top_band.position + Vector2(20, 38), Vector2(top_band.size.x - 40, 48)), String(data.get("name", kind)), 32, Color(0.94, 0.98, 1.0))
 	ThemeLib.draw_label(self, ui_font, Rect2(top_band.position + Vector2(152, 8), Vector2(top_band.size.x - 172, 30)), "%s  %s" % [String(profile.get("name", "")), rarity_label], 16, role_color.lightened(0.14), HORIZONTAL_ALIGNMENT_RIGHT)
 	var circle_center = panel_rect.position + Vector2(panel_rect.size.x * 0.5, 350.0)
 	for ring in range(4):
-		var radius = 104.0 + float(ring) * 46.0
-		draw_arc(circle_center, radius, 0.0, TAU, 96, Color(role_color.r, role_color.g, role_color.b, 0.16 - float(ring) * 0.028), 2.0)
+		var radius = 104.0 + float(ring) * 46.0 + sin(ui_time * 1.3 + ring) * 3
+		var start := ui_time * (0.12 + ring * 0.035) * (1 if ring % 2 == 0 else -1)
+		draw_arc(circle_center, radius, start, start + TAU * 0.92, 96, Color(role_color.r, role_color.g, role_color.b, 0.20 - float(ring) * 0.028), 2.0)
 	draw_circle(circle_center + Vector2(0.0, 122.0), 122.0, Color(0.0, 0.0, 0.0, 0.22))
-	_draw_plant_body(kind, circle_center + Vector2(0.0, 24.0), 3.4)
+	_draw_plant_body(kind, circle_center + Vector2(0.0, 24.0 + sin(ui_time * 1.9) * 4), 3.4)
 	var level_rect = Rect2(panel_rect.position + Vector2(52.0, 564.0), Vector2(panel_rect.size.x - 104.0, 76.0))
 	_draw_panel_shell(level_rect, Color(0.02, 0.032, 0.04, 0.86), role_color.darkened(0.12), 0.08, 0.04)
 	_draw_text("强化等级", level_rect.position + Vector2(22.0, 30.0), 16, Color(0.64, 0.76, 0.82))
@@ -7247,7 +7228,7 @@ func _draw_enhance_detail_panel(kind: String, panel_rect: Rect2) -> void:
 
 
 func _draw_enhance_scene() -> void:
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.04, 0.052, 0.06), Color(0.012, 0.018, 0.024))
+	storybook_ui.background(self, true)
 	for band_index in range(6):
 		var band_y = 118.0 + float(band_index) * 112.0
 		draw_line(Vector2(0.0, band_y), Vector2(BASE_VIEWPORT_SIZE.x, band_y - 76.0), Color(1.0, 1.0, 1.0, 0.025), 2.0)
@@ -20789,7 +20770,12 @@ func _draw() -> void:
 	if _touhou_difficulty_is_open():
 		touhou_difficulty_menu.draw()
 	if _level_difficulty_is_open():
+		# Regular difficulty uses the map's logical coordinates, including on
+		# phones; its drawing must use the same transform as its input mapping.
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.025, 0.03, 0.62), true)
+		draw_set_transform(_ui_offset(mode), 0.0, _ui_scale_vector(mode))
 		level_difficulty_menu.draw()
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _level_difficulty_is_open() -> bool:
@@ -20797,19 +20783,21 @@ func _level_difficulty_is_open() -> bool:
 
 
 func _draw_startup_loading_scene() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.065, 0.12, 0.1), true)
+	_draw_menu_backdrop_fill(MODE_HOME)
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.06, 0.14, 0.11, 0.46), true)
 	var safe_rect := _viewport_safe_rect().grow(-24)
-	var content_size := Vector2(minf(560, safe_rect.size.x), minf(260, safe_rect.size.y))
+	var content_size := Vector2(minf(560, safe_rect.size.x), minf(300, safe_rect.size.y))
 	var content := Rect2(safe_rect.get_center() - content_size * 0.5, content_size)
-	_draw_plant_body("sunflower", content.get_center() + Vector2(0, -74), 1.2)
-	ThemeLib.draw_label(self, ui_font, Rect2(content.position + Vector2(0, 100), Vector2(content.size.x, 48)), "正在加载庭院", 32, Color(0.94, 0.98, 0.9), HORIZONTAL_ALIGNMENT_CENTER)
-	var progress = 1.0
+	storybook_ui.panel(self, content, GardenMenus.PAPER, GardenMenus.BORDER, 0.25)
+	_draw_plant_body("sunflower", content.position + Vector2(content.size.x * 0.5, 80 + sin(ui_time * 2.5) * 4), 1.0)
+	ThemeLib.draw_label(self, ui_font, Rect2(content.position + Vector2(12, 124), Vector2(content.size.x - 24, 46)), "正在加载庭院", 30, GardenMenus.INK, HORIZONTAL_ALIGNMENT_CENTER)
+	var progress := 1.0
 	if startup_loading_total_tasks > 0:
 		progress = clampf(float(startup_loading_completed_tasks) / float(startup_loading_total_tasks), 0.0, 1.0)
-	var bar_rect := Rect2(content.position + Vector2(12, 174), Vector2(content.size.x - 24, 10))
-	draw_rect(bar_rect, Color(0.18, 0.28, 0.23), true)
-	draw_rect(ThemeLib.progress_fill_rect(bar_rect, progress), Color(0.82, 0.86, 0.36), true)
-	ThemeLib.draw_label(self, ui_font, Rect2(content.position + Vector2(0, 200), Vector2(content.size.x, 32)), "%d%%" % roundi(progress * 100), 18, Color(0.7, 0.82, 0.74), HORIZONTAL_ALIGNMENT_CENTER)
+	var bar_rect := Rect2(content.position + Vector2(28, 202), Vector2(content.size.x - 56, 12))
+	ThemeLib.draw_rounded_panel(self, bar_rect, Color("d1ceb3"), Color.TRANSPARENT, 6, 0)
+	ThemeLib.draw_rounded_panel(self, ThemeLib.progress_fill_rect(bar_rect, progress), GardenMenus.GREEN, Color.TRANSPARENT, 6, 0)
+	ThemeLib.draw_label(self, ui_font, Rect2(content.position + Vector2(12, 230), Vector2(content.size.x - 24, 32)), "花园即将开启  ·  %d%%" % roundi(progress * 100), 18, GardenMenus.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _draw_menu_backdrop_fill(draw_mode: String) -> void:
@@ -20818,6 +20806,14 @@ func _draw_menu_backdrop_fill(draw_mode: String) -> void:
 	# uniformly scaled and centered. Uses a sky-like vertical gradient matching
 	# the mode so the centered content blends into the fill.
 	if size.x <= 0.0 or size.y <= 0.0:
+		return
+	if StorybookUI.is_menu(draw_mode):
+		var texture := storybook_ui.texture("courtyard")
+		var scale_factor := maxf(size.x / texture.get_width(), size.y / texture.get_height())
+		var draw_size := texture.get_size() * scale_factor
+		draw_texture_rect(texture, Rect2((size - draw_size) * 0.5, draw_size), false)
+		if draw_mode in StorybookUI.DARK_MODES:
+			draw_rect(Rect2(Vector2.ZERO, size), Color(0.015, 0.035, 0.033, 0.88), true)
 		return
 	var night := draw_mode == MODE_WORLD_SELECT and roundi(world_select_scroll) >= 3
 	if draw_mode == MODE_MAP:
@@ -20872,6 +20868,7 @@ func _draw_mode_scene(draw_mode: String, offset: Vector2) -> void:
 		_draw_battle_scene()
 	else:
 		_draw_battle_scene()
+	storybook_ui.finish(self, draw_mode)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	menu_draw_transform = Transform2D.IDENTITY
 
@@ -20883,6 +20880,7 @@ func _draw_gacha_scene() -> void:
 	else:
 		ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.16, 0.08, 0.26), Color(0.035, 0.02, 0.075))
 	draw_rect(Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.04, 0.02, 0.08, 0.26), true)
+	storybook_ui.ambient(self, Rect2(0, 0, 1600, 410), "night", 14)
 	for i in range(18):
 		var seed_val := float(i) * 41.73
 		var pos := Vector2(
@@ -20893,6 +20891,7 @@ func _draw_gacha_scene() -> void:
 		draw_line(pos + Vector2(-18.0, 0.0), pos + Vector2(18.0, 0.0), Color(0.92, 0.8, 1.0, 0.05), 1.0)
 
 	var heroine_rect := _gacha_character_rect()
+	heroine_rect.position.y += sin(ui_time * 1.35) * 4.0
 	var heroine_texture := _gacha_ui_texture("heroine")
 	if heroine_texture != null:
 		_draw_gacha_asset_shadow(heroine_texture, heroine_rect, 0.28)
@@ -20966,12 +20965,8 @@ func _draw_gacha_scene() -> void:
 
 func _draw_gacha_draw_button(button_id: String, label: String, cost: String, asset_key: String, fallback_fill: Color, fallback_border: Color) -> void:
 	var rect := _gacha_draw_button_rect(button_id)
-	var hovered := rect.has_point(_pointer_local_position())
-	var draw_rect_local := rect
-	if hovered:
-		draw_rect_local.position.y -= 3.0
-	var tint := Color(1.0, 1.0, 1.0, 1.0) if not hovered else Color(1.08, 1.06, 1.0, 1.0)
-	_draw_gacha_asset_panel(asset_key, draw_rect_local, fallback_fill, fallback_border, tint)
+	var draw_rect_local: Rect2 = storybook_ui.surface(self, rect, "summon:" + button_id)
+	storybook_ui.nine_slice(self, "wood_plaque", draw_rect_local)
 	var label_width := ui_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 24).x
 	ThemeLib.draw_text_with_shadow(self, ui_font, draw_rect_local.position + Vector2((draw_rect_local.size.x - label_width) * 0.5, 42.0), label, 24, Color(1.0, 0.96, 0.9), Vector2(1.0, 2.0), 0.32)
 	var cost_width := ui_font.get_string_size(cost, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16).x
@@ -21132,7 +21127,7 @@ func _draw_base_room_idle_fx(room_id: String, rect: Rect2, accent: Color, effici
 
 
 func _draw_base_room_card(room_id: String, index: int) -> void:
-	var rect := _base_room_card_rect(index)
+	var rect: Rect2 = storybook_ui.surface(self, _base_room_card_rect(index), "room:" + room_id)
 	var def: Dictionary = BASE_ROOM_DEFS[room_id]
 	var room_state: Dictionary = base_rooms.get(room_id, {})
 	var assigned := _base_assigned_plants(room_id)
@@ -21340,7 +21335,7 @@ func _draw_base_transient_fx() -> void:
 
 func _draw_base_scene() -> void:
 	_init_base_defaults()
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.018, 0.028, 0.034), Color(0.035, 0.052, 0.05))
+	storybook_ui.background(self, true)
 	ThemeLib.draw_glow_circle(self, Vector2(1420.0, 108.0), 260.0, Color(0.26, 0.56, 0.48, 0.12), 5)
 	ThemeLib.draw_glow_circle(self, Vector2(220.0, 790.0), 240.0, Color(0.16, 0.72, 0.86, 0.08), 5)
 	for line_index in range(16):
@@ -21378,15 +21373,12 @@ func _draw_base_scene() -> void:
 	_draw_base_transient_fx()
 
 
-func _draw_panel_shell(rect: Rect2, fill_color: Color, border_color: Color, shadow_alpha: float = 0.18, accent_alpha: float = 0.14) -> void:
-	ThemeLib.draw_panel_shell(self, rect, fill_color, border_color, shadow_alpha, accent_alpha)
+func _draw_panel_shell(rect: Rect2, fill_color: Color, border_color: Color, shadow_alpha: float = 0.18, _accent_alpha: float = 0.14) -> void:
+	storybook_ui.panel(self, rect, fill_color, border_color, shadow_alpha)
 
 
 func _draw_fancy_button(rect: Rect2, label: String, fill_color: Color, border_color: Color, font_size: int = 22) -> void:
-	# Auto-detect hover from the current pointer position (battle-space coords).
-	var mp = _pointer_local_position()
-	var hovered = rect.has_point(mp)
-	ThemeLib.draw_fancy_button(self, rect, label, ui_font, fill_color, border_color, hovered, false, font_size)
+	storybook_ui.button(self, rect, label, fill_color, border_color, font_size)
 
 
 func _draw_world_sky(is_night_world: bool) -> void:
@@ -21467,23 +21459,23 @@ func _world_card_rect(index: int) -> Rect2:
 
 
 func _world_select_title_panel_rect() -> Rect2:
-	return Rect2(220, 58, 780, 96)
+	return Rect2(208, 48, 900, 112)
 
 
 func _world_select_title_text_rect() -> Rect2:
-	return Rect2(220, 58, 480, 54)
+	return Rect2(252, 58, 600, 54)
 
 
 func _world_select_title_subtitle_rect() -> Rect2:
-	return Rect2(222, 118, 680, 28)
+	return Rect2(254, 118, 680, 28)
 
 
 func _world_select_card_text_rect(index: int) -> Rect2:
-	return Rect2(_world_card_rect(index).position + Vector2(62, 8), Vector2(196, 28))
+	return Rect2(_world_card_rect(index).position + Vector2(92, 8), Vector2(196, 28))
 
 
 func _world_select_card_preview_grid_rect(_index: int) -> Rect2:
-	return Rect2(954, 466, 530, 110)
+	return Rect2(1030, 466, 450, 110)
 
 
 func _draw_home_entry(rect: Rect2, title: String, subtitle: String, accent: Color, _fill: Color, entry_id: String, large: bool = false, disabled: bool = false) -> void:
@@ -21495,7 +21487,7 @@ func _draw_home_scene() -> void:
 
 
 func _draw_daily_scene() -> void:
-	ThemeLib.draw_gradient_rect_v(self, Rect2(Vector2.ZERO, BASE_VIEWPORT_SIZE), Color(0.028, 0.04, 0.048), Color(0.012, 0.016, 0.02))
+	storybook_ui.background(self, true)
 	for i in range(12):
 		var y := 104.0 + float(i) * 58.0
 		draw_line(Vector2(0.0, y), Vector2(BASE_VIEWPORT_SIZE.x, y - 28.0), Color(0.55, 0.82, 1.0, 0.025), 1.5)
@@ -21516,7 +21508,7 @@ func _draw_daily_scene() -> void:
 	var series_defs := _daily_series_defs()
 	for i in range(series_defs.size()):
 		var series := Dictionary(series_defs[i])
-		var rect := _daily_series_card_rect(i)
+		var rect: Rect2 = storybook_ui.surface(self, _daily_series_card_rect(i), "daily-series:" + str(i))
 		var selected := String(series.get("id", "")) == daily_selected_series_id
 		var open := _daily_series_open_on_weekday(series, weekday)
 		var accent := Color(series.get("color", Color(0.42, 0.74, 0.86)))
@@ -21546,7 +21538,7 @@ func _draw_daily_scene() -> void:
 	var stages := _daily_stage_defs_for_series(selected_series)
 	for i in range(stages.size()):
 		var stage := Dictionary(stages[i])
-		var rect := _daily_stage_rect(i)
+		var rect: Rect2 = storybook_ui.surface(self, _daily_stage_rect(i), "daily-stage:" + str(i), not stage_open)
 		var hovered := i == daily_hover_stage_index
 		var difficulty := int(stage.get("difficulty", i + 1))
 		var fill := Color(0.076, 0.098, 0.11, 0.96) if stage_open else Color(0.052, 0.058, 0.064, 0.94)
@@ -21668,9 +21660,10 @@ func _draw_map_scene() -> void:
 
 func _draw_almanac_scene() -> void:
 	GardenMenus.background(self)
-	GardenMenus.label(self, Rect2(220, 58, 760, 54), "庭院图鉴", 40)
-	GardenMenus.label(self, Rect2(222, 118, 850, 28), "了解你的植物伙伴，也了解即将面对的对手。", 20, GardenMenus.MUTED)
-	ThemeLib.draw_rounded_panel(self, ALMANAC_BOOK_RECT, GardenMenus.PAPER, GardenMenus.BORDER, 22, 0.12)
+	storybook_ui.panel(self, Rect2(208, 48, 920, 112), GardenMenus.PAPER, GardenMenus.BORDER, 0.18)
+	GardenMenus.label(self, Rect2(252, 58, 760, 54), "庭院图鉴", 40)
+	GardenMenus.label(self, Rect2(254, 118, 830, 28), "了解你的植物伙伴，也了解即将面对的对手。", 20, GardenMenus.MUTED)
+	storybook_ui.panel(self, ALMANAC_BOOK_RECT, GardenMenus.PAPER, GardenMenus.BORDER, 0.24)
 	_draw_fancy_button(ALMANAC_CLOSE_RECT, "‹  返回", GardenMenus.PAPER, GardenMenus.BORDER, 22)
 	_draw_fancy_button(ALMANAC_PLANT_TAB_RECT, "植物", GardenMenus.GREEN if almanac_tab == "plants" else Color("e8ecdc"), GardenMenus.BORDER, 22)
 	_draw_fancy_button(ALMANAC_ZOMBIE_TAB_RECT, "僵尸 / 首领", GardenMenus.GREEN if almanac_tab == "zombies" else Color("e8ecdc"), GardenMenus.BORDER, 22)
@@ -21845,7 +21838,7 @@ func _draw_map_info_panel() -> void:
 	if bool(level.get("boss_level", false)):
 		unlock_text = "Boss 关卡"
 		unlock_color = Color(0.72, 0.16, 0.12)
-	elif String(level["unlock_plant"]) != "":
+	elif String(level.get("unlock_plant", "")) != "":
 		unlock_text = "解锁：" + String(Defs.PLANTS[String(level["unlock_plant"])]["name"])
 		unlock_color = Color(0.1, 0.42, 0.18)
 	else:
@@ -22465,9 +22458,7 @@ func _draw_seed_selection_scene() -> void:
 func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: bool, allow_hover: bool = true) -> void:
 	var mouse_pos = _pointer_local_position()
 	var hovered = allow_hover and rect.has_point(mouse_pos)
-	var lift = 4.0 if hovered and not disabled else 0.0
-	var card_rect_draw = rect.grow(2.0 if hovered else 0.0)
-	card_rect_draw.position.y -= lift
+	var card_rect_draw: Rect2 = storybook_ui.surface(self, rect, "seed:%s:%s" % [kind, rect.position], disabled) if allow_hover else rect
 	var bg = Color(0.96, 0.94, 0.87) if not disabled else Color(0.82, 0.8, 0.76)
 	if hovered and not disabled:
 		draw_rect(card_rect_draw.grow(6.0), Color(1.0, 0.96, 0.72, 0.12), true)
@@ -22485,8 +22476,7 @@ func _draw_selection_card(kind: String, rect: Rect2, selected: bool, disabled: b
 func _draw_almanac_entry(kind: String, rect: Rect2, selected: bool, is_plant: bool, allow_hover: bool = true) -> void:
 	var mouse_pos = _pointer_local_position()
 	var hovered = allow_hover and rect.has_point(mouse_pos)
-	var card_rect_draw = rect.grow(2.0 if hovered else 0.0)
-	card_rect_draw.position.y -= 3.0 if hovered else 0.0
+	var card_rect_draw: Rect2 = storybook_ui.surface(self, rect, "almanac:" + kind) if allow_hover else rect
 	if hovered:
 		draw_rect(card_rect_draw.grow(5.0), Color(1.0, 1.0, 1.0, 0.06), true)
 	_draw_panel_shell(card_rect_draw, GardenMenus.PAPER, GardenMenus.BORDER, 0.08, 0.05)

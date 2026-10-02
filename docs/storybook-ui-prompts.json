@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-02",
+  "mode": "built-in image_gen tool",
+  "notes": "Generated originals copied unchanged to art/storybook_ui; transparent outputs retain original alpha. Animation and nine-slice rendering are implemented in Godot.",
+  "assets": [
+    {
+      "path": "art/storybook_ui/courtyard.png",
+      "prompt": "Use case: game-environment-art. Generate a polished hand painted 2D game menu background, wide landscape 16:9 composition, 1920x1080 style. A welcoming whimsical Gensokyo garden courtyard at warm golden afternoon, gouache and detailed Japanese storybook illustration, soft richly painted textures, emerald leafy shrubs, bamboo, small red shrine gate in far background, cozy wooden greenhouse at far right, charming flower planters, mossy stone path. Composition for a real game UI: distant scene in upper third; middle 70 percent calm low-detail warm pale grass and stone courtyard where interface cards will be overlaid; lush foreground plants and lanterns concentrated at outer edges and bottom 8 percent. Distinct parallax-friendly visual depth. Charming plant-versus-zombie fantasy garden mood but original artwork. Clear shapes, warm amber light, forest green outlines, cream highlights, lively yet easy on the eyes. No UI panels, no buttons, no words, no letters, no text, no watermark, no main characters. Background only. Fill the entire image.",
+      "transparent_background": false,
+      "sha256": "fefea20132e339b83d89a621456c34e49d6b95ce7aa90825fac463688aa31f25"
+    },
+    {
+      "path": "art/storybook_ui/parchment.png",
+      "prompt": "Use case: game-ui-asset. A single empty square parchment page panel for a charming detailed hand-painted fantasy garden game UI, front view perfectly flat orthographic 2D. Warm ivory handmade paper, subtle fibers and faint irregular natural edge, elegant thin double moss-green and antique-gold frame, a small painted green leaf sprig and tiny white blossom in each corner, fine emerald embossed edge. 85 percent of surface in center completely blank clean pale cream for readable Chinese labels that will be added in engine. Corners small, detailed but never intrude into the central content. No text, no words, no symbols, no buttons, no scene, no cast shadow outside panel, no watermark. One square panel aligned centrally, equal margins 32px, entire outside margin genuinely transparent. High quality cozy Japanese storybook game illustration. This must be suitable for nine-slice scaling.",
+      "transparent_background": true,
+      "sha256": "1118680e3b0b5aa42cc152dbf885156e29e71397941bf0b5b8034e4579de0820"
+    },
+    {
+      "path": "art/storybook_ui/wood_plaque.png",
+      "prompt": "Use case: game-ui-asset. One empty horizontal wooden button plaque, about 3:1 shape, for a premium cozy hand-painted fantasy garden game UI. Front orthographic 2D, beautifully carved warm honey walnut wooden board with beveled rounded corners, thin deep forest-green painted trim and gold rim, small elegant leaf carvings at its far left and right edge, natural subtle woodgrain. Broad completely blank dark green painted flat central inset about 80 percent area, suitable for high contrast white Chinese text added in game. Nothing else. No text, no letters, no logo, no scene, no characters, no drop shadow outside asset. Entire plaque fully visible with comfortable padding and genuinely transparent background. Finely finished colored gouache illustration, thick attractive outlines and carved dimensional material.",
+      "transparent_background": true,
+      "sha256": "c7e146e27c7c305c284aa8c0583b9c28a9c334d9744feb51ced055c687497701"
+    },
+    {
+      "path": "art/storybook_ui/lantern.png",
+      "prompt": "Use case: game-ui-asset. A single isolated dangling warm paper garden lantern with a short knotted rope above and small emerald leafy vine curled around the rope. Slim vertical silhouette. A small old gold bell and red tassel beneath. Cozy warm amber paper with subtle flower petal pattern, attractive forest-green and walnut frame. Charming premium hand painted Japanese storybook fantasy garden game illustration. Front view 2D, lantern gently glowing from within, no wide halo outside. All parts entirely visible, no text, no letter, no scene, no characters, no watermark. Genuine transparent background, generously padded. Isolated ornamental prop to be rotated around rope top and animated in game.",
+      "transparent_background": true,
+      "sha256": "c99d98725e4cc81327bf44d35479e6cd7a42faa2ef365e69e1ccc4c319a7c9ee"
+    },
+    {
+      "path": "art/storybook_ui/title_logo.png",
+      "prompt": "Use case: game-logo. Create an exquisite playful hand-painted 2D Chinese game title wordmark with exactly these six large Chinese characters on one horizontal line: 「植物大战僵尸」. Exact text: 植物大战僵尸. All six characters distinct and perfectly readable, chunky lively hand-lettered style, warm ivory letter faces, forest green embossed sides, golden orange thin rim, walnut dark outline, slight charming irregular character angles. A tiny smiling sunflower and pea sprout decorate the far left and right ends and a few curling leaves around the word edges, no full characters. Wide horizontal logo, about 5:1 overall shape, generous transparent margins. Designed to sit on a dark emerald wooden board, so ivory faces bright and readable. High quality fantasy garden game identity, cute dimensional cartoon and fine gouache texture. No other text, no subtitle, no background, no panel, no frame, no watermark. Genuine transparent background. Entire logo fully visible, nothing cropped.",
+      "transparent_background": true,
+      "sha256": "e711cc5200d1f3495f47938fcc9d91bd5e51939734379903c06918587fe5fea7"
+    }
+  ]
+}
