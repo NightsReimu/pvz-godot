@@ -147,18 +147,27 @@ func _test_frames_and_patterns() -> void:
 	var frames: Array = game._load_boss_frame_set("keine_boss", false)
 	check(frames.size() == 24, "Supplied sheet must produce 24 frames")
 	for frame in frames:
-		check(frame != null and frame.get_size() == Vector2(272, 272), "Frames must have consistent transparent canvases")
+		check(frame != null and frame.get_size() == Vector2(512, 384), "Frames must have consistent full-effect canvases")
 		if frame != null:
 			var image: Image = frame.get_image()
-			check(image.get_pixel(0, 0).a == 0.0 and image.get_pixel(271, 271).a == 0.0, "No opaque backdrop should remain at frame corners")
+			check(image.get_pixel(0, 0).a == 0.0 and image.get_pixel(image.get_width() - 1, image.get_height() - 1).a == 0.0, "No opaque backdrop should remain at frame corners")
 	var seen: Array = []
 	for pose in ["idle", "shift", "history", "edict", "treasures", "piano", "emperor", "final"]:
 		for frame in range(60):
 			game.level_time = float(frame) / 20.0
 			var index: int = game._keine_frame_index({"rumia_state": pose})
+			check(index not in [12, 13, 14, 21, 22], "Casting must not substitute a reaction or fallen pose for the body")
 			if not seen.has(index):
 				seen.append(index)
-	check(seen.size() == 24, "All 24 supplied poses must be reachable")
+	check(seen.size() > 12, "Idle, movement and spells must use distinct supplied actions")
+	var reactions: Array = []
+	for tick in range(12):
+		game.level_time = tick / 10.0
+		var index: int = game._keine_frame_index({"rumia_state": "final", "impact_timer": 0.2})
+		check(index in [12, 13, 14], "Impacts must use the supplied reaction poses")
+		if not reactions.has(index):
+			reactions.append(index)
+	check(reactions.size() == 3, "All three reaction poses must be reachable during an impact")
 	var signatures: Array = []
 	for cycle in range(5):
 		var boss: Dictionary = game.zombies[0]

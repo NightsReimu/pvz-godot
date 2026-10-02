@@ -4,7 +4,7 @@ extends RefCounted
 # Height excludes transparent canvas padding and faint spell glows.
 const BODY_HEIGHT := 180.0
 const IDLE_HEIGHTS := {
-	"mokou_boss": 209.0,
+	"mokou_boss": 208.0,
 	"hakutaku_boss": 238.0,
 	"kaguya_boss": 208.0,
 	"eirin_boss": 216.0,
@@ -15,13 +15,13 @@ const IDLE_HEIGHTS := {
 	"cirno_boss": 199.0,
 	"daiyousei_boss": 220.0,
 	"flandre_boss": 224.0,
-	"keine_boss": 246.0,
+	"keine_boss": 249.0,
 	"koakuma_boss": 202.0,
 	"letty_boss": 181.0,
 	"lily_white_boss": 210.0,
 	"marisa_boss": 232.0,
 	"meiling_boss": 234.0,
-	"mystia_boss": 223.0,
+	"mystia_boss": 230.0,
 	"patchouli_boss": 227.0,
 	"prismriver_boss": 150.0,
 	"ran_boss": 198.0,
@@ -29,14 +29,14 @@ const IDLE_HEIGHTS := {
 	"remilia_boss": 230.0,
 	"rumia_boss": 198.0,
 	"sakuya_boss": 242.0,
-	"wriggle_boss": 228.0,
+	"wriggle_boss": 248.0,
 	"youmu_boss": 219.0,
 	"yukari_boss": 210.0,
 	"yuyuko_boss": 201.0,
 }
 
 const IDLE_BOTTOM := {
-	"mokou_boss": 243.0,
+	"mokou_boss": 319.0,
 	"hakutaku_boss": 254.0,
 	"kaguya_boss": 236.0,
 	"eirin_boss": 246.0,
@@ -47,13 +47,13 @@ const IDLE_BOTTOM := {
 	"cirno_boss": 319.0,
 	"daiyousei_boss": 319.0,
 	"flandre_boss": 320.0,
-	"keine_boss": 262.0,
+	"keine_boss": 320.0,
 	"koakuma_boss": 320.0,
 	"letty_boss": 213.0,
 	"lily_white_boss": 240.0,
 	"marisa_boss": 247.0,
 	"meiling_boss": 319.0,
-	"mystia_boss": 256.0,
+	"mystia_boss": 319.0,
 	"patchouli_boss": 319.0,
 	"prismriver_boss": 216.0,
 	"ran_boss": 226.0,
@@ -61,7 +61,7 @@ const IDLE_BOTTOM := {
 	"remilia_boss": 319.0,
 	"rumia_boss": 319.0,
 	"sakuya_boss": 319.0,
-	"wriggle_boss": 256.0,
+	"wriggle_boss": 320.0,
 	"youmu_boss": 242.0,
 	"yukari_boss": 241.0,
 	"yuyuko_boss": 233.0,
@@ -141,6 +141,50 @@ static func scarlet_frame_index(kind: String, zombie: Dictionary, time: float) -
 		frames = animations.get("hit", [12, 13, 14])
 		speed = 10.0
 	var tick := maxi(0, int(floor(time * speed + float(zombie.get("anim_phase", 0.0)) * frames.size())))
+	return int(frames[tick % frames.size()])
+
+const IMPERISHABLE_ANIMATIONS := {
+	"wriggle_boss": {
+		"hit": [12, 13, 12], "firefly": [9, 10, 11, 10],
+		"swarm": [15, 16, 17, 16], "storm": [6, 7, 20, 7],
+		"final": [18, 19, 23, 19], "phase": [15, 16, 18, 19, 23],
+	},
+	"mystia_boss": {
+		"hit": [20, 21, 20], "song": [12, 13, 14, 15],
+		"wing": [6, 7, 8, 9, 10, 11], "crescendo": [15, 16, 17, 16],
+		"cook": [12, 13, 14, 13], "final": [18, 19, 22, 19],
+		"enraged": [16, 17, 18, 19], "phase": [16, 17, 18, 19, 22],
+	},
+	"keine_boss": {
+		"hit": [12, 13, 14], "history": [6, 7, 8, 7],
+		"edict": [6, 7, 8, 7], "whip": [6, 7, 18, 20],
+		"treasures": [9, 10, 11, 10], "bamboo": [9, 10, 11, 10],
+		"piano": [9, 11, 16, 17], "emperor": [18, 19, 20, 19],
+		"final": [15, 16, 17, 23], "phase": [15, 16, 17, 23],
+	},
+}
+
+static func imperishable_frame_index(kind: String, boss: Dictionary, time: float) -> int:
+	var animations: Dictionary = IMPERISHABLE_ANIMATIONS.get(kind, {})
+	var state := String(boss.get("rumia_state", "idle"))
+	if kind == "mystia_boss":
+		if state == "idle":
+			state = String(boss.get("mystia_state", state))
+		if float(boss.get("mystia_cooking_timer", 0.0)) > 0.0:
+			state = "cook"
+	var frames: Array = animations.get(state, [0, 1, 2, 1])
+	var speed := 6.0 if animations.has(state) else 3.0
+	if state == "shift" or (state == "idle" and float(boss.get("special_pause_timer", 0.0)) > 0.0):
+		frames = [3, 4, 5, 4]
+		speed = 5.0
+	var elapsed := time
+	if kind == "keine_boss" and state != "idle" and float(boss.get("touhou_cast_duration", 0.0)) > 0.0:
+		elapsed = float(boss.touhou_cast_duration) - float(boss.get("touhou_cast_remaining", 0.0))
+	if float(boss.get("impact_timer", 0.0)) > 0.0:
+		frames = animations.hit
+		speed = 10.0
+		elapsed = time
+	var tick := maxi(0, int(floor(elapsed * speed + float(boss.get("anim_phase", 0.0)) * frames.size())))
 	return int(frames[tick % frames.size()])
 
 static func draw_scale(kind: String) -> float:

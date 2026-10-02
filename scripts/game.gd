@@ -30164,36 +30164,11 @@ func _keine_frame_index(zombie: Dictionary) -> int:
 
 
 func _wriggle_frame_index(zombie: Dictionary) -> int:
-	var phase = float(zombie.get("anim_phase", 0.0))
-	var state = String(zombie.get("rumia_state", "idle"))
-	var offset = 0
-	match state:
-		"firefly": offset = 6
-		"swarm": offset = 12
-		"storm": offset = 15
-		"final": offset = 18
-		"phase": offset = 21
-		"shift": offset = 3
-	var frame = int(floor(level_time * (8.0 + float(zombie.get("boss_phase", 0)) * 0.7) + phase * 5.0)) % 6
-	return clampi(offset + frame, 0, WRIGGLE_FRAME_COUNT - 1)
+	return TouhouSpriteDefs.imperishable_frame_index("wriggle_boss", zombie, level_time)
 
 
 func _mystia_frame_index(zombie: Dictionary) -> int:
-	var phase = float(zombie.get("anim_phase", 0.0))
-	var state = String(zombie.get("rumia_state", zombie.get("mystia_state", "idle")))
-	if float(zombie.get("mystia_cooking_timer", 0.0)) > 0.0:
-		state = "cook"
-	var offset := 0
-	match state:
-		"song": offset = 3
-		"wing": offset = 6
-		"crescendo": offset = 9
-		"cook": offset = 12
-		"final": offset = 15
-		"enraged": offset = 18
-		"shift": offset = 21
-	var frame = int(floor(level_time * (7.4 + float(zombie.get("boss_phase", 0)) * 0.55) + phase * 4.0)) % 3
-	return clampi(offset + frame, 0, MYSTIA_FRAME_COUNT - 1)
+	return TouhouSpriteDefs.imperishable_frame_index("mystia_boss", zombie, level_time)
 
 
 func _tewi_frame_index(zombie: Dictionary) -> int:
@@ -30475,8 +30450,6 @@ func _ensure_wriggle_frames_loaded() -> void:
 func _draw_wriggle_boss(center: Vector2, zombie: Dictionary) -> void:
 	_ensure_wriggle_frames_loaded()
 	var frame_index = _wriggle_frame_index(zombie)
-	if float(zombie.get("impact_timer", 0.0)) > 0.0:
-		frame_index = 21 + (int(floor(level_time * 10.0)) % 3)
 	var texture := _try_get_boss_frame_texture("wriggle_boss", frame_index)
 	var phase = int(zombie.get("boss_phase", 0))
 	var bob = sin(level_time * 2.7 + float(zombie.get("anim_phase", 0.0))) * 5.0

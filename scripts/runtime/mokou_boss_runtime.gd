@@ -147,7 +147,7 @@ func draw_boss(center: Vector2,boss: Dictionary) -> void:
 	if texture == null: return
 	var scale: float = game._touhou_boss_draw_scale(kind)
 	var extent: Vector2 = texture.get_size()*scale
-	var anchor = 162.0 if kind=="hakutaku_boss" else 124.5
+	var anchor = 162.0 if kind=="hakutaku_boss" else 256.0
 	game.draw_texture_rect(texture,Rect2(center+Vector2(-anchor*scale,game.TouhouSpriteDefs.top_offset(kind)),extent),false)
 
 func draw_ground() -> void:

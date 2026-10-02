@@ -45,10 +45,11 @@ def main() -> int:
     metadata_path = ROOT / "art/touhou_boss_animation_sources.json"
     assert_true(metadata_path.exists(), "committed Touhou boss animation metadata should exist")
     records = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert_true(len(records) == len(generator.BOSSES), "Touhou boss animation metadata should cover every boss")
+    assert_true(len(records) == len(generator.BOSSES) + 4, "metadata must retain the earlier sets, the Imperishable refresh and the repaired Mokou set")
     assert_true(
         {record.get("source") for record in records} <= {
-            "gpt-image-2_sheet", "user_sheet_imagegen_background_extraction"
+            "gpt-image-2_sheet", "user_sheet_imagegen_background_extraction",
+            "user_transparent_sheet_individual_crops"
         },
         "Touhou boss animation metadata should identify its actual sheet source",
     )
@@ -57,6 +58,12 @@ def main() -> int:
     for record in supplied:
         assert_true((ROOT / record["source_sheet"]).exists(), "supplied cutout sheets must be preserved")
         assert_true(len(record["runtime_source_slots"]) == 24, "runtime frames must map to individual supplied poses")
+    native_alpha = [r for r in records if r.get("source") == "user_transparent_sheet_individual_crops"]
+    assert_true({r['kind'] for r in native_alpha} == {'wriggle_boss', 'mystia_boss', 'keine_boss', 'mokou_boss'}, "the transparent supplied sheets must be attributed to their actual source")
+    for record in native_alpha:
+        assert_true(record['source_sha256'] == record['original_sha256'], "the supplied alpha sheets must not be regenerated")
+        assert_true((ROOT / record['source_sheet']).exists(), "original alpha sheet must be saved")
+        assert_true(len(record['runtime_source_slots']) == 24, "runtime contract remains 24 frames")
     return 0
 
 

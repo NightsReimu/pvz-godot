@@ -9,8 +9,10 @@ func _initialize() -> void:
 func _run() -> void:
 	var game := GameScript.new()
 	var passed := true
-	for kind in SpriteDefs.SCARLET_ANIMATIONS:
-		var animations: Dictionary = SpriteDefs.SCARLET_ANIMATIONS[kind]
+	var supplied: Dictionary = SpriteDefs.SCARLET_ANIMATIONS.duplicate()
+	supplied.merge(SpriteDefs.IMPERISHABLE_ANIMATIONS)
+	for kind in supplied:
+		var animations: Dictionary = supplied[kind]
 		for state in animations:
 			if state == "hit":
 				continue
@@ -46,8 +48,15 @@ func _run() -> void:
 						same_alpha = false
 						break
 				passed = _check(same_alpha, kind + " must preserve alpha, facing and detached spell particles") and passed
+	game.level_time = 0.34
+	passed = _check(SpriteDefs.IMPERISHABLE_ANIMATIONS.mystia_boss.cook.has(game._mystia_frame_index({"rumia_state": "wing", "mystia_cooking_timer": 1.0})), "Mystia cooking timer must select her charge poses") and passed
+	passed = _check(SpriteDefs.IMPERISHABLE_ANIMATIONS.mystia_boss.song.has(game._mystia_frame_index({"rumia_state": "idle", "mystia_state": "song"})), "Mystia secondary state must be represented") and passed
+	var timed_boss := {"kind": "keine_boss", "rumia_state": "whip", "touhou_cast_duration": 2.0, "touhou_cast_remaining": 1.4}
+	var paused_frame := game._keine_frame_index(timed_boss)
+	game.level_time += 1.0
+	passed = _check(game._keine_frame_index(timed_boss) == paused_frame, "Keine timed cast must follow cast progress") and passed
 	game.free()
-	print("Scarlet sprite animation, reaction, canvas and particle preservation: ", "PASS" if passed else "FAIL")
+	print("Supplied sprite animation, reaction, canvas and particle preservation: ", "PASS" if passed else "FAIL")
 	quit(0 if passed else 1)
 
 func _check(condition: bool, message: String) -> bool:

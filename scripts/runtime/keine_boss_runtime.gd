@@ -210,20 +210,7 @@ func whip_points(attack: Dictionary, arm: int) -> PackedVector2Array:
 
 
 func frame_index(boss: Dictionary) -> int:
-	var pose := String(boss.get("rumia_state", "idle"))
-	var sequence: Array = [0, 1, 2, 3, 2, 1]
-	match pose:
-		"shift": sequence = [12, 13, 14, 15, 12]
-		"history": sequence = [4, 5, 7, 8, 7, 5]
-		"edict", "whip": sequence = [4, 5, 6, 7, 8, 7]
-		"treasures", "bamboo": sequence = [9, 10, 11, 10, 9, 16]
-		"piano": sequence = [9, 16, 17, 16, 9, 10]
-		"emperor": sequence = [18, 19, 20, 19, 22, 19]
-		"final", "phase": sequence = [20, 21, 22, 23, 22, 21]
-	var elapsed := float(game.level_time)
-	if float(boss.get("touhou_cast_duration", 0.0)) > 0.0 and pose != "idle":
-		elapsed = float(boss.touhou_cast_duration) - float(boss.get("touhou_cast_remaining", 0.0))
-	return int(sequence[posmod(int(floor(elapsed * 7.0)), sequence.size())])
+	return game.TouhouSpriteDefs.imperishable_frame_index(KIND, boss, float(game.level_time))
 
 
 func draw_boss(center: Vector2, boss: Dictionary) -> void:
