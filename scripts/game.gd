@@ -16003,8 +16003,8 @@ func _update_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary:
 func _update_prismriver_hovering_boss(zombie: Dictionary, delta: float) -> Dictionary:
 	if float(zombie.get("frozen_timer", 0.0)) > 0.0 or float(zombie.get("special_pause_timer", 0.0)) > 0.0:
 		return zombie
-	if not ZombieRuntime.hover_action_locked(zombie):
-		zombie["prismriver_time"] = float(zombie.get("prismriver_time", 0.0)) + delta
+	# Casting locks lane changes, not the sisters' instrument animations.
+	zombie["prismriver_time"] = float(zombie.get("prismriver_time", 0.0)) + delta
 	var kind = "prismriver_boss"
 	var phase = int(zombie.get("boss_phase", 0))
 	var bounds = _prismriver_boss_bounds()

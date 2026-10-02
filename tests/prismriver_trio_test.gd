@@ -48,6 +48,12 @@ func _run() -> void:
 	frozen.frozen_timer = 2.0
 	frozen = game._update_prismriver_hovering_boss(frozen, 0.5)
 	check(float(frozen.get("prismriver_time",0)) == clock, "Freeze holds all three body positions")
+	var performing: Dictionary = game.zombies[0].duplicate(true)
+	performing.rumia_state = "concerto"
+	performing.rumia_state_timer = 3.0
+	var first_pose := Trio.frame(performing, 0, float(performing.get("prismriver_time", 0)))
+	performing = game._update_prismriver_hovering_boss(performing, 0.2)
+	check(float(performing.prismriver_time) > clock and Trio.frame(performing, 0, float(performing.prismriver_time)) != first_pose, "Performing poses must animate while casting prevents lane changes")
 	for member in range(3):
 		for frame in range(24):
 			var image := Trio.texture(member, frame)
