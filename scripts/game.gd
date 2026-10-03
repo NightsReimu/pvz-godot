@@ -1,6 +1,10 @@
 extends Control
 
 const Defs = preload("res://scripts/game_defs.gd")
+const FusionPlantDefs = preload("res://scripts/data/fusion_plant_defs.gd")
+const PlantFusionRuntime = preload("res://scripts/runtime/plant_fusion_runtime.gd")
+const PlantFusionVisuals = preload("res://scripts/ui/plant_fusion_visuals.gd")
+var plant_fusion_runtime = null
 const RumiaDarkSlash: Texture2D = preload("res://art/touhou_pose_extras/rumia/dark_slash.png")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const VectorUnitArt = preload("res://scripts/ui/vector_unit_art.gd")
@@ -2358,6 +2362,13 @@ func _handle_primary_click(mouse_pos: Vector2) -> void:
 		var whack_cell = _mouse_to_cell(mouse_pos)
 		if whack_cell.x != -1:
 			_handle_board_click(whack_cell)
+		return
+
+	if _ensure_plant_fusion().enabled() and _fusion_tool_rect().has_point(mouse_pos):
+		selected_tool = "" if selected_tool == "fusion" else "fusion"
+		_ensure_plant_fusion().reset()
+		_show_toast("点两株植物合成，或点两张种子准备融合种子")
+		queue_redraw()
 		return
 
 	if _shovel_rect().has_point(mouse_pos):
@@ -6327,7 +6338,7 @@ func _do_gacha_draw(count: int) -> void:
 			result = {"kind": material, "rarity": "rare", "is_new": false, "type": "item", "name": "%sx%d" % [String(material_def.get("name", "强化材料")), material_amount]}
 		elif roll < gold_rate + orange_rate + 0.30 + 0.15 + 0.35:
 			# Green fragments
-			var random_green = Defs.PLANTS.keys()
+			var random_green = Defs.PLANT_ORDER
 			var green_list: Array = []
 			for pk in random_green:
 				if not bool(Defs.PLANTS[pk].get("gacha_only", false)):
@@ -7439,6 +7450,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	coins = []
 	plant_food_pickups = []
 	rollers = []
+	if plant_fusion_runtime != null: plant_fusion_runtime.reset()
 	weeds = []
 	spears = []
 	graves = []
@@ -9144,6 +9156,9 @@ func _plant_cadence_delta(delta: float, row: int, col: int) -> float:
 
 
 func _placement_error(kind: String, row: int, col: int) -> String:
+	if plant_fusion_runtime != null and not plant_fusion_runtime.prepared_result.is_empty() and kind == plant_fusion_runtime.prepared_result: return plant_fusion_runtime.prepared_error(row,col)
+	var fusion: Dictionary = _ensure_plant_fusion().candidate(kind,row,col)
+	if not fusion.is_empty(): return _ensure_plant_fusion().placement_error(kind,row,col,fusion)
 	var top_plant = _top_plant_at(row, col)
 	var support_plant = _support_plant_at(row, col)
 	var grave_index = _grave_index_at(row, col)
@@ -9408,6 +9423,26 @@ func _handle_board_click(cell: Vector2i) -> void:
 		queue_redraw()
 		return
 
+	if plant_fusion_runtime != null and not plant_fusion_runtime.prepared_result.is_empty() and selected_tool == plant_fusion_runtime.prepared_result:
+		plant_fusion_runtime.plant_prepared(cell.x,cell.y); return
+	if selected_tool == "fusion":
+		_ensure_plant_fusion().click(cell)
+		return
+	var fusion: Dictionary = _ensure_plant_fusion().candidate(selected_tool,cell.x,cell.y)
+	if not fusion.is_empty():
+		var error: String = _placement_error(selected_tool,cell.x,cell.y)
+		if not error.is_empty(): _show_toast(error); return
+		var cost: int = _endless_cost_for_kind(selected_tool)
+		if not _is_conveyor_level() and sun_points < cost: _show_toast("阳光不够"); return
+		if not _is_conveyor_level() and float(card_cooldowns.get(selected_tool,0)) > 0.01: _show_toast("卡片还在冷却"); return
+		_ensure_plant_fusion().apply_seed(selected_tool,cell.x,cell.y,fusion)
+		if _is_conveyor_level(): _consume_conveyor_card(selected_tool)
+		else:
+			sun_points -= cost
+			card_cooldowns[selected_tool] = _endless_cooldown_for_kind(selected_tool)
+		selected_tool = ""; hover_preview_initialized = false; queue_redraw()
+		return
+
 	if selected_tool == "coffee_bean":
 		var wake_target = _top_plant_at(cell.x, cell.y)
 		if wake_target == null or not _is_sleepy_mushroom_kind(String(wake_target.get("kind", ""))) or float(wake_target.get("sleep_timer", 0.0)) <= 0.0:
@@ -9515,6 +9550,9 @@ func _handle_board_click(cell: Vector2i) -> void:
 
 
 func _try_select_tool(kind: String) -> void:
+	if selected_tool == "fusion" and _ensure_plant_fusion().enabled():
+		_ensure_plant_fusion().select_seed(kind); return
+	if plant_fusion_runtime != null: plant_fusion_runtime.reset()
 	if _is_conveyor_level():
 		selected_tool = "" if selected_tool == kind else kind
 		hover_preview_initialized = false
@@ -9590,6 +9628,7 @@ func _handle_whack_click(mouse_pos: Vector2) -> bool:
 
 
 func _create_plant(kind: String, row: int, col: int) -> Dictionary:
+	if bool(Defs.PLANTS.get(kind,{}).get("fusion_only",false)): return _ensure_plant_fusion().create(kind,row,col)
 	var data = Defs.PLANTS[kind]
 	var stats = _enhanced_plant_stats(kind)
 	var enhance_mult = _get_enhance_multiplier(kind)
@@ -10178,7 +10217,7 @@ func _ultimate_profile_for_kind(kind: String) -> Dictionary:
 
 
 func _tick_click_ultimate_for_plant(plant: Dictionary, delta: float) -> Dictionary:
-	var profile = _ultimate_profile_for_kind(String(plant.get("kind", "")))
+	var profile = _ultimate_profile_for_kind(String(plant.get("fusion_kind", plant.get("kind", ""))))
 	if profile.is_empty():
 		return plant
 	if float(plant.get("ultimate_cooldown", 0.0)) > 0.0:
@@ -10216,7 +10255,7 @@ func _ready_click_ultimate_candidate_at(row: int, col: int) -> Dictionary:
 		var plant = plant_variant
 		if float(plant.get("health", 0.0)) <= 0.0 or _plant_charm_blocks_actions(plant):
 			continue
-		var kind = String(plant.get("kind", ""))
+		var kind = String(plant.get("fusion_kind",plant.get("kind", "")))
 		var profile = _ultimate_profile_for_kind(kind)
 		if profile.is_empty():
 			continue
@@ -10790,6 +10829,9 @@ func _execute_volcano_corn_cannon_ultimate() -> void:
 
 
 func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, profile: Dictionary) -> void:
+	if plant.has("fusion_kind"):
+		_ensure_plant_fusion().ultimate(plant,row,col)
+		return
 	if float(plant.get("health", 0.0)) > 0.0:
 		_restore_plant_health(plant, maxf(0, float(plant.max_health) - float(plant.health)), true)
 	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
@@ -13498,7 +13540,9 @@ func _update_zombies(delta: float) -> void:
 					plant["max_armor_health"] = 0.0
 			else:
 				plant["health"] -= bite_damage
-			if String(plant["kind"]) == "cactus_guard":
+			if plant.has("fusion_kind") and "thorns" in Defs.PLANTS[plant.fusion_kind].fusion_traits:
+				zombie = _apply_zombie_damage(zombie,maxf(18.0*delta,bite_damage*0.4),0.08)
+			elif String(plant["kind"]) == "cactus_guard":
 				zombie = _apply_zombie_damage(zombie, float(Defs.PLANTS["cactus_guard"]["thorns"]) * delta, 0.08)
 			elif String(plant["kind"]) == "thorn_cactus":
 				zombie = _apply_zombie_damage(zombie, float(Defs.PLANTS["thorn_cactus"]["thorns"]) * delta * _plant_enhance_multiplier_at_cell(target.x, target.y), 0.08)
@@ -19570,13 +19614,24 @@ func _card_at(mouse_pos: Vector2) -> String:
 	return ""
 
 
-func _shovel_rect() -> Rect2:
+func _battle_tools_rect() -> Rect2:
 	var card_size = _seed_bank_card_size()
 	var card_gap = _seed_bank_card_gap()
 	var start_x = SUN_METER_RECT.position.x + SUN_METER_RECT.size.x + 12.0
 	var x = start_x + active_cards.size() * (card_size.x + card_gap) + 12.0
 	return Rect2(x, SEED_BANK_RECT.position.y + 4.0, 54.0 if _viewport_safe_rect().size.x < 1200 else 84.0, card_size.y)
 
+
+func _shovel_rect() -> Rect2:
+	var rect := _battle_tools_rect()
+	if _ensure_plant_fusion().enabled(): rect.size.y = (rect.size.y-4)*0.5
+	return rect
+
+func _fusion_tool_rect() -> Rect2:
+	var rect := _battle_tools_rect()
+	rect.position.y += (rect.size.y+4)*0.5
+	rect.size.y = (rect.size.y-4)*0.5
+	return rect
 
 func _seed_bank_card_size() -> Vector2:
 	var compact := _viewport_safe_rect().size.x < 1200
@@ -19981,7 +20036,14 @@ func _is_world_unlocked(world_key: String) -> bool:
 
 
 func _visible_almanac_plants() -> Array:
-	return _player_plant_collection()
+	var result: Array = _player_plant_collection()
+	var native: Array = result.duplicate()
+	for id in FusionPlantDefs.DEFINITIONS:
+		var available := true
+		for component in FusionPlantDefs.DEFINITIONS[id].fusion_components:
+			if not native.has(component): available = false; break
+		if available: result.append(id)
+	return result
 
 
 func _visible_almanac_zombies() -> Array:
@@ -20308,7 +20370,7 @@ func _plantern_reveals_position(position: Vector2) -> bool:
 			if plant == null:
 				continue
 			var kind = String(plant.get("kind", ""))
-			if kind != "plantern":
+			if kind != "plantern" and not "reveal" in Defs.PLANTS.get(String(plant.get("fusion_kind","")),{}).get("fusion_traits",[]):
 				continue
 			if _cell_center(row, col).distance_to(position) <= reveal_radius:
 				return true
@@ -21026,11 +21088,11 @@ func _draw_gacha_scene() -> void:
 	var collection_panel := _gacha_collection_panel_rect()
 	_draw_gacha_asset_panel("collection_panel", collection_panel, Color(0.09, 0.055, 0.14, 0.96), Color(0.74, 0.58, 0.86, 0.7))
 	ThemeLib.draw_label(self, ui_font, Rect2(collection_panel.position + Vector2(58, 38), Vector2(140, 30)), "植物收藏", 24, Color(1.0, 0.94, 0.86))
-	ThemeLib.draw_label(self, ui_font, Rect2(collection_panel.position + Vector2(216, 38), Vector2(220, 30)), "已获得 %d / %d" % [plant_stars.size(), Defs.PLANTS.size()], 16, Color(0.88, 0.8, 0.98))
+	ThemeLib.draw_label(self, ui_font, Rect2(collection_panel.position + Vector2(216, 38), Vector2(220, 30)), "已获得 %d / %d" % [plant_stars.size(), Defs.PLANT_ORDER.size()], 16, Color(0.88, 0.8, 0.98))
 	var view_rect := _gacha_collection_view_rect()
 	draw_rect(view_rect, Color(0.04, 0.02, 0.065, 0.54), true)
 	draw_rect(view_rect, Color(0.92, 0.72, 1.0, 0.16), false, 1.0)
-	var plant_keys := Defs.PLANTS.keys()
+	var plant_keys: Array = Defs.PLANT_ORDER
 	var columns := 12
 	var card_step_y := 112.0
 	var first_row := maxi(0, int(floor(gacha_mode_scroll / card_step_y)))
@@ -24678,7 +24740,7 @@ func _draw_seed_bank() -> void:
 		var data = Defs.PLANTS[kind]
 		var draw_cost = _endless_cost_for_kind(kind)
 		var draw_cooldown = _endless_cooldown_for_kind(kind)
-		var selected = selected_tool == kind
+		var selected = selected_tool == kind or (selected_tool == "fusion" and plant_fusion_runtime != null and plant_fusion_runtime.source_seed == kind)
 		var affordable = sun_points >= draw_cost
 		var cooling_ratio = 0.0
 		if card_cooldowns.has(kind) and draw_cooldown > 0.0:
@@ -24735,6 +24797,9 @@ func _draw_seed_bank() -> void:
 	_draw_shovel_icon(Vector2.ZERO)
 	_set_combat_transform()
 	ThemeLib.draw_label(self, ui_font, Rect2(shovel_rect.position + Vector2(4, shovel_rect.size.y - 23), Vector2(shovel_rect.size.x - 8, 20)), "铲子", 16, Color(0.26, 0.19, 0.08), HORIZONTAL_ALIGNMENT_CENTER)
+
+	if _ensure_plant_fusion().enabled():
+		_draw_fancy_button(_fusion_tool_rect(),"融合",Color("c7dfa6") if selected_tool != "fusion" else Color("f7d579"),Color("4d7045"),14)
 
 	_draw_panel_shell(PLANT_FOOD_RECT, Color(0.84, 0.96, 0.76), Color(0.2, 0.54, 0.14), 0.08, 0.05)
 	if selected_tool == "plant_food":
@@ -25307,7 +25372,7 @@ func _draw_click_ultimate_indicator(draw_center: Vector2, plant: Dictionary) -> 
 	if bool(plant.get("minigame_core",false)) or (_is_minigame() and current_level.minigame == "gems"): return
 	if _plant_charm_blocks_actions(plant):
 		return
-	var kind = String(plant.get("kind", ""))
+	var kind = String(plant.get("fusion_kind",plant.get("kind", "")))
 	if not _plant_supports_click_ultimate(kind):
 		return
 	var ult_charge = float(plant.get("ultimate_charge", 0.0))
@@ -25337,7 +25402,7 @@ func _draw_hover() -> void:
 	if battle_state != BATTLE_PLAYING or battle_paused:
 		return
 	# The held plant follows the cursor, using the same procedural/SVG art as the board.
-	if selected_tool != "" and selected_tool != "shovel" and selected_tool != "plant_food":
+	if selected_tool != "" and selected_tool != "shovel" and selected_tool != "plant_food" and selected_tool != "fusion":
 		var held_center := hover_preview_position if hover_preview_initialized else _pointer_local_position()
 		var held_pulse := 0.5 + 0.5 * sin(ui_time * 6.0)
 		draw_circle(held_center + Vector2(0.0, 20.0), 28.0 + held_pulse * 3.0, Color(0.8, 1.0, 0.42, 0.08))
@@ -25363,21 +25428,44 @@ func _draw_hover() -> void:
 		highlight = Color(0.95, 0.3, 0.3, 0.2)
 	elif selected_tool == "plant_food":
 		highlight = Color(0.24, 0.96, 0.36, 0.2) if _targetable_plant_at(cell.x, cell.y) != null else Color(0.95, 0.3, 0.3, 0.2)
+	elif selected_tool == "fusion":
+		highlight = Color(0.56,0.96,0.46,0.22) if _targetable_plant_at(cell.x,cell.y) != null else Color(0.95,0.3,0.3,0.2)
 	elif selected_tool == "":
 		highlight = Color(1.0, 1.0, 1.0, 0.08)
 	elif _placement_error(selected_tool, cell.x, cell.y) != "":
 		highlight = Color(0.95, 0.3, 0.3, 0.2)
+	elif plant_fusion_runtime != null and selected_tool == plant_fusion_runtime.prepared_result and not plant_fusion_runtime.resource_error().is_empty():
+		highlight = Color(0.88,0.55,0.12,0.24)
 	elif not _is_conveyor_level() and sun_points < _endless_cost_for_kind(selected_tool):
 		highlight = Color(0.88, 0.55, 0.12, 0.24)
 
+	if selected_tool == "fusion" and _ensure_plant_fusion().source_cell.x >= 0:
+		var source: Vector2i = _ensure_plant_fusion().source_cell
+		var a = _targetable_plant_at(source.x,source.y); var b = _targetable_plant_at(cell.x,cell.y)
+		draw_rect(_cell_rect(source.x,source.y).grow(-4),Color("f7d579"),false,3)
+		if a != null and b != null:
+			var id: String = _fusion_result(_ensure_plant_fusion().kind(a),_ensure_plant_fusion().kind(b))
+			if not id.is_empty(): _draw_fusion_hint(cell,id); highlight = Color(0.56,0.96,0.46,0.22)
+			else: highlight = Color(0.95,0.3,0.3,0.2)
 	draw_rect(rect, highlight, true)
 	draw_rect(rect, Color(1.0, 1.0, 1.0, 0.08), false, 2.0)
 
-	if selected_tool != "" and selected_tool != "shovel" and selected_tool != "plant_food" and _placement_error(selected_tool, cell.x, cell.y) == "":
+	if selected_tool != "" and selected_tool != "shovel" and selected_tool != "plant_food" and selected_tool != "fusion" and _placement_error(selected_tool, cell.x, cell.y) == "":
 		var preview_center := _cell_center(cell.x, cell.y)
 		var preview_alpha := 0.28 + 0.08 * (0.5 + 0.5 * sin(ui_time * 7.0))
-		_draw_plant_body(selected_tool, preview_center, _battle_unit_scale(), 0.0, preview_alpha)
+		var preview_kind: String = selected_tool
+		var recipe: Dictionary = _ensure_plant_fusion().candidate(selected_tool,cell.x,cell.y)
+		if not recipe.is_empty(): preview_kind = recipe.id
+		_draw_plant_body(preview_kind, preview_center, _battle_unit_scale(), 0.0, preview_alpha)
+		if not recipe.is_empty(): _draw_fusion_hint(cell,String(recipe.id))
+		elif plant_fusion_runtime != null and selected_tool == plant_fusion_runtime.prepared_result: _draw_fusion_hint(cell,selected_tool)
 
+
+func _draw_fusion_hint(cell: Vector2i, id: String) -> void:
+	var rect := Rect2(_cell_center(cell.x,cell.y)+Vector2(-130,-90),Vector2(260,30))
+	rect.position.x = clampf(rect.position.x,BOARD_ORIGIN.x,BOARD_ORIGIN.x+board_size.x-rect.size.x)
+	_draw_panel_shell(rect,Color("f2e5bc"),Color("658153"),0.04,0.03)
+	ThemeLib.draw_label(self,ui_font,rect,"融合 → "+String(Defs.PLANTS[id].name),14,Color("354e34"),HORIZONTAL_ALIGNMENT_CENTER)
 
 func _battle_unit_scale() -> float:
 	return minf(1.0, minf(CELL_SIZE.x / BASE_CELL_SIZE.x, CELL_SIZE.y / BASE_CELL_SIZE.y))
@@ -25486,6 +25574,9 @@ func _draw_plants() -> void:
 func _draw_projectiles() -> void:
 	for projectile in projectiles:
 		var projectile_pos = Vector2(projectile["position"])
+		if projectile.has("fusion_source"):
+			PlantFusionVisuals.draw_projectile(self,projectile)
+			continue
 		var projectile_color = Color(projectile["color"])
 		var projectile_kind = String(projectile.get("kind", "pea"))
 		var pulse = 1.0 + 0.12 * sin(level_time * 14.0 + projectile_pos.x * 0.04)
@@ -25955,6 +26046,9 @@ func _draw_plant_food_pickups() -> void:
 func _draw_rollers() -> void:
 	for roller in rollers:
 		var center = Vector2(float(roller["x"]), _row_center_y(int(roller["row"])) + 16.0)
+		if roller.has("fusion_source"):
+			PlantFusionVisuals.draw_projectile(self,{"position":center,"radius":24.0,"fusion_traits":roller.fusion_traits,"kind":"fusion_fruit"})
+			continue
 		var roller_kind = String(roller.get("kind", "wallnut"))
 		var empowered = bool(roller.get("empowered", false))
 		if empowered:
@@ -26164,6 +26258,9 @@ func _draw_effects() -> void:
 		var effect_color = Color(effect["color"])
 		effect_color.a *= ratio
 		var shape = String(effect.get("shape", "circle"))
+		if shape.begins_with("fusion_"):
+			PlantFusionVisuals.draw_effect(self,effect)
+			continue
 		if shape in ["volcano_warning", "volcano_steam", "volcano_pulse"]:
 			_ensure_volcano_expansion().draw_effect(effect)
 			continue
@@ -28302,6 +28399,10 @@ func _draw_ink_line(from: Vector2, to: Vector2, fill: Color, width: float = -1.0
 
 
 func _draw_plant_body(kind: String, center: Vector2, size_scale: float = 1.0, flash: float = 0.0, alpha: float = 1.0, plant: Dictionary = {}) -> void:
+	var fusion_id: String = String(plant.get("fusion_kind",kind))
+	if bool(Defs.PLANTS.get(fusion_id,{}).get("fusion_only",false)):
+		PlantFusionVisuals.draw_plant(self,fusion_id,center,size_scale,flash,alpha,plant)
+		return
 	if bool(plant.get("minigame_core",false)):
 		MinigameVisuals.draw_core(self,center,size_scale,alpha)
 		return
@@ -32468,6 +32569,8 @@ func _draw_text_block(text: String, rect: Rect2, font_size: int, text_color: Col
 
 func _plant_almanac_stats(kind: String) -> Array:
 	var data = Defs.PLANTS[kind]
+	if bool(data.get("fusion_only",false)):
+		return ["获得：配方融合（不占种子卡）","耐久：%d · 融合阶数：%d" % [int(data.health),int(data.fusion_tier)],"特性："+String(data.fusion_summary),"攻击周期：%.1f 秒 · 基础伤害：%d" % [float(data.shoot_interval),int(data.damage)],"大招：%s · %.0f 秒充能" % [data.ultimate_name,float(data.ultimate_charge_time)]]
 	var stats: Array = [
 		"花费：%d" % int(data["cost"]),
 		"耐久：%d" % int(data["health"]),
@@ -32728,7 +32831,11 @@ func _zombie_almanac_stats(kind: String) -> Array:
 
 
 func _plant_almanac_lines(kind: String) -> Array:
-	return AlmanacTextLib.plant_lines(kind)
+	if bool(Defs.PLANTS[kind].get("fusion_only",false)):
+		var data: Dictionary = Defs.PLANTS[kind]
+		var recipe: Array = data.fusion_recipe
+		return ["配方：%s + %s" % [Defs.PLANTS[recipe[0]].name,Defs.PLANTS[recipe[1]].name],"特性："+String(data.fusion_summary),"用融合工具点两株植物，或点两张种子再种下；也可把配方种子叠种到现有植物上。", "大招「%s」：强化攻击、扩大作用范围，并触发对应的光合、控制或护庭效果。" % data.ultimate_name] + _fusion_followups(kind)
+	return AlmanacTextLib.plant_lines(kind) + _fusion_followups(kind)
 
 
 func _zombie_almanac_lines(kind: String) -> Array:
@@ -33363,3 +33470,22 @@ func _draw_ice_cream(center: Vector2, size_scale: float, flash: float, alpha: fl
 
 func _draw_gator_cannon(center: Vector2, size_scale: float, flash: float, alpha: float = 1.0) -> void:
 	VectorUnitArt.draw_plant(self, "gator_cannon", center, size_scale, flash, alpha)
+
+
+func _ensure_plant_fusion():
+	if plant_fusion_runtime == null: plant_fusion_runtime = PlantFusionRuntime.new(self)
+	return plant_fusion_runtime
+
+func _fusion_result(a: String, b: String) -> String:
+	return FusionPlantDefs.result(a,b)
+
+func _fusion_followups(kind: String) -> Array:
+	var result: Array = []
+	for pair in FusionPlantDefs.RECIPES:
+		var ingredients: PackedStringArray = String(pair).split("+")
+		if ingredients.has(kind):
+			var other: String = ingredients[1] if ingredients[0] == kind else ingredients[0]
+			var id: String = FusionPlantDefs.RECIPES[pair]
+			result.append("再融合：+%s → %s" % [Defs.PLANTS[other].name,Defs.PLANTS[id].name])
+			if result.size() >= 3: break
+	return result

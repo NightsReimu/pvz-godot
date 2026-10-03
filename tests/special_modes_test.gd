@@ -762,7 +762,7 @@ func _test_almanac_plant_grid_fits_four_rows_without_clipping() -> bool:
 	var view_rect: Rect2 = game.call("_almanac_list_view_rect")
 	var fourth_row_last_card: Rect2 = game.call("_almanac_item_rect", 15)
 	var passed = _assert_true(view_rect.encloses(fourth_row_last_card), "plant almanac should fit four complete rows in the list view without clipping the last row") \
-		and _assert_true(float(game.call("_almanac_max_scroll")) == 0.0, "exactly four almanac rows should not require scrolling")
+		and _assert_true(float(game.call("_almanac_max_scroll")) > 0.0, "unlocked fusion recipes below the original four rows must be reachable by scrolling")
 	_free_game(game)
 	return passed
 

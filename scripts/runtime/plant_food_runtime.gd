@@ -195,7 +195,7 @@ func activate(row: int, col: int) -> bool:
 		return false
 	plant["sleep_timer"] = 0.0
 	var center = game._cell_center(row, col)
-	var kind = String(plant["kind"])
+	var kind = String(plant.get("fusion_kind",plant["kind"]))
 	if game._plant_food_uses_click_ultimate(kind):
 		var profile: Dictionary = game._ultimate_profile_for_kind(kind)
 		game._execute_ultimate(plant, kind, row, col, profile)

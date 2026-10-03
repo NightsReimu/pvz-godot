@@ -2,6 +2,7 @@ extends RefCounted
 class_name GameDefs
 
 const PlantDefs = preload("res://scripts/data/plant_defs.gd")
+const FusionPlantDefs = preload("res://scripts/data/fusion_plant_defs.gd")
 const ZombieDefs = preload("res://scripts/data/zombie_defs.gd")
 const FusionZombieDefs = preload("res://scripts/data/fusion_zombie_defs.gd")
 const DayLevelDefs = preload("res://scripts/data/level_defs_day.gd")
@@ -13,6 +14,6 @@ const CityLevelDefs = preload("res://scripts/data/level_defs_city.gd")
 const VolcanoLevelDefs = preload("res://scripts/data/level_defs_volcano.gd")
 
 const PLANT_ORDER = PlantDefs.ORDER
-const PLANTS = PlantDefs.PLANTS
+static var PLANTS: Dictionary = FusionPlantDefs.with_fusions(PlantDefs.PLANTS, PlantDefs.ORDER)
 static var ZOMBIES: Dictionary = FusionZombieDefs.with_fusions(ZombieDefs.ZOMBIES)
 static var LEVELS = DayLevelDefs.LEVELS + NightLevelDefs.LEVELS + PoolLevelDefs.LEVELS + FogLevelDefs.LEVELS + RoofLevelDefs.LEVELS + CityLevelDefs.LEVELS + VolcanoLevelDefs.LEVELS

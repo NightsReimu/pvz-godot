@@ -125,6 +125,11 @@ func update_plants(delta: float) -> void:
 			if game.kaguya_runtime != null and game.kaguya_runtime.plant_stilled(row, col):
 				continue
 
+			if plant.has("fusion_kind"):
+				game._ensure_plant_fusion().update(plant,delta,row,col)
+				game.grid[row][col] = plant
+				continue
+
 			if bool(Defs.PLANTS.get(String(plant["kind"]), {}).get("volcano_expansion", false)):
 				game._ensure_volcano_expansion().update_plant(plant, delta, row, col)
 				continue
@@ -461,7 +466,7 @@ func update_plants(delta: float) -> void:
 			if support_variant == null:
 				continue
 			var support = support_variant
-			if String(support.get("kind", "")) == "cork_plug":
+			if String(support.get("kind", "")) == "cork_plug" and not support.has("fusion_kind"):
 				if _update_cork_plug_support(support, delta, row, col):
 					continue
 			if float(support.get("health", 0.0)) <= 0.0:
@@ -472,6 +477,13 @@ func update_plants(delta: float) -> void:
 			if float(support.get("push_timer", 0.0)) <= 0.0:
 				support["push_offset_x"] = 0.0
 			if game._plant_charm_blocks_actions(support):
+				continue
+			if support.has("fusion_kind"):
+				support.sleep_timer = maxf(0,float(support.get("sleep_timer",0))-delta)
+				var stilled: bool = (game.mokou_runtime != null and game.mokou_runtime.plant_stilled(row,col)) or (game.kaguya_runtime != null and game.kaguya_runtime.plant_stilled(row,col))
+				if float(support.get("sleep_timer",0)) <= 0 and not stilled:
+					game._ensure_plant_fusion().update(support,delta,row,col)
+				game.support_grid[row][col] = support
 				continue
 			match String(support.get("kind", "")):
 				"holy_flower":

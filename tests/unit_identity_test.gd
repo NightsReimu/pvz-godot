@@ -111,6 +111,9 @@ func _run() -> void:
 	probe._draw_plant_body("snow_bloom", center, 1.0, 0.0, 1.0, {"fuse_timer": float(Defs.PLANTS.snow_bloom.wilt_time) * 0.4})
 	check(is_equal_approx(probe.trace.back()[3], 0.4), "Wilting state must reach the dedicated flower renderer")
 	for kind in Defs.PLANTS:
+		if bool(Defs.PLANTS[kind].get("fusion_only",false)):
+			check(FileAccess.file_exists("res://art/vector/fusions/%s.svg" % kind), "Missing independent fusion SVG: " + kind)
+			continue
 		if bool(Defs.PLANTS[kind].get("volcano_expansion", false)):
 			continue
 		var method := "_draw_bowling_nut" if kind == "wallnut_bowling" else "_draw_%s" % kind

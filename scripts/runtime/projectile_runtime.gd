@@ -180,6 +180,8 @@ func _emit_amber_ultimate_impact(impact_position: Vector2, armored: bool) -> voi
 
 func _apply_boomerang_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12, projectile: Dictionary = {}) -> Dictionary:
 	zombie = game._apply_zombie_damage(zombie, damage, flash_amount, 0.0, false, true, float(Vector2(projectile.get("position", Vector2.INF)).x))
+	if projectile.has("fusion_source"):
+		zombie = game._ensure_plant_fusion().projectile_hit(zombie,projectile)
 	if bool(projectile.get("flame_boomerang", false)):
 		zombie["corrode_timer"] = maxf(float(zombie.get("corrode_timer", 0.0)), float(projectile.get("burn_duration", 0.0)))
 		zombie["corrode_dps"] = maxf(float(zombie.get("corrode_dps", 0.0)), float(projectile.get("burn_damage", 0.0)))
@@ -402,6 +404,9 @@ func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
 
 
 func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: Vector2) -> void:
+	if projectile.has("fusion_source"):
+		game._ensure_plant_fusion().impact(projectile,impact_position)
+		return
 	if projectile.has("volcano_seed"):
 		game._ensure_volcano_expansion().impact(projectile, impact_position)
 		return
@@ -664,6 +669,8 @@ func update_projectiles(delta: float) -> void:
 			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]),
 				bool(projectile.get("ignore_shield", false)), pierce_handheld,
 				float(zombie.x) - signf(float(projectile.get("speed", 0.0))))
+			if projectile.has("fusion_source"):
+				zombie = game._ensure_plant_fusion().projectile_hit(zombie,projectile)
 			if projectile_kind == "mist_bloom":
 				var reveal_duration = float(projectile.get("reveal_duration", 0.0))
 				if reveal_duration > 0.0:
@@ -678,6 +685,8 @@ func update_projectiles(delta: float) -> void:
 				game.projectiles.remove_at(i)
 				continue
 			game.zombies[hit_index] = zombie
+			if projectile.has("fusion_source") and float(projectile.get("splash_radius",0)) > 0:
+				game._ensure_plant_fusion().impact(projectile,hit_position,hit_index,true)
 			if game.has_method("_emit_projectile_impact_feedback"):
 				game._emit_projectile_impact_feedback(Vector2(hit_position.x + 2.0, projectile_pos.y), projectile, zombie)
 			if projectile_kind == "amber_pea":
@@ -703,7 +712,7 @@ func update_projectiles(delta: float) -> void:
 					"color": Color(0.86, 0.74, 1.0, 0.2),
 					"anim_speed": 6.8,
 				})
-			elif bool(projectile.get("fire", false)):
+			elif bool(projectile.get("fire", false)) and not projectile.has("fusion_source"):
 				apply_fire_projectile_splash(int(projectile["row"]), hit_position.x, float(projectile["damage"]) * 0.55, hit_index)
 			if int(projectile.get("pierce_left", 0)) > 0:
 				var hit_uids: Array = projectile.get("hit_uids", [])
@@ -860,6 +869,7 @@ func _apply_mango_roller_blast(roller: Dictionary, primary_index: int, impact_po
 		if zombie_position.distance_to(impact_position) > impact_radius:
 			continue
 		zombie = game._apply_zombie_damage(zombie, float(roller["damage"]) * splash_ratio, 0.12)
+		if roller.has("fusion_source"): zombie = game._ensure_plant_fusion().projectile_hit(zombie,roller)
 		game.zombies[z] = zombie
 
 
@@ -877,6 +887,7 @@ func update_rollers(delta: float) -> void:
 			if absf(game._zombie_lane_x(zombie, int(roller.row)) - float(roller["x"])) > 26.0:
 				continue
 			zombie = game._apply_zombie_damage(zombie, float(roller["damage"]), 0.2)
+			if roller.has("fusion_source"): zombie = game._ensure_plant_fusion().projectile_hit(zombie,roller)
 			game.zombies[z] = zombie
 			var impact_position = Vector2(float(roller["x"]), game._row_center_y(int(roller["row"])))
 			_spawn_roller_impact_effect(impact_position, bool(roller.get("empowered", false)))

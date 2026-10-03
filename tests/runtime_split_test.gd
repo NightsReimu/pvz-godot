@@ -93,7 +93,11 @@ func _test_split_data_modules_exist_and_match_game_defs() -> bool:
 	if not passed:
 		return false
 	passed = _assert_true(GameDefs.PLANT_ORDER == plant_defs.ORDER, "GameDefs.PLANT_ORDER should be sourced from the split plant data module") and passed
-	passed = _assert_true(GameDefs.PLANTS == plant_defs.PLANTS, "GameDefs.PLANTS should be sourced from the split plant data module") and passed
+	for kind in plant_defs.PLANTS:
+		passed = _assert_true(GameDefs.PLANTS.get(kind) == plant_defs.PLANTS[kind], "Native plant definition must match its split module: " + kind) and passed
+	for kind in GameDefs.PLANTS:
+		if not plant_defs.PLANTS.has(kind):
+			passed = _assert_true(plant_defs.PLANTS.has(GameDefs.PLANTS[kind].get("fusion_base","")) and bool(GameDefs.PLANTS[kind].get("fusion_only",false)), "Added plant must resolve to a native fusion ingredient: " + kind) and passed
 	for kind in zombie_defs.ZOMBIES:
 		passed = _assert_true(GameDefs.ZOMBIES.get(kind) == zombie_defs.ZOMBIES[kind], "Native zombie definition must match its split module: " + kind) and passed
 	for kind in GameDefs.ZOMBIES:
