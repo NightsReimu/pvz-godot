@@ -138,7 +138,7 @@ func find_zombie_index_by_uid(uid: int) -> int:
 
 
 func _is_amber_armored_target(zombie: Dictionary) -> bool:
-	if float(zombie.get("shield_health", 0.0)) > 0.0:
+	if float(zombie.get("shield_health", 0.0)) + float(zombie.get("headgear_health", 0.0)) + float(zombie.get("handheld_health", 0.0)) > 0.0:
 		return true
 	return bool(AMBER_ARMORED_KINDS.get(String(zombie.get("kind", "")), false))
 
@@ -179,11 +179,7 @@ func _emit_amber_ultimate_impact(impact_position: Vector2, armored: bool) -> voi
 
 
 func _apply_boomerang_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12, projectile: Dictionary = {}) -> Dictionary:
-	var shield_health = float(zombie.get("shield_health", 0.0))
-	if shield_health > 0.0:
-		zombie = game._apply_zombie_damage(zombie, minf(damage, shield_health), flash_amount)
-	else:
-		zombie = game._apply_zombie_damage(zombie, damage, flash_amount)
+	zombie = game._apply_zombie_damage(zombie, damage, flash_amount, 0.0, false, true, float(Vector2(projectile.get("position", Vector2.INF)).x))
 	if bool(projectile.get("flame_boomerang", false)):
 		zombie["corrode_timer"] = maxf(float(zombie.get("corrode_timer", 0.0)), float(projectile.get("burn_duration", 0.0)))
 		zombie["corrode_dps"] = maxf(float(zombie.get("corrode_dps", 0.0)), float(projectile.get("burn_damage", 0.0)))
@@ -659,32 +655,15 @@ func update_projectiles(delta: float) -> void:
 				projectile["position"] = Vector2(hit_position.x - 18.0, projectile_pos.y)
 				game.projectiles[i] = projectile
 				continue
-			if String(zombie["kind"]) == "janitor_zombie" and float(zombie.get("shield_health", 0.0)) > 0.0 and float(projectile.get("speed", 0.0)) >= 0.0:
-				zombie["shield_health"] = maxf(0.0, float(zombie["shield_health"]) - hit_damage * float(game.call("_endless_shield_damage_mult")))
-				zombie["flash"] = maxf(float(zombie.get("flash", 0.0)), 0.1)
-				zombie["impact_timer"] = maxf(float(zombie.get("impact_timer", 0.0)), 0.12)
-				game.zombies[hit_index] = zombie
-				if projectile_kind == "amber_pea":
-					_emit_amber_impact(Vector2(hit_position.x - 10.0, hit_position.y - 10.0), true)
-				elif projectile_kind == "amber_ultimate_shard":
-					_emit_amber_ultimate_impact(Vector2(hit_position.x - 10.0, hit_position.y - 10.0), true)
-				game.effects.append({
-					"shape": "anchor_ring",
-					"position": Vector2(hit_position.x - 12.0, hit_position.y - 10.0),
-					"radius": 34.0,
-					"time": 0.14,
-					"duration": 0.14,
-					"color": Color(0.82, 0.92, 1.0, 0.18),
-				})
-				game.projectiles.remove_at(i)
-				continue
 
-			# Boomerangs sail through handheld gear (they still bounce off headgear).
-			var pierce_handheld := bool(projectile.get("pierce_handheld", false)) \
+			# Boomerangs sail through handheld gear but still damage headgear first.
+			var pierce_handheld := bool(projectile.get("pierce_handheld", false)) or int(projectile.get("pierce_left", 0)) > 0 \
 				or String(projectile.get("kind", "")).find("boomerang") != -1
+			# Piercing is an attack property even after the last extra hit is spent.
+			projectile["pierce_handheld"] = pierce_handheld
 			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]),
 				bool(projectile.get("ignore_shield", false)), pierce_handheld,
-				float(Vector2(projectile.get("position", Vector2.ZERO)).x))
+				float(zombie.x) - signf(float(projectile.get("speed", 0.0))))
 			if projectile_kind == "mist_bloom":
 				var reveal_duration = float(projectile.get("reveal_duration", 0.0))
 				if reveal_duration > 0.0:
@@ -891,6 +870,8 @@ func update_rollers(delta: float) -> void:
 		var removed = false
 		for z in range(game.zombies.size()):
 			var zombie = game.zombies[z]
+			if not game._is_enemy_zombie(zombie):
+				continue
 			if not game._zombie_has_row(zombie, int(roller.row)):
 				continue
 			if absf(game._zombie_lane_x(zombie, int(roller.row)) - float(roller["x"])) > 26.0:

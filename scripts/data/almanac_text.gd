@@ -3,6 +3,8 @@ class_name AlmanacText
 
 const PlantDefs = preload("res://scripts/data/plant_defs.gd")
 const ZombieDefs = preload("res://scripts/data/zombie_defs.gd")
+const Equipment = preload("res://scripts/runtime/zombie_equipment.gd")
+const Fusion = preload("res://scripts/data/fusion_zombie_defs.gd")
 const GACHA_DETAILS := {
 	"shadow_pea": ["常态：每 {shoot_interval} 秒向本行前方发射暗影豌豆，每发 {damage} 伤害，可穿透 {pierce_count} 个敌人。", "大招「{ultimate_name}」：向各行前方各射出 4 发暗影弹，每发 28 伤害。"],
 	"ice_queen": ["常态：每 {pulse_interval} 秒冰击周围最近 4 个敌人，各受 24 伤害、冻结 {freeze_duration} 秒，并留下 4 秒减速。", "大招「{ultimate_name}」：冻结全场敌人 5 秒。"],
@@ -375,6 +377,15 @@ static func _rarity_label(rarity: String) -> String:
 
 
 static func zombie_lines(kind: String) -> Array:
+	if Fusion.RECIPES.has(kind):
+		var recipe: Dictionary = Fusion.RECIPES[kind]
+		var lines := zombie_lines(String(recipe.base)).duplicate()
+		lines.append("融合：保留原型技能；普通正面伤害依次打掉手持护具、头戴护具和本体。")
+		if recipe.head != "" or recipe.base in ["conehead", "buckethead", "football", "dark_football"]:
+			lines.append("橙金色＝头戴护具，喷雾、回旋镖和其他穿透攻击不能绕过。")
+		if recipe.door or Equipment.native_slot(String(recipe.base)) == "handheld":
+			lines.append("蓝色＝手持护具；喷雾、穿透攻击和背后攻击可绕过。磁力每次移除一件金属护具。")
+		return lines
 	if ZombieDefs.ZOMBIES.get(kind, {}).has("almanac"):
 		var written: Array = ZombieDefs.ZOMBIES[kind]["almanac"]
 		if written.size() >= 2:
@@ -602,16 +613,16 @@ static func _fallback_zombie_lines(kind: String) -> Array:
 	var shield := float(data.get("shield_health", 0.0))
 	if shield > 0.0:
 		var gear := "护具"
-		var armor_kind := String(data.get("armor_kind", ""))
+		var armor_kind := Equipment.native_slot(kind)
 		if armor_kind == "headgear":
 			gear = "头戴护具"
 		elif armor_kind == "handheld":
 			gear = "手持护具"
 		var gear_note := ""
 		if armor_kind == "headgear":
-			gear_note = "（全方位防护，免疫穿透）"
+			gear_note = "（橙金色，全方位防护，穿透攻击仍会消耗护具）"
 		elif armor_kind == "handheld":
-			gear_note = "（只挡正面，可被回旋镖与烟雾穿透，从背后可绕过）"
+			gear_note = "（蓝色，阻挡正面普通攻击，烟雾、穿透和背后攻击可绕过）"
 		stats.append("%s耐久 %d%s" % [gear, int(shield), gear_note])
 	var traits: Array = []
 	if bool(data.get("boss", false)):

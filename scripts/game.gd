@@ -23,6 +23,9 @@ const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
 const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
+const FusionZombieDefs = preload("res://scripts/data/fusion_zombie_defs.gd")
+const ZombieEquipment = preload("res://scripts/runtime/zombie_equipment.gd")
+const FusionZombieVisuals = preload("res://scripts/ui/fusion_zombie_visuals.gd")
 const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const TouhouDanmakuRuntime = preload("res://scripts/runtime/touhou_danmaku_runtime.gd")
 const TouhouPhaseRuntime = preload("res://scripts/runtime/touhou_phase_runtime.gd")
@@ -5973,6 +5976,10 @@ func _endless_spawn_candidate_kinds(wave_gate: int = -1) -> Array:
 		elif wave_gate < 8:
 			for special_kind in SPECIAL_NON_MAINLINE_ZOMBIE_KINDS.slice(2):
 				candidates.erase(String(special_kind))
+	for id in FusionZombieDefs.RECIPES:
+		var recipe: Dictionary = FusionZombieDefs.RECIPES[id]
+		if candidates.has(recipe.base) and (wave_gate < 0 or int(recipe.wave) <= wave_gate):
+			candidates.append(id)
 	return candidates
 
 
@@ -6141,10 +6148,14 @@ func _start_endless_wave() -> void:
 	var available_kinds = _endless_wave_candidate_kinds(endless_wave)
 	if available_kinds.is_empty():
 		available_kinds = ["normal"]
+	var base_kinds: Array = available_kinds.filter(func(id): return not FusionZombieDefs.RECIPES.has(id))
 	var wave_rng = RandomNumberGenerator.new()
 	wave_rng.seed = hash(endless_wave * 7919)
 	for i in range(zombie_count):
-		var kind = String(available_kinds[wave_rng.randi_range(0, available_kinds.size() - 1)])
+		var kind = String(base_kinds[wave_rng.randi_range(0, base_kinds.size() - 1)])
+		var variants := FusionZombieDefs.variants_for(kind, endless_wave)
+		if not variants.is_empty() and wave_rng.randf() < 0.18:
+			kind = String(variants[wave_rng.randi_range(0, variants.size() - 1)])
 		var row = _choose_spawn_row_for_kind(kind)
 		if row < 0:
 			continue
@@ -6154,19 +6165,24 @@ func _start_endless_wave() -> void:
 		_spawn_zombie_at(kind, row, spawn_x)
 		if zombies.size() <= previous_count:
 			continue
-		var zombie = zombies[zombies.size() - 1]
-		var health_mult = endless_difficulty_mult
-		zombie["health"] = float(zombie.get("health", float(Defs.ZOMBIES[kind]["health"]))) * health_mult
-		zombie["max_health"] = float(zombie.get("max_health", float(Defs.ZOMBIES[kind]["health"]))) * health_mult
-		if float(zombie.get("shield_health", 0.0)) > 0.0:
-			zombie["shield_health"] = float(zombie.get("shield_health", 0.0)) * health_mult
-			zombie["max_shield_health"] = float(zombie.get("max_shield_health", 0.0)) * health_mult
-		var spawn_slow_duration = _endless_bonus_value("spawn_slow")
-		if spawn_slow_duration > 0.0:
-			zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), spawn_slow_duration)
-			zombie["slow_mult"] = minf(float(zombie.get("slow_mult", 1.0)), 0.58)
-		zombies[zombies.size() - 1] = zombie
-		endless_zombies_remaining += 1
+		for spawned_index in range(previous_count, zombies.size()):
+			var zombie = zombies[spawned_index]
+			var health_mult = endless_difficulty_mult
+			zombie["health"] = float(zombie.get("health", float(Defs.ZOMBIES[kind]["health"]))) * health_mult
+			zombie["max_health"] = float(zombie.get("max_health", float(Defs.ZOMBIES[kind]["health"]))) * health_mult
+			if float(zombie.get("shield_health", 0.0)) > 0.0:
+				zombie["shield_health"] = float(zombie.get("shield_health", 0.0)) * health_mult
+				zombie["max_shield_health"] = float(zombie.get("max_shield_health", 0.0)) * health_mult
+			for field in ["headgear_health", "handheld_health"]:
+				if zombie.has(field):
+					zombie[field] *= health_mult
+					zombie["max_" + field] *= health_mult
+			var spawn_slow_duration = _endless_bonus_value("spawn_slow")
+			if spawn_slow_duration > 0.0:
+				zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), spawn_slow_duration)
+				zombie["slow_mult"] = minf(float(zombie.get("slow_mult", 1.0)), 0.58)
+			zombies[spawned_index] = zombie
+			endless_zombies_remaining += 1
 	queue_redraw()
 
 
@@ -7864,6 +7880,14 @@ func _grave_wave_kind_for_cell(row: int, col: int) -> String:
 
 
 func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool = false, final_preview: bool = false) -> void:
+	if FusionZombieDefs.RECIPES.has(kind):
+		var base_kind := FusionZombieDefs.base_kind(kind)
+		var first := zombies.size()
+		_spawn_zombie(base_kind, row_override, reserve_progress, final_preview)
+		for index in range(first, zombies.size()):
+			if String(zombies[index].kind) == base_kind:
+				ZombieEquipment.apply_recipe(zombies[index], kind)
+		return
 	if String(current_level.get("id", "")) == "3-25" and kind not in current_level.enemy_whitelist and kind not in ["hakutaku_boss", "mokou_boss"]:
 		return
 	if kind in ["mech_zombie", "flywheel_zombie"] and TouhouDifficulty.is_touhou(current_level):
@@ -10314,7 +10338,7 @@ func _execute_generic_ultimate(plant: Dictionary, kind: String, row: int, col: i
 			var damage = maxf(float(data.get("damage", 26.0)) * 2.8, 78.0)
 			for zombie_index in _find_closest_zombies_in_radius(center, radius, 8):
 				var zombie = zombies[zombie_index]
-				zombie = _apply_zombie_damage(zombie, damage, 0.16, float(data.get("slow_duration", 0.0)) + 2.5)
+				zombie = _apply_zombie_damage(zombie, damage, 0.16, float(data.get("slow_duration", 0.0)) + 2.5, false, kind in ["fume_shroom", "prism_grass"])
 				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.35)
 				if kind == "root_snare" or kind == "vine_lasher" or kind == "anchor_fern":
 					zombie["rooted_timer"] = maxf(float(zombie.get("rooted_timer", 0.0)), 2.8)
@@ -10326,7 +10350,7 @@ func _execute_generic_ultimate(plant: Dictionary, kind: String, row: int, col: i
 			for lane in [row - 1, row, row + 1]:
 				if lane < 0 or lane >= ROWS or not _is_row_active(lane):
 					continue
-				_damage_zombies_in_row_segment(lane, center.x + 16.0, BOARD_ORIGIN.x + board_size.x + 24.0, beam_damage, beam_slow)
+				_damage_zombies_in_row_segment(lane, center.x + 16.0, BOARD_ORIGIN.x + board_size.x + 24.0, beam_damage, beam_slow, true)
 				_damage_obstacles_in_radius(lane, center.x + board_size.x * 0.5, board_size.x * 0.5, beam_damage)
 				# The beam must end where the damage ends, not run off past the board edge.
 				var trident_start = _cell_center(lane, col).x + 16.0
@@ -10742,7 +10766,7 @@ func _execute_volcano_gator_cannon_ultimate(row: int, col: int) -> void:
 			var zombie_x = float(zombie["x"])
 			if zombie_x < center.x + 8.0 or zombie_x > BOARD_ORIGIN.x + board_size.x + 24.0:
 				continue
-			zombie = _apply_zombie_damage(zombie, damage, 0.24, 0.75, true)
+			zombie = _apply_zombie_damage(zombie, damage, 0.24, 0.75, false, true)
 			zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.25)
 			zombies[zombie_index] = zombie
 		_damage_obstacles_in_radius(lane, center.x + board_size.x * 0.5, board_size.x * 0.5, damage)
@@ -11445,10 +11469,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 		"soul_flower":
 			effects.append({"position": center, "radius": 200.0, "time": 0.4, "duration": 0.4, "color": Color(0.62, 0.36, 0.82, 0.4)})
 		"plasma_shooter":
-			for z in zombies:
-				if int(z["row"]) == row:
-					z["health"] = float(z["health"]) - 2000.0
-					z["flash"] = 0.4
+			_damage_zombies_in_row_segment(row, -INF, INF, 2000.0, 0.0, true)
 			effects.append({"position": Vector2(center.x + 400.0, center.y), "radius": 800.0, "time": 0.8, "duration": 0.8, "color": Color(0.18, 0.72, 0.92, 0.6)})
 			_trigger_screen_shake(10.0)
 		"crystal_nut":
@@ -11457,10 +11478,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			effects.append({"position": center, "radius": 100.0, "time": 0.5, "duration": 0.5, "color": Color(0.56, 0.78, 0.96, 0.5)})
 		"dragon_fruit":
 			for r in range(maxi(0, row - 1), mini(grid.size(), row + 2)):
-				for z in zombies:
-					if int(z["row"]) == r and float(z["x"]) > center.x and float(z["x"]) < center.x + 400.0:
-						z["health"] = float(z["health"]) - 200.0
-						z["flash"] = 0.3
+				_damage_zombies_in_row_segment(r, center.x, center.x + 400.0, 200.0, 0.0, true)
 			effects.append({"position": center + Vector2(200.0, 0.0), "radius": 400.0, "time": 1.0, "duration": 1.0, "color": Color(1.0, 0.42, 0.12, 0.5)})
 			_trigger_screen_shake(8.0)
 		"time_rose":
@@ -11808,12 +11826,13 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			effects.append({"position": hpos, "radius": 300.0, "time": 1.0, "duration": 1.0, "color": Color(1.0, 0.85, 0.1, 0.5)})
 		"echo_fern":
 			var epos = center
-			for z in zombies:
+			for zi in range(zombies.size()):
+				var z = zombies[zi]
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
-				if epos.distance_to(zpos) < 600.0:
-					z["health"] = float(z["health"]) - 180.0
+				if _is_enemy_zombie(z) and epos.distance_to(zpos) < 600.0:
+					z = _apply_zombie_damage(z, 180.0, 0.4, 0.0, false, true)
 					z["frozen_timer"] = max(float(z.get("frozen_timer", 0.0)), 2.0)
-					z["flash"] = 0.4
+					zombies[zi] = z
 				effects.append({"position": epos, "radius": 600.0, "time": 1.0, "duration": 1.0, "color": Color(0.5, 0.9, 0.7, 0.45)})
 			_trigger_screen_shake(7.0)
 		"glow_ivy":
@@ -11830,12 +11849,9 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				var target_row = row + row_off
 				if target_row < 0 or target_row >= grid.size():
 					continue
-				for z in zombies:
-					if int(z["row"]) == target_row:
-						z["health"] = float(z["health"]) - 400.0
-						z["flash"] = 0.5
-					var row_y = _row_center_y(target_row)
-					effects.append({"position": Vector2(lpos.x, row_y), "radius": 30.0, "time": 0.8, "duration": 0.8, "color": Color(1.0, 0.0, 0.5, 0.9)})
+				_damage_zombies_in_row_segment(target_row, -INF, INF, 400.0, 0.0, true)
+				var row_y = _row_center_y(target_row)
+				effects.append({"position": Vector2(lpos.x, row_y), "radius": 30.0, "time": 0.8, "duration": 0.8, "color": Color(1.0, 0.0, 0.5, 0.9)})
 			_trigger_screen_shake(10.0)
 		"rock_armor_fruit":
 			var rpos = center
@@ -11885,11 +11901,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				var cell = grid[target_row][col_idx]
 				if cell != null and cell.get("kind", "") != "" and cell["kind"] != "mirror_shroom":
 					var cx = _cell_center(target_row, col_idx).x
-					var cy = _row_center_y(target_row)
-					for z in zombies:
-						if int(z["row"]) == target_row and float(z["x"]) > cx:
-								z["health"] = float(z["health"]) - 200.0
-								z["flash"] = 0.35
+					_damage_zombies_in_row_segment(target_row, cx, INF, 200.0, 0.0, true)
 				effects.append({"position": mpos, "radius": 300.0, "time": 1.0, "duration": 1.0, "color": Color(0.8, 0.9, 1.0, 0.55)})
 		# -- Core-campaign explicit click ultimates --
 		"peashooter":
@@ -12017,7 +12029,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				var dz = float(z["x"]) - center.x
 				if dz < -20.0 or dz > fume_range:
 					continue
-				z = _apply_zombie_damage(z, 200.0, 0.24, 4.0)
+				z = _apply_zombie_damage(z, 200.0, 0.24, 4.0, false, true)
 				zombies[i] = z
 			_damage_obstacles_in_radius(row, center.x + fume_range * 0.5, fume_range * 0.5, 200.0)
 			effects.append({"shape": "lane_spray", "position": center + Vector2(26.0, -6.0), "length": fume_range, "width": float(Defs.PLANTS[kind].get("width", 92.0)) * 1.85, "radius": fume_range * 0.58, "time": 0.38, "duration": 0.38, "color": Color(0.88, 0.62, 1.0, 0.32)})
@@ -12076,10 +12088,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				var target_row = row + row_off
 				if target_row < 0 or target_row >= grid.size():
 					continue
-				for z in zombies:
-					if int(z["row"]) == target_row:
-						z["health"] = float(z["health"]) - 350.0
-						z["flash"] = 0.5
+				_damage_zombies_in_row_segment(target_row, -INF, INF, 350.0, 0.0, true)
 				effects.append({"position": Vector2(pspos.x, _row_center_y(target_row)), "radius": 200.0, "time": 1.2, "duration": 1.2, "color": Color(0.5, 0.2, 1.0, 0.6)})
 			_trigger_screen_shake(10.0)
 		"meteor_flower":
@@ -12124,10 +12133,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 		"solar_emperor":
 			var sepos = center
 			_spawn_ultimate_suns(15)
-			for z in zombies:
-				if int(z["row"]) == row:
-					z["health"] = float(z["health"]) - 300.0
-					z["flash"] = 0.5
+			_damage_zombies_in_row_segment(row, -INF, INF, 300.0, 0.0, true)
 			effects.append({"position": sepos, "radius": 500.0, "time": 1.5, "duration": 1.5, "color": Color(1.0, 0.9, 0.1, 0.7)})
 			_trigger_screen_shake(11.0)
 		"shadow_assassin":
@@ -13990,7 +13996,7 @@ func _cleanup_dead_zombies() -> void:
 					75
 				)
 		else:
-			var reward = int(Defs.ZOMBIES[String(zombie["kind"])]["reward"])
+			var reward = int(Defs.ZOMBIES[ZombieEquipment.catalogue_kind(zombie)]["reward"])
 			if reward > 0:
 				_spawn_coin(Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 18.0), reward)
 		var soul_bonus := 0
@@ -14984,7 +14990,7 @@ func _spawn_lotus_lancer_converge_barrage(origin: Vector2, target_index: int, sh
 			"fire": false,
 			"free_aim": true,
 			"anti_air": true,
-			"ignore_shield": true,
+			"pierce_handheld": true,
 			"target_uid": target_uid,
 			"target_position": target_point,
 			"spin_angle": angle,
@@ -15582,9 +15588,9 @@ func _spawn_zombie_at(kind: String, row: int, x: float, reserve_progress: bool =
 	_spawn_zombie(kind, row, reserve_progress, final_preview)
 	if zombies.size() <= previous_count:
 		return
-	var zombie = zombies[zombies.size() - 1]
+	var zombie = zombies[previous_count]
 	zombie["x"] = x
-	zombies[zombies.size() - 1] = zombie
+	zombies[previous_count] = zombie
 
 
 func _apply_ash_hits_in_circle(center: Vector2, radius: float, hits: int = 1, damage: float = 0.0) -> void:
@@ -15636,52 +15642,20 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 		var router_count = _count_alive_enemy_zombies_by_kind("router_zombie")
 		if router_count > 0:
 			remaining_damage /= pow(float(Defs.ZOMBIES["router_zombie"].get("aura_health_mult", 1.0)), router_count)
-	var kind = String(zombie["kind"])
-	var shield_health = float(zombie.get("shield_health", 0.0))
-	# Handheld gear guards the front arc only: boomerangs and smoke pass through it, and a
-	# blow landed from behind bypasses it. Headgear guards every angle and resists piercing.
-	var gear_bypass := ignore_shield
-	if not gear_bypass and String(Defs.ZOMBIES.get(kind, {}).get("armor_kind", "headgear")) == "handheld":
-		if pierce_handheld:
-			gear_bypass = true
-		elif from_x < INF and from_x > float(zombie.get("x", 0.0)):
-			gear_bypass = true
-	if shield_health > 0.0 and not gear_bypass:
-		var shield_damage = remaining_damage * _endless_shield_damage_mult()
-		if shield_damage >= shield_health:
-			var spill_ratio = maxf(0.0, shield_damage - shield_health) / maxf(shield_damage, 0.001)
-			remaining_damage *= spill_ratio
-			zombie["shield_health"] = 0.0
-			if kind == "basketball" and int(zombie.get("shield_regens_left", 0)) > 0 and float(zombie.get("shield_regen_timer", -1.0)) < 0.0:
-				zombie["shield_regen_timer"] = float(Defs.ZOMBIES["basketball"]["shield_regen_cooldown"])
-			if kind == "newspaper" and not bool(zombie.get("enraged", false)):
-				zombie["enraged"] = true
-				zombie["base_speed"] = float(Defs.ZOMBIES["newspaper"]["rage_speed"])
-				zombie["special_pause_timer"] = 0.55
-				effects.append({
-					"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 18.0),
-					"radius": 54.0,
-					"time": 0.28,
-					"duration": 0.28,
-					"color": Color(1.0, 0.28, 0.22, 0.28),
-				})
-			elif kind == "qinghua":
-				_add_porcelain_shard(int(zombie["row"]), _zombie_cell_col(float(zombie["x"])), 20.0)
-			# Accessory drop animation for cone/bucket/helmet zombies.
-			if kind in ["conehead", "buckethead", "football", "dark_football", "lifebuoy_cone", "lifebuoy_bucket"]:
-				effects.append({
-					"shape": "accessory_drop",
-					"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 44.0),
-					"kind": kind,
-					"time": 0.8,
-					"duration": 0.8,
-					"color": Color(1.0, 1.0, 1.0, 1.0),
-				})
-		else:
-			zombie["shield_health"] = shield_health - shield_damage
-			remaining_damage = 0.0
-		if zombie.has("kiln_armor_remaining"):
-			zombie["kiln_armor_remaining"] = maxf(0.0, float(zombie["kiln_armor_remaining"]) - minf(shield_health, shield_damage))
+	var bypass_hand := ZombieEquipment.handheld_bypassed(zombie, pierce_handheld, from_x)
+	if not ignore_shield:
+		for layer in ZombieEquipment.layers(zombie):
+			if remaining_damage <= 0.0: break
+			if String(layer.slot) == "handheld" and bypass_hand: continue
+			var field: String = layer.field
+			var health := float(zombie[field])
+			var shield_damage: float = remaining_damage * _endless_shield_damage_mult()
+			zombie[field] = maxf(0.0, health - shield_damage)
+			remaining_damage = maxf(0.0, remaining_damage - health / maxf(_endless_shield_damage_mult(), 0.001))
+			if field == "shield_health" and zombie.has("kiln_armor_remaining"):
+				zombie["kiln_armor_remaining"] = maxf(0.0, float(zombie.kiln_armor_remaining) - minf(health, shield_damage))
+			if float(zombie[field]) <= 0.0:
+				zombie = _on_zombie_equipment_broken(zombie, field)
 
 	if remaining_damage > 0.0:
 		zombie["health"] -= remaining_damage
@@ -15691,6 +15665,36 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 	zombie["impact_timer"] = maxf(float(zombie.get("impact_timer", 0.0)), 0.16)
 	if slow_duration > 0.0:
 		zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), slow_duration)
+	return zombie
+
+
+func _on_zombie_equipment_broken(zombie: Dictionary, field: String) -> Dictionary:
+	var kind := String(zombie.kind)
+	if field == "shield_health":
+		if kind == "basketball" and int(zombie.get("shield_regens_left", 0)) > 0 and float(zombie.get("shield_regen_timer", -1.0)) < 0.0:
+			zombie["shield_regen_timer"] = float(Defs.ZOMBIES["basketball"]["shield_regen_cooldown"])
+		if kind == "newspaper" and not bool(zombie.get("enraged", false)):
+			zombie["enraged"] = true
+			zombie["base_speed"] = float(Defs.ZOMBIES["newspaper"]["rage_speed"])
+			zombie["special_pause_timer"] = 0.55
+			effects.append({
+				"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 18.0),
+				"radius": 54.0,
+				"time": 0.28,
+				"duration": 0.28,
+				"color": Color(1.0, 0.28, 0.22, 0.28),
+			})
+		elif kind == "qinghua":
+			_add_porcelain_shard(int(zombie["row"]), _zombie_cell_col(float(zombie["x"])), 20.0)
+	var drop_kind := ""
+	if field == "headgear_health":
+		drop_kind = {"cone":"conehead", "bucket":"buckethead", "football":"football", "dark_football":"dark_football"}.get(String(zombie.get("headgear_kind", "")), "")
+	elif field == "shield_health" and kind in ["conehead", "buckethead", "football", "dark_football", "lifebuoy_cone", "lifebuoy_bucket"]:
+		drop_kind = kind
+	if drop_kind != "":
+		effects.append({"shape":"accessory_drop", "position":Vector2(float(zombie.x), _row_center_y(int(zombie.row)) - 44), "kind":drop_kind, "time":0.8, "duration":0.8, "color":Color.WHITE})
+	elif field == "handheld_health":
+		effects.append({"shape":"impact_burst", "style":"armor", "position":Vector2(float(zombie.x) - 24, _row_center_y(int(zombie.row)) - 12), "radius":32.0, "time":0.22, "duration":0.22, "color":ThemeLib.SHIELD_BLUE})
 	return zombie
 
 
@@ -19223,7 +19227,7 @@ func _damage_zombies_in_radius(row: int, center_x: float, radius: float, damage:
 		zombies[i] = zombie
 
 
-func _damage_zombies_in_row_segment(row: int, min_x: float, max_x: float, damage: float, slow_duration: float = 0.0) -> bool:
+func _damage_zombies_in_row_segment(row: int, min_x: float, max_x: float, damage: float, slow_duration: float = 0.0, pierce_handheld: bool = false) -> bool:
 	var hit := false
 	for i in range(zombies.size()):
 		var zombie = zombies[i]
@@ -19232,7 +19236,7 @@ func _damage_zombies_in_row_segment(row: int, min_x: float, max_x: float, damage
 		var zombie_x = _zombie_lane_x(zombie, row)
 		if zombie_x < min_x or zombie_x > max_x:
 			continue
-		zombie = _apply_zombie_damage(zombie, damage, 0.18, slow_duration)
+		zombie = _apply_zombie_damage(zombie, damage, 0.18, slow_duration, false, pierce_handheld)
 		zombies[i] = zombie
 		hit = true
 	return hit
@@ -19997,6 +20001,9 @@ func _visible_almanac_zombies() -> Array:
 		if encountered.has(kind) and not seen.has(kind):
 			seen[kind] = true
 			result.append(kind)
+	for id in FusionZombieDefs.RECIPES:
+		if encountered.has(FusionZombieDefs.RECIPES[id].base):
+			result.append(id)
 	return result
 
 
@@ -25835,13 +25842,12 @@ func _draw_zombies() -> void:
 			continue
 		if zombie == hud_boss:
 			continue
-		if float(zombie.get("shield_health", 0.0)) > 0.0 and float(zombie.get("max_shield_health", 0.0)) > 0.0:
-			_draw_health_bar(
-				draw_center + Vector2(0.0, -64.0 * unit_scale),
-				58.0 * unit_scale,
-				clampf(float(zombie["shield_health"]) / float(zombie["max_shield_health"]), 0.0, 1.0),
-				ThemeLib.SHIELD_BLUE
-			)
+		var gear_layers := ZombieEquipment.layers(zombie)
+		for index in range(gear_layers.size()):
+			var layer: Dictionary = gear_layers[index]
+			_draw_health_bar(draw_center + Vector2(0, (-64.0 - index * 8.0) * unit_scale), 58.0 * unit_scale,
+				clampf(float(zombie[layer.field]) / maxf(1.0, float(zombie.get(layer.max_field, 1.0))), 0, 1), ZombieEquipment.bar_color(String(layer.slot)))
+
 		_draw_health_bar(
 			draw_center + Vector2(0.0, -56.0 * unit_scale),
 			58.0 * unit_scale,
@@ -28878,6 +28884,9 @@ func _menu_icon_transform(center: Vector2, size_scale: float) -> Transform2D:
 
 
 func _zombie_portrait_bounds(kind: String) -> Rect2:
+	if FusionZombieDefs.RECIPES.has(kind):
+		return _zombie_portrait_bounds(FusionZombieDefs.base_kind(kind)).merge(Rect2(-54, -82, 108, 132))
+
 	if _boss_frame_count_for_kind(kind) > 0:
 		return Rect2(-100, -174, 200, 228)
 	match kind:
@@ -29448,15 +29457,16 @@ func _draw_wizard_zombie(center: Vector2, zombie: Dictionary) -> void:
 	_draw_ink_line(torso + Vector2(8.0, 24.0), torso + Vector2(14.0 + step * 3.0, 42.0), Color(0.2, 0.2, 0.22), 4.0)
 	CombatDetails.coat_panel(self, Rect2(torso + Vector2(-16.0, -12.0), Vector2(32.0, 42.0)), robe)
 	CombatDetails.zombie_head(self, torso + Vector2(0.0, -30.0), 15.0, skin)
-	_draw_ink_polygon(
-		PackedVector2Array([
-			torso + Vector2(0.0, -72.0),
-			torso + Vector2(-18.0, -42.0),
-			torso + Vector2(18.0, -42.0),
-		]),
-		PackedColorArray([robe.darkened(0.08), robe, robe])
-	)
-	_draw_ink_rect(Rect2(torso + Vector2(-20.0, -43.0), Vector2(40.0, 6.0)), Color(0.18, 0.1, 0.28, 0.96), true)
+	if float(zombie.get("headgear_health", 0.0)) <= 0.0:
+		_draw_ink_polygon(
+			PackedVector2Array([
+				torso + Vector2(0.0, -72.0),
+				torso + Vector2(-18.0, -42.0),
+				torso + Vector2(18.0, -42.0),
+			]),
+			PackedColorArray([robe.darkened(0.08), robe, robe])
+		)
+		_draw_ink_rect(Rect2(torso + Vector2(-20.0, -43.0), Vector2(40.0, 6.0)), Color(0.18, 0.1, 0.28, 0.96), true)
 	_draw_ink_line(torso + Vector2(12.0, -2.0), torso + Vector2(28.0, 20.0), Color(0.56, 0.42, 0.18), 3.0)
 	draw_circle(torso + Vector2(30.0, 18.0), 6.0, Color(0.74, 0.62, 1.0, 0.94))
 	for orb_index in range(3):
@@ -31602,6 +31612,16 @@ func _draw_city_boss(center: Vector2, zombie: Dictionary) -> void:
 
 
 func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
+	var state := zombie
+	if FusionZombieDefs.RECIPES.has(String(zombie.kind)):
+		state = zombie.duplicate(true)
+		state.kind = FusionZombieDefs.base_kind(String(zombie.kind))
+		ZombieEquipment.apply_recipe(state, String(zombie.kind))
+	_draw_zombie_body(center, state)
+	FusionZombieVisuals.draw(self, center, state)
+
+
+func _draw_zombie_body(center: Vector2, zombie: Dictionary) -> void:
 	var flash = float(zombie["flash"])
 	var slow_tint = 0.55 if float(zombie["slow_timer"]) > 0.0 else 0.0
 	var kind = String(zombie["kind"])
@@ -32577,11 +32597,17 @@ func _zombie_almanac_stats(kind: String) -> Array:
 		"啃咬：%.0f DPS" % float(data["attack_dps"]),
 		"击杀金币：%d" % int(data["reward"]),
 	]
-	if data.has("shield_health"):
-		stats.append("护具：%d" % int(data["shield_health"]))
+	var head_hp := float(data.get("headgear_health", 0.0))
+	var hand_hp := float(data.get("handheld_health", 0.0))
+	if ZombieEquipment.native_slot(FusionZombieDefs.base_kind(kind)) == "handheld":
+		hand_hp += float(data.get("shield_health", 0.0))
+	else:
+		head_hp += float(data.get("shield_health", 0.0))
+	if head_hp > 0.0: stats.append("头戴护具（橙金）：%d" % int(head_hp))
+	if hand_hp > 0.0: stats.append("手持护具（蓝）：%d" % int(hand_hp))
 	if TouhouSpellDefs.CARDS.has(kind):
 		stats.append("阶段：%d" % TouhouSpellDefs.phase_count(kind))
-	match kind:
+	match FusionZombieDefs.base_kind(kind):
 		"ducky_tube", "lifebuoy_normal":
 			stats.append("特性：水路常规推进")
 		"lifebuoy_cone":
@@ -32815,7 +32841,7 @@ func _find_highest_hp_zombie_in_range(center: Vector2, radius: float) -> int:
 		var zombie_pos = _zombie_target_point(zombie, center)
 		if zombie_pos.distance_to(center) > radius:
 			continue
-		var effective_health = float(zombie.get("health", 0.0)) + float(zombie.get("shield_health", 0.0))
+		var effective_health = ZombieEquipment.total_health(zombie)
 		if effective_health > best_health:
 			best_health = effective_health
 			best_index = i

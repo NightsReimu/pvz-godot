@@ -3,6 +3,7 @@ class_name GameDefs
 
 const PlantDefs = preload("res://scripts/data/plant_defs.gd")
 const ZombieDefs = preload("res://scripts/data/zombie_defs.gd")
+const FusionZombieDefs = preload("res://scripts/data/fusion_zombie_defs.gd")
 const DayLevelDefs = preload("res://scripts/data/level_defs_day.gd")
 const NightLevelDefs = preload("res://scripts/data/level_defs_night.gd")
 const PoolLevelDefs = preload("res://scripts/data/level_defs_pool.gd")
@@ -13,5 +14,5 @@ const VolcanoLevelDefs = preload("res://scripts/data/level_defs_volcano.gd")
 
 const PLANT_ORDER = PlantDefs.ORDER
 const PLANTS = PlantDefs.PLANTS
-const ZOMBIES = ZombieDefs.ZOMBIES
+static var ZOMBIES: Dictionary = FusionZombieDefs.with_fusions(ZombieDefs.ZOMBIES)
 static var LEVELS = DayLevelDefs.LEVELS + NightLevelDefs.LEVELS + PoolLevelDefs.LEVELS + FogLevelDefs.LEVELS + RoofLevelDefs.LEVELS + CityLevelDefs.LEVELS + VolcanoLevelDefs.LEVELS

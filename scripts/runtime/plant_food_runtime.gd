@@ -734,7 +734,7 @@ func activate(row: int, col: int) -> bool:
 				var distance = float(fume_zombie["x"]) - center.x
 				if distance < -20.0 or distance > fume_range:
 					continue
-				fume_zombie = game._apply_zombie_damage(fume_zombie, fume_damage, 0.22, 0.0, true)
+				fume_zombie = game._apply_zombie_damage(fume_zombie, fume_damage, 0.22, 0.0, false, true)
 				game.zombies[i] = fume_zombie
 			game._damage_obstacles_in_radius(row, center.x + fume_range * 0.5, fume_range * 0.5, fume_damage)
 			game.effects.append({
@@ -822,7 +822,7 @@ func activate(row: int, col: int) -> bool:
 			var targets = game._find_lane_targets(row, center.x, prism_burst_range, 5)
 			for zombie_index in targets:
 				var zombie = game.zombies[zombie_index]
-				zombie = game._apply_zombie_damage(zombie, 180.0, 0.22, 0.0, true)
+				zombie = game._apply_zombie_damage(zombie, 180.0, 0.22, 0.0, false, true)
 				game.zombies[zombie_index] = zombie
 			game._damage_obstacles_in_radius(row, center.x + prism_burst_range * 0.5, prism_burst_range * 0.5, 180.0)
 			game.effects.append({
@@ -1229,7 +1229,7 @@ func activate(row: int, col: int) -> bool:
 		"laser_lily":
 			for lane in game.active_rows:
 				var lane_center = Vector2(center.x, game._row_center_y(int(lane)))
-				game._damage_zombies_in_row_segment(int(lane), center.x + 8.0, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, 200.0, 0.0)
+				game._damage_zombies_in_row_segment(int(lane), center.x + 8.0, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, 200.0, 0.0, true)
 				game.effects.append({"shape": "lane_spray", "position": lane_center + Vector2(14.0, -6.0), "length": game.board_size.x, "width": 38.0, "radius": game.board_size.x * 0.5, "time": 0.8, "duration": 0.8, "color": Color(1.0, 0.22, 0.34, 0.32)})
 		"rock_armor_fruit":
 			plant["health"] = float(plant["max_health"])
@@ -1277,7 +1277,7 @@ func activate(row: int, col: int) -> bool:
 					var pd = Defs.PLANTS.get(String(p["kind"]), {})
 					var pdmg = float(pd.get("damage", float(pd.get("zone_damage", 0.0))))
 					if pdmg > 0.0:
-						game._damage_zombies_in_row_segment(r, game._cell_center(r,c).x, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, pdmg * float(Defs.PLANTS["mirror_shroom"]["clone_damage_ratio"]) * 1.5, 0.0)
+						game._damage_zombies_in_row_segment(r, game._cell_center(r,c).x, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, pdmg * float(Defs.PLANTS["mirror_shroom"]["clone_damage_ratio"]) * 1.5, 0.0, true)
 			game.effects.append({"position": center, "radius": 350.0, "time": 0.36, "duration": 0.36, "color": Color(0.88, 0.88, 1.0, 0.28)})
 		"chain_lotus":
 			for _hit in range(3):
@@ -1323,7 +1323,7 @@ func activate(row: int, col: int) -> bool:
 				var angle = TAU * float(i) / 6.0
 				game._spawn_sun(center + Vector2(cos(angle), sin(angle)) * 32.0, center.y - 26.0, "plant_food", 150)
 			for lane in game.active_rows:
-				game._damage_zombies_in_row_segment(int(lane), center.x + 10.0, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, 150.0, 0.0)
+				game._damage_zombies_in_row_segment(int(lane), center.x + 10.0, game.BOARD_ORIGIN.x + game.board_size.x + 20.0, 150.0, 0.0, true)
 			game.effects.append({"position": center, "radius": 250.0, "time": 0.38, "duration": 0.38, "color": Color(1.0, 0.9, 0.36, 0.3)})
 		"shadow_assassin":
 			for _strike in range(3):

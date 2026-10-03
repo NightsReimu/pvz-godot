@@ -464,7 +464,7 @@ func _test_lotus_lancer_click_ultimate_spawns_converging_lotus_barrage() -> bool
 	game.grid[row][col] = plant
 	game.call("_spawn_zombie_at", "normal", 1, game.call("_cell_center", 1, 5).x)
 	game.call("_spawn_zombie_at", "buckethead", 3, game.call("_cell_center", 3, 6).x)
-	var strongest_before = float(game.zombies[1].get("health", 0.0))
+	var strongest_before = float(game.zombies[1].get("health", 0.0)) + float(game.zombies[1].get("shield_health", 0.0))
 	var activated := bool(game.call("_try_activate_ultimate", row, col))
 	var barrage_count := 0
 	for projectile in game.projectiles:
@@ -472,10 +472,10 @@ func _test_lotus_lancer_click_ultimate_spawns_converging_lotus_barrage() -> bool
 			barrage_count += 1
 	for _step in range(20):
 		game.call("_update_projectiles", 0.08)
-	var strongest_after = float(game.zombies[1].get("health", 0.0))
+	var strongest_after = float(game.zombies[1].get("health", 0.0)) + float(game.zombies[1].get("shield_health", 0.0))
 	var passed := _assert_true(activated, "lotus_lancer should accept click ultimate activation when fully charged") \
 		and _assert_true(barrage_count >= 24, "lotus_lancer click ultimate should release a 24-shot lotus barrage around the highest-health enemy") \
-		and _assert_true(strongest_after < strongest_before, "lotus_lancer click ultimate should converge onto the current highest-health zombie")
+		and _assert_true(strongest_after < strongest_before, "lotus_lancer click ultimate should converge onto the current highest-health zombie and consume its headgear")
 	_free_game(game)
 	return passed
 
@@ -488,7 +488,7 @@ func _test_lotus_lancer_plant_food_matches_its_click_barrage() -> bool:
 	game.grid[row][col] = plant
 	game.call("_spawn_zombie_at", "normal", 2, game.call("_cell_center", 2, 5).x)
 	game.call("_spawn_zombie_at", "buckethead", 4, game.call("_cell_center", 4, 6).x)
-	var strongest_before = float(game.zombies[1].get("health", 0.0))
+	var strongest_before = float(game.zombies[1].get("health", 0.0)) + float(game.zombies[1].get("shield_health", 0.0))
 	var activated := bool(game.call("_activate_plant_food", row, col))
 	var barrage_count := 0
 	for projectile in game.projectiles:
@@ -496,10 +496,10 @@ func _test_lotus_lancer_plant_food_matches_its_click_barrage() -> bool:
 			barrage_count += 1
 	for _step in range(20):
 		game.call("_update_projectiles", 0.08)
-	var strongest_after = float(game.zombies[1].get("health", 0.0))
+	var strongest_after = float(game.zombies[1].get("health", 0.0)) + float(game.zombies[1].get("shield_health", 0.0))
 	var passed := _assert_true(activated, "lotus_lancer plant food should activate on a planted lotus_lancer") \
 		and _assert_true(barrage_count >= 24, "lotus_lancer plant food should use the same 24-shot converge barrage as its click ultimate") \
-		and _assert_true(strongest_after < strongest_before, "lotus_lancer plant food should also converge on the highest-health zombie")
+		and _assert_true(strongest_after < strongest_before, "lotus_lancer plant food should also converge on the highest-health zombie and consume its headgear")
 	_free_game(game)
 	return passed
 

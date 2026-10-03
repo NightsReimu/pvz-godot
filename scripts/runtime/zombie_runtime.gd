@@ -10,6 +10,7 @@ class_name ZombieRuntime
 
 const BOSS_WINDUP := 0.85
 const TouhouPhases = preload("res://scripts/runtime/touhou_phase_runtime.gd")
+const Fusion = preload("res://scripts/data/fusion_zombie_defs.gd")
 
 var game: Control
 
@@ -19,6 +20,7 @@ func _init(game_owner: Control) -> void:
 
 
 func is_water_zombie_kind(kind: String) -> bool:
+	kind = Fusion.base_kind(kind)
 	return kind == "ducky_tube" \
 		or kind == "lifebuoy_normal" \
 		or kind == "lifebuoy_cone" \
@@ -29,10 +31,12 @@ func is_water_zombie_kind(kind: String) -> bool:
 
 
 func is_dual_terrain_zombie_kind(kind: String) -> bool:
+	kind = Fusion.base_kind(kind)
 	return kind == "qinghua" or kind == "ice_block" or kind == "shouyue"
 
 
 func is_mechanical_zombie_kind(kind: String) -> bool:
+	kind = Fusion.base_kind(kind)
 	return kind == "zomboni" \
 		or kind == "bobsled_team" \
 		or kind == "catapult_zombie" \

@@ -473,22 +473,23 @@ func _test_boomerang_shooter_fires_for_any_zombie_ahead() -> bool:
 
 
 func _test_boomerang_shooter_does_not_double_hit_armored_targets() -> bool:
-	if not _assert_true(Defs.PLANTS.has("boomerang_shooter"), "expected boomerang_shooter plant definition to exist"):
-		return false
-	var game = _make_game()
-	var row := 2
-	var zombie_x = game._cell_center(row, 5).x
-	game._spawn_zombie_at("screen_door", row, zombie_x)
-	game.zombies[0]["shield_health"] = 8.0
-	var shield_before = float(game.zombies[0].get("shield_health", 0.0))
-	var health_before = float(game.zombies[0].get("health", 0.0))
-	game._spawn_boomerang_projectile(row, Vector2(zombie_x - 8.0, game._row_center_y(row) - 10.0), zombie_x - 140.0, float(Defs.PLANTS["boomerang_shooter"]["damage"]), int(Defs.PLANTS["boomerang_shooter"]["max_targets"]))
-	game._update_projectiles(0.05)
-	var shield_after = float(game.zombies[0].get("shield_health", 0.0))
-	var health_after = float(game.zombies[0].get("health", 0.0))
-	var passed = _assert_true(shield_after < shield_before, "boomerang_shooter should still damage armored zombie shields") \
-		and _assert_true(is_equal_approx(health_after, health_before), "boomerang_shooter should not spill the same hit from a nearly-broken shield onto the body")
-	_free_game(game)
+	var passed := true
+	for kind in ["screen_door", "conehead"]:
+		var game = _make_game()
+		var row := 2
+		var zombie_x = game._cell_center(row, 5).x
+		game._spawn_zombie_at(kind, row, zombie_x)
+		game.zombies[0]["shield_health"] = 8.0
+		var health_before = float(game.zombies[0].health)
+		var damage := float(Defs.PLANTS["boomerang_shooter"].damage)
+		game._spawn_boomerang_projectile(row, Vector2(zombie_x - 8, game._row_center_y(row) - 10), zombie_x - 140, damage, 3)
+		game._update_projectiles(0.05)
+		var z: Dictionary = game.zombies[0]
+		if kind == "screen_door":
+			passed = _assert_true(z.shield_health == 8 and is_equal_approx(z.health, health_before - damage), "Boomerang must bypass the handheld door with one body hit") and passed
+		else:
+			passed = _assert_true(z.shield_health == 0 and is_equal_approx(z.health, health_before - (damage - 8)), "Boomerang must hit headgear and carry only remaining damage into the body") and passed
+		_free_game(game)
 	return passed
 
 

@@ -643,10 +643,11 @@ func _test_volcano_click_ultimates_affect_board_state() -> bool:
 	game = _make_game()
 	game._spawn_zombie_at("buckethead", 2, game._cell_center(2, 6).x)
 	var health_before = float(game.zombies[0]["health"])
+	var gear_before = float(game.zombies[0]["shield_health"])
 	var gator_activated := _activate_volcano_ultimate(game, "gator_cannon", 2, 2)
 	var health_after = float(game.zombies[0]["health"])
 	passed = _assert_true(gator_activated, "gator cannon click ultimate should activate") and passed
-	passed = _assert_true(health_after < health_before, "gator cannon click ultimate should damage zombies in its beam lane") and passed
+	passed = _assert_true(is_equal_approx(health_after, health_before) and float(game.zombies[0]["shield_health"]) < gear_before, "gator cannon beam must consume headgear before damaging the body") and passed
 	_free_game(game)
 	return passed
 
