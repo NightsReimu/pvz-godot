@@ -104,7 +104,7 @@ func _run():
 	var absent := 0
 	for a in Native.PLANTS:
 		for b in Native.PLANTS:
-			if String(a) > String(b) or a in Fusion.EXCLUDED or b in Fusion.EXCLUDED: continue
+			if String(a) > String(b) or a in Fusion.EXCLUDED or b in Fusion.EXCLUDED or a in Fusion.UNOBTAINABLE or b in Fusion.UNOBTAINABLE: continue
 			if g._fusion_result(a,b).is_empty(): absent += 1
 	check(absent == 0,"Any two native plants must fuse; missing pairs: %d" % absent)
 	var grown: String = g._fusion_result("pea_bastion","winter_melon")

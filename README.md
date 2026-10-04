@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6** · **当前版本 v1.0.162** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.163** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -23,13 +23,13 @@
 
 | 内容 | 当前规模 |
 | --- | ---: |
-| 可选原种植物 | 145 |
-| 独立融合植物 SVG | 10,624 |
-| 可融合材料两两配方（排除花盆、睡莲，含保龄球专用坚果） | 10,440 |
-| 僵尸与 Boss 定义（含 163 种融合） | 292 |
-| 关卡定义 | 190 |
-| 主世界 | 7 |
-| 自动测试入口 | 144 |
+| 可选原种植物 | 150 |
+| 独立融合植物 SVG | 11,219 |
+| 可融合材料两两配方（排除花盆、睡莲与保龄球专用坚果） | 11,026 |
+| 僵尸与 Boss 定义（含 163 种融合） | 295 |
+| 关卡定义 | 195 |
+| 主世界 | 8 |
+| 自动测试入口 | 145 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
 
@@ -63,6 +63,12 @@
 
 ![妖妖梦八位 Boss 素材更新原生截图](docs/readme/cherry-boss-v154.png)
 
+**v1.0.163 古代世界、天气系统与融合造型重做**：新增第八世界「古代世界」8-1 ~ 8-5，每关一株新植物——蒲公英、茉莉花茶、金铲铲牛奶、轮回眼睛花、电眼菜问；古代武士、古代法师与军师僵尸登场。天气系统按关卡轮换晴天、烈日、细雨、雷暴、东风与大雾，分别影响阳光、火焰与雷电伤害、僵尸移速、直射视野和新植物特性，军师还会挥扇改写天气。全部 11,219 个融合 SVG 改用基础植物的画法：最适合的材料提供完整本体，其余材料长出豌豆炮口、花瓣光环、菌盖、坚果护甲、投石臂、莲座等标志部件；融合大招与爆舱特效全部重绘。融合本体不再按字母顺序落在地刺、海草或一次性植物上，保龄球专用坚果退出融合。[版本说明](docs/releases/v1.0.163.md)。
+
+![v1.0.163 古代世界细雨战场](docs/readme/ancient-world-v163.png)
+
+![v1.0.163 融合植物造型](docs/readme/plant-fusion-v163.png)
+
 **v1.0.162 原生融合与组合弹药**：融合材料分别调用原植物的攻击与支援逻辑，保留投掷、月炉追踪、莲矛环射、提灯对空、镜芦苇反弹及加农炮手动瞄准。投掷弹根据原目标移动更新落点；递归融合保留装填和蓄力状态。新增烈焰玉米、烈焰黄油及冰霜、毒蚀、雷电、梦蝶、缠根组合载荷，分裂子弹继续继承属性；魔术花覆盖 40 种基础弹型与元素组合，共 2,560 个登记变体。花盆和睡莲只作底座，启动大招恢复满生命。[版本说明](docs/releases/v1.0.162.md)。
 
 ![v1.0.162 融合原生弹道与组合弹药实战](docs/readme/plant-fusion-v162.png)
@@ -93,7 +99,7 @@
 
 ## English Summary
 
-This repository contains a fan-made lane-defense game built with Godot 4.6. It expands the classic plant-versus-zombie formula with seven adventure worlds, daily stages, endless run bonuses, plant enhancement, a base-management loop, a collection system, and Touhou-inspired boss branches.
+This repository contains a fan-made lane-defense game built with Godot 4.6. It expands the classic plant-versus-zombie formula with eight adventure worlds (the newest adds a weather system), daily stages, endless run bonuses, plant enhancement, a base-management loop, a collection system, and Touhou-inspired boss branches.
 
 The original source code is available under the MIT License. Bundled artwork, audio, fonts, character names, Touhou Project derivative content, and other media are **not** covered by MIT. Original Touhou music in this repository has no verified redistribution license; distributors must obtain permission or replace those tracks. This is an unofficial, noncommercial fan project and is not endorsed by the relevant rights holders.
 
@@ -119,7 +125,7 @@ The original source code is available under the MIT License. Bundled artwork, au
 | 抽卡系统 | 普通/高级抽取、植物与能量豆资源、收藏展示 | 可游玩 |
 | 图鉴 | 植物、普通僵尸、特殊僵尸和 Boss 的属性与机制说明 | 可游玩 |
 
-### 七个主世界
+### 八个主世界
 
 | 世界 | 代表机制 |
 | --- | --- |
@@ -130,6 +136,7 @@ The original source code is available under the MIT License. Bundled artwork, au
 | 屋顶时代 | 斜坡弹道、花盆、投掷植物、风向与空袭 |
 | 城市世界 | 轨道、井盖、霓虹街区、暴风雪与混编敌群 |
 | 火山世界 | 高低地、岩浆喷发、投掷/追踪体系与火山 Boss |
+| 古代世界 | 天气系统、古代武士/法师/军师与五株古代植物 |
 
 ### 战斗系统
 

@@ -389,8 +389,48 @@ def weapon(kind,col='url(#leaf)'):
         b=base()+path('M-32 -19 Q0 -57 32 -19 L0 11Z','url(#ice)')+line('M-28 -19 L0 11 L-15 -32 M0 11 L0 -39 M0 11 L15 -32 M0 11 L28 -19','#eafaff',1.2)+face(0,-12,spacing=5)
     return b
 
+def pult_body(kind,col):
+    # Each lobber grows the body of its own crop; the catapult arm is shared.
+    if kind=='cabbage_pult':
+        b=leaf(-24,30,20,22,col)+leaf(22,30,160,22,col)
+        b+=path('M-25 30 Q-33 13 -21 1 Q-8 -9 6 -3 Q24 3 24 22 Q22 35 -25 30Z',col,INK,1.8)
+        b+=line('M-20 24 Q-24 12 -14 4 M-8 30 Q-14 14 -4 2 M8 30 Q2 14 12 4','#bad39b',1.5)
+        return b,(-3,15)
+    if kind=='kernel_pult':
+        b=path('M-19 31 Q-26 10 -15 -7 Q-5 -16 6 -9 Q18 3 18 31 Q0 37 -19 31Z','url(#gold)',INK,1.8)
+        for y in (-4,4,12):
+            for x in (-12,-4,4,12):
+                if abs(x)<16-abs(y)*0.2: b+=ell(x+(y%8)*0.3,y,2.6,2,'#fbe08a','#c49a46',0.6)
+        b+=path('M-21 32 Q-30 10 -16 -2 Q-12 14 -6 32Z',col,INK,1.4)+path('M20 32 Q28 12 14 -2 Q12 14 6 32Z',col,INK,1.4)
+        return b,(-2,16)
+    if kind in ['melon_pult','fumarole_melon']:
+        body_col = 'url(#stone)' if kind=='fumarole_melon' else col
+        b=path('M-31 30 Q-37 12 -19 3 Q0 -4 19 3 Q33 11 29 30 Q0 39 -31 30Z',body_col,INK,1.8)
+        b+=line('M-22 26 Q-26 14 -16 6 M-6 33 Q-10 16 -2 2 M12 32 Q10 16 16 4 M24 26 Q26 16 22 8','#407650' if kind=='melon_pult' else '#5d6862',1.6)
+        if kind=='fumarole_melon':
+            b+=path('M18 4 L20 -10 L28 -10 L28 8Z','url(#stone)',INK,1.3)+ell(24,-10,4,1.6,'#3e4a46')+line('M24 -14 q-4 -5 1 -9','#c8d7cf',1.8)
+        return b,(-4,16)
+    if kind=='skylight_melon':
+        # A glasshouse melon: a tall glazed dome rises above a narrow rind.
+        b=path('M-23 31 Q-27 14 -14 6 Q0 1 14 6 Q26 14 22 31 Q0 38 -23 31Z',col,INK,1.8)
+        b+=path('M-17 7 Q-18 -18 0 -24 Q18 -18 17 7 Q0 2 -17 7Z','url(#ice)',INK,1.4)
+        b+=line('M-17 -4 Q0 -10 17 -4 M0 -24 L0 3 M-9 -19 L-8 4 M9 -19 L8 4','#7fb3c9',1)+line('M-10 -12 L-6 -4','#eaffff',1.4)+star(-14,-22,3,'#eaffff')
+        return b,(-3,18)
+    if kind=='dragon_bubble_pult':
+        b=path('M-27 30 Q-32 12 -17 3 L9 1 Q27 7 25 28 Q5 37 -27 30Z',col,INK,1.8)
+        for x,h in ((-20,9),(-10,12),(0,10),(10,8)):
+            b+=path(f'M{x-4} 3 L{x} {3-h} L{x+4} 2Z','url(#rose)',INK,1)
+        return b,(-4,16)
+    if kind=='toxic_gum_pult':
+        b=path('M-26 30 Q-34 18 -22 8 Q-26 -2 -12 0 Q-2 -8 8 0 Q22 -2 22 12 Q30 22 24 30 Q0 38 -26 30Z',col,INK,1.8)
+        b+=ell(-16,8,3,2.4,'#e7ff9a',INK,0.6)+ell(14,6,2.4,2,'#e7ff9a',INK,0.6)+path('M-24 30 Q-26 36 -22 38','none',col,3)
+        return b,(-4,16)
+    return path('M-26 29 Q-31 12 -16 4 L9 2 Q27 7 25 28 Q5 37 -26 29Z',col),(-4,16)
+
+
 def pult(kind,col='url(#leaf)'):
-    b=base(False)+path('M-26 29 Q-31 12 -16 4 L9 2 Q27 7 25 28 Q5 37 -26 29Z',col)+face(-4,16,spacing=5)
+    body,(fx,fy)=pult_body(kind,col)
+    b=base(False)+body+face(fx,fy,spacing=5)
     b+=path('M-13 11 Q-2 -3 14 -17 L8 -29 Q17 -41 32 -31 L32 -25 Q24 -12 17 -16 L-6 16Z','url(#bark)')+line('M-10 11 L14 -13','#e7ca8c',1.8)
     if kind=='kernel_pult' or kind=='corn_cannon':
         b+=path('M12 -30 Q9 -49 20 -49 Q30 -45 31 -27Z','url(#gold)')
@@ -542,6 +582,176 @@ def special(kind,state=''):
         b+=face(0,3 if kind=='dream_drum' else -10,spacing=4)
     return b
 
+# --- Ancient World (古代世界) -------------------------------------------------
+# Five new species share the same ink, gradients and faces as the classic cast.
+EXTRA_GRADIENTS = {
+    'jasmine_tea': [('celadon','#e4f4ea','#8cbca6'),('tea','#f4d58a','#c08a3a'),('porcelain','#ffffff','#dfe7ec')],
+    'golden_milk': [('milk','#ffffff','#e9e2d0'),('glass','#f4fbff','#c6dce6')],
+    'samsara_eye': [('samsara','#d6bdf7','#5b3a8f'),('iris','#cdb2ff','#7b52c4')],
+    'electric_bonk_choy': [('stalk','#f2f7df','#b9d68f'),('volt','#d9fbff','#43b6e6')],
+    'dandelion': [('fluff','#ffffff','#dbe6ea')],
+}
+
+def toothed_leaf(x,y,angle,length=26,col='url(#leaf)'):
+    # Dandelion leaves carry backward-pointing "lion's teeth" on both edges.
+    L=length
+    d=(f'M0 0 Q{-L*.18:.1f} {-L*.2:.1f} {-L*.3:.1f} {-L*.13:.1f} L{-L*.26:.1f} {-L*.27:.1f} '
+       f'Q{-L*.42:.1f} {-L*.24:.1f} {-L*.55:.1f} {-L*.12:.1f} L{-L*.52:.1f} {-L*.24:.1f} '
+       f'Q{-L*.7:.1f} {-L*.2:.1f} {-L*.8:.1f} {-L*.09:.1f} L{-L*.8:.1f} {-L*.17:.1f} Q{-L*.95:.1f} {-L*.1:.1f} {-L:.1f} 0 '
+       f'Q{-L*.9:.1f} {L*.08:.1f} {-L*.78:.1f} {L*.07:.1f} L{-L*.74:.1f} {L*.14:.1f} '
+       f'Q{-L*.6:.1f} {L*.14:.1f} {-L*.5:.1f} {L*.08:.1f} L{-L*.46:.1f} {L*.17:.1f} '
+       f'Q{-L*.3:.1f} {L*.16:.1f} {-L*.22:.1f} {L*.08:.1f} Q{-L*.1:.1f} {L*.1:.1f} 0 0Z')
+    return group(path(d,col,INK,1.25)+line(f'M-2 0 Q{-L*.5:.1f} {-L*.03:.1f} {-L*.92:.1f} 0','#4f8a45',.8),f'translate({x} {y}) rotate({angle})')
+
+def seed_tuft(x,y,angle,length=7,col='#ffffff'):
+    body=line(f'M0 0 L0 {-length}','#c9b48a',.7)+ell(0,1.2,1.1,1.6,'#a8794a')
+    for k in range(5):
+        a=-90+(k-2)*24
+        dx=math.cos(math.radians(a))*4; dy=math.sin(math.radians(a))*4
+        body+=line(f'M0 {-length} l{dx:.2f} {dy:.2f}',col,.6)
+    return group(body,f'translate({x} {y}) rotate({angle})')
+
+def dandelion(kind,state=''):
+    b=base(False)
+    for x,a,l in [(-2,24,28),(3,158,27),(0,-28,22),(1,206,21)]:
+        b+=toothed_leaf(x,31,a,l)
+    b+=path('M-3 33 Q-6 8 -1 -10 L3 -10 Q0 10 3 33Z','url(#leaf)')+line('M0 28 Q-2 12 1 -4','#a6cd6b',1.1)
+    cx,cy,R=0,-25,26
+    b+=ell(cx+1,cy+2,R+3,R+2,'#c7d3d8',width=0)+ell(cx,cy,R+3,R+2,'url(#fluff)','#b8c5ca',1.2)
+    for i in range(30):
+        a=i*12+(i%2)*5
+        rad=math.radians(a)
+        r0=9; r1=R-1-(i%3)
+        x0,y0=cx+math.cos(rad)*r0,cy+math.sin(rad)*r0
+        x1,y1=cx+math.cos(rad)*r1,cy+math.sin(rad)*r1
+        b+=line(f'M{x0:.1f} {y0:.1f} L{x1:.1f} {y1:.1f}','#b9c6c9',.55)
+        for k in (-28,0,28):
+            r2=math.radians(a+k)
+            b+=line(f'M{x1:.1f} {y1:.1f} l{math.cos(r2)*3.4:.2f} {math.sin(r2)*3.4:.2f}','#9aa7ab',.5)
+    b+=path(f'M{cx-21} {cy-11} Q{cx-12} {cy-24} {cx+2} {cy-25}','none','#ffffff',2.4,opacity='.8')
+    b+=ell(cx,cy+1,12.5,11.5,'url(#gold)',INK,1.6)
+    for x,y in [(-6,-4),(5,-6),(-2,4),(7,3),(-8,4)]:
+        b+=ell(cx+x*0.8,cy+y*0.8-1,1.1,1.1,'#d38f3b')
+    b+=face(cx,cy,spacing=4)
+    b+=ell(cx-7,cy+4,2.6,1.5,'#f0a27a')+ell(cx+7,cy+4,2.6,1.5,'#f0a27a')
+    b+=seed_tuft(29,-44,24,8)+seed_tuft(-31,-38,-30,7)+seed_tuft(34,-24,48,6)
+    return b
+
+def jasmine_flower(x,y,s=1.0,angle=0):
+    body=''.join(group(path('M0 0 C-3.5 -3 -3.5 -8.5 0 -10 C3.5 -8.5 3.5 -3 0 0Z','#ffffff',INK,0.8),f'rotate({a})') for a in range(0,360,72))
+    body+=ell(0,0,1.8,1.8,'#f5d36a',INK,.5)
+    return group(body,f'translate({x} {y}) rotate({angle}) scale({s})')
+
+def jasmine_tea(kind,state=''):
+    b=base(False)
+    # Jasmine sprigs grow behind the cup.
+    for sx,sy,ex,ey in [(-14,10,-30,-32),(12,10,30,-35),(0,8,4,-42)]:
+        b+=path(f'M{sx} {sy} Q{(sx+ex)/2-6} {(sy+ey)/2} {ex} {ey}','none','#3f7a46',2.2)
+        b+=leaf((sx+ex)/2,(sy+ey)/2,-60 if ex<0 else 240,13)+leaf(ex*0.8,ey*0.8+6,200 if ex<0 else -20,11)
+    for x,y,sc,a in [(-30,-34,1.0,10),(31,-37,0.95,-12),(4,-44,1.05,0),(-20,-20,0.75,30),(22,-24,0.8,-20)]:
+        b+=jasmine_flower(x,y,sc,a)
+    b+=ell(0,29,32,6.5,'url(#celadon)',INK,1.5)+ell(0,28,22,3.5,'#cfe3d8')
+    b+=path('M-26 -4 Q-25 22 -9 27 L9 27 Q25 22 26 -4Z','url(#porcelain)',INK,2)
+    # Blue-and-white scroll motif.
+    b+=line('M-20 6 q4 -6 8 0 q4 6 8 0 q4 -6 8 0 q4 6 8 0','#4f7fb4',1.4)
+    b+=line('M-14 19 q3 -3 6 0 M8 19 q3 -3 6 0','#4f7fb4',1.1)
+    b+=path('M25 1 Q37 2 35 12 Q33 20 22 17','none',INK,4.2)+path('M25 1 Q37 2 35 12 Q33 20 22 17','none','#ffffff',2.2)
+    b+=ell(0,-4,26,6.5,'url(#porcelain)',INK,1.7)+ell(0,-4,21.5,4.5,'url(#tea)','#9a6a2c',1)
+    b+=path('M-15 -5 Q-8 -8 0 -6','none','#fff4c8',1.4,opacity='.8')
+    b+=jasmine_flower(8,-4,0.8,15)
+    b+=face(-1,10,spacing=6)
+    b+=ell(-11,14,3,1.6,'#f2b0a4')+ell(9,14,3,1.6,'#f2b0a4')
+    return b
+
+def shovel(x,y,angle,s=1.0):
+    body=path('M-2 -22 L2 -22 L2 2 L-2 2Z','#b8862e',INK,1)
+    body+=path('M-6 -30 Q0 -34 6 -30 L6 -24 Q0 -21 -6 -24Z','url(#gold)',INK,1)
+    body+=path('M-8 2 L8 2 L7 13 Q0 21 -7 13Z','url(#gold)',INK,1.3)+line('M-4 5 Q0 13 4 5','#fff2b3',1)
+    return group(body,f'translate({x} {y}) rotate({angle}) scale({s})')
+
+def milk_bottle():
+    b=path('M-10 -30 L10 -30 L11 -21 Q22 -14 22 2 L22 24 Q22 32 13 32 L-13 32 Q-22 32 -22 24 L-22 2 Q-22 -14 -11 -21Z','url(#glass)',INK,2)
+    b+=path('M-19 -2 L19 -2 L19 23 Q19 29 12 29 L-12 29 Q-19 29 -19 23Z','url(#milk)','none')
+    b+=path('M-19 -2 Q-10 -6 0 -2 Q10 2 19 -2','none','#d9d2bf',1.2)
+    b+=path('M-17 -14 Q-19 4 -16 20','none','#ffffff',2.6,opacity='.75')
+    b+=path('M-12 -38 L12 -38 L13 -29 L-13 -29Z','url(#gold)',INK,1.5)
+    for x in range(-11,12,4): b+=line(f'M{x} -38 L{x} -35','#b8862e',.9)
+    b+=path('M-20 4 L20 4 L20 18 L-20 18Z','url(#gold)',INK,1.2)
+    b+=shovel(0,12,0,0.42)
+    return b
+
+def golden_milk(kind,state=''):
+    b=base(False)
+    if state=='pour':
+        b+=group(milk_bottle()+face(0,-10,'worried',6),'translate(-4 4) translate(0 12) rotate(48) translate(0 -12)')
+        b+=path('M31 -14 Q40 -10 40 6 Q40 20 37 31','none','#ffffff',6)+path('M31 -14 Q40 -10 40 6 Q40 20 37 31','none','#e7dfca',1.2)
+        b+=ell(35,33,9,3,'url(#milk)','#d9d2bf',1)
+    else:
+        b+=milk_bottle()+face(0,-10,spacing=6)+ell(-11,-4,3,1.6,'#f2b0a4')+ell(11,-4,3,1.6,'#f2b0a4')
+        b+=shovel(27,6,22,0.9)
+    return b
+
+def samsara_eye(kind,state=''):
+    b=base()
+    for i in range(10):
+        a=i*36+18
+        b+=petal(0,-14,a,30,9.5,'url(#samsara)')
+    for i in range(10):
+        a=i*36
+        b+=petal(0,-14,a,22,7,'url(#violet)')
+    b+=ell(0,-14,17,13,'#fffdf5',INK,1.8)
+    b+=ell(0,-14,10.5,10.5,'url(#iris)',INK,1.2)
+    for r in (7.6,4.9):
+        b+=ell(0,-14,r,r,'none','#3d2563',1.1)
+    b+=ell(0,-14,2.3,2.3,'#24133d')
+    b+=ell(-4,-18,2.2,1.6,'#ffffff',width=0)
+    if state=='open':
+        b+=path('M-17 -14 Q0 -33 17 -14','none',INK,1.6)
+        for x,y,a in [(-13,-25,-40),(0,-29,0),(13,-25,40)]:
+            b+=line(f'M{x} {y} l{math.sin(math.radians(a))*4:.1f} {-math.cos(math.radians(a))*4:.1f}',INK,1.2)
+        b+=ell(0,-14,22,17,'none','#c9a8ff',1.2)
+    else:
+        b+=path('M-17.5 -14 Q0 -32 17.5 -14 Q0 -19 -17.5 -14Z','url(#samsara)',INK,1.4)
+        for x in (-10,-4,3,9):
+            b+=line(f'M{x} -17 l{x*0.12:.1f} 4',INK,1.1)
+    b+=ell(-12,-4,3,1.6,'#e8a6c8')+ell(12,-4,3,1.6,'#e8a6c8')
+    b+=line('M-3 1 q3 2 6 0',INK,1.2)
+    return b
+
+def fist(x,y,angle=0,s=1.0):
+    body=path('M-7 -8 Q2 -11 8 -6 Q11 0 8 6 Q2 10 -7 8 Q-10 0 -7 -8Z','url(#leaf)',INK,1.4)
+    body+=line('M-1 -7 Q2 -1 -1 6 M3 -7 Q6 -1 3 6','#2f5d39',1)
+    body+=path('M-11 -6 L-6 -7 L-6 7 L-11 6Z','url(#stalk)',INK,1.1)
+    return group(body,f'translate({x} {y}) rotate({angle}) scale({s})')
+
+def electric_bonk_choy(kind,state=''):
+    b=base(False)
+    # Pale stalks fan from the root; ruffled dark leaves crown the head.
+    for x,a in [(-12,-14),(0,0),(12,14)]:
+        b+=group(path('M-6 0 Q-7 -24 -2 -38 L2 -38 Q7 -24 6 0Z','url(#stalk)',INK,1.5)+line('M0 -2 L0 -34','#c5dc9e',1),f'translate({x*0.6} 30) rotate({a})')
+    b+=path('M-26 -20 Q-34 -36 -22 -44 Q-18 -56 -6 -50 Q0 -60 9 -52 Q20 -58 24 -46 Q36 -40 28 -24 Q20 -16 10 -22 Q0 -14 -10 -22 Q-20 -14 -26 -20Z','url(#leaf)',INK,2)
+    b+=line('M-20 -34 Q-12 -40 -6 -48 M2 -46 Q8 -40 6 -28 M16 -44 Q20 -36 18 -26','#2f6b3c',1.2)
+    b+=path('M-3 -58 L-9 -46 L-3 -46 L-7 -37 L4 -50 L-2 -50 L3 -58Z','url(#gold)',INK,1)
+    b+=path('M-16 -22 Q0 -30 16 -22 L14 -2 Q0 4 -14 -2Z','url(#stalk)',INK,1.6)
+    for side in (-1,1):
+        x=side*6.5+1
+        b+=ell(x,-15,4.4,5,'#ffffff',INK,1.2)+ell(x+0.6,-14.6,2.8,3.4,'url(#volt)')+ell(x+0.6,-14.6,1.1,1.4,'#0f3d55')+ell(x-0.6,-16.2,.8,1,'#ffffff')
+        b+=line(f'M{x+side*6} -21 l{side*3} -3 l{-side*1} 3 l{side*3} -2','#43b6e6',1.1)
+    b+=line('M-11 -21 L-3 -19 M3 -19 L11 -21',INK,1.6)
+    b+=path('M-5 -6 Q1 -2 7 -6','none',INK,1.4)
+    if state=='punch':
+        b+=path('M10 -6 Q20 -10 27 -8','none','#4d8d4a',4)+fist(31,-8,0,1.05)
+        b+=line('M38 -17 l4 -3 M40 -8 l5 0 M38 1 l4 3','#7fe0ff',1.4)
+        b+=path('M-12 -4 Q-20 2 -18 10','none','#4d8d4a',4)+fist(-16,12,-70,0.95)
+    elif state=='punch_back':
+        b+=path('M-10 -6 Q-20 -10 -27 -8','none','#4d8d4a',4)+fist(-31,-8,180,1.05)
+        b+=line('M-38 -17 l-4 -3 M-40 -8 l-5 0 M-38 1 l-4 3','#7fe0ff',1.4)
+        b+=path('M12 -4 Q20 2 18 10','none','#4d8d4a',4)+fist(16,12,70,0.95)
+    else:
+        b+=path('M-12 -4 Q-24 0 -24 10','none','#4d8d4a',4)+fist(-24,12,-80,1.0)
+        b+=path('M12 -4 Q24 0 24 10','none','#4d8d4a',4)+fist(24,12,-100,1.0)
+    return b
+
 # Recipes describe the plant, never a fallback random recolour.
 RECIPES={}
 def recipes(names,fn,*args):
@@ -587,19 +797,23 @@ recipes('chain_lotus',flower,'url(#gold)','lotus')
 recipes('wind_orchid',flower,'url(#mint)','orchid')
 recipes('starfruit pumpkin pumice_wall snow_bloom magma_stream cyclone_grass',special)
 recipes('thunder_god',flower,'url(#gold)','lily')
+recipes('dandelion',dandelion); recipes('jasmine_tea',jasmine_tea); recipes('golden_milk',golden_milk)
+recipes('samsara_eye',samsara_eye); recipes('electric_bonk_choy',electric_bonk_choy)
 DEFS='<defs>'
 for name,c1,c2 in [('pea','#b7dc7a','#55904d'),('leaf','#88b758','#3d774b'),('gold','#fbe4a0','#d6953f'),('sun','#f0bd65','#bf813d'),('cream','#fff3d4','#d9be99'),('bark','#dcb474','#aa783f'),('ice','#d7f5f4','#72abc8'),('mint','#bfe8cb','#599993'),('rose','#f3b6bd','#c36282'),('violet','#d9c2e9','#997bb7'),('plum','#a995c5','#665c8a'),('night','#6e6b88','#35394e'),('fire','#fbc478','#dc7243'),('stone','#b3bbae','#747f7b')]:
     DEFS+=f'<linearGradient id="{name}" x1=".2" y1="0" x2=".8" y2="1"><stop stop-color="{c1}"/><stop offset="1" stop-color="{c2}"/></linearGradient>'
 DEFS+='</defs>'
 
 def write(name,body):
-    source_kind = name.split('_damaged')[0].split('_critical')[0].split('_unarmed')[0].split('_chewing')[0].split('_young')[0].split('_hiding')[0]
+    source_kind = name.split('_damaged')[0].split('_critical')[0].split('_unarmed')[0].split('_chewing')[0].split('_young')[0].split('_hiding')[0].split('_pour')[0].split('_open')[0].split('_punch')[0]
     signature = hashlib.sha1(source_kind.encode('utf-8')).hexdigest()[:12]
     defs = DEFS
     if source_kind == 'hypno_shroom':
         defs = defs.replace('</defs>', '<linearGradient id="hypno" x1=".2" y1="0" x2=".8" y2="1"><stop stop-color="#d77be2"/><stop offset="1" stop-color="#713b91"/></linearGradient></defs>')
     elif source_kind == 'sea_shroom':
         defs = defs.replace('</defs>', '<linearGradient id="sea" x1=".2" y1="0" x2=".8" y2="1"><stop stop-color="#a7f4ec"/><stop offset="1" stop-color="#318fa6"/></linearGradient></defs>')
+    for gid,c1,c2 in EXTRA_GRADIENTS.get(source_kind,[]):
+        defs = defs.replace('</defs>', f'<linearGradient id="{gid}" x1=".2" y1="0" x2=".8" y2="1"><stop stop-color="{c1}"/><stop offset="1" stop-color="{c2}"/></linearGradient></defs>')
     svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="192" height="224" viewBox="-48 -60 96 112" data-plant-kind="{source_kind}" data-art-signature="{signature}">{defs}{body}</svg>\n'
     (OUT/(name+'.svg')).write_text(svg)
 
@@ -618,6 +832,10 @@ def main():
         if name=='chomper': build_asset(name+'_chewing', special, ['chewing'], name, name)
         if name=='sun_shroom': build_asset(name+'_young', shroom, ['young'], name, name)
         if name=='scaredy_shroom': build_asset(name+'_hiding', shroom, ['hiding'], name, name)
+        if name=='golden_milk': build_asset(name+'_pour', golden_milk, ['pour'], name, name)
+        if name=='samsara_eye': build_asset(name+'_open', samsara_eye, ['open'], name, name)
+        if name=='electric_bonk_choy':
+            for state in ['punch','punch_back']: build_asset(name+'_'+state, electric_bonk_choy, [state], name, name)
     CURRENT_KIND = ''
     manifest='extends RefCounted\n\n# Generated by scripts/tools/build_vector_unit_art.py.\nconst KINDS := '+str(list(RECIPES)).replace("'",'"')+'\n'
     (ROOT/'scripts/data/vector_plant_manifest.gd').write_text(manifest)

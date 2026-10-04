@@ -144,6 +144,13 @@ static func _hard_profile(base: Dictionary) -> Dictionary:
 			{"label": "喷口穿行与余烬夹击", "extra_kinds": ["vent_tunneler", "cinder_runner"], "extra_stride": 5},
 			{"label": "火山全谱混编", "extra_kinds": ["basalt_guard", "kiln_mason", "geode_zombie", "sulfur_carrier"], "extra_stride": 4},
 		],
+		8: [
+			{"label": "武士先锋与铁桶护阵", "extra_kinds": ["ancient_samurai", "buckethead"], "extra_stride": 6},
+			{"label": "法师变羊与报纸突进", "extra_kinds": ["ancient_mage", "newspaper", "ancient_samurai"], "extra_stride": 5},
+			{"label": "军师借风与橄榄球冲锋", "extra_kinds": ["ancient_strategist", "football", "ancient_samurai"], "extra_stride": 5},
+			{"label": "雷雨武士与法师联阵", "extra_kinds": ["ancient_samurai", "ancient_mage", "screen_door"], "extra_stride": 4},
+			{"label": "天下布武全军混编", "extra_kinds": ["ancient_samurai", "ancient_mage", "ancient_strategist", "gargantuar"], "extra_stride": 4},
+		],
 	}
 	var list: Array = profiles.get(world, profiles[1])
 	var selected: Dictionary = Dictionary(list[posmod(stage - 1, list.size())]).duplicate(true)
@@ -161,6 +168,7 @@ static func _hard_profile(base: Dictionary) -> Dictionary:
 		5: ["ladder_zombie", "bungee_zombie", "catapult_zombie", "pole_vault", "digger_zombie", "balloon_zombie", "gargantuar", "bobsled_team", "zomboni", "football"],
 		6: ["programmer_zombie", "router_zombie", "shieldbearer_zombie", "medic_zombie", "saboteur_zombie", "rift_zombie", "dragon_boat", "bomber_zombie", "wither_zombie", "enderman_zombie"],
 		7: ["cinder_runner", "basalt_guard", "kiln_mason", "sulfur_carrier", "ash_bell", "geode_zombie", "vent_tunneler", "cinder_runner", "basalt_guard", "geode_zombie"],
+		8: ["ancient_samurai", "ancient_mage", "ancient_strategist", "football", "ancient_samurai"],
 	}
 	var variant_pool: Array = variant_pools.get(world, variant_pools[1])
 	var variant_kind := String(variant_pool[posmod(stage - 1, variant_pool.size())])

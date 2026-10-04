@@ -153,6 +153,8 @@ func update_native(plant: Dictionary, delta: float, row: int, col: int) -> bool:
 	if bool(Defs.PLANTS.get(String(plant["kind"]), {}).get("volcano_expansion", false)):
 		game._ensure_volcano_expansion().update_plant(plant, delta, row, col)
 		return false
+	if bool(Defs.PLANTS.get(String(plant["kind"]), {}).get("ancient_expansion", false)):
+		return game._ensure_ancient_expansion().update_plant(plant, delta, row, col)
 
 	match String(plant["kind"]):
 		"sunflower":

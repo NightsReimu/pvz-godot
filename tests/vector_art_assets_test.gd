@@ -78,7 +78,7 @@ func fail(message: String) -> void:
 	push_error(message)
 
 func _is_state_variant(file: String) -> bool:
-	for suffix in ["_damaged.svg", "_critical.svg", "_unarmed.svg", "_chewing.svg", "_young.svg", "_hiding.svg"]:
+	for suffix in ["_damaged.svg", "_critical.svg", "_unarmed.svg", "_chewing.svg", "_young.svg", "_hiding.svg", "_pour.svg", "_open.svg", "_punch.svg", "_punch_back.svg"]:
 		if file.ends_with(suffix):
 			return true
 	return false

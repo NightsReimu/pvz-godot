@@ -152,9 +152,48 @@ const ORDER: Array = [
 	"fumarole_melon",
 	"magnet_orchid",
 	"caldera_lotus",
+	# --- 古代世界 (Ancient World) ---
+	"dandelion",
+	"jasmine_tea",
+	"golden_milk",
+	"samsara_eye",
+	"electric_bonk_choy",
 ]
 
 const PLANTS: Dictionary = {
+	"dandelion": {
+		"name": "蒲公英", "cost": 125, "cooldown": 7.5, "health": 140.0,
+		"shoot_interval": 2.4, "damage": 38.0, "anti_air": true, "ancient_expansion": true,
+		"spore_float_time": 1.05, "spore_dive_time": 0.42, "spore_splash_radius": 46.0,
+		"ultimate_name": "漫天飞絮", "ultimate_charge_time": 50.0, "ultimate_duration": 1.0,
+		"almanac": ["吹出缓慢上浮的绒毛孢子，升空后从天而降，命中本行最靠前的敌人；落点越过手持盾牌，也能击落空中单位，并对周围 46 范围造成三成溅射。东风天多吹一枚，细雨天孢子吸水，伤害 +20%。", "漫天飞絮：每一行吹出三枚强化孢子，每枚 90 伤害，追着各行敌人落下。"],
+	},
+	"jasmine_tea": {
+		"name": "茉莉花茶", "cost": 150, "cooldown": 7.5, "health": 160.0,
+		"shoot_interval": 2.2, "damage": 14.0, "zone_damage": 14.0, "ancient_expansion": true,
+		"corrode_duration": 6.0, "weaken_ratio": 0.3,
+		"ultimate_name": "茶香满庭", "ultimate_charge_time": 55.0, "ultimate_duration": 1.0,
+		"almanac": ["向前方 3×3 浇洒热茶，伤害较低；被浇过的草地腐蚀 6 秒，站在上面的僵尸「虚弱」，受到的全部伤害 +30%。细雨天腐蚀范围多一列、持续 9 秒；烈日天茶更烫，伤害 +30% 但只腐蚀 4 秒。", "茶香满庭：前方三行六列一齐腐蚀 12 秒，并对其中敌人造成 90 伤害。"],
+	},
+	"golden_milk": {
+		"name": "金铲铲牛奶", "cost": 175, "cooldown": 30.0, "health": 300.0,
+		"one_shot": true, "fuse": 0.65, "damage": 1000.0, "ancient_expansion": true,
+		"knockback": 92.0,
+		"almanac": ["一次性：种下后倾倒整瓶牛奶，奶浪冲过本行，对每只僵尸造成 1000 伤害并击退一格、留下 2 秒奶渍减速；首领只受伤害不被击退。细雨天地面湿滑，击退距离 +50%。", "融合后化为独立充能的奶舱：每 34 秒冲出一道整行奶浪，保留击退；不会成为融合植物的本体。"],
+	},
+	"samsara_eye": {
+		"name": "轮回眼睛花", "cost": 200, "cooldown": 40.0, "health": 300.0,
+		"one_shot": true, "fuse": 1.0, "damage": 0.0, "ancient_expansion": true,
+		"revive_window": 10.0,
+		"almanac": ["一次性：睁开轮回之眼，让 10 秒内倒下的植物在原地满血复活；原格已有植物时与之融合，没有配方则就近安置。大雾天轮回窗口延长到 15 秒，雷暴天复活的植物获得 3 秒无敌。", "融合后成为轮回之眼：每 46 秒复活周围 10 秒内倒下的植物；大招「轮回再临」覆盖全场 15 秒内的倒下者。"],
+	},
+	"electric_bonk_choy": {
+		"name": "电眼菜问", "cost": 150, "cooldown": 7.5, "health": 300.0,
+		"attack_interval": 0.5, "damage": 26.0, "range": 120.0, "ancient_expansion": true,
+		"rear_range": 96.0, "lightning_every": 4, "lightning_damage": 55.0, "lightning_chain": 3,
+		"ultimate_name": "雷拳乱舞", "ultimate_charge_time": 52.0, "ultimate_duration": 2.0,
+		"almanac": ["向前后近身快速出拳，每拳 26 伤害；每第四拳放出连锁闪电，最多跳 3 个敌人，每次 55 伤害并短暂麻痹。细雨天闪电多跳一次、伤害 +25%；雷暴天再多一次，出拳速度 +30%。", "雷拳乱舞：两秒内打出十六记雷拳，覆盖前后 3×3，并召下八道落雷。"],
+	},
 	"thermal_sunflower": {
 		"name": "地热向日葵", "cost": 75, "cooldown": 7.5, "health": 160.0,
 		"shoot_interval": 10, "sun_interval": 10.0, "damage": 0.0, "volcano_expansion": true,

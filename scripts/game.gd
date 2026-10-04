@@ -23,6 +23,8 @@ const UpdateManagerLib = preload("res://scripts/system/update_manager.gd")
 const WorldDataLib = preload("res://scripts/data/world_data.gd")
 const AlmanacTextLib = preload("res://scripts/data/almanac_text.gd")
 const VolcanoExpansionRuntime = preload("res://scripts/runtime/volcano_expansion_runtime.gd")
+const AncientExpansionRuntime = preload("res://scripts/runtime/ancient_expansion_runtime.gd")
+const AncientVisuals = preload("res://scripts/ui/ancient_visuals.gd")
 const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
@@ -195,6 +197,7 @@ const WORLD_UI_ASSETS := {
 	"card_roof": "res://art/world_ui/world_card_roof.png",
 	"card_city": "res://art/world_ui/world_card_city.png",
 	"card_volcano": "res://art/world_ui/world_card_volcano.png",
+	"card_ancient": "res://art/world_ui/world_card_ancient.png",
 }
 const POLISHED_PROJECTILE_TEXTURE_PATHS := {
 	"pea": "res://art/polish/pea-polished.png",
@@ -674,6 +677,9 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"sulfur_carrier",
 	"geode_zombie",
 	"vent_tunneler",
+	"ancient_samurai",
+	"ancient_mage",
+	"ancient_strategist",
 ]
 
 var rng = RandomNumberGenerator.new()
@@ -1046,6 +1052,7 @@ var firing_sfx_throttle := {}
 # Per-lava-cell eruption cooldowns. Key = "row,col", value = seconds until next eruption.
 var lava_eruption_timers := {}
 var volcano_expansion: VolcanoExpansionRuntime
+var ancient_expansion: AncientExpansionRuntime
 var polished_texture_cache := {}
 var image2_texture_cache := {}
 var image2_flipped_zombie_cache := {}
@@ -2116,7 +2123,7 @@ func _process(delta: float) -> void:
 			_random_active_target_y(),
 			"sky"
 		)
-		sky_sun_cooldown = rng.randf_range(sky_range.x, sky_range.y)
+		sky_sun_cooldown = rng.randf_range(sky_range.x, sky_range.y) * (ancient_expansion.sky_sun_factor() if ancient_expansion != null else 1.0)
 
 	_update_frozen_branch_flow()
 	_update_remilia_crimson_drain(delta)
@@ -2147,6 +2154,8 @@ func _process(delta: float) -> void:
 		keine_runtime.update(delta)
 	if volcano_expansion != null or _is_volcano_level():
 		_ensure_volcano_expansion().update_world(delta)
+	if ancient_expansion != null or _is_ancient_level():
+		_ensure_ancient_expansion().update_world(delta)
 	_update_lava_cells(delta)
 	_update_cloud_sea(delta)
 	_grow_yuyuko_graves(delta)
@@ -4527,6 +4536,8 @@ func _preferred_enhance_material_for_world(world_key: String) -> String:
 			return "burst_crystal"
 		"volcano":
 			return "guard_plate"
+		"ancient":
+			return "tempo_coil"
 		"city":
 			return "assault_chip"
 		_:
@@ -6429,6 +6440,8 @@ func _daily_world_label(world_key: String) -> String:
 			return "屋顶"
 		"volcano":
 			return "火山"
+		"ancient":
+			return "古代"
 		_:
 			return "白天"
 
@@ -7409,6 +7422,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	lava_eruption_timers.clear()
 	if volcano_expansion != null:
 		volcano_expansion.reset()
+	if ancient_expansion != null or _is_ancient_level():
+		_ensure_ancient_expansion().reset()
 	next_event_index = 0
 	base_events_spawned = 0
 	total_spawned_units = 0
@@ -8420,6 +8435,10 @@ func _is_roof_level() -> bool:
 	return String(current_level.get("terrain", "")) == "roof"
 
 
+func _is_ancient_level() -> bool:
+	return String(current_level.get("terrain", "")) == "ancient"
+
+
 func _is_volcano_level() -> bool:
 	return String(current_level.get("terrain", "")) == "volcano"
 
@@ -9156,6 +9175,7 @@ func _plant_cadence_delta(delta: float, row: int, col: int) -> float:
 	if row >= 0 and row < grid.size() and col >= 0 and col < grid[row].size(): p = grid[row][col]
 	if p == null and row >= 0 and row < support_grid.size() and col >= 0 and col < support_grid[row].size(): p = support_grid[row][col]
 	if p != null and float(p.get("fusion_haste_timer",0)) > 0: attack_speed_mult *= 1.6
+	if ancient_expansion != null: attack_speed_mult *= ancient_expansion.cadence_factor(p)
 	return delta * attack_speed_mult / _plant_attack_cadence_scale(row, col)
 
 
@@ -9909,6 +9929,13 @@ func _ensure_volcano_expansion() -> VolcanoExpansionRuntime:
 	if volcano_expansion == null:
 		volcano_expansion = VolcanoExpansionRuntime.new(self)
 	return volcano_expansion
+
+
+func _ensure_ancient_expansion() -> AncientExpansionRuntime:
+	if ancient_expansion == null:
+		ancient_expansion = AncientExpansionRuntime.new(self)
+		ancient_expansion.reset()
+	return ancient_expansion
 
 
 func _ensure_projectile_runtime() -> ProjectileRuntime:
@@ -10846,6 +10873,9 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 		return
 	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
 		_ensure_volcano_expansion().ultimate(plant, row, col)
+		return
+	if bool(Defs.PLANTS.get(kind, {}).get("ancient_expansion", false)):
+		_ensure_ancient_expansion().ultimate(plant, row, col)
 		return
 	var center = _cell_center(row, col)
 	if String(profile.get("style", "")) != "explicit":
@@ -12756,6 +12786,8 @@ func _update_zombies(delta: float) -> void:
 		zombie["jump_offset"] = 0.0
 		if volcano_expansion != null or bool(Defs.ZOMBIES.get(String(zombie["kind"]), {}).get("volcano_expansion", false)):
 			_ensure_volcano_expansion().update_zombie(zombie, delta)
+		if bool(Defs.ZOMBIES.get(String(zombie["kind"]), {}).get("ancient_expansion", false)):
+			_ensure_ancient_expansion().update_zombie(zombie, delta)
 		if _zombie_in_bog(zombie):
 			zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), 0.45)
 		if float(zombie.get("corrode_timer", 0.0)) > 0.0 and float(zombie.get("corrode_dps", 0.0)) > 0.0:
@@ -13646,6 +13678,8 @@ func _spawn_sun(spawn_position: Vector2, target_y: float, source: String, value:
 	var final_value = value
 	if _is_endless_level():
 		final_value = maxi(1, int(round(float(value) * (1.0 + _endless_bonus_value("sky_sun")))))
+	if source == "plant" and ancient_expansion != null:
+		final_value = maxi(1, int(round(float(final_value) * ancient_expansion.plant_sun_factor())))
 	suns.append({
 			"position": spawn_position,
 			"target_y": target_y,
@@ -13805,6 +13839,10 @@ func _update_effects(delta: float) -> void:
 			if boss_time_stop_timer > 0.0:
 				continue
 			_damage_zombies_in_circle(Vector2(effect["position"]), float(effect["radius"]), float(effect.get("dps", 0.0)) * minf(maxf(delta, 0.0), maxf(float(effect["time"]), 0.0)))
+		if volcano_shape in ["ancient_milk_wave", "ancient_hex", "ancient_strike"]:
+			if boss_time_stop_timer > 0.0:
+				continue
+			_ensure_ancient_expansion().tick_effect(effect, delta)
 		if volcano_shape in ["volcano_warning", "volcano_steam", "volcano_pulse"]:
 			if boss_time_stop_timer > 0.0:
 				continue
@@ -13815,7 +13853,9 @@ func _update_effects(delta: float) -> void:
 				_ensure_volcano_expansion().pulse(Vector2(effect["position"]), float(effect["radius"]), float(effect["dps"]) * minf(delta, float(effect["time"])), 0.6)
 		effect["time"] -= delta
 		if float(effect["time"]) <= 0.0:
-			if volcano_shape == "volcano_warning":
+			if volcano_shape in ["ancient_hex", "ancient_strike"]:
+				_ensure_ancient_expansion().resolve_effect(effect)
+			elif volcano_shape == "volcano_warning":
 				_ensure_volcano_expansion().resolve(effect)
 			elif String(effect.get("shape", "")) == "remilia_blood_drain":
 				_resolve_remilia_blood_drain(effect)
@@ -13919,6 +13959,7 @@ func _remove_dead_plants() -> void:
 					continue
 				if track:
 					objective_runtime.notify_plant_removed(plant_variant)
+				_ensure_ancient_expansion().record_death(plant_variant, row, col, "grid")
 				grid[row][col] = null
 	for row in range(ROWS):
 		for col in range(COLS):
@@ -13930,6 +13971,9 @@ func _remove_dead_plants() -> void:
 					continue
 				if track:
 					objective_runtime.notify_plant_removed(support_variant)
+				_ensure_ancient_expansion().record_death(support_variant, row, col, "support")
+				if grid[row][col] != null:
+					_ensure_ancient_expansion().record_death(grid[row][col], row, col, "grid")
 				support_grid[row][col] = null
 				grid[row][col] = null
 
@@ -14632,6 +14676,8 @@ func _draw_battle_intro_overlay() -> void:
 func _has_zombie_ahead(row: int, plant_x: float, range_limit: float = 10000.0) -> bool:
 	if reisen_runtime != null:
 		range_limit = reisen_runtime.range_limit(row, plant_x, range_limit)
+	if ancient_expansion != null:
+		range_limit = ancient_expansion.range_limit(range_limit)
 	for zombie in zombies:
 		var distance = _zombie_lane_x(zombie, row) - plant_x
 		if _zombie_has_row(zombie, row) and _is_enemy_zombie(zombie) and not _is_hidden_from_lane_attacks(zombie) and distance > 8.0 and distance <= range_limit:
@@ -15698,6 +15744,8 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 		remaining_damage *= 0.7
 	if float(zombie.get("sulfur_brittle_until", 0.0)) > level_time:
 		remaining_damage *= 1.2
+	if float(zombie.get("ancient_weak_until", 0.0)) > level_time and ancient_expansion != null:
+		remaining_damage *= ancient_expansion.damage_factor(zombie)
 	if float(zombie.get("basalt_brace_until", 0.0)) > level_time and slow_duration <= 0.0 and not _ensure_volcano_expansion().controlled(zombie):
 		remaining_damage *= 0.65
 	if _is_enemy_zombie(zombie):
@@ -16668,6 +16716,8 @@ func _update_charmed_plants(delta: float) -> void:
 
 func _plant_charm_blocks_actions(plant: Dictionary) -> bool:
 	if bool(plant.get("reimu_sealed", false)):
+		return true
+	if float(plant.get("ancient_sheep_until", 0.0)) > level_time:
 		return true
 	return bool(plant.get("mystia_charmed", false)) or bool(plant.get("mystia_being_cooked", false)) or float(plant.get("youmu_charm_timer", 0.0)) > 0.0 or bool(plant.get("youmu_charm_blocked_frame", false))
 
@@ -18747,6 +18797,8 @@ func _current_zombie_speed(zombie: Dictionary) -> float:
 		speed *= float(zombie.get("mystia_food_speed_mult", 1.0))
 	if String(zombie.get("kind", "")) == "cinder_runner" and _ensure_volcano_expansion().runner_is_hot(zombie):
 		speed *= 1.8
+	if ancient_expansion != null:
+		speed *= ancient_expansion.speed_factor(zombie)
 	if float(zombie.get("basalt_brace_until", 0.0)) > level_time and not _ensure_volcano_expansion().controlled(zombie):
 		return 0.0
 	var terrain = _cell_terrain_kind(int(zombie["row"]), _zombie_cell_col(float(zombie["x"])))
@@ -18770,6 +18822,8 @@ func _current_zombie_speed(zombie: Dictionary) -> float:
 
 func _zombie_attack_dps(zombie: Dictionary) -> float:
 	var damage := float(zombie.get("attack_dps", 0.0))
+	if ancient_expansion != null:
+		damage *= ancient_expansion.attack_factor(zombie)
 	if eirin_runtime != null and _is_eirin_level():
 		damage *= eirin_runtime.rage_multiplier(zombie, true)
 	if float(zombie.get("mystia_food_buff_timer", 0.0)) > 0.0:
@@ -19920,6 +19974,8 @@ func _world_key_for_level(level: Dictionary) -> String:
 	if not explicit_world.is_empty():
 		return explicit_world
 	var level_id = String(level.get("id", ""))
+	if level_id.begins_with("8-"):
+		return "ancient"
 	if level_id.begins_with("7-"):
 		return "volcano"
 	if level_id.begins_with("6-"):
@@ -19990,6 +20046,8 @@ func _visible_level_indices(world_key: String = current_world_key) -> Array:
 
 func _map_mode_title_for_world(world_key: String) -> String:
 	match world_key:
+		"ancient":
+			return "古代冒险"
 		"volcano":
 			return "火山冒险"
 		"city":
@@ -21619,7 +21677,8 @@ func _path_midpoint(from: Vector2, to: Vector2, index: int) -> Vector2:
 
 
 func _world_card_rect(index: int) -> Rect2:
-	return Rect2(72, 170 + index * 77, 312, 68)
+	# Eight destinations share the journal's left column above the command dock.
+	return Rect2(72, 170 + index * 66, 312, 60)
 
 
 func _world_select_title_panel_rect() -> Rect2:
@@ -21635,7 +21694,7 @@ func _world_select_title_subtitle_rect() -> Rect2:
 
 
 func _world_select_card_text_rect(index: int) -> Rect2:
-	return Rect2(_world_card_rect(index).position + Vector2(92, 8), Vector2(196, 28))
+	return Rect2(_world_card_rect(index).position + Vector2(92, 5), Vector2(196, 28))
 
 
 func _world_select_card_preview_grid_rect(_index: int) -> Rect2:
@@ -23070,6 +23129,8 @@ func _draw_battle_scene() -> void:
 			marisa_runtime.draw_ground()
 	if mokou_runtime != null:
 		mokou_runtime.draw_ground()
+	if ancient_expansion != null:
+		ancient_expansion.draw_ground()
 	_draw_hover()
 	_draw_mowers()
 	_draw_lane_obstacles()
@@ -23077,6 +23138,8 @@ func _draw_battle_scene() -> void:
 	_draw_projectiles()
 	_draw_rollers()
 	_draw_zombies()
+	if ancient_expansion != null:
+		ancient_expansion.draw_overlay()
 	_draw_city_blizzard_overlay()
 	_draw_scarlet_clocktower_overlay()
 	_draw_fog_overlay()
@@ -23110,6 +23173,8 @@ func _draw_battle_scene() -> void:
 	_draw_seed_bank()
 	_draw_wave_bar()
 	_draw_objective_chip()
+	if ancient_expansion != null:
+		ancient_expansion.draw_hud()
 	_draw_fancy_button(PAUSE_BUTTON_RECT, "暂停", Color(0.92, 0.88, 0.78), Color(0.42, 0.3, 0.14), 18)
 	_draw_boss_health_bar()
 	if _is_minigame(): MinigameVisuals.draw_hud(self,minigame_runtime)
@@ -23188,6 +23253,9 @@ func _draw_endless_bonus_overlay() -> void:
 
 
 func _draw_battle_background() -> void:
+	if _is_ancient_level():
+		_ensure_ancient_expansion().draw_background()
+		return
 	if _is_eirin_level():
 		_ensure_eirin_runtime().draw_background()
 		return
@@ -24246,6 +24314,8 @@ func _draw_battle_board() -> void:
 			lane_color = Color(0.56, 0.3, 0.2) if row % 2 == 0 else Color(0.5, 0.26, 0.18)
 		elif _is_volcano_level():
 			lane_color = Color(0.2, 0.08, 0.06) if row % 2 == 0 else Color(0.16, 0.06, 0.04)
+		elif _is_ancient_level():
+			lane_color = _ensure_ancient_expansion().lane_color(row)
 		elif _is_forest_of_magic_level():
 			lane_color = Color(0.22, 0.38, 0.28) if row % 2 == 0 else Color(0.18, 0.32, 0.26)
 		elif _is_mystia_night_food_stand_level():
@@ -25589,6 +25659,10 @@ func _draw_plants() -> void:
 func _draw_projectiles() -> void:
 	for projectile in projectiles:
 		var projectile_pos = Vector2(projectile["position"])
+		if String(projectile.get("kind", "")) == "ancient_spore":
+			PlantFusionVisuals.draw_ammo_overlay(self, projectile)
+			AncientVisuals.draw_spore(self, projectile)
+			continue
 		if projectile.has("fusion_source") and not bool(projectile.get("fusion_native",false)):
 			PlantFusionVisuals.draw_projectile(self,projectile)
 			continue
@@ -26280,6 +26354,8 @@ func _draw_effects() -> void:
 			continue
 		if shape in ["volcano_warning", "volcano_steam", "volcano_pulse"]:
 			_ensure_volcano_expansion().draw_effect(effect)
+			continue
+		if shape.begins_with("ancient_") and AncientVisuals.draw_effect(self, effect):
 			continue
 		var anim_speed = float(effect.get("anim_speed", 4.0))
 		# Elemental impact shapes take priority over the generic legacy hit texture.
@@ -28423,9 +28499,15 @@ func _draw_plant_body(kind: String, center: Vector2, size_scale: float = 1.0, fl
 	if bool(plant.get("minigame_core",false)):
 		MinigameVisuals.draw_core(self,center,size_scale,alpha)
 		return
+	if float(plant.get("ancient_sheep_until", 0.0)) > level_time:
+		AncientVisuals.draw_sheep(self, center, size_scale, alpha, plant)
+		return
 	var definition: Dictionary = Defs.PLANTS.get(kind, {})
 	if bool(definition.get("volcano_expansion", false)):
 		_ensure_volcano_expansion().draw_plant(kind, center, size_scale, flash, alpha, plant)
+		return
+	if bool(definition.get("ancient_expansion", false)):
+		AncientVisuals.draw_plant(self, kind, center, size_scale, flash, alpha, plant)
 		return
 	# Each species keeps its original renderer. Only state arguments are shared
 	# between battle, cards, almanac portraits, and translucent placement previews.
@@ -29026,6 +29108,12 @@ func _zombie_portrait_bounds(kind: String) -> Rect2:
 			return Rect2(-36, -58, 72, 132)
 		"umbrella_zombie":
 			return Rect2(-46, -102, 92, 176)
+		"ancient_samurai":
+			return Rect2(-80, -76, 126, 124)
+		"ancient_mage":
+			return Rect2(-58, -96, 106, 140)
+		"ancient_strategist":
+			return Rect2(-74, -74, 118, 122)
 	return Rect2(-46, -66, 92, 116)
 
 
@@ -31745,6 +31833,9 @@ func _draw_zombie_body(center: Vector2, zombie: Dictionary) -> void:
 	var kind = String(zombie["kind"])
 	if bool(Defs.ZOMBIES.get(kind, {}).get("volcano_expansion", false)):
 		_ensure_volcano_expansion().draw_zombie(center, zombie)
+		return
+	if bool(Defs.ZOMBIES.get(kind, {}).get("ancient_expansion", false)):
+		AncientVisuals.draw_zombie(self, center, zombie)
 		return
 	if _try_draw_image2_zombie(kind, center, zombie):
 		return

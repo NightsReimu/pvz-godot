@@ -20,7 +20,7 @@ func _run() -> void:
 	var rows := []
 	for i in range(GameScript.WorldDataLib.all().size()):
 		var row: Rect2 = game._world_card_rect(i)
-		passed = _assert_true(viewport.encloses(row), "All seven world choices must be visible simultaneously") and passed
+		passed = _assert_true(viewport.encloses(row), "All world choices must be visible simultaneously") and passed
 		for other in rows:
 			passed = _assert_true(not row.intersects(other), "World choices must never overlap") and passed
 		for control in controls.values():
@@ -37,7 +37,7 @@ func _run() -> void:
 	game.unlocked_levels = 1
 	game.mode = game.MODE_WORLD_SELECT
 	game._handle_world_select_click(Rect2(rows.back()).get_center())
-	passed = _assert_true(game.world_select_index == 6, "Locked worlds remain previewable") and passed
+	passed = _assert_true(game.world_select_index == GameScript.WorldDataLib.all().size() - 1, "Locked worlds remain previewable") and passed
 	game._handle_world_select_click(Rect2(controls.enter).get_center())
 	passed = _assert_true(game.mode == game.MODE_WORLD_SELECT, "Previewing a locked world must not bypass its progression gate") and passed
 	var progress: Vector2i = GameScript.GardenMenus.world_progress(game, "volcano")

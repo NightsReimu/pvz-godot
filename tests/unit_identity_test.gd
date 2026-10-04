@@ -114,7 +114,7 @@ func _run() -> void:
 		if bool(Defs.PLANTS[kind].get("fusion_only",false)):
 			check(FileAccess.file_exists("res://art/vector/fusions/%s.svg" % kind), "Missing independent fusion SVG: " + kind)
 			continue
-		if bool(Defs.PLANTS[kind].get("volcano_expansion", false)):
+		if bool(Defs.PLANTS[kind].get("volcano_expansion", false)) or bool(Defs.PLANTS[kind].get("ancient_expansion", false)):
 			continue
 		var method := "_draw_bowling_nut" if kind == "wallnut_bowling" else "_draw_%s" % kind
 		check(probe.has_method(method), "Missing species-specific renderer: %s" % kind)

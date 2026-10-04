@@ -2,6 +2,24 @@ extends RefCounted
 class_name ZombieDefs
 
 const ZOMBIES: Dictionary = {
+	"ancient_samurai": {
+		"name": "古代武士僵尸", "health": 1200.0, "speed": 14.0, "attack_dps": 120.0,
+		"reward": 60, "shield_health": 900.0, "ancient_expansion": true,
+		"iaido_damage": 260.0,
+		"almanac": ["身披大铠的武士，总耐久 2100（本体 1200 + 大铠 900）。接触新的植物时拔刀居合，立即造成 260 伤害，之后每秒斩出 120 伤害；大铠随受损分段剥落。烈日下重甲闷热，移速 -15%；雷暴天的落雷优先劈向它的铁甲。"],
+	},
+	"ancient_mage": {
+		"name": "古代法师僵尸", "health": 520.0, "speed": 15.0, "attack_dps": 24.0,
+		"reward": 50, "shield_health": 0.0, "ancient_expansion": true,
+		"cast_interval": 9.0, "sheep_duration": 18.0,
+		"almanac": ["每 9 秒举杖施法，把前方随机两株植物变成小羊：小羊不能行动但仍可被啃食。击败法师或 18 秒后，小羊恢复原样。大雾天只能看清 4 格内的植物；雷暴中施法可能被落雷打断。"],
+	},
+	"ancient_strategist": {
+		"name": "军师僵尸", "health": 640.0, "speed": 13.0, "attack_dps": 20.0,
+		"reward": 70, "shield_health": 0.0, "ancient_expansion": true,
+		"weather_interval": 16.0, "weather_duration": 12.0, "command_interval": 7.0,
+		"almanac": ["手持羽扇坐镇后方：场上还有同伴时停在第七列附近指挥。每 16 秒挥扇借来东风、大雾或细雨，改写天气 12 秒；每 7 秒为附近三名僵尸指出防守最薄弱的相邻行，令其转道并加速。击败军师，借来的天象立刻散去。"],
+	},
 	"basalt_guard": {
 		"name": "玄武岩卫士", "health": 520.0, "speed": 13.0, "attack_dps": 26.0,
 		"reward": 36, "shield_health": 460.0, "volcano_expansion": true,

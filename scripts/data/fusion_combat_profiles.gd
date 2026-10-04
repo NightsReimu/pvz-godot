@@ -1,7 +1,7 @@
 extends RefCounted
 
 # Damage belongs to its original weapon. Disposable explosions never feed a DPS weapon.
-const LOBBERS := ["cabbage_pult","kernel_pult","melon_pult","corn_cannon","moonforge","meteor_gourd","meteor_flower","pepper_mortar","chimney_pepper","skylight_melon","obsidian_artichoke","sulfur_pod","pressure_bamboo","fumarole_melon","caldera_lotus","blast_pomegranate"]
+const LOBBERS := ["cabbage_pult","kernel_pult","melon_pult","corn_cannon","moonforge","meteor_gourd","meteor_flower","pepper_mortar","chimney_pepper","skylight_melon","obsidian_artichoke","sulfur_pod","pressure_bamboo","fumarole_melon","caldera_lotus","blast_pomegranate","dandelion"]
 const BURSTS := {
  "cherry_bomb":{"damage":990.0,"interval":32.0,"radius":155.0,"blast_shape":"circle","deliver":true},
  "doom_shroom":{"damage":1260.0,"interval":48.0,"radius":220.0,"blast_shape":"circle","deliver":true},
@@ -18,6 +18,8 @@ const BURSTS := {
  "magma_stream":{"damage":56.0,"interval":32.0,"radius":170.0,"blast_shape":"magma","deliver":false},
  "core_blossom":{"damage":400.0,"interval":14.0,"radius":200.0,"blast_shape":"circle","deliver":true},
  "glitch_walnut":{"damage":500.0,"interval":32.0,"radius":220.0,"blast_shape":"circle","deliver":false},
+ "golden_milk":{"damage":1000.0,"interval":34.0,"radius":10000.0,"blast_shape":"milk","deliver":false},
+ "samsara_eye":{"damage":0.0,"interval":46.0,"radius":260.0,"blast_shape":"revive","deliver":false},
 }
 
 static func channels(native: Dictionary, weights: Dictionary, global_tags: Array, attack_for: Callable, traits_for: Callable) -> Array:
@@ -66,6 +68,6 @@ static func channels(native: Dictionary, weights: Dictionary, global_tags: Array
 
 static func describe(channel: Dictionary, native: Dictionary) -> String:
  var names := {"shooter":"直射","spread":"跨行射击","beam":"贯穿","lobber":"抛射","blade":"往返回旋","roller":"滚动","control":"范围脉冲","melee":"近战","burst":"蓄力"}
- var footprint := {"circle":"圆形范围爆炸","row":"整行火焰","single":"近身单体重击","freeze":"范围冻结","sleep":"范围催眠","snare":"范围缠根","pull":"范围聚拢","magma":"持续灼烧"}
+ var footprint := {"milk":"整行奶浪击退","revive":"复活附近倒下的植物","circle":"圆形范围爆炸","row":"整行火焰","single":"近身单体重击","freeze":"范围冻结","sleep":"范围催眠","snare":"范围缠根","pull":"范围聚拢","magma":"持续灼烧"}
  var action: String = footprint.get(channel.get("blast_shape",""),names.get(channel.style,channel.style))
  return "%s：%s，每 %.1f 秒 %d × %d 伤害%s" % [native[channel.source].name,action,float(channel.interval),int(channel.damage),int(channel.shots),"（独立充能）" if channel.style == "burst" else ""]

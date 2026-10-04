@@ -535,6 +535,10 @@ func ultimate(p: Dictionary, row: int, col: int) -> void:
 			"magnetic": _support(p,row,col,true); _skill_damage(p,row,col,"rail_storm")
 			"beacon": game._trigger_blover_fog_clear(10.0); _skill_damage(p,row,col,skill)
 			"purge","dream","roots","lightning","blizzard","inferno","needles","rail_storm","sun_lance": _skill_damage(p,row,col,skill)
+			"samsara": game._ensure_ancient_expansion().fusion_revive(row,col,true)
+			"tea_ceremony":
+				var ancient = game._ensure_ancient_expansion()
+				ancient.pour_tea({},row,col,ancient._jasmine_cells(row,col,6),float(d.fusion_utility_damage)*1.5,12.0)
 		_skill_effect(p,row,col,skill)
 	_ultimate_strike(p,row,col,true)
 	p.fusion_skill_echoes = 2 if d.fusion_weapon_skills.any(func(skill): return skill in ["barrage","blades","constellation","bowling","meteor"]) or "steam" in d.fusion_skills or "miasma" in d.fusion_skills else 0
@@ -564,6 +568,18 @@ func _native_ammo_status(z: Dictionary, source: String, data: Dictionary, ultima
 
 func _burst(p: Dictionary, row: int, col: int, channel: Dictionary, ultimate: bool) -> bool:
 	var center: Vector2 = game._cell_center(row,col)
+	# Ancient one-shots keep their own delivery: a row-long milk tide, or a revival vision.
+	if channel.blast_shape == "revive":
+		return game._ensure_ancient_expansion().fusion_revive(row,col,ultimate)
+	if channel.blast_shape == "milk":
+		var lane_target := false
+		for z in game.zombies:
+			if game._is_enemy_zombie(z) and float(z.health) > 0 and game._zombie_has_row(z,row) and game._zombie_lane_x(z,row) >= center.x-16:
+				lane_target = true; break
+		if not lane_target and not ultimate: return false
+		game._ensure_ancient_expansion().spawn_milk_wave(row,center.x,float(channel.damage)*(1.3 if ultimate else 1.0)*game._plant_enhance_multiplier_at_cell(row,col),ultimate)
+		_skill_effect(p,row,col,"minefield",center+Vector2(40,0))
+		return true
 	var delivery: bool = bool(channel.deliver) and Defs.PLANTS[kind(p)].fusion_channels.any(func(c): return c.style in ["shooter","spread","beam","lobber","blade","roller"])
 	var candidates: Array = []
 	var reach: float = game.board_size.x if delivery or channel.blast_shape in ["row","freeze"] else float(channel.get("range",channel.radius))*(2.5 if ultimate else 1)

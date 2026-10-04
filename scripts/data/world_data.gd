@@ -80,6 +80,17 @@ const WORLDS: Array = [
 		"panel_dark": Color(0.62, 0.28, 0.16),
 		"plants": ["dragon_bubble_pult", "cork_plug", "frost_boomerang", "cyclone_grass", "gator_cannon"],
 	},
+	{
+		"key": "ancient",
+		"title": "古代世界",
+		"subtitle": "Adventure 8-1 ~ 8-5",
+		"description": "鸟居、古塔与石灯笼环绕的古都庭院。天气系统首次登场：烈日、细雨、雷暴、东风与大雾轮番改写战局，古代武士、法师与军师率军来袭；五关各得一株新植物。",
+		"accent": Color(0.86, 0.36, 0.3),
+		"accent_dark": Color(0.4, 0.12, 0.1),
+		"panel": Color(0.97, 0.9, 0.82),
+		"panel_dark": Color(0.6, 0.36, 0.28),
+		"plants": ["dandelion", "jasmine_tea", "golden_milk", "samsara_eye", "electric_bonk_choy"],
+	},
 ]
 
 

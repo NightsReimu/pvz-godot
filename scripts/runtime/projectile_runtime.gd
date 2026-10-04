@@ -44,6 +44,7 @@ func spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color
 		"free_aim": false,
 		"anti_air": false,
 		"source_enhance_mult": damage_mult,
+		"source_kind": source_kind,
 	})
 
 
@@ -184,6 +185,8 @@ func _is_amber_armored_target(zombie: Dictionary) -> bool:
 
 func _projectile_hit_damage(projectile: Dictionary, zombie: Dictionary) -> float:
 	var damage = float(projectile.get("damage", 0.0))
+	if game.ancient_expansion != null:
+		damage *= game.ancient_expansion.projectile_factor(projectile)
 	if (String(projectile.get("kind", "")) == "amber_pea" or String(projectile.get("kind", "")) == "amber_ultimate_shard") and _is_amber_armored_target(zombie):
 		damage *= float(projectile.get("armor_bonus_mult", 2.0))
 	return damage
@@ -448,6 +451,8 @@ func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
 
 
 func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: Vector2) -> void:
+	if game.ancient_expansion != null:
+		projectile["damage"] = float(projectile.get("damage", 0.0)) * game.ancient_expansion.projectile_factor(projectile)
 	if projectile.has("fusion_source") and not bool(projectile.get("fusion_native",false)):
 		game._ensure_plant_fusion().impact(projectile,impact_position)
 		return
@@ -587,6 +592,10 @@ func update_projectiles(delta: float) -> void:
 		elif projectile_kind == "lotus_converge_shot":
 			projectile = update_lotus_converge_projectile(projectile, delta)
 			projectile_pos = Vector2(projectile["position"])
+		elif projectile_kind == "ancient_spore":
+			if game._ensure_ancient_expansion().update_spore(projectile, delta):
+				game.projectiles.remove_at(i)
+			continue
 		elif projectile.has("arc_target"):
 			track_target(projectile,"arc_target")
 			var arc_origin = Vector2(projectile.get("arc_origin", projectile_pos))
