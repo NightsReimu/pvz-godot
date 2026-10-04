@@ -32,19 +32,21 @@ static func draw_plant(canvas: CanvasItem, id: String, center: Vector2, scale: f
 	canvas.draw_texture_rect(texture,Rect2(center+Vector2(-48,-60)*scale,Vector2(96,112)*scale),false,Color(brightness,brightness,brightness,alpha))
 	if plant.is_empty(): return
 	var t: Array = plant.get("stats",{}).get("fusion_traits",[])
-	var color: Color = color_for(t); color.a = alpha*0.4
 	var time: float = float(canvas.get("level_time"))
 	var pulse: float = sin(time*3+float(plant.get("anim_phase",0)))
-	canvas.draw_arc(center+Vector2(0,24)*scale,(28+pulse*2)*scale,time*0.5,time*0.5+PI*1.35,24,color,1.4*scale,true)
-	for i in range(3):
-		var angle: float = time*0.85+i*TAU/3
-		var pos: Vector2 = center+Vector2(cos(angle)*30,sin(angle)*12+7)*scale
-		canvas.draw_circle(pos,(1.8+pulse*0.4)*scale,color,true,-1,true)
+	# Idle particles reflect the material; no common orbit hides every silhouette.
+	if "sun" in t:
+		var glow := center+Vector2(-6,-26)*scale
+		canvas.draw_circle(glow,(2+pulse*0.6)*scale,Color("ffe7a2",alpha*0.35),true,-1,true)
+	elif "fire" in t:
+		for i in range(2):
+			var ember := center+Vector2(-23+i*10,-18-fposmod(time*9+i*13,28))*scale
+			canvas.draw_circle(ember,1.2*scale,Color("fac17e",alpha*0.6),true,-1,true)
 
 	for channel in plant.get("stats",{}).get("fusion_channels",[]):
 		if channel.style != "burst" and float(channel.interval) < 10: continue
 		var charge: float = clampf(1-float(plant.get("fusion_channel_timers",{}).get(channel.source,channel.interval))/float(channel.interval),0,1)
-		var dial: Vector2 = center+Vector2(-20,14)*scale
+		var dial: Vector2 = center+Art.charge_anchor(id,Defs.PLANTS[id])*scale
 		canvas.draw_circle(dial,7*scale,Color("374b40",alpha*0.8),true,-1,true)
 		canvas.draw_arc(dial,6*scale,-PI/2,-PI/2+TAU*maxf(0.01,charge),24,Color("ffd6a0",alpha*0.9),2*scale,true)
 		if charge > 0.9:

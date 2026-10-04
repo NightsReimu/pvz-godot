@@ -1,5 +1,5 @@
 from pathlib import Path
-import hashlib
+import hashlib, re
 import unittest
 import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +14,10 @@ class FusionArtTest(unittest.TestCase):
             self.assertEqual(xml.attrib['data-facing'], 'right')
             self.assertNotIn('scale(-', path.read_text())
             self.assertGreater(len(list(xml.iter())), 25)
+            svg = path.read_text()
+            body = svg.split('>', 1)[1].rsplit('</svg>', 1)[0]
+            shapes = re.sub(r' (data-[a-z-]+|fill|stroke|stop-color)="[^"]*"', '', body)
+            self.assertEqual(hashlib.md5(shapes.encode()).hexdigest(), xml.attrib['data-geometry-signature'], 'Signature must measure actual geometry')
             signatures.add(xml.attrib['data-geometry-signature'])
         self.assertEqual(len(signatures), len(paths), 'Different species need different silhouettes/anatomy')
 if __name__ == '__main__': unittest.main()

@@ -9,7 +9,7 @@ class Gallery extends GameScript:
 	func _save_game(): pass
 	func _draw():
 		draw_rect(Rect2(Vector2.ZERO,size),Color("263d32"))
-		draw_string(ui_font,Vector2(24,30),"融合花园 · 原种特性与独立武器",HORIZONTAL_ALIGNMENT_LEFT,-1,22,Color("f5df9f"))
+		draw_string(ui_font,Vector2(24,30),"融合花园 · 不同材料，不同生长形态",HORIZONTAL_ALIGNMENT_LEFT,-1,22,Color("f5df9f"))
 		for i in range(skill_subjects.size()):
 			var skill: String = skill_subjects[i]
 			var tile := Rect2(Vector2(20+(i%6)*260,44+(i/6)*206),Vector2(250,196))
@@ -25,7 +25,7 @@ class Gallery extends GameScript:
 			_draw_plant_body(id,tile.position+Vector2(124,112),1.0,0)
 			draw_string(ui_font,tile.position+Vector2(10,182),String(d.get("ultimate_name",_ultimate_profile_for_kind(id).get("ultimate_name","盛放"))),HORIZONTAL_ALIGNMENT_LEFT,230,13,Color("526d4d"))
 func _run():
-	var directory := "res://output/plant-fusions-v160"
+	var directory := "res://output/plant-fusions-v161"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
 	var surface := SubViewport.new()
 	surface.size = Vector2i(1600,900); surface.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -51,6 +51,15 @@ func _run():
 		gallery.subjects.append(Fusion.result(pair[0],pair[1]))
 	gallery.queue_redraw(); await process_frame; await RenderingServer.frame_post_draw
 	if surface.get_texture().get_image().save_png(directory+"/identity.png") != OK: failures += 1
+	for page in range(3):
+		gallery.subjects = []
+		if page == 0:
+			for source in ["wallnut","sunflower","cherry_bomb","doom_shroom","melon_pult","kernel_pult","pressure_bamboo","mirror_reed","torchwood","blover","starfruit","coffee_bean","chomper","cactus","lily_pad","umbrella_leaf","cabbage_pult","skylight_melon","sulfur_pod","obsidian_artichoke","corn_cannon","fumarole_melon","dragon_bubble_pult","toxic_gum_pult"]: gallery.subjects.append(Fusion.result("peashooter",source))
+		else:
+			for recipe in Fusion.CROSS: gallery.subjects.append(recipe[2])
+			gallery.subjects = gallery.subjects.slice((page-1)*24,mini(page*24,gallery.subjects.size()))
+		gallery.queue_redraw(); await process_frame; await RenderingServer.frame_post_draw
+		if surface.get_texture().get_image().save_png("%s/morphology-%02d.png" % [directory,page]) != OK: failures += 1
 	gallery.subjects = []
 	var skills: Array = Fusion.skill_names().keys()
 	for page in range(int(ceil(skills.size()/24.0))):
@@ -100,9 +109,11 @@ func _run():
 				if game._ensure_plant_fusion().prepared_result != "fusion_cherry_bomb": failures += 1
 				game.hover_preview_cell = Vector2i(2,4)
 			elif stage == "almanac":
-				game.mode = game.MODE_ALMANAC; game.almanac_tab = "plants"
-				game.almanac_selected_kind = samples[0][1]; game.almanac_scroll = 0
 				for id in Defs.PLANT_ORDER: game.plant_stars[id] = 1
+				game.almanac_selected_kind = samples[0][1]
+				game._enter_almanac_mode("plants")
+				if game._visible_almanac_plants().size() != Defs.PLANT_ORDER.size(): failures += 1
+				if bool(Defs.PLANTS[game.almanac_selected_kind].get("fusion_only",false)): failures += 1
 			var before := [game.grid.duplicate(true),game.zombies.duplicate(true),game.rng.state]
 			game.queue_redraw(); await process_frame; await RenderingServer.frame_post_draw
 			if before != [game.grid,game.zombies,game.rng.state]: failures += 1
