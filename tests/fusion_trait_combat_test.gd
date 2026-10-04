@@ -44,7 +44,7 @@ func test_explosive_channels():
 
 func test_lobbers_and_heavy_cadence():
  var g = make_game()
- for source in ["cabbage_pult","kernel_pult","melon_pult","skylight_melon","obsidian_artichoke","sulfur_pod","pressure_bamboo","fumarole_melon","caldera_lotus","corn_cannon"]:
+ for source in ["cabbage_pult","kernel_pult","melon_pult","skylight_melon","obsidian_artichoke","sulfur_pod","pressure_bamboo","fumarole_melon","caldera_lotus"]:
   var id: String = Fusion.result(source,"peashooter")
   var lob := profile(id,source)
   check(not lob.is_empty() and lob.get("style","") == "lobber","Original catapult retains its lobbed channel: "+source)

@@ -17,9 +17,6 @@ const CROSS := [
 	["tallnut", "corn_cannon", "citadel_cannon", "坚城玉米炮", "lobber", ["shield", "splash"], "金穗城防"],
 	["magnet_shroom", "cabbage_pult", "scrap_pult", "磁屑投手", "lobber", ["magnet", "splash"], "铁雨回收"],
 	["scrap_pult", "obsidian_artichoke", "rail_artichoke", "磁轨黑曜炮", "beam", ["magnet", "pierce"], "磁轨贯城"],
-	["lily_pad", "gator_cannon", "lotus_cannon", "莲台鳄鱼炮", "beam", ["pierce", "water"], "莲池龙阵"],
-	["lotus_cannon", "storm_reed", "tidal_cannon", "潮雷莲炮", "beam", ["pierce", "shock", "water", "lanes"], "潮汐雷鸣"],
-	["flower_pot", "sunflower", "garden_pot", "日光花园盆", "support", ["sun", "heal"], "庭院丰收"],
 	["coffee_bean", "fume_shroom", "espresso_shroom", "浓缩喷菇", "beam", ["awake", "pierce"], "醒梦浓雾"],
 	["hypno_shroom", "puff_shroom", "dream_spore", "梦蝶孢子菇", "shooter", ["hypno"], "蝶梦归队"],
 	["dream_spore", "dream_drum", "dream_choir", "梦境合唱菇", "control", ["hypno", "awake", "heal"], "百蝶合唱"],
@@ -46,6 +43,7 @@ const CROSS := [
 	["winter_melon", "steam_pea", "blizzard_boiler", "暴雪蒸汽瓜炉", "lobber", ["frost", "fire", "splash"], "雪汽风暴"],
 	["geothermal_cork", "caldera_lotus", "caldera_garden", "火山温室莲", "support", ["sun", "cooling", "heal"], "火口花园"],
 ]
+const EXCLUDED := ["lily_pad", "flower_pot"]
 const SUPPORTS := ["lily_pad", "flower_pot", "cork_plug"]
 const SUNS := ["sunflower", "sun_shroom", "sun_bean", "marigold", "moon_lotus", "galaxy_sunflower", "soul_flower", "honey_blossom", "solar_emperor", "thermal_sunflower"]
 const GUARDS := ["wallnut", "tallnut", "brick_guard", "holo_nut", "glitch_walnut", "crystal_nut", "pumpkin", "pumice_wall", "cactus_guard", "rock_armor_fruit"]
@@ -59,6 +57,9 @@ static func key(a: String, b: String) -> String:
 	return a + "+" + b if a < b else b + "+" + a
 
 static func result(a: String, b: String) -> String:
+	for input in [a,b]:
+		for component in weights_for(input):
+			if component in EXCLUDED: return ""
 	var pair := key(a,b)
 	if RECIPES.has(pair): return String(RECIPES[pair])
 	if not (NATIVE.has(a) or DEFINITIONS.has(a)) or not (NATIVE.has(b) or DEFINITIONS.has(b)): return ""
@@ -110,7 +111,7 @@ static func skill_names() -> Dictionary:
 	return {"reflection":"镜面折返","barrage":"百叶齐射","solar":"日冕丰收","constellation":"星阵交火","laser":"棱镜扫射","meteor":"陨星瓜雨","blades":"万刃回旋","bowling":"果轮冲阵","minefield":"连锁爆田","devour":"巨颚吞噬","bastion":"城墙护庭","domain":"灵域镇压","garden":"共生花园","renewal":"生命回潮","awakening":"醒梦加速","magnetic":"磁暴回收","dream":"蝶梦归队","spirits":"幽灵游行","tornado":"风之环流","beacon":"辉光审判","purge":"净土清墓","spring":"冷泉封火","roots":"荆棘根网","lightning":"雷霆连锁","blizzard":"冰晶封阵","inferno":"不死鸟炎阵","miasma":"毒蝶蚀域","vortex":"逆风换道","needles":"千刺反击","steam":"冰火汽爆","rail_storm":"磁轨雷暴","sun_lance":"日轮贯城"}
 
 static func skill_descriptions() -> Dictionary:
-	return {"reflection":"反转场上敌方弹幕，并保留镜面拦截；相邻植物获得短时镜盾", "barrage":"三轮远程齐射，追击可命中的敌行", "solar":"立刻产生三份强化阳光", "constellation":"向五行投射穿透星弹", "laser":"扫过五行的贯穿光束", "meteor":"向敌人落点投下三轮溅射炮弹", "blades":"三轮往返刀刃，来回均可命中", "bowling":"五行滚动爆破果轮", "minefield":"一次释放各爆舱，保留圆形、整行或近身范围；随后重新充能", "devour":"近身重击并回收生命", "bastion":"范围治疗、护盾及短暂无敌", "domain":"范围伤害、定身和缓速", "garden":"治疗自身与邻株，赋予十秒加速及护盾", "renewal":"范围治疗并留下八秒回春", "awakening":"唤醒睡眠植物并加速十秒", "magnetic":"回收周围手持与头戴金属，释放磁轨光束", "dream":"普通敌人累积梦蝶即魅惑，Boss受定身", "spirits":"召唤最多三名幽灵友军", "tornado":"推动普通敌人，驱散飞行敌人并清雾", "beacon":"全场显形，光束审判敌群", "purge":"清除范围坟墓，留下净土爆炸", "spring":"冷却周围岩浆，获得护盾", "roots":"全场缠根并在近处爆发荆棘", "lightning":"五行连锁电击和短暂震晕", "blizzard":"全场五秒减速与一秒冻结", "inferno":"五行烈焰，八秒持续灼烧", "miasma":"全场毒蚀并留下三次毒爆", "vortex":"推退普通敌群并切换合法邻行", "needles":"五行穿盾刺雨及反伤护甲", "steam":"冰火联合，敌群三次蒸汽爆炸", "rail_storm":"回收金属后发射五行磁轨雷束", "sun_lance":"产出阳光同时发射日轮贯穿束"}
+	return {"reflection":"反转场上敌方弹幕，并保留镜面拦截；相邻植物获得短时镜盾", "barrage":"材料武器齐射与两次追击，保留原有锁敌方式", "solar":"立刻产生三份强化阳光", "constellation":"强化原有星弹、花瓣或环射，再追加两轮追击", "laser":"扫过五行的贯穿光束", "meteor":"保留各投手弹种、落点追踪与原有特殊效果", "blades":"原生回旋弹强化与追击，来回均可命中", "bowling":"强化原生滚动果轮，沿途连续撞击敌人", "minefield":"一次释放各爆舱，保留圆形、整行或近身范围；随后重新充能", "devour":"近身重击并回收生命", "bastion":"范围治疗、护盾及短暂无敌", "domain":"范围伤害、定身和缓速", "garden":"治疗自身与邻株，赋予十秒加速及护盾", "renewal":"范围治疗并留下八秒回春", "awakening":"唤醒睡眠植物并加速十秒", "magnetic":"回收周围手持与头戴金属，释放磁轨光束", "dream":"普通敌人累积梦蝶即魅惑，Boss受定身", "spirits":"召唤最多三名幽灵友军", "tornado":"推动普通敌人，驱散飞行敌人并清雾", "beacon":"全场显形，光束审判敌群", "purge":"清除范围坟墓，留下净土爆炸", "spring":"冷却周围岩浆，获得护盾", "roots":"全场缠根并在近处爆发荆棘", "lightning":"五行连锁电击和短暂震晕", "blizzard":"全场五秒减速与一秒冻结", "inferno":"五行烈焰，八秒持续灼烧", "miasma":"全场毒蚀并留下三次毒爆", "vortex":"推退普通敌群并切换合法邻行", "needles":"五行穿盾刺雨及反伤护甲", "steam":"冰火联合，敌群三次蒸汽爆炸", "rail_storm":"回收金属后发射五行磁轨雷束", "sun_lance":"产出阳光同时发射日轮贯穿束"}
 
 static func attack_for(kind: String) -> String:
 	if kind in Combat.LOBBERS or "pult" in kind: return "lobber"
@@ -167,7 +168,7 @@ static func traits_for(kind: String, data: Dictionary) -> Array:
 	if kind == "mirror_shroom": t.append("copy")
 	if kind == "phoenix_tree": t.append("revive")
 	if kind == "split_pea": t.append("rear")
-	if kind in ["cactus","seraph_flower"]: t.append("anti_air")
+	if kind in ["cactus","seraph_flower","lantern_bloom","lotus_lancer","origami_blossom"]: t.append("anti_air")
 	return t
 
 static func with_fusions(native: Dictionary, order: Array) -> Dictionary:
@@ -177,6 +178,7 @@ static func with_fusions(native: Dictionary, order: Array) -> Dictionary:
 	var ingredients: Array = order.duplicate()
 	for id in native:
 		if not ingredients.has(id): ingredients.append(id)
+	ingredients = ingredients.filter(func(id): return not id in EXCLUDED)
 	for kind in ingredients:
 		var first: String = "fusion_" + kind
 		if kind == "sunflower": first = "twin_sunflower"
@@ -214,6 +216,10 @@ static func with_fusions(native: Dictionary, order: Array) -> Dictionary:
 	return CATALOGUE
 
 static func _add(native: Dictionary, a: String, b: String, id: String, name: String, style: String, extras: Array, ultimate: String, weights_override: Dictionary = {}) -> void:
+	if not (native.has(a) or DEFINITIONS.has(a)) or not (native.has(b) or DEFINITIONS.has(b)): return
+	for input in [a,b]:
+		for component in weights_for(input):
+			if component in EXCLUDED: return
 	var parts: Array = []
 	for ingredient in [a,b]:
 		if DEFINITIONS.has(ingredient): parts.append_array(DEFINITIONS[ingredient].fusion_components)

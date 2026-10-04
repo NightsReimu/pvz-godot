@@ -8475,7 +8475,7 @@ func _is_volcano_support_present(row: int, col: int) -> bool:
 
 func _is_ladderable_plant(plant: Dictionary) -> bool:
 	var kind = String(plant.get("kind", ""))
-	return kind == "wallnut" or kind == "tallnut" or kind == "pumpkin" or _has_pumpkin_shell(plant)
+	return _plant_has_component(plant,"wallnut") or _plant_has_component(plant,"tallnut") or _plant_has_component(plant,"pumpkin") or _has_pumpkin_shell(plant)
 
 
 func _is_cell_protected_by_umbrella(row: int, col: int) -> bool:
@@ -9123,7 +9123,7 @@ func _is_plant_under_signal_ivy_shield(row: int, col: int) -> bool:
 	for scan_row in range(ROWS):
 		for scan_col in range(COLS):
 			var plant_variant = grid[scan_row][scan_col]
-			if plant_variant == null or String(plant_variant.get("kind", "")) != "signal_ivy":
+			if plant_variant == null or not _plant_has_component(plant_variant,"signal_ivy"):
 				continue
 			if float(plant_variant.get("health", 0.0)) <= 0.0 or float(plant_variant.get("sleep_timer", 0.0)) > 0.0:
 				continue
@@ -9350,9 +9350,9 @@ func _handle_corn_cannon_right_click(mouse_pos: Vector2) -> void:
 			var plant_variant = _targetable_plant_at(row, col)
 			if plant_variant == null:
 				continue
-			if String(plant_variant.get("kind", "")) != "corn_cannon":
+			if not _plant_has_component(plant_variant,"corn_cannon"):
 				continue
-			if float(plant_variant.get("action_timer", 0.0)) > 0.0:
+			if float(plant_variant.get("corn_reload",0) if plant_variant.has("fusion_kind") else plant_variant.get("action_timer",0)) > 0:
 				continue
 			# Charged when fire_interval elapsed (action_timer starts at fire_interval and ticks down).
 			var d = _cell_center(row, col).distance_to(mouse_pos)
@@ -9375,6 +9375,12 @@ func _handle_corn_cannon_right_click(mouse_pos: Vector2) -> void:
 	_damage_obstacles_in_circle(mouse_pos, splash_radius, damage)
 	effects.append({"position": mouse_pos, "radius": splash_radius, "time": 0.4, "duration": 0.4, "color": Color(1.0, 0.78, 0.2, 0.4)})
 	effects.append({"position": mouse_pos, "radius": splash_radius * 0.5, "time": 0.3, "duration": 0.3, "color": Color(1.0, 0.92, 0.5, 0.5)})
+	if plant.has("fusion_kind"):
+		var runtime = _ensure_plant_fusion()
+		if runtime.native_runtime == null: runtime.native_runtime = runtime.NativeRuntime.new(self)
+		var chamber: Dictionary = runtime.native_runtime.state_for(plant,"corn_cannon",row,col)
+		chamber.action_timer = float(Defs.PLANTS.corn_cannon.fire_interval)
+		plant.corn_reload = chamber.action_timer
 	# Put the cannon on cooldown so it can't spam-fire.
 	plant["action_timer"] = float(Defs.PLANTS["corn_cannon"].get("fire_interval", 20.0))
 	plant["flash"] = maxf(float(plant.get("flash", 0.0)), 0.24)
@@ -10833,11 +10839,11 @@ func _execute_volcano_corn_cannon_ultimate() -> void:
 
 
 func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, profile: Dictionary) -> void:
+	if float(plant.get("health", 0.0)) > 0.0:
+		_restore_plant_health(plant, maxf(0, float(plant.max_health) - float(plant.health)), true)
 	if plant.has("fusion_kind"):
 		_ensure_plant_fusion().ultimate(plant,row,col)
 		return
-	if float(plant.get("health", 0.0)) > 0.0:
-		_restore_plant_health(plant, maxf(0, float(plant.max_health) - float(plant.health)), true)
 	if bool(Defs.PLANTS.get(kind, {}).get("volcano_expansion", false)):
 		_ensure_volcano_expansion().ultimate(plant, row, col)
 		return
@@ -13205,7 +13211,7 @@ func _update_zombies(delta: float) -> void:
 			var pogo_target = _find_jump_target(int(zombie["row"]), float(zombie["x"]))
 			if pogo_target.y != -1:
 				var pogo_plant = grid[pogo_target.x][pogo_target.y]
-				if pogo_plant != null and String(pogo_plant["kind"]) == "tallnut":
+				if pogo_plant != null and _plant_has_component(pogo_plant,"tallnut"):
 					zombie["pogo_active"] = false
 					zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.18)
 				else:
@@ -13263,7 +13269,7 @@ func _update_zombies(delta: float) -> void:
 			var jump_target = _find_jump_target(int(zombie["row"]), float(zombie["x"]))
 			if jump_target.y != -1:
 				var jump_plant = grid[jump_target.x][jump_target.y]
-				if jump_plant != null and String(jump_plant["kind"]) == "tallnut":
+				if jump_plant != null and _plant_has_component(jump_plant,"tallnut"):
 					zombie["has_vaulted"] = true
 					if String(zombie["kind"]) == "pole_vault":
 						zombie["base_speed"] = float(Defs.ZOMBIES["pole_vault"]["post_jump_speed"])
@@ -13512,10 +13518,11 @@ func _update_zombies(delta: float) -> void:
 				})
 				zombies[i] = zombie
 				continue
-			if plant != null and String(plant["kind"]) == "hypno_shroom" and not _is_boss_zombie(zombie):
+			if plant != null and _plant_has_component(plant,"hypno_shroom") and float(plant.get("fusion_hypno_timer",0)) <= 0 and not _is_boss_zombie(zombie):
 				zombie = _hypnotize_zombie(zombie)
 				zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
-				_clear_targetable_plant(target.x, target.y)
+				if plant.has("fusion_kind"): plant.fusion_hypno_timer = 24.0
+				else: _clear_targetable_plant(target.x, target.y)
 				effects.append({
 					"position": Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 6.0),
 					"radius": 76.0,
@@ -13544,14 +13551,14 @@ func _update_zombies(delta: float) -> void:
 					plant["max_armor_health"] = 0.0
 			else:
 				plant["health"] -= bite_damage
-			if plant.has("fusion_kind") and "thorns" in Defs.PLANTS[plant.fusion_kind].fusion_traits:
-				zombie = _apply_zombie_damage(zombie,maxf(18.0*delta,bite_damage*0.4),0.08)
-			elif String(plant["kind"]) == "cactus_guard":
+			if _plant_has_component(plant,"cactus_guard"):
 				zombie = _apply_zombie_damage(zombie, float(Defs.PLANTS["cactus_guard"]["thorns"]) * delta, 0.08)
-			elif String(plant["kind"]) == "thorn_cactus":
+			if _plant_has_component(plant,"thorn_cactus"):
 				zombie = _apply_zombie_damage(zombie, float(Defs.PLANTS["thorn_cactus"]["thorns"]) * delta * _plant_enhance_multiplier_at_cell(target.x, target.y), 0.08)
-			elif String(plant["kind"]) == "crystal_nut" and float(plant.get("holy_invincible_timer", 0.0)) <= 0.0:
+			if _plant_has_component(plant,"crystal_nut") and float(plant.get("holy_invincible_timer", 0.0)) <= 0.0:
 				zombie = _apply_zombie_damage(zombie, bite_damage * float(Defs.PLANTS["crystal_nut"]["reflect_ratio"]) * _plant_enhance_multiplier_at_cell(target.x, target.y), 0.08)
+			if plant.has("fusion_kind") and _plant_has_component(plant,"spikeweed"):
+				zombie = _apply_zombie_damage(zombie,bite_damage*0.4,0.08)
 			if _plant_has_component(plant,"garlic"):
 				var redirected_row = _choose_adjacent_valid_row_for_kind(String(zombie["kind"]), int(zombie["row"]))
 				if redirected_row != int(zombie["row"]):
@@ -14736,7 +14743,7 @@ func _is_hidden_from_lane_attacks(zombie: Dictionary) -> bool:
 			if plant == null:
 				continue
 			var plant_kind = String(plant.get("kind", ""))
-			if plant_kind != "lantern_bloom" and plant_kind != "dream_drum":
+			if not _plant_has_component(plant,"lantern_bloom") and not _plant_has_component(plant,"dream_drum"):
 				continue
 			if _cell_center(other_row, col).distance_to(Vector2(zombie_x, _row_center_y(row))) <= CELL_SIZE.x * 3.6:
 				return false
@@ -14815,7 +14822,7 @@ func _zombie_cell_col(zombie_x: float) -> int:
 func _find_plant_cell_by_kind(row: int, kind: String, zombie_x: float, radius: float = 38.0) -> Vector2i:
 	for col in range(COLS - 1, -1, -1):
 		var plant_variant = grid[row][col]
-		if plant_variant == null or String(plant_variant["kind"]) != kind:
+		if plant_variant == null or not _plant_has_component(plant_variant,kind):
 			continue
 		if absf(_cell_center(row, col).x - zombie_x) <= radius:
 			return Vector2i(row, col)
@@ -25582,9 +25589,11 @@ func _draw_plants() -> void:
 func _draw_projectiles() -> void:
 	for projectile in projectiles:
 		var projectile_pos = Vector2(projectile["position"])
-		if projectile.has("fusion_source"):
+		if projectile.has("fusion_source") and not bool(projectile.get("fusion_native",false)):
 			PlantFusionVisuals.draw_projectile(self,projectile)
 			continue
+		PlantFusionVisuals.draw_ammo_overlay(self,projectile)
+		if PlantFusionVisuals.draw_ammo_body(self,projectile): continue
 		var projectile_color = Color(projectile["color"])
 		var projectile_kind = String(projectile.get("kind", "pea"))
 		var pulse = 1.0 + 0.12 * sin(level_time * 14.0 + projectile_pos.x * 0.04)

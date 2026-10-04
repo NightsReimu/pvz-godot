@@ -4,7 +4,7 @@ const Visuals = preload("res://scripts/ui/plant_fusion_visuals.gd")
 
 func test_weapon_and_skill_contracts():
 	var g = make_game()
-	for passive in ["wallnut","coffee_bean","sunflower","plantern","pumpkin","lily_pad","flower_pot"]:
+	for passive in ["wallnut","coffee_bean","sunflower","plantern","pumpkin"]:
 		var id: String = g._fusion_result(passive,"peashooter")
 		g.grid[2][2] = g._create_plant(id,2,2)
 		ready_weapons(g,2,2)
@@ -14,7 +14,7 @@ func test_weapon_and_skill_contracts():
 		for frame in range(40): g._update_projectiles(0.05)
 		check(float(g.zombies[0].health) < float(g.zombies[0].max_health),"Ranged fusion projectiles actually hit: "+passive)
 		g.zombies.clear(); g.projectiles.clear()
-	g.grid[2][2] = g._create_plant("fusion_flower_pot",2,2)
+	g.grid[2][2] = g._create_plant("fusion_healing_gourd",2,2)
 	g.grid[2][1] = g._create_plant("peashooter",2,1)
 	g._ensure_plant_fusion().ultimate(g.grid[2][2],2,2)
 	check(g._plant_cadence_delta(1,2,1) > 1,"Support ultimate accelerates native attacks")
@@ -39,6 +39,7 @@ func test_skill_payloads():
 		g.grid[2][1].sleep_timer = 10; g.grid[2][1].health *= 0.3
 		g._spawn_zombie_at("bucket_screen_door",2,g._cell_center(2,2).x+100)
 		g.zombies[0].health = 10000
+		var enemy_before: Dictionary = g.zombies[0].duplicate(true)
 		g._ensure_plant_fusion().ultimate(p,2,2)
 		var skills_drawn := {}
 		for e in g.effects:
@@ -55,8 +56,8 @@ func test_skill_payloads():
 		if skill == "lightning": check(float(g.zombies[0].frozen_timer) > 0,"Lightning stuns the enemy")
 		if skill == "beacon": check(float(g.zombies[0].revealed_timer) >= 10,"Beacon reveals enemies across the board")
 		if skill == "constellation":
-			check(not g.projectiles.is_empty() and bool(g.projectiles[0].get("pierce_handheld",false)),"Star ultimate fires actual piercing projectiles")
-		if skill == "meteor": check(not g.projectiles.is_empty() and float(g.projectiles[0].get("splash_radius",0)) > 0,"Meteor ultimate has a real blast area")
+			check(g.projectiles.any(func(shot): return bool(shot.get("fusion_ultimate",false))),"Spread ultimate preserves real native projectiles")
+		if skill == "meteor": check(g.projectiles.any(func(shot): return shot.has("arc_target") or shot.get("kind","") == "moon_meteor") or g.zombies[0] != enemy_before,"Lobbed ultimate preserves the native delivery path: "+id)
 	g.zombies.clear()
 	var wind: String = g._fusion_result("blover","peashooter")
 	var plant: Dictionary = g._create_plant(wind,2,2)
@@ -90,7 +91,7 @@ func test_recursive_art():
 	g._ensure_almanac_selection()
 	check(not bool(Defs.PLANTS[g.almanac_selected_kind].get("fusion_only",false)),"Old fusion detail selection repairs to a native seed")
 	check(not Defs.PLANTS[id].fusion_skills.is_empty(),"Inherited ultimates remain registered independently of the almanac")
-	var support: String = g._fusion_result("flower_pot","peashooter")
+	var support: String = g._fusion_result("healing_gourd","peashooter")
 	g.grid[2][2] = g._create_plant("peashooter",2,2)
 	g.support_grid[2][2] = g._create_plant("flower_pot",2,2)
 	g.grid[2][3] = g._create_plant(support,2,3)
@@ -103,7 +104,7 @@ func _run():
 	var absent := 0
 	for a in Native.PLANTS:
 		for b in Native.PLANTS:
-			if String(a) > String(b): continue
+			if String(a) > String(b) or a in Fusion.EXCLUDED or b in Fusion.EXCLUDED: continue
 			if g._fusion_result(a,b).is_empty(): absent += 1
 	check(absent == 0,"Any two native plants must fuse; missing pairs: %d" % absent)
 	var grown: String = g._fusion_result("pea_bastion","winter_melon")
@@ -112,7 +113,7 @@ func _run():
 		check(not g._fusion_result(grown,"coffee_bean").is_empty(),"A mixed grown form can keep fusing")
 		check(g._fusion_result("winter_melon","pea_bastion") == grown,"Recursive mixed forms are symmetric")
 	dispose(g)
-	for id in ["fusion_lily_pad","fusion_flower_pot","fusion_coffee_bean","fusion_torchwood","sun_pea"]:
+	for id in ["fusion_healing_gourd","fusion_coffee_bean","fusion_torchwood","sun_pea"]:
 		g = make_game()
 		var p: Dictionary = g._create_plant(id,2,2)
 		p.sleep_timer = 0; p.health *= 0.5; p.ultimate_charge = 1

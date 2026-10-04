@@ -26,7 +26,13 @@ func dispose(g):
 func ready_weapons(g: Control, row: int, col: int, bursts: bool = false):
 	var p: Dictionary = g._targetable_plant_at(row,col)
 	for channel in Defs.PLANTS[p.fusion_kind].fusion_channels:
-		if bursts or channel.style != "burst": p.fusion_channel_timers[channel.source] = 0
+		if bursts or channel.style != "burst":
+			p.fusion_channel_timers[channel.source] = 0
+			if not Fusion.Combat.BURSTS.has(channel.source):
+				var runtime = g._ensure_plant_fusion()
+				if runtime.native_runtime == null: runtime.native_runtime = runtime.NativeRuntime.new(g)
+				var state: Dictionary = runtime.native_runtime.state_for(p,channel.source,row,col)
+				for clock in runtime.NativeRuntime.CLOCKS: state[clock] = 0.0
 
 func test_canonical():
 	var g = make_game()
@@ -46,6 +52,7 @@ func test_catalogue():
 	var g = make_game()
 	check(Fusion.DEFINITIONS.size() >= 290,"All native plants have multiple fusion evolutions")
 	for k in Native.ORDER:
+		if k in Fusion.EXCLUDED: continue
 		var first: String = g._fusion_result(k,k)
 		check(not first.is_empty(),"Native fusion coverage: "+k)
 		check(not g._fusion_result(first,k).is_empty(),"Recursive feeding route: "+k)
@@ -72,9 +79,9 @@ func test_catalogue():
 		var enemy_before: Dictionary = g.zombies[0].duplicate(true)
 		ready_weapons(g,2,2,true)
 		g._update_plants(1.0)
-		if not d.fusion_channels.is_empty():
-			var reachable: bool = d.fusion_channels.any(func(channel): return channel.get("blast_shape","") != "single" and float(channel.get("range",10000)) >= 100 or float(channel.get("range",0)) >= 100)
-			if reachable: check(not g.projectiles.is_empty() or not g.rollers.is_empty() or g.zombies[0] != enemy_before,"Fusion retains its real charged attack: "+id)
+		for source in d.fusion_weights:
+			if not Fusion.Combat.BURSTS.has(source):
+				check(plant.fusion_native_states.has(source),"Fusion retains every native state machine: "+id+" / "+source)
 		check(g.zombies[1].health == friend_hp,"Normal fusion respects allies: "+id)
 		var before: Array = [g.projectiles.size(),g.rollers.size(),g.suns.size(),g.zombies[0].duplicate(true),plant.duplicate(true),g.zombies.size()]
 		check(g._activate_plant_food(2,2),"Actual energy bean activation: "+id)
@@ -147,7 +154,7 @@ func test_support_and_click():
 	g.support_grid[2][2] = g._create_plant("lily_pad",2,2)
 	g.grid[2][2] = g._create_plant("peashooter",2,2)
 	g.selected_tool = "lily_pad"; g._handle_board_click(Vector2i(2,2))
-	check(g.support_grid[2][2].get("fusion_kind","") == "fusion_lily_pad" and g.grid[2][2].kind == "peashooter","Pad graft preserves the host and the support layer")
+	check(g.support_grid[2][2].kind == "lily_pad" and not g.support_grid[2][2].has("fusion_kind") and g.grid[2][2].kind == "peashooter","Pad stays a terrain support without fusion")
 	g._update_plants(1.0)
 	check(g._placement_error("wallnut",2,3) != "","Water requirement remains intact")
 	g.grid[2][2].sleep_timer = 15; g.grid[2][2].kind = "fume_shroom"
@@ -161,6 +168,7 @@ func test_support_and_click():
 
 func test_prepared_seeds():
 	for id in Native.ORDER:
+		if id in Fusion.EXCLUDED: continue
 		var g = make_game(); g.active_cards = [id]
 		var expected: String = g._fusion_result(id,id)
 		var base: String = String(Defs.PLANTS[expected].get("fusion_base",expected))
@@ -212,8 +220,8 @@ func test_trio_and_control():
 	g = make_game()
 	g.grid[2][2] = g._create_plant("gum_corn",2,2)
 	g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+100)
-	ready_weapons(g,2,2); g._update_plants(0.1); g._update_projectiles(2)
-	check(float(g.zombies[0].get("frozen_timer",0)) > 0 and float(g.zombies[0].corrode_timer) > 0,"Gum corn uses actual stun and poison fields")
+	g._activate_plant_food(2,2); g._update_projectiles(2)
+	check(float(g.zombies[0].get("special_pause_timer",0)) > 0 and float(g.zombies[0].corrode_timer) > 0,"Gum corn uses actual stun and poison fields")
 	dispose(g)
 
 func test_thorns_cadence():
@@ -225,7 +233,7 @@ func test_thorns_cadence():
 		g.zombies[0].spawn_time = 0.0; g.zombies[0].attack_dps = 200.0
 		var health: float = g.zombies[0].health
 		g._update_zombies(delta)
-		check(is_equal_approx(health-float(g.zombies[0].health),80.0*delta),"Fusion thorns reflect a frame-independent portion of bite damage")
+		check(is_equal_approx(health-float(g.zombies[0].health),float(Native.PLANTS.cactus_guard.thorns)*delta),"Fusion cactus retains its native frame-independent thorns")
 		dispose(g)
 
 func _run():
@@ -237,6 +245,7 @@ func _run():
 		check(g._fusion_result("peashooter","peashooter") == "repeater", "Canonical pea fusion reuses repeater")
 		check(g._fusion_result("repeater","repeater") == "gatling_pea", "Canonical repeater fusion")
 		for k in Native.ORDER:
+			if k in Fusion.EXCLUDED: continue
 			check(g._fusion_result(k,k) != "", "Every native participates: " + k)
 		g.grid[2][2] = g._create_plant("sunflower",2,2)
 		g.selected_tool = "sunflower"

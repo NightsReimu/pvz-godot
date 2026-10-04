@@ -99,7 +99,7 @@ func on_eruption(row: int, col: int) -> void:
 			var p = game._top_plant_at(r, c)
 			if p == null or float(p.get("health", 0.0)) <= 0.0 or game._plant_charm_blocks_actions(p) or float(p.get("sleep_timer", 0.0)) > 0.0:
 				continue
-			if String(p.kind) in ["thermal_sunflower", "caldera_lotus"]:
+			if game._plant_has_component(p,"thermal_sunflower") or game._plant_has_component(p,"caldera_lotus"):
 				p["geothermal_charge"] = mini(3, int(p.get("geothermal_charge", 0)) + 1)
 				fx(game._cell_center(r, c), tint(p.kind), 40.0)
 
@@ -130,7 +130,7 @@ func shoot(plant: Dictionary, index: int, row: int, col: int, power: float = 1.0
 	if kind == "caldera_lotus":
 		damage *= 1.0 + (0.35 if nearby_vent(row, col) else 0.0) + 0.15 * int(plant.get("geothermal_charge", 0))
 		plant["geothermal_charge"] = 0
-	game.projectiles.append({"kind": "volcano_seed", "volcano_seed": kind, "row": int(z.row), "position": origin, "arc_origin": origin, "arc_target": target, "arc_time": 0.0, "arc_duration": 0.42, "arc_height": 70.0, "damage": damage, "radius": 9.0, "color": tint(kind), "owner_cell": Vector2i(row, col)})
+	game.projectiles.append({"kind": "volcano_seed", "volcano_seed": kind, "row": int(z.row), "position": origin, "arc_origin": origin, "arc_target": target, "target_uid": int(z.get("uid",-1)), "arc_time": 0.0, "arc_duration": 0.42, "arc_height": 70.0, "damage": damage, "radius": 9.0, "color": tint(kind), "owner_cell": Vector2i(row, col)})
 	game._play_firing_sfx("melon_pult" if kind in ["fumarole_melon", "caldera_lotus"] else "cabbage_pult")
 	game._trigger_plant_action(plant, 0.32)
 

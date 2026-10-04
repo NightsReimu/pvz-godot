@@ -255,3 +255,72 @@ static func draw_skill(canvas: CanvasItem, effect: Dictionary, progress: float, 
 			var point := c+Vector2.from_angle(angle)*r
 			canvas.draw_circle(point,8*alpha+2,Color("ffdf83",alpha*0.8),true,-1,true)
 		canvas.draw_arc(c,r*0.55,0,TAU,48,Color("fff6ba",alpha),3,true)
+
+# The native kernel/butter/petal/blade silhouette stays visible inside each payload.
+static func draw_ammo_overlay(canvas: CanvasItem, shot: Dictionary) -> void:
+	var tags: Array = shot.get("ammo_elements",[])
+	if tags.is_empty(): return
+	var p: Vector2 = shot.position
+	var r: float = float(shot.get("radius",9))
+	var time: float = float(canvas.get("level_time"))
+	var dir: float = -1 if float(shot.get("speed",1)) < 0 else 1
+	if "flame" in tags:
+		for i in range(3):
+			var phase: float = time*12+i*2.1
+			var end: Vector2 = p-Vector2(dir*(r*3+i*3),sin(phase)*r)
+			canvas.draw_colored_polygon(PackedVector2Array([p+Vector2(0,-r),end,p+Vector2(0,r),p-Vector2(dir*r,0)]),Color(1,0.32+i*0.17,0.06,0.4))
+		canvas.draw_arc(p,r+3,-1.4,1.4,16,Color("ffd367"),2,true)
+	if "frost" in tags:
+		for i in range(6):
+			var ray := Vector2.from_angle(i*TAU/6+time)*r
+			canvas.draw_line(p+ray*0.8,p+ray*1.55,Color("b8f8ff"),2,true)
+	if "venom" in tags:
+		for i in range(4):
+			var offset := Vector2.from_angle(i*TAU/4-time)*r*1.4
+			canvas.draw_circle(p+offset,2.5,Color("c8eb53"),true,-1,true)
+	if "storm" in tags:
+		canvas.draw_polyline(PackedVector2Array([p+Vector2(-r*2,0),p+Vector2(-r,-r),p+Vector2(-r*0.5,r),p+Vector2(r*1.5,0)]),Color("bcb5ff"),2,true)
+	if "dream" in tags: canvas.draw_arc(p,r+5,time,time+PI*1.5,18,Color("fca1f0"),2,true)
+	if "root" in tags: canvas.draw_arc(p,r+3,-time,-time+PI,18,Color("85d580"),2,true)
+
+# Ingredient-shaped payloads remain readable beneath the elemental trail.
+static func draw_ammo_body(canvas: CanvasItem, shot: Dictionary) -> bool:
+	if shot.get("ammo_elements",[]).is_empty(): return false
+	var kind: String = shot.get("kind","")
+	var p: Vector2 = shot.position
+	var r: float = float(shot.get("radius",8))
+	var dark := Color("5b4936")
+	if kind == "kernel":
+		var body := PackedVector2Array([p+Vector2(-0.85,-0.55)*r,p+Vector2(-0.3,-0.95)*r,p+Vector2(0.75,-0.7)*r,p+Vector2(1,0.2)*r,p+Vector2(0.15,0.9)*r,p+Vector2(-0.75,0.65)*r])
+		canvas.draw_colored_polygon(body,Color("f6c54e"))
+		canvas.draw_polyline(PackedVector2Array([body[0],body[1],body[2],body[3],body[4],body[5],body[0]]),dark,1.4,true)
+		canvas.draw_line(p+Vector2(-0.2,-0.55)*r,p+Vector2(-0.1,0.6)*r,Color("ffe990"),r*0.3,true)
+		canvas.draw_circle(p+Vector2(0.38,-0.25)*r,r*0.18,Color("fff4b7"),true,-1,true)
+	elif kind == "butter":
+		canvas.draw_colored_polygon(PackedVector2Array([p+Vector2(-1,-0.45)*r,p+Vector2(0.62,-0.85)*r,p+Vector2(1,0.38)*r,p+Vector2(-0.75,0.85)*r]),Color("f6be45"))
+		canvas.draw_colored_polygon(PackedVector2Array([p+Vector2(-1,-0.45)*r,p+Vector2(-0.7,-0.86)*r,p+Vector2(0.95,-0.55)*r,p+Vector2(0.62,-0.12)*r]),Color("fff4b1"))
+		canvas.draw_line(p+Vector2(-0.62,0.16)*r,p+Vector2(0.55,0.32)*r,Color("ffe779"),r*0.35,true)
+		canvas.draw_circle(p+Vector2(0.77,0.42)*r,r*0.2,Color("fff0a4"),true,-1,true)
+	elif kind == "cabbage" or kind == "melon":
+		canvas.draw_circle(p,r,Color("2b693a"),true,-1,true)
+		for i in range(4):
+			var a: float = float(i)*1.57+0.4
+			canvas.draw_circle(p+Vector2.from_angle(a)*r*0.3,r*0.67,Color("84c350") if i%2 == 0 else Color("b0d45e"),true,-1,true)
+			canvas.draw_arc(p+Vector2.from_angle(a)*r*0.22,r*0.63,a,a+PI,12,Color("387f43"),maxf(1,r*0.09),true)
+		canvas.draw_circle(p-Vector2(r*0.15,r*0.15),r*0.24,Color("d1e995"),true,-1,true)
+	elif kind == "sakura_petal" or kind == "sakura_shard":
+		var petal := PackedVector2Array([p+Vector2(-1,0)*r,p+Vector2(-0.1,-0.8)*r,p+Vector2(0.62,-0.62)*r,p+Vector2(0.9,-0.2)*r,p+Vector2(0.6,0)*r,p+Vector2(0.9,0.2)*r,p+Vector2(0.62,0.62)*r,p+Vector2(-0.1,0.8)*r])
+		canvas.draw_colored_polygon(petal,Color("fac7df"))
+		canvas.draw_line(p-Vector2(r*0.75,0),p+Vector2(r*0.55,0),Color("d975a8"),maxf(1,r*0.1),true)
+	elif kind == "prism_pea" or kind == "prism_fragment":
+		var crystal := PackedVector2Array([p-Vector2(r,0),p+Vector2(0,-r*0.9),p+Vector2(r,0),p+Vector2(0,r*0.9)])
+		canvas.draw_colored_polygon(crystal,Color("65c3d8"))
+		canvas.draw_colored_polygon(PackedVector2Array([crystal[0],crystal[1],crystal[2],p]),Color("d3faf3"))
+		canvas.draw_line(crystal[1],crystal[3],Color("ffffff"),maxf(1,r*0.08),true)
+	elif kind == "moon_meteor":
+		canvas.draw_circle(p,r,Color("e9a85d"),true,-1,true)
+		canvas.draw_circle(p-Vector2(r*0.12,r*0.08),r*0.72,Color("fff0bf"),true,-1,true)
+		canvas.draw_arc(p+Vector2(r*0.12,0),r*0.48,-1.1,1.5,14,Color("c18452"),maxf(1,r*0.2),true)
+		canvas.draw_circle(p+Vector2(-r*0.27,-r*0.35),r*0.16,Color("ffffff"),true,-1,true)
+	else: return false
+	return true

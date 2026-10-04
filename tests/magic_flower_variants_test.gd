@@ -30,10 +30,13 @@ func _run() -> void:
 		game.rng.seed = 138
 		runtime._spawn_magic_flower_projectile(2, center, 1.0, variant)
 		check(not bool(game.projectiles[0].anti_air), "%s must never change another plant's shot" % variant)
-		var shots: Array = game.rollers if variant == "mango" else game.projectiles.slice(1)
+		var shots: Array = game.rollers if String(variant).get_slice(":",String(variant).count(":")) == "mango" else game.projectiles.slice(1)
 		check(shots.size() == 1, "%s must create exactly one initial projectile or roller" % variant)
 		if shots.is_empty(): continue
 		var shot: Dictionary = shots[0]
+		if ":" in String(variant):
+			for tag in String(variant).get_slice(":",0).split("+"):
+				check(tag in shot.get("ammo_elements",[]),"Magic ammunition retains composed payload: "+variant)
 		if expected.has(variant):
 			check(shot.kind == expected[variant], "%s must use its native collision and rendering type" % variant)
 		if variant == "prism_pea": check(int(shot.get("split_count", 0)) == 3, "Prism shots must split into three real fragments")
@@ -45,8 +48,8 @@ func _run() -> void:
 		game.rollers.clear()
 		game.rng.seed = 138
 		runtime._spawn_magic_flower_projectile(2, center, 2.0, variant)
-		var stronger: Dictionary = game.rollers[0] if variant == "mango" else game.projectiles[0]
+		var stronger: Dictionary = game.rollers[0] if String(variant).get_slice(":",String(variant).count(":")) == "mango" else game.projectiles[0]
 		check(is_equal_approx(float(stronger.damage), baseline * 2.0), "%s must respect the magic flower's damage multiplier" % variant)
 	game.free()
-	print("Magic flower: 20 native variants, isolation, ownership and damage scaling; %d failures" % failures)
+	print("Magic flower: all registered variants, isolation, ownership and damage scaling; %d failures" % failures)
 	quit(1 if failures else 0)

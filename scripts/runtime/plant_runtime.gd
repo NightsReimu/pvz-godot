@@ -2,28 +2,8 @@ extends RefCounted
 class_name PlantRuntime
 
 const Defs = preload("res://scripts/game_defs.gd")
-const MAGIC_FLOWER_PROJECTILES := [
-	"pea",
-	"snow_pea",
-	"fire_pea",
-	"amber_pea",
-	"boomerang",
-	"sakura_petal",
-	"mist_bloom",
-	"glow_seed",
-	"heather_thorn",
-	"origami_plane",
-	"star_shot",
-	"moonforge_shot",
-	"prism_pea",
-	"shadow_pea",
-	"spiral_bamboo",
-	"cluster_boomerang",
-	"frost_boomerang",
-	"amber_ultimate_shard",
-	"mango",
-	"phoenix_flame",
-]
+const Ammo = preload("res://scripts/data/plant_ammo.gd")
+static var MAGIC_FLOWER_PROJECTILES: Array = Ammo.catalogue()
 
 var game: Control
 
@@ -112,7 +92,7 @@ func update_plants(delta: float) -> void:
 			if String(plant.get("shell_kind", "")) == "pumpkin" and float(plant.get("armor_health", 0.0)) <= 0.0:
 				plant["shell_kind"] = ""
 				plant["max_armor_health"] = 0.0
-			if String(plant["kind"]) == "pumpkin" and float(plant.get("armor_health", 0.0)) <= 0.0:
+			if String(plant["kind"]) == "pumpkin" and not plant.has("fusion_kind") and float(plant.get("armor_health", 0.0)) <= 0.0:
 				game.grid[row][col] = null
 				continue
 			if float(plant["sleep_timer"]) > 0.0 and String(plant["plant_food_mode"]) == "":
@@ -131,336 +111,8 @@ func update_plants(delta: float) -> void:
 				game.grid[row][col] = plant
 				continue
 
-			if bool(Defs.PLANTS.get(String(plant["kind"]), {}).get("volcano_expansion", false)):
-				game._ensure_volcano_expansion().update_plant(plant, delta, row, col)
-				continue
+			game.grid[row][col] = null if update_native(plant,delta,row,col) else plant
 
-			match String(plant["kind"]):
-				"sunflower":
-					plant["sun_timer"] -= delta
-					if float(plant["sun_timer"]) <= 0.0:
-						var center = game._cell_center(row, col)
-						game._spawn_sun(center + Vector2(game.rng.randf_range(-8.0, 8.0), -18.0), center.y - 10.0, "plant")
-						plant["sun_timer"] = float(Defs.PLANTS["sunflower"]["sun_interval"])
-						game._trigger_plant_action(plant, 0.32)
-				"peashooter":
-					if update_shooter_plant_food(plant, delta, row, col, Color(0.36, 0.86, 0.3), 0.0, 1, 0.1):
-						game.grid[row][col] = plant
-						continue
-					update_basic_shooter(plant, delta, row, col, Color(0.36, 0.86, 0.3), 0.0)
-				"puff_shroom":
-					if update_shooter_plant_food(plant, delta, row, col, Color(0.84, 0.68, 0.98), 0.0, 2, 0.07):
-						game.grid[row][col] = plant
-						continue
-					update_basic_shooter(plant, delta, row, col, Color(0.84, 0.68, 0.98), 0.0)
-				"sea_shroom":
-					if update_shooter_plant_food(plant, delta, row, col, Color(0.66, 0.82, 0.96), 0.0, 2, 0.08):
-						game.grid[row][col] = plant
-						continue
-					update_basic_shooter(plant, delta, row, col, Color(0.66, 0.82, 0.96), 0.0)
-				"amber_shooter":
-					if update_shooter_plant_food(plant, delta, row, col, Color(0.84, 0.58, 0.16), 0.0, 1, 0.08):
-						game.grid[row][col] = plant
-						continue
-					update_amber_shooter(plant, delta, row, col)
-				"snow_pea":
-					if update_shooter_plant_food(plant, delta, row, col, Color(0.54, 0.88, 1.0), 16.0, 1, 0.1):
-						game.grid[row][col] = plant
-						continue
-					update_basic_shooter(plant, delta, row, col, Color(0.54, 0.88, 1.0), float(Defs.PLANTS["snow_pea"]["slow_duration"]))
-				"repeater":
-					update_repeater(plant, delta, row, col)
-				"threepeater":
-					update_threepeater(plant, delta, row, col)
-				"heather_shooter":
-					update_heather_shooter(plant, delta, row, col)
-				"leyline":
-					update_leyline(plant, delta, row, col)
-				"holo_nut":
-					update_holo_nut(plant, delta, row, col)
-				"healing_gourd":
-					update_healing_gourd(plant, delta, row, col)
-				"cotton_candy":
-					update_cotton_candy(plant, delta, row, col)
-				"mango_bowling":
-					update_mango_bowling(plant, delta, row, col)
-				"snow_bloom":
-					if update_snow_bloom(plant, delta, row, col):
-						game.grid[row][col] = null
-						continue
-				"cluster_boomerang":
-					update_cluster_boomerang(plant, delta, row, col)
-				"glitch_walnut":
-					if update_glitch_walnut(plant, delta, row, col):
-						game.grid[row][col] = null
-						continue
-				"nether_shroom":
-					update_nether_shroom(plant, delta, row, col)
-				"seraph_flower":
-					update_seraph_flower(plant, delta, row, col)
-				"magma_stream":
-					if update_magma_stream(plant, delta, row, col):
-						game.grid[row][col] = null
-						continue
-				"orange_bloom":
-					update_orange_bloom(plant, delta, row, col)
-				"hive_flower":
-					update_hive_flower(plant, delta, row, col)
-				"mamba_tree":
-					update_mamba_tree(plant, delta, row, col)
-				"chambord_sniper":
-					update_chambord_sniper(plant, delta, row, col)
-				"dream_disc":
-					if update_dream_disc(plant, delta, row, col):
-						game.grid[row][col] = null
-						continue
-				"shadow_pea":
-					update_shadow_pea(plant, delta, row, col)
-				"ice_queen":
-					update_ice_queen(plant, delta, row, col)
-				"vine_emperor":
-					update_vine_emperor(plant, delta, row, col)
-				"soul_flower":
-					update_soul_flower(plant, delta, row, col)
-				"plasma_shooter":
-					update_plasma_shooter(plant, delta, row, col)
-				"crystal_nut":
-					update_crystal_nut(plant, delta, row, col)
-				"dragon_fruit":
-					update_dragon_fruit(plant, delta, row, col)
-				"time_rose":
-					update_time_rose(plant, delta, row, col)
-				"galaxy_sunflower":
-					update_galaxy_sunflower(plant, delta, row, col)
-				"void_shroom":
-					update_void_shroom(plant, delta, row, col)
-				"phoenix_tree":
-					update_phoenix_tree(plant, delta, row, col)
-				"thunder_god":
-					update_thunder_god(plant, delta, row, col)
-				"prism_pea":
-					update_prism_pea(plant, delta, row, col)
-				"magnet_daisy":
-					update_magnet_daisy(plant, delta, row, col)
-				"thorn_cactus":
-					update_thorn_cactus(plant, delta, row, col)
-				"bubble_lotus":
-					update_bubble_lotus(plant, delta, row, col)
-				"spiral_bamboo":
-					update_spiral_bamboo(plant, delta, row, col)
-				"honey_blossom":
-					update_honey_blossom(plant, delta, row, col)
-				"echo_fern":
-					update_echo_fern(plant, delta, row, col)
-				"glow_ivy":
-					update_glow_ivy(plant, delta, row, col)
-				"laser_lily":
-					update_laser_lily(plant, delta, row, col)
-				"rock_armor_fruit":
-					update_rock_armor_fruit(plant, delta, row, col)
-				"aurora_orchid":
-					update_aurora_orchid(plant, delta, row, col)
-				"blast_pomegranate":
-					update_blast_pomegranate(plant, delta, row, col)
-				"frost_cypress":
-					update_frost_cypress(plant, delta, row, col)
-				"mirror_shroom":
-					update_mirror_shroom(plant, delta, row, col)
-				"chain_lotus":
-					update_chain_lotus(plant, delta, row, col)
-				"plasma_shroom":
-					update_plasma_shroom(plant, delta, row, col)
-				"meteor_flower":
-					update_meteor_flower(plant, delta, row, col)
-				"destiny_tree":
-					update_destiny_tree(plant, delta, row, col)
-				"abyss_tentacle":
-					update_abyss_tentacle(plant, delta, row, col)
-				"solar_emperor":
-					update_solar_emperor(plant, delta, row, col)
-				"shadow_assassin":
-					update_shadow_assassin(plant, delta, row, col)
-				"core_blossom":
-					update_core_blossom(plant, delta, row, col)
-				"holy_lotus":
-					update_holy_lotus(plant, delta, row, col)
-				"chaos_shroom":
-					update_chaos_shroom(plant, delta, row, col)
-				"cactus":
-					update_cactus(plant, delta, row, col)
-				"blover":
-					if update_blover(plant, delta, row, col):
-						game.grid[row][col] = null
-						continue
-				"split_pea":
-					update_split_pea(plant, delta, row, col)
-				"starfruit":
-					update_starfruit(plant, delta, row, col)
-				"boomerang_shooter":
-					update_boomerang_shooter(plant, delta, row, col)
-				"sakura_shooter":
-					update_sakura_shooter(plant, delta, row, col)
-				"lotus_lancer":
-					update_lotus_lancer(plant, delta, row, col)
-				"mist_orchid":
-					update_mist_orchid(plant, delta, row, col)
-				"anchor_fern":
-					update_anchor_fern(plant, delta, row, col)
-				"glowvine":
-					update_glowvine(plant, delta, row, col)
-				"brine_pot":
-					update_brine_pot(plant, delta, row, col)
-				"storm_reed":
-					update_storm_reed(plant, delta, row, col)
-				"moonforge":
-					update_moonforge(plant, delta, row, col)
-				"mirror_reed":
-					update_mirror_reed(plant, delta, row, col)
-				"frost_fan":
-					update_frost_fan(plant, delta, row, col)
-				"cabbage_pult":
-					update_cabbage_pult(plant, delta, row, col)
-				"kernel_pult":
-					update_kernel_pult(plant, delta, row, col)
-				"melon_pult":
-					update_melon_pult(plant, delta, row, col)
-				"origami_blossom":
-					update_origami_blossom(plant, delta, row, col)
-				"chimney_pepper":
-					update_chimney_pepper(plant, delta, row, col)
-				"tesla_tulip":
-					update_tesla_tulip(plant, delta, row, col)
-				"signal_ivy":
-					update_signal_ivy(plant, delta, row, col)
-				"roof_vane":
-					update_roof_vane(plant, delta, row, col)
-				"skylight_melon":
-					update_skylight_melon(plant, delta, row, col)
-				"cherry_bomb":
-					plant["fuse_timer"] -= delta
-					if float(plant["fuse_timer"]) <= 0.0:
-						game._explode_cherry(row, col, String(plant["plant_food_mode"]) == "mega_bomb")
-						game.grid[row][col] = null
-						continue
-				"jalapeno":
-					plant["fuse_timer"] -= delta
-					if float(plant["fuse_timer"]) <= 0.0:
-						game._trigger_jalapeno(row, col, String(plant["plant_food_mode"]) == "inferno")
-						game.grid[row][col] = null
-						continue
-				"ice_shroom":
-					plant["fuse_timer"] -= delta
-					if float(plant["fuse_timer"]) <= 0.0:
-						game._trigger_ice_shroom(row, col, String(plant["plant_food_mode"]) == "deep_freeze")
-						game.grid[row][col] = null
-						continue
-				"doom_shroom":
-					plant["fuse_timer"] -= delta
-					if float(plant["fuse_timer"]) <= 0.0:
-						game._trigger_doom_shroom(row, col, String(plant["plant_food_mode"]) == "doom_bloom")
-						game.grid[row][col] = null
-						continue
-				"potato_mine":
-					if not bool(plant["armed"]):
-						plant["arm_timer"] -= delta
-						if float(plant["arm_timer"]) <= 0.0:
-							plant["armed"] = true
-							game._trigger_plant_action(plant, 0.2)
-					elif game._mine_has_target(row, col):
-						game._explode_mine(row, col)
-						game.grid[row][col] = null
-						continue
-				"chomper":
-					plant["chew_timer"] = maxf(0.0, float(plant["chew_timer"]) - delta)
-					if float(plant["chew_timer"]) <= 0.0:
-						var zombie_index = game._find_chomper_target(row, game._cell_center(row, col).x)
-						if zombie_index != -1:
-							var zombie = game.zombies[zombie_index]
-							if game._is_boss_zombie(zombie):
-								zombie = game._apply_zombie_damage(zombie, 320.0, 0.25)
-								plant["chew_timer"] = 7.5
-							else:
-								zombie["health"] = 0.0
-								zombie["flash"] = 0.25
-								plant["chew_timer"] = float(Defs.PLANTS["chomper"]["chew_time"])
-							game.zombies[zombie_index] = zombie
-							game._trigger_plant_action(plant, 0.42)
-				"squash":
-					if update_squash(plant, row, col, delta):
-						game.grid[row][col] = null
-						continue
-				"tangle_kelp":
-					if update_tangle_kelp(plant, row, col):
-						game.grid[row][col] = null
-						continue
-				"spikeweed":
-					update_spikeweed(plant, delta, row, col)
-				"vine_lasher":
-					update_vine_lasher(plant, delta, row, col)
-				"pepper_mortar":
-					update_pepper_mortar(plant, delta, row, col)
-				"pulse_bulb":
-					update_pulse_bulb(plant, delta, row, col)
-				"sun_bean":
-					update_sun_bean(plant, delta, row, col)
-				"sun_shroom":
-					update_sun_shroom(plant, delta, row, col)
-				"marigold":
-					update_marigold(plant, delta, row, col)
-				"moon_lotus":
-					update_moon_lotus(plant, delta, row, col)
-				"prism_grass":
-					update_prism_grass(plant, delta, row, col)
-				"lantern_bloom":
-					update_lantern_bloom(plant, delta, row, col)
-				"meteor_gourd":
-					update_meteor_gourd(plant, delta, row, col)
-				"root_snare":
-					update_root_snare(plant, delta, row, col)
-				"thunder_pine":
-					update_thunder_pine(plant, delta, row, col)
-				"dream_drum":
-					update_dream_drum(plant, delta, row, col)
-				"fume_shroom":
-					update_fume_shroom(plant, delta, row, col)
-				"scaredy_shroom":
-					update_scaredy_shroom(plant, delta, row, col)
-				"grave_buster":
-					if update_grave_buster(plant, delta, row, col):
-						game.grid[row][col] = null
-						continue
-				"wind_orchid":
-					update_wind_orchid(plant, delta, row, col)
-				"magnet_shroom":
-					update_magnet_shroom(plant, delta, row, col)
-				"torchwood":
-					update_torchwood(plant, delta, row, col)
-				"lily_pad", "flower_pot", "wallnut", "tallnut", "hypno_shroom", "cactus_guard", "plantern", "pumpkin", "garlic", "umbrella_leaf", "brick_guard", "cork_plug":
-					pass
-				"dragon_bubble_pult":
-					update_dragon_bubble_pult(plant, delta, row, col)
-				"toxic_gum_pult":
-					update_toxic_gum_pult(plant, delta, row, col)
-				"frost_boomerang":
-					update_frost_boomerang(plant, delta, row, col)
-				"gator_cannon":
-					update_gator_cannon(plant, delta, row, col)
-				"corn_cannon":
-					update_corn_cannon(plant, delta, row, col)
-				"holy_flower":
-					update_holy_flower(plant, delta, row, col)
-				"ice_cream":
-					update_ice_cream(plant, delta, row, col)
-				"cyclone_grass":
-					if bool(plant.get("detonated", false)):
-						game.grid[row][col] = null
-						continue
-				"sand_lotus":
-					if bool(plant.get("detonated", false)):
-						game.grid[row][col] = null
-						continue
-
-			game.grid[row][col] = plant
 	for row in range(game.ROWS):
 		for col in range(game.COLS):
 			var support_variant = game.support_grid[row][col]
@@ -494,6 +146,320 @@ func update_plants(delta: float) -> void:
 			if float(support.get("plant_food_timer", 0.0)) <= 0.0 and String(support.get("plant_food_mode", "")) != "":
 				support["plant_food_mode"] = ""
 			game.support_grid[row][col] = support
+
+
+# Shared by ordinary plants and independently clocked fusion components.
+func update_native(plant: Dictionary, delta: float, row: int, col: int) -> bool:
+	if bool(Defs.PLANTS.get(String(plant["kind"]), {}).get("volcano_expansion", false)):
+		game._ensure_volcano_expansion().update_plant(plant, delta, row, col)
+		return false
+
+	match String(plant["kind"]):
+		"sunflower":
+			plant["sun_timer"] -= delta
+			if float(plant["sun_timer"]) <= 0.0:
+				var center = game._cell_center(row, col)
+				game._spawn_sun(center + Vector2(game.rng.randf_range(-8.0, 8.0), -18.0), center.y - 10.0, "plant")
+				plant["sun_timer"] = float(Defs.PLANTS["sunflower"]["sun_interval"])
+				game._trigger_plant_action(plant, 0.32)
+		"peashooter":
+			if update_shooter_plant_food(plant, delta, row, col, Color(0.36, 0.86, 0.3), 0.0, 1, 0.1):
+				return false
+			update_basic_shooter(plant, delta, row, col, Color(0.36, 0.86, 0.3), 0.0)
+		"puff_shroom":
+			if update_shooter_plant_food(plant, delta, row, col, Color(0.84, 0.68, 0.98), 0.0, 2, 0.07):
+				return false
+			update_basic_shooter(plant, delta, row, col, Color(0.84, 0.68, 0.98), 0.0)
+		"sea_shroom":
+			if update_shooter_plant_food(plant, delta, row, col, Color(0.66, 0.82, 0.96), 0.0, 2, 0.08):
+				return false
+			update_basic_shooter(plant, delta, row, col, Color(0.66, 0.82, 0.96), 0.0)
+		"amber_shooter":
+			if update_shooter_plant_food(plant, delta, row, col, Color(0.84, 0.58, 0.16), 0.0, 1, 0.08):
+				return false
+			update_amber_shooter(plant, delta, row, col)
+		"snow_pea":
+			if update_shooter_plant_food(plant, delta, row, col, Color(0.54, 0.88, 1.0), 16.0, 1, 0.1):
+				return false
+			update_basic_shooter(plant, delta, row, col, Color(0.54, 0.88, 1.0), float(Defs.PLANTS["snow_pea"]["slow_duration"]))
+		"repeater":
+			update_repeater(plant, delta, row, col)
+		"threepeater":
+			update_threepeater(plant, delta, row, col)
+		"heather_shooter":
+			update_heather_shooter(plant, delta, row, col)
+		"leyline":
+			update_leyline(plant, delta, row, col)
+		"holo_nut":
+			update_holo_nut(plant, delta, row, col)
+		"healing_gourd":
+			update_healing_gourd(plant, delta, row, col)
+		"cotton_candy":
+			update_cotton_candy(plant, delta, row, col)
+		"mango_bowling":
+			update_mango_bowling(plant, delta, row, col)
+		"snow_bloom":
+			if update_snow_bloom(plant, delta, row, col):
+				return true
+		"cluster_boomerang":
+			update_cluster_boomerang(plant, delta, row, col)
+		"glitch_walnut":
+			if update_glitch_walnut(plant, delta, row, col):
+				return true
+		"nether_shroom":
+			update_nether_shroom(plant, delta, row, col)
+		"seraph_flower":
+			update_seraph_flower(plant, delta, row, col)
+		"magma_stream":
+			if update_magma_stream(plant, delta, row, col):
+				return true
+		"orange_bloom":
+			update_orange_bloom(plant, delta, row, col)
+		"hive_flower":
+			update_hive_flower(plant, delta, row, col)
+		"mamba_tree":
+			update_mamba_tree(plant, delta, row, col)
+		"chambord_sniper":
+			update_chambord_sniper(plant, delta, row, col)
+		"dream_disc":
+			if update_dream_disc(plant, delta, row, col):
+				return true
+		"shadow_pea":
+			update_shadow_pea(plant, delta, row, col)
+		"ice_queen":
+			update_ice_queen(plant, delta, row, col)
+		"vine_emperor":
+			update_vine_emperor(plant, delta, row, col)
+		"soul_flower":
+			update_soul_flower(plant, delta, row, col)
+		"plasma_shooter":
+			update_plasma_shooter(plant, delta, row, col)
+		"crystal_nut":
+			update_crystal_nut(plant, delta, row, col)
+		"dragon_fruit":
+			update_dragon_fruit(plant, delta, row, col)
+		"time_rose":
+			update_time_rose(plant, delta, row, col)
+		"galaxy_sunflower":
+			update_galaxy_sunflower(plant, delta, row, col)
+		"void_shroom":
+			update_void_shroom(plant, delta, row, col)
+		"phoenix_tree":
+			update_phoenix_tree(plant, delta, row, col)
+		"thunder_god":
+			update_thunder_god(plant, delta, row, col)
+		"prism_pea":
+			update_prism_pea(plant, delta, row, col)
+		"magnet_daisy":
+			update_magnet_daisy(plant, delta, row, col)
+		"thorn_cactus":
+			update_thorn_cactus(plant, delta, row, col)
+		"bubble_lotus":
+			update_bubble_lotus(plant, delta, row, col)
+		"spiral_bamboo":
+			update_spiral_bamboo(plant, delta, row, col)
+		"honey_blossom":
+			update_honey_blossom(plant, delta, row, col)
+		"echo_fern":
+			update_echo_fern(plant, delta, row, col)
+		"glow_ivy":
+			update_glow_ivy(plant, delta, row, col)
+		"laser_lily":
+			update_laser_lily(plant, delta, row, col)
+		"rock_armor_fruit":
+			update_rock_armor_fruit(plant, delta, row, col)
+		"aurora_orchid":
+			update_aurora_orchid(plant, delta, row, col)
+		"blast_pomegranate":
+			update_blast_pomegranate(plant, delta, row, col)
+		"frost_cypress":
+			update_frost_cypress(plant, delta, row, col)
+		"mirror_shroom":
+			update_mirror_shroom(plant, delta, row, col)
+		"chain_lotus":
+			update_chain_lotus(plant, delta, row, col)
+		"plasma_shroom":
+			update_plasma_shroom(plant, delta, row, col)
+		"meteor_flower":
+			update_meteor_flower(plant, delta, row, col)
+		"destiny_tree":
+			update_destiny_tree(plant, delta, row, col)
+		"abyss_tentacle":
+			update_abyss_tentacle(plant, delta, row, col)
+		"solar_emperor":
+			update_solar_emperor(plant, delta, row, col)
+		"shadow_assassin":
+			update_shadow_assassin(plant, delta, row, col)
+		"core_blossom":
+			update_core_blossom(plant, delta, row, col)
+		"holy_lotus":
+			update_holy_lotus(plant, delta, row, col)
+		"chaos_shroom":
+			update_chaos_shroom(plant, delta, row, col)
+		"cactus":
+			update_cactus(plant, delta, row, col)
+		"blover":
+			if update_blover(plant, delta, row, col):
+				return true
+		"split_pea":
+			update_split_pea(plant, delta, row, col)
+		"starfruit":
+			update_starfruit(plant, delta, row, col)
+		"boomerang_shooter":
+			update_boomerang_shooter(plant, delta, row, col)
+		"sakura_shooter":
+			update_sakura_shooter(plant, delta, row, col)
+		"lotus_lancer":
+			update_lotus_lancer(plant, delta, row, col)
+		"mist_orchid":
+			update_mist_orchid(plant, delta, row, col)
+		"anchor_fern":
+			update_anchor_fern(plant, delta, row, col)
+		"glowvine":
+			update_glowvine(plant, delta, row, col)
+		"brine_pot":
+			update_brine_pot(plant, delta, row, col)
+		"storm_reed":
+			update_storm_reed(plant, delta, row, col)
+		"moonforge":
+			update_moonforge(plant, delta, row, col)
+		"mirror_reed":
+			update_mirror_reed(plant, delta, row, col)
+		"frost_fan":
+			update_frost_fan(plant, delta, row, col)
+		"cabbage_pult":
+			update_cabbage_pult(plant, delta, row, col)
+		"kernel_pult":
+			update_kernel_pult(plant, delta, row, col)
+		"melon_pult":
+			update_melon_pult(plant, delta, row, col)
+		"origami_blossom":
+			update_origami_blossom(plant, delta, row, col)
+		"chimney_pepper":
+			update_chimney_pepper(plant, delta, row, col)
+		"tesla_tulip":
+			update_tesla_tulip(plant, delta, row, col)
+		"signal_ivy":
+			update_signal_ivy(plant, delta, row, col)
+		"roof_vane":
+			update_roof_vane(plant, delta, row, col)
+		"skylight_melon":
+			update_skylight_melon(plant, delta, row, col)
+		"cherry_bomb":
+			plant["fuse_timer"] -= delta
+			if float(plant["fuse_timer"]) <= 0.0:
+				game._explode_cherry(row, col, String(plant["plant_food_mode"]) == "mega_bomb")
+				return true
+		"jalapeno":
+			plant["fuse_timer"] -= delta
+			if float(plant["fuse_timer"]) <= 0.0:
+				game._trigger_jalapeno(row, col, String(plant["plant_food_mode"]) == "inferno")
+				return true
+		"ice_shroom":
+			plant["fuse_timer"] -= delta
+			if float(plant["fuse_timer"]) <= 0.0:
+				game._trigger_ice_shroom(row, col, String(plant["plant_food_mode"]) == "deep_freeze")
+				return true
+		"doom_shroom":
+			plant["fuse_timer"] -= delta
+			if float(plant["fuse_timer"]) <= 0.0:
+				game._trigger_doom_shroom(row, col, String(plant["plant_food_mode"]) == "doom_bloom")
+				return true
+		"potato_mine":
+			if not bool(plant["armed"]):
+				plant["arm_timer"] -= delta
+				if float(plant["arm_timer"]) <= 0.0:
+					plant["armed"] = true
+					game._trigger_plant_action(plant, 0.2)
+			elif game._mine_has_target(row, col):
+				game._explode_mine(row, col)
+				return true
+		"chomper":
+			plant["chew_timer"] = maxf(0.0, float(plant["chew_timer"]) - delta)
+			if float(plant["chew_timer"]) <= 0.0:
+				var zombie_index = game._find_chomper_target(row, game._cell_center(row, col).x)
+				if zombie_index != -1:
+					var zombie = game.zombies[zombie_index]
+					if game._is_boss_zombie(zombie):
+						zombie = game._apply_zombie_damage(zombie, 320.0, 0.25)
+						plant["chew_timer"] = 7.5
+					else:
+						zombie["health"] = 0.0
+						zombie["flash"] = 0.25
+						plant["chew_timer"] = float(Defs.PLANTS["chomper"]["chew_time"])
+					game.zombies[zombie_index] = zombie
+					game._trigger_plant_action(plant, 0.42)
+		"squash":
+			if update_squash(plant, row, col, delta):
+				return true
+		"tangle_kelp":
+			if update_tangle_kelp(plant, row, col):
+				return true
+		"spikeweed":
+			update_spikeweed(plant, delta, row, col)
+		"vine_lasher":
+			update_vine_lasher(plant, delta, row, col)
+		"pepper_mortar":
+			update_pepper_mortar(plant, delta, row, col)
+		"pulse_bulb":
+			update_pulse_bulb(plant, delta, row, col)
+		"sun_bean":
+			update_sun_bean(plant, delta, row, col)
+		"sun_shroom":
+			update_sun_shroom(plant, delta, row, col)
+		"marigold":
+			update_marigold(plant, delta, row, col)
+		"moon_lotus":
+			update_moon_lotus(plant, delta, row, col)
+		"prism_grass":
+			update_prism_grass(plant, delta, row, col)
+		"lantern_bloom":
+			update_lantern_bloom(plant, delta, row, col)
+		"meteor_gourd":
+			update_meteor_gourd(plant, delta, row, col)
+		"root_snare":
+			update_root_snare(plant, delta, row, col)
+		"thunder_pine":
+			update_thunder_pine(plant, delta, row, col)
+		"dream_drum":
+			update_dream_drum(plant, delta, row, col)
+		"fume_shroom":
+			update_fume_shroom(plant, delta, row, col)
+		"scaredy_shroom":
+			update_scaredy_shroom(plant, delta, row, col)
+		"grave_buster":
+			if update_grave_buster(plant, delta, row, col):
+				return true
+		"wind_orchid":
+			update_wind_orchid(plant, delta, row, col)
+		"magnet_shroom":
+			update_magnet_shroom(plant, delta, row, col)
+		"torchwood":
+			update_torchwood(plant, delta, row, col)
+		"lily_pad", "flower_pot", "wallnut", "tallnut", "hypno_shroom", "cactus_guard", "plantern", "pumpkin", "garlic", "umbrella_leaf", "brick_guard", "cork_plug":
+			pass
+		"dragon_bubble_pult":
+			update_dragon_bubble_pult(plant, delta, row, col)
+		"toxic_gum_pult":
+			update_toxic_gum_pult(plant, delta, row, col)
+		"frost_boomerang":
+			update_frost_boomerang(plant, delta, row, col)
+		"gator_cannon":
+			update_gator_cannon(plant, delta, row, col)
+		"corn_cannon":
+			update_corn_cannon(plant, delta, row, col)
+		"holy_flower":
+			update_holy_flower(plant, delta, row, col)
+		"ice_cream":
+			update_ice_cream(plant, delta, row, col)
+		"cyclone_grass":
+			if bool(plant.get("detonated", false)):
+				return true
+		"sand_lotus":
+			if bool(plant.get("detonated", false)):
+				return true
+
+	return false
 
 
 func has_any_enemy_zombie() -> bool:
@@ -876,6 +842,7 @@ func spawn_roof_lobbed_projectile(kind: String, row: int, spawn_position: Vector
 		"anti_air": false,
 		"arc_origin": spawn_position,
 		"arc_target": target,
+		"target_uid": game._ensure_projectile_runtime().target_uid_at(target),
 		"arc_time": 0.0,
 		"arc_duration": travel_duration,
 		"arc_height": arc_height,
@@ -970,12 +937,20 @@ func update_melon_pult(plant: Dictionary, delta: float, row: int, col: int) -> v
 func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: float = 1.0, projectile_kind: String = "", spawn_offset: Vector2 = Vector2.ZERO) -> String:
 	var chosen_kind = projectile_kind
 	if chosen_kind == "":
-		chosen_kind = String(MAGIC_FLOWER_PROJECTILES[game.rng.randi_range(0, MAGIC_FLOWER_PROJECTILES.size() - 1)])
+		var pool_size: int = Ammo.BASES.size()*(Ammo.ELEMENTS.size()+1) if game.rng.randf() < 0.8 else MAGIC_FLOWER_PROJECTILES.size()
+		chosen_kind = String(MAGIC_FLOWER_PROJECTILES[game.rng.randi_range(0,pool_size-1)])
+	var variant: String = chosen_kind
+	var element := ""
+	if ":" in chosen_kind:
+		element = chosen_kind.get_slice(":",0); chosen_kind = chosen_kind.get_slice(":",1)
 	var spawn_position = center + spawn_offset + Vector2(30.0 + game.rng.randf_range(-2.0, 4.0), -16.0 + game.rng.randf_range(-7.0, 7.0))
 	var base_damage = maxf(float(Defs.PLANTS["origami_blossom"]["damage"]) * damage_mult, 12.0)
 	if game.has_method("_play_firing_sfx"):
 		game._play_firing_sfx(_magic_flower_sound_kind(chosen_kind))
 	var projectile_start: int = game.projectiles.size()
+	var roller_start: int = game.rollers.size()
+	var target_index: int = find_magic_flower_target(row,center.x,game.board_size.x)
+	var aim: Vector2 = game._zombie_lane_point(game.zombies[target_index],row) if target_index >= 0 else center+Vector2(280,-8)
 	match chosen_kind:
 		"amber_pea":
 			game._spawn_amber_projectile(row, spawn_position, base_damage * 0.96, 500.0, 8.4)
@@ -1026,7 +1001,7 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 				game.projectiles[game.projectiles.size() - 1]["kind"] = "phoenix_flame"
 		"moonforge_shot":
 			var moonforge_target_x = center.x + 220.0
-			var moonforge_target = Vector2(moonforge_target_x, game._row_center_y(row) - 10.0)
+			var moonforge_target = aim
 			spawn_moonforge_projectile(spawn_position, moonforge_target, base_damage * 1.1, 52.0)
 		"prism_pea":
 			spawn_prism_pea_projectile(row, spawn_position, base_damage * 0.9, center.x + 160.0, 3, base_damage * 0.4)
@@ -1037,11 +1012,39 @@ func _spawn_magic_flower_projectile(row: int, center: Vector2, damage_mult: floa
 		"cluster_boomerang":
 			var cluster_col = clampi(int(round((center.x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x - 0.5)), 0, game.COLS - 1)
 			spawn_cluster_boomerang_projectile(row, cluster_col, row, spawn_position, center.x, base_damage * 1.08, 3)
+		"cabbage","kernel","butter","melon","chimney_fire","meteor_flower","dragon_bubble","toxic_gum":
+			var splash: float = 72.0 if chosen_kind in ["melon","chimney_fire","meteor_flower","dragon_bubble","toxic_gum"] else 0.0
+			spawn_roof_lobbed_projectile(chosen_kind,row,spawn_position,aim,base_damage,Color("ebcb63"),76,10,splash,2.6 if chosen_kind == "butter" else 0,"origami_blossom")
+			var shot: Dictionary = game.projectiles.back()
+			if chosen_kind == "dragon_bubble": shot.split_count = 3; shot.split_damage = base_damage*0.4
+			if chosen_kind == "toxic_gum": shot.stun_chance = 0.4; shot.stun_duration = 2.0
+			if chosen_kind == "meteor_flower": shot.burn_damage = 8.0; shot.burn_duration = 3.0
+		"obsidian_artichoke","sulfur_pod","pressure_bamboo","fumarole_melon","caldera_lotus","resonance_beet":
+			spawn_roof_lobbed_projectile("volcano_seed",row,spawn_position,aim,base_damage,game._ensure_volcano_expansion().tint(chosen_kind),70,9,70,0,"origami_blossom")
+			game.projectiles.back().volcano_seed = chosen_kind
+		"angel_spear": spawn_seraph_spear(row,spawn_position,base_damage,3)
+		"gator_orb","prism_fragment","sakura_shard":
+			game._spawn_projectile(row,spawn_position,Color("abe4da"),base_damage,0,460,8,"origami_blossom")
+			game.projectiles.back().kind = chosen_kind
+			if chosen_kind == "gator_orb": game.projectiles.back().pierce_left = 99; game.projectiles.back().hit_uids = []
+		"lotus_orbit_shot","lotus_converge_shot":
+			game._spawn_projectile(row,spawn_position,Color("d8bcf6"),base_damage,0,380,9,"origami_blossom")
+			var shot: Dictionary = game.projectiles.back()
+			shot.kind = chosen_kind; shot.free_aim = true
+			shot.orbit_center = center; shot.angle = 0.0; shot.orbit_radius = 18.0
+			shot.radial_speed = 210.0; shot.orbit_speed = 2.8; shot.max_radius = 650.0
+			shot.target_uid = int(game.zombies[target_index].uid) if target_index >= 0 else -1
+			shot.target_position = aim; shot.hit_radius = 18.0
+
 		_:
-			game._spawn_projectile(row, spawn_position, Color(0.96, 0.88, 0.72), base_damage, 0.0, 490.0, 7.6)
+			push_error("Unregistered magic flower ammunition: "+chosen_kind)
 	for index in range(projectile_start, game.projectiles.size()):
 		game.projectiles[index]["anti_air"] = true
-	return chosen_kind
+		if not element.is_empty():
+			game.projectiles[index].ammo_elements = Array(element.split("+")); Ammo.compose(game.projectiles[index],{})
+	for index in range(roller_start,game.rollers.size()):
+		if not element.is_empty(): game.rollers[index].ammo_elements = Array(element.split("+")); Ammo.compose(game.rollers[index],{})
+	return variant
 
 
 func _next_magic_flower_projectile_kind(_plant: Dictionary) -> String:
@@ -2660,11 +2663,13 @@ func spawn_moonforge_projectile(origin: Vector2, target: Vector2, damage: float,
 		"fire": false,
 		"free_aim": true,
 		"target": target,
+		"target_uid": game._ensure_projectile_runtime().target_uid_at(target),
 		"splash_radius": splash_radius,
 	})
 
 
 func explode_moonforge_projectile(projectile: Dictionary, impact: Vector2) -> void:
+	game._ensure_projectile_runtime().apply_payload_area(projectile,impact)
 	var splash_radius = float(projectile.get("splash_radius", 72.0))
 	var damage = float(projectile.get("damage", 0.0))
 	game._damage_zombies_in_circle(impact, splash_radius, damage)
@@ -4165,9 +4170,15 @@ func update_mirror_shroom(plant: Dictionary, delta: float, row: int, col: int) -
 			if donor_kind == "mirror_shroom" or not passive_source_ready(donor):
 				continue
 			var donor_data = Defs.PLANTS[donor_kind]
+			if preload("res://scripts/data/fusion_combat_profiles.gd").BURSTS.has(donor_kind): continue
 			if not donor_data.has("shoot_interval") and not donor_data.has("attack_interval"):
 				continue
 			var copied = float(donor_data.get("damage", 0.0)) * float(data["clone_damage_ratio"])
+			if donor.has("fusion_kind"):
+				copied = 0.0
+				for channel in Defs.PLANTS[donor.fusion_kind].fusion_channels:
+					if channel.style != "burst": copied = maxf(copied,float(channel.damage)*float(data.clone_damage_ratio))
+			copied = minf(150,copied)
 			if copied > best_damage:
 				best_damage = copied
 				best_kind = donor_kind
@@ -4242,7 +4253,7 @@ func update_chain_lotus(plant: Dictionary, delta: float, row: int, col: int) -> 
 func refresh_damage_zone(plant: Dictionary, row: int, col: int, shape: String, radius: float, duration: float, dps: float, color: Color) -> void:
 	var center = game._cell_center(row, col)
 	for effect in game.effects:
-		if String(effect.get("shape", "")) == shape and effect.get("source_plant") != null and is_same(effect["source_plant"], plant):
+		if String(effect.get("shape", "")) == shape and effect.get("source_plant") != null and (is_same(effect["source_plant"], plant) or (effect["source_plant"].has("fusion_kind") and Vector2(effect.get("position",Vector2.INF)).is_equal_approx(center))):
 			effect["time"] = duration
 			effect["position"] = center
 			effect["dps"] = dps
@@ -4297,6 +4308,7 @@ func update_meteor_flower(plant: Dictionary, delta: float, row: int, col: int) -
 		"fire": false,
 		"arc_origin": center + Vector2(28.0, -12.0),
 		"arc_target": target_pos,
+		"target_uid": game._ensure_projectile_runtime().target_uid_at(target_pos),
 		"arc_duration": 0.52,
 		"arc_height": 82.0,
 		"splash_radius": float(data["splash_radius"]),
@@ -4628,6 +4640,7 @@ func update_gator_cannon(plant: Dictionary, delta: float, row: int, col: int) ->
 	game._spawn_projectile(row, spawn_position, Color(0.34, 0.96, 0.78), damage, 0.0, 520.0, 11.0, "gator_orb")
 	if not game.projectiles.is_empty():
 		var last = game.projectiles[game.projectiles.size() - 1]
+		last.kind = "gator_orb"
 		if String(last.get("kind", "")) == "gator_orb":
 			last["pierce_left"] = 99
 			last["hit_uids"] = []

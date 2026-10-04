@@ -1,4 +1,6 @@
 extends RefCounted
+const NativeRuntime = preload("res://scripts/runtime/fusion_native_runtime.gd")
+var native_runtime = null
 const Fusion = preload("res://scripts/data/fusion_plant_defs.gd")
 const Defs = preload("res://scripts/game_defs.gd")
 var game: Control
@@ -20,6 +22,8 @@ func reset() -> void:
 	prepared_seeds.clear(); prepared_result = ""
 
 func select_seed(seed: String) -> void:
+	if seed in Fusion.EXCLUDED:
+		game._show_toast("花盆和睡莲只作底座，不参与融合"); return
 	if not enabled() or not seed in game.active_cards: return
 	if not game._is_conveyor_level() and float(game.card_cooldowns.get(seed,0)) > 0.01:
 		game._show_toast("这张种子还在冷却"); return
@@ -190,9 +194,20 @@ func combined(id: String, host: Dictionary, donor: Dictionary = {}) -> Dictionar
 				if input.get("fusion_channel_timers",{}).has(source): carried = true
 			p.fusion_channel_timers[source] = inherited_cooldown if carried else maxf(inherited_cooldown,float(channel.initial_delay))
 	if p.has("fusion_kind"):
-		p.fusion_native_states = host.get("fusion_native_states",{}).duplicate(true)
-		for source in donor.get("fusion_native_states",{}):
-			if not p.fusion_native_states.has(source): p.fusion_native_states[source] = donor.fusion_native_states[source].duplicate(true)
+		for input in [host,donor]:
+			if input.is_empty(): continue
+			var states: Dictionary = input.get("fusion_native_states",{}).duplicate(true)
+			if not input.has("fusion_kind"):
+				var source: String = "peashooter" if input.kind == "repeater" else String(input.kind)
+				states[source] = input.duplicate(true); states[source].kind = source
+			for source in states:
+				if not Defs.PLANTS[id].fusion_weights.has(source): continue
+				if not p.fusion_native_states.has(source): p.fusion_native_states[source] = states[source]
+				else:
+					for clock in NativeRuntime.CLOCKS+["action_timer","sun_timer","charge_timer","grow_timer","save_cooldown"]:
+						p.fusion_native_states[source][clock] = maxf(float(p.fusion_native_states[source].get(clock,0)),float(states[source].get(clock,0)))
+				if source == "corn_cannon": p.corn_reload = p.fusion_native_states[source].get("action_timer",0)
+
 	p.reflect_cooldown_until = maxf(float(host.get("reflect_cooldown_until",0)),float(donor.get("reflect_cooldown_until",0)))
 	p.spawn_time = game.level_time
 	return p
@@ -220,7 +235,7 @@ func merge_cells(from: Vector2i, to: Vector2i) -> bool:
 	if game.mokou_runtime != null and game.mokou_runtime.plant_stilled(from.x,from.y): return false
 	if game.kaguya_runtime != null and game.kaguya_runtime.plant_stilled(from.x,from.y): return false
 	if float(a.health) <= 0: return false
-	# A hybrid rooted in a pad/pot stays in the support layer in either input order.
+	# Support grafts keep their layer and never consume the underlying terrain base.
 	if String(Defs.PLANTS[id].get("fusion_base",id)) in Fusion.SUPPORTS:
 		if layer != "grid" or game._support_plant_at(to.x,to.y) == null: layer = "support"
 	var p: Dictionary = combined(id,b,a)
@@ -261,28 +276,15 @@ func update(p: Dictionary, delta: float, row: int, col: int) -> void:
 	p.fusion_support_timer = maxf(0,float(p.get("fusion_support_timer",0))-cadence)
 	p.fusion_summon_timer = maxf(0,float(p.get("fusion_summon_timer",0))-delta)
 	p.fusion_hypno_timer = maxf(0,float(p.get("fusion_hypno_timer",0))-delta)
-	if "sun" in t:
-		p.sun_timer = float(p.get("sun_timer",0))-delta
-		if p.sun_timer <= 0:
-			game._spawn_sun(game._cell_center(row,col)+Vector2(-12,-26),game._cell_center(row,col).y,"plant",maxi(25,int(d.sun_amount)))
-			p.sun_timer = float(d.sun_interval)
-			_emit(p,row,col,"fusion_sun",42,0.4)
-	if p.fusion_support_timer <= 0:
-		_support(p,row,col,false)
-		p.fusion_support_timer = 3.0 if "heal" in t else 5.0
-	_native_support(p,row,col,delta)
-	if "torch" in t: game._ensure_plant_runtime().update_torchwood(p,delta,row,col)
+	if native_runtime == null: native_runtime = NativeRuntime.new(game)
+	native_runtime.update(p,delta,row,col)
 	for channel in d.fusion_channels:
+		if channel.style != "burst": continue
 		var source: String = channel.source
-		var timer: float = maxf(0,float(p.fusion_channel_timers.get(source,channel.initial_delay))-(delta if channel.style == "burst" or float(channel.interval) >= 10 else cadence))
-		p.fusion_channel_timers[source] = timer
-		if timer > 0: continue
-		if source == "pressure_bamboo": p.pressure_ammo = mini(3,int(p.get("pressure_ammo",0))+1)
-		var fired: bool = _burst(p,row,col,channel,false) if channel.style == "burst" else _attack(p,row,col,false,channel)
-		if fired:
+		p.fusion_channel_timers[source] = maxf(0,float(p.fusion_channel_timers.get(source,channel.initial_delay))-delta)
+		if p.fusion_channel_timers[source] <= 0 and _burst(p,row,col,channel,false):
 			p.fusion_channel_timers[source] = float(channel.interval)
 			game._trigger_plant_action(p,0.3)
-		elif source == "pressure_bamboo": p.fusion_channel_timers[source] = float(channel.interval)
 
 func _support(p: Dictionary, row: int, col: int, ultimate: bool) -> void:
 	var d: Dictionary = Defs.PLANTS[kind(p)]; var t: Array = d.fusion_traits
@@ -370,90 +372,6 @@ func _channel_definition(p: Dictionary, channel: Dictionary) -> Dictionary:
 		d.fusion_shots = channel.shots; d.fusion_traits = channel.traits
 	return d
 
-func _attack(p: Dictionary, row: int, col: int, ultimate: bool, channel: Dictionary = {}) -> bool:
-	var d: Dictionary = _channel_definition(p,channel); var t: Array = d.fusion_traits
-	var center: Vector2 = game._cell_center(row,col)
-	var style: String = d.fusion_attack
-	if channel.get("source","") == "mirror_shroom": d.damage = maxf(float(d.damage),float(p.get("fusion_copy_damage",0)))
-	var damage: float = float(d.damage)*game._projectile_damage_multiplier_for_spawn(row,center,String(p.kind))*(3.0 if ultimate else 1.0)
-	var range_limit: float = minf(game.board_size.x,float(channel.get("range",game.board_size.x))) if style in ["shooter","sun","blade","beam","spread","lobber","roller"] else float(channel.get("range",game.CELL_SIZE.x*1.6))*(2 if ultimate else 1)
-	var lanes: int = 2 if ultimate else (1 if "lanes" in t or style in ["spread","bomb"] else 0)
-	var targets: Array = []
-	var target_rows: Dictionary = {}
-	for i in range(game.zombies.size()):
-		var z: Dictionary = game.zombies[i]
-		if not game._is_enemy_zombie(z) or float(z.health) <= 0 or not game._is_row_active(int(z.row)): continue
-		var attack_lane := -1
-		var lane_choices: Array = [row]
-		for offset in range(1,lanes+1): lane_choices.append_array([row-offset,row+offset])
-		for lane in lane_choices:
-			if lane < 0 or lane >= game.ROWS or not game._is_row_active(lane) or not game._zombie_has_row(z,lane): continue
-			var x: float = game._zombie_lane_x(z,lane)
-			if absf(x-center.x) > range_limit or (x < center.x-16 and not "rear" in t and not style in ["guard","control","support","bomb","melee"]): continue
-			if style in ["shooter","sun","blade","beam","spread"] and game._is_roof_direct_fire_blocked(center.x,x,lane): continue
-			attack_lane = lane; break
-		if attack_lane < 0: continue
-		if not "anti_air" in t and (bool(z.get("balloon_flying",false)) or bool(z.get("jumping",false))): continue
-		if game._is_hidden_from_lane_attacks(z): continue
-		targets.append(i); target_rows[i] = attack_lane
-	if style in ["support","sun"] and not "shot" in t:
-		if ultimate and "sun" in t: game._spawn_sun(center+Vector2(0,-30),center.y,"plant_food",maxi(100,int(d.sun_amount)*3))
-		if ultimate:
-			for index in targets: game.zombies[index] = _status(game.zombies[index],p,row,col,true)
-		return false
-	if targets.is_empty(): return false
-	if style == "roller":
-		game._ensure_projectile_runtime().spawn_mango_roller(row,col,ultimate)
-		var roller: Dictionary = game.rollers.back()
-		roller.damage = damage; roller.splash_ratio = 0.5
-		roller.fusion_traits = t; roller.fusion_source = kind(p); roller.fusion_channel_source = channel.get("source","")
-	elif style == "lobber":
-		var z: Dictionary = game.zombies[int(targets[0])]
-		var rounds: int = 6 if ultimate and channel.get("source","") == "pressure_bamboo" else maxi(1,int(p.get("pressure_ammo",1))) if channel.get("source","") == "pressure_bamboo" else int(d.fusion_shots)
-		for round_index in range(rounds):
-			game._ensure_plant_runtime().spawn_roof_lobbed_projectile("fusion_seed",int(target_rows[targets[0]]),center+Vector2(8+round_index*4,-25),game._zombie_lane_point(z,int(target_rows[targets[0]])),float(d.damage)*(1.8 if ultimate else 1.0),Color(0.86,0.74,0.34),90,12,float(channel.get("radius",0)),0,String(p.kind))
-			_decorate_projectile(game.projectiles.back(),p,channel)
-			game.projectiles.back().arc_duration += round_index*0.12
-			game.projectiles.back().fusion_ultimate = ultimate
-			if ultimate: game.projectiles.back().splash_radius = maxf(80,float(game.projectiles.back().get("splash_radius",0)))
-		if channel.get("source","") == "pressure_bamboo": p.pressure_ammo = 0
-	elif style in ["shooter","sun","spread","blade"]:
-		if channel.get("source","") == "starfruit":
-			for direction in [Vector2(1,0),Vector2(0.7,-0.7),Vector2(0.7,0.7),Vector2(-0.7,-0.7),Vector2(-0.7,0.7)]:
-				game._ensure_plant_runtime().spawn_starfruit_projectile(row,center+direction*25+Vector2(0,-12),direction.x*460,direction.y*250)
-				var star: Dictionary = game.projectiles.back(); star.damage = damage
-				_decorate_projectile(star,p,channel); star.fusion_ultimate = ultimate
-			return true
-		var count: int = int(d.fusion_shots)*(2 if ultimate else 1)
-		var fired_rows: Array = []
-		for index in targets:
-			var lane: int = int(target_rows[index])
-			if fired_rows.has(lane): continue
-			fired_rows.append(lane)
-			for s in range(count):
-				var origin: Vector2 = Vector2(center.x+26+(s/2)*3,game._row_center_y(lane)-16+(s%4)*6)
-				game._spawn_projectile(lane,origin,Color(0.5,0.89,0.44),float(d.damage)*(1.8 if ultimate else 1.0),3.5 if "frost" in t else 0,-480 if "rear" in t and float(game._zombie_lane_x(game.zombies[index],lane)) < center.x else 480,7,String(p.kind))
-				var shot: Dictionary = game.projectiles.back(); _decorate_projectile(shot,p,channel)
-				if float(shot.speed) < 0: shot.position.x = center.x-26
-				shot.fusion_ultimate = ultimate
-				if style == "blade":
-					shot.kind = "boomerang"; shot.pierce_handheld = true; shot.pierce_left = 3; shot.hit_uids = []; shot.max_hits = 3; shot.anchor_x = center.x; shot.outbound = true; shot.return_hits = []; shot.return_markers = []; shot.return_damage = float(shot.damage)*0.7
-	else:
-		var hits := 0
-		for index in targets:
-			var z: Dictionary = game.zombies[index]
-			z = game._apply_zombie_damage(z,damage,0.16,3 if "frost" in t else 0,false,style == "beam" or "pierce" in t,center.x)
-			z = _channel_status(z,p,channel,row,col,ultimate)
-			game.zombies[index] = z
-			hits += 1
-			if channel.get("mechanics",{}).has("chain_range"):
-				game._strike_thunder_chain(index,0,float(channel.mechanics.get("chain_damage",float(d.damage)*0.6)),float(channel.mechanics.chain_range),int(channel.mechanics.get("max_targets",channel.mechanics.get("max_chains",3))))
-				break
-			if style in ["melee","control"] and hits >= (4 if ultimate else 1): break
-		_emit(p,row,col,"fusion_beam" if style == "beam" else "fusion_wave",range_limit,0.4,game._zombie_target_point(game.zombies[int(targets[0])],center))
-	_emit(p,row,col,"fusion_muzzle",30,0.22)
-	return true
-
 func _decorate_projectile(shot: Dictionary, p: Dictionary, channel: Dictionary = {}) -> void:
 	var d: Dictionary = _channel_definition(p,channel); var t: Array = d.fusion_traits
 	shot.fusion_channel_source = channel.get("source","")
@@ -474,6 +392,7 @@ func _decorate_projectile(shot: Dictionary, p: Dictionary, channel: Dictionary =
 
 func projectile_hit(z: Dictionary, shot: Dictionary) -> Dictionary:
 	if not shot.has("fusion_source") or not game._is_enemy_zombie(z): return z
+	if bool(shot.get("fusion_native",false)): return NativeRuntime.Ammo.apply_status(z,shot)
 	var p := {"kind":"peashooter","fusion_kind":shot.fusion_source,"fusion_hypno_timer":0.0,"fusion_hit_traits":shot.get("fusion_traits",[])}
 	# Projectile dream spores cannot bypass a boss's immunity or the four-hit threshold.
 	z = _status(z,p,int(z.row),0,bool(shot.get("fusion_ultimate",false)))
@@ -574,33 +493,10 @@ func _skill_damage(p: Dictionary, row: int, col: int, skill: String) -> void:
 		if visible_hits < 4: _skill_effect(p,row,col,skill,point); visible_hits += 1
 	if skill == "devour": game._restore_plant_health(p,float(p.max_health)*0.25,false)
 
-func _fire_empty_wave(p: Dictionary, row: int, col: int, channel: Dictionary = {}) -> void:
-	# Ultimates visibly fire even while the next wave is approaching.
-	var d: Dictionary = _channel_definition(p,channel); var center: Vector2 = game._cell_center(row,col)
-	var style: String = d.fusion_attack
-	for lane in range(maxi(0,row-2),mini(game.ROWS,row+3)):
-		if not game._is_row_active(lane): continue
-		if style == "roller":
-			game._ensure_projectile_runtime().spawn_mango_roller(lane,col,true)
-			var roller: Dictionary = game.rollers.back(); roller.damage = float(d.damage)*2; roller.fusion_source = kind(p); roller.fusion_traits = d.fusion_traits; roller.splash_ratio = 0.5
-		elif style == "lobber":
-			game._ensure_plant_runtime().spawn_roof_lobbed_projectile("fusion_seed",lane,center+Vector2(8,-25),Vector2(center.x+game.CELL_SIZE.x*3,game._row_center_y(lane)),float(d.damage)*2,Color.WHITE,90,12,80,0,String(p.kind))
-			_decorate_projectile(game.projectiles.back(),p,channel); game.projectiles.back().fusion_ultimate = true
-		else:
-			for n in range(mini(6,int(d.fusion_shots)*2)):
-				game._spawn_projectile(lane,Vector2(center.x+26+n*3,game._row_center_y(lane)-16+(n%3)*6),Color.WHITE,float(d.damage)*2,0,480,7,String(p.kind))
-				var shot: Dictionary = game.projectiles.back(); _decorate_projectile(shot,p,channel); shot.fusion_ultimate = true
-				if style == "spread": shot.pierce_left = 3; shot.pierce_handheld = true; shot.hit_uids = []
-				if style == "blade": shot.kind = "boomerang"; shot.max_hits = 3; shot.anchor_x = center.x; shot.outbound = true; shot.hit_uids = []; shot.return_hits = []; shot.return_markers = []; shot.return_damage = float(shot.damage)*0.7
-
-func _ultimate_strike(p: Dictionary, row: int, col: int) -> void:
+func _ultimate_strike(p: Dictionary, row: int, col: int, opening: bool = false) -> void:
 	var d: Dictionary = Defs.PLANTS[kind(p)]
-	for channel in d.fusion_channels:
-		if channel.style == "burst": continue # Burst chambers fire once on activation, never on echoes.
-		if channel.style in ["shooter","spread","lobber","blade","roller"]:
-			if channel.style in ["spread","roller"]: _fire_empty_wave(p,row,col,channel)
-			elif not _attack(p,row,col,true,channel): _fire_empty_wave(p,row,col,channel)
-		elif int(p.get("fusion_skill_echoes",0)) == 0: _attack(p,row,col,true,channel)
+	if native_runtime == null: native_runtime = NativeRuntime.new(game)
+	native_runtime.update(p,0.01,row,col,true,opening)
 	for skill in d.fusion_skills:
 		if skill in ["steam","miasma"]: _skill_damage(p,row,col,skill)
 	_skill_effect(p,row,col,d.fusion_skills[0])
@@ -640,7 +536,7 @@ func ultimate(p: Dictionary, row: int, col: int) -> void:
 			"beacon": game._trigger_blover_fog_clear(10.0); _skill_damage(p,row,col,skill)
 			"purge","dream","roots","lightning","blizzard","inferno","needles","rail_storm","sun_lance": _skill_damage(p,row,col,skill)
 		_skill_effect(p,row,col,skill)
-	_ultimate_strike(p,row,col)
+	_ultimate_strike(p,row,col,true)
 	p.fusion_skill_echoes = 2 if d.fusion_weapon_skills.any(func(skill): return skill in ["barrage","blades","constellation","bowling","meteor"]) or "steam" in d.fusion_skills or "miasma" in d.fusion_skills else 0
 	p.fusion_echo_timer = 0.45
 	p.ultimate_active = true; p.ultimate_timer = 2.4; p.ultimate_charge = 0.0
@@ -729,49 +625,6 @@ func _burst_impact(shot: Dictionary, center: Vector2) -> void:
 	if shape == "row": game._damage_obstacles_in_radius(row,center.x,game.board_size.x,float(shot.damage))
 	elif shape in ["circle","single"]: game._damage_obstacles_in_circle(center,radius,float(shot.damage))
 	game.effects.append({"shape":"fusion_blast","position":center,"radius":minf(240,radius),"blast_shape":shape,"row":row,"from":Vector2(game.BOARD_ORIGIN.x,game._row_center_y(row)),"to":Vector2(game.BOARD_ORIGIN.x+game.board_size.x,game._row_center_y(row)),"time":0.8,"duration":0.8,"traits":b.traits,"tier":2,"color":Color.WHITE})
-
-func _native_support(p: Dictionary, row: int, col: int, delta: float) -> void:
-	var d: Dictionary = Defs.PLANTS[kind(p)]
-	var center: Vector2 = game._cell_center(row,col)
-	if d.fusion_weights.has("rock_armor_fruit"): game._restore_plant_health(p,20*delta,false)
-	# These defensive plants keep their native radius/target limit and exposure clock.
-	for source in ["ice_queen","frost_cypress"]:
-		if not d.fusion_weights.has(source): continue
-		var state: Dictionary = p.fusion_native_states.get(source,{"support_timer":0.8,"frost_exposure":{}})
-		var proxy: Dictionary = p.duplicate(false)
-		proxy.support_timer = float(state.support_timer)
-		proxy.frost_exposure = state.frost_exposure
-		if source == "ice_queen": game._ensure_plant_runtime().update_ice_queen(proxy,delta,row,col)
-		else: game._ensure_plant_runtime().update_frost_cypress(proxy,delta,row,col)
-		state.support_timer = proxy.support_timer; state.frost_exposure = proxy.frost_exposure
-		p.fusion_native_states[source] = state
-	for source in ["time_rose","honey_blossom","aurora_orchid","holo_nut","mirror_shroom","destiny_tree"]:
-		if not d.fusion_weights.has(source): continue
-		var stats: Dictionary = Fusion.NATIVE[source]
-		p.fusion_passive_timers[source] = maxf(0,float(p.fusion_passive_timers.get(source,0))-delta)
-		if float(p.fusion_passive_timers[source]) > 0: continue
-		p.fusion_passive_timers[source] = float(stats.get("copy_interval",stats.get("regen_interval",stats.get("support_interval",3.5))))
-		if source == "holo_nut": game._restore_plant_health(p,float(stats.heal_per_tick),false)
-		if source in ["time_rose","honey_blossom"]:
-			for i in range(game.zombies.size()):
-				var z: Dictionary = game.zombies[i]
-				if game._is_enemy_zombie(z) and game._zombie_target_point(z,center).distance_to(center) <= float(stats.get("slow_radius",160)):
-					game.zombies[i] = game._apply_zombie_slow(z,float(stats.get("slow_ratio",0.4)),4.0)
-		if source in ["aurora_orchid","destiny_tree"]:
-			for ally in game._ensure_plant_runtime().support_neighbors(row,col):
-				ally.solar_buff_timer = maxf(float(ally.get("solar_buff_timer",0)),6.0)
-				ally.solar_buff_ratio = maxf(float(ally.get("solar_buff_ratio",0)),float(stats.get("buff_ratio",0.15)))
-		if source == "mirror_shroom":
-			p.fusion_copy_damage = 0.0
-			for donor in game._ensure_plant_runtime().support_neighbors(row,col):
-				if not game._ensure_plant_runtime().passive_source_ready(donor): continue
-				var donor_id: String = kind(donor)
-				var copied := 0.0
-				if Defs.PLANTS[donor_id].has("fusion_channels"):
-					for channel in Defs.PLANTS[donor_id].fusion_channels:
-						if channel.style != "burst": copied = maxf(copied,float(channel.damage))
-				elif not Fusion.Combat.BURSTS.has(donor_id): copied = float(Defs.PLANTS[donor_id].get("damage",0))
-				p.fusion_copy_damage = maxf(float(p.fusion_copy_damage),minf(150,copied*float(stats.clone_damage_ratio)))
 
 func _native_impact(shot: Dictionary, center: Vector2) -> void:
 	if bool(shot.get("fusion_fragment",false)): return
