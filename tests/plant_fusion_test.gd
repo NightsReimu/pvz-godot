@@ -23,6 +23,11 @@ func make_game() -> Control:
 	return g
 func dispose(g):
 	g.save_dirty = false; g.toast_label.free(); g.free()
+func ready_weapons(g: Control, row: int, col: int, bursts: bool = false):
+	var p: Dictionary = g._targetable_plant_at(row,col)
+	for channel in Defs.PLANTS[p.fusion_kind].fusion_channels:
+		if bursts or channel.style != "burst": p.fusion_channel_timers[channel.source] = 0
+
 func test_canonical():
 	var g = make_game()
 	g.grid[2][2] = g._create_plant("peashooter",2,2)
@@ -32,7 +37,7 @@ func test_canonical():
 	check(g._ensure_plant_fusion().merge_cells(Vector2i(2,3),Vector2i(2,2)), "Two planted repeaters can merge")
 	check(g.grid[2][3] == null and g.grid[2][2].get("fusion_kind","") == "gatling_pea", "Board merge consumes donor and yields gatling")
 	g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+170)
-	g.grid[2][2].fusion_attack_timer = 0
+	ready_weapons(g,2,2)
 	g._update_plants(0.1)
 	check(g.projectiles.size() == 4, "Gatling fires four real projectiles per volley")
 	dispose(g)
@@ -58,20 +63,24 @@ func test_catalogue():
 		else: g.grid[2][2] = plant
 		check(plant.get("fusion_kind","") == id and plant.kind == d.fusion_base,"Catalogue and passive identity: "+id)
 		check(g._ultimate_profile_for_kind(id).get("style","") == "explicit","Named click/food ultimate: "+id)
-		g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+80)
+		g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+40)
 		g.zombies[0].health = 100000; g.zombies[0].max_health = 100000
 		g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+40)
 		g.zombies[1] = g._hypnotize_zombie(g.zombies[1])
 		var friend_hp: float = g.zombies[1].health
+		# Exercise each channel after its own complete charging cycle. A passive wall does not shoot.
+		var enemy_before: Dictionary = g.zombies[0].duplicate(true)
+		ready_weapons(g,2,2,true)
 		g._update_plants(1.0)
-		if not d.fusion_attack in ["support","sun"] or "shot" in d.fusion_traits:
-			check(not g.projectiles.is_empty() or not g.rollers.is_empty() or float(g.zombies[0].health) < 100000 or not g._is_enemy_zombie(g.zombies[0]),"Fusion retains its real normal attack: "+id)
+		if not d.fusion_channels.is_empty():
+			var reachable: bool = d.fusion_channels.any(func(channel): return channel.get("blast_shape","") != "single" and float(channel.get("range",10000)) >= 100 or float(channel.get("range",0)) >= 100)
+			if reachable: check(not g.projectiles.is_empty() or not g.rollers.is_empty() or g.zombies[0] != enemy_before,"Fusion retains its real charged attack: "+id)
 		check(g.zombies[1].health == friend_hp,"Normal fusion respects allies: "+id)
-		var before: Array = [g.projectiles.size(),g.rollers.size(),g.suns.size(),g.zombies[0].duplicate(true),plant.duplicate(true)]
+		var before: Array = [g.projectiles.size(),g.rollers.size(),g.suns.size(),g.zombies[0].duplicate(true),plant.duplicate(true),g.zombies.size()]
 		check(g._activate_plant_food(2,2),"Actual energy bean activation: "+id)
-		var after: Array = [g.projectiles.size(),g.rollers.size(),g.suns.size(),g.zombies[0],plant]
+		var after: Array = [g.projectiles.size(),g.rollers.size(),g.suns.size(),g.zombies[0],plant,g.zombies.size()]
 		# Charge/cooldown/animation alone are not a working ultimate.
-		var beneficial: bool = before[0] != after[0] or before[1] != after[1] or before[2] != after[2] or before[3] != after[3]
+		var beneficial: bool = before[0] != after[0] or before[1] != after[1] or before[2] != after[2] or before[3] != after[3] or before[5] != after[5]
 		for field in ["health","armor_health","fusion_haste_timer","fusion_renewal_timer","holy_invincible_timer"]:
 			beneficial = beneficial or float(after[4].get(field,0)) > float(before[4].get(field,0))
 		check(beneficial,"Every fusion ultimate changes actual combat/resources: "+id)
@@ -113,7 +122,7 @@ func test_projectile_effects():
 	g._spawn_zombie_at("normal",2,center.x+155)
 	g.zombies[1] = g._hypnotize_zombie(g.zombies[1])
 	var friend_hp: float = g.zombies[1].health
-	g.grid[2][2].fusion_attack_timer = 0; g._update_plants(0.1)
+	ready_weapons(g,2,2); g._update_plants(0.1)
 	check(g.projectiles.size() == 1 and g.projectiles[0].has("arc_target"),"Ice melon uses a real lob")
 	g._update_projectiles(2.0)
 	check(g.zombies[0].health < g.zombies[0].max_health,"Fusion lob impact deals damage")
@@ -124,7 +133,10 @@ func test_projectile_effects():
 	g._spawn_zombie_at("bucket_ninja_door",2,center.x+65)
 	var armor: float = g.zombies[0].headgear_health
 	var door: float = g.zombies[0].handheld_health
-	g.grid[2][2].fusion_attack_timer = 0; g._update_plants(0.1); g._update_projectiles(0.05)
+	ready_weapons(g,2,2); g._update_plants(0.1)
+	# Test the returning blade channel independently of the inherited snow-pea channel.
+	g.projectiles = g.projectiles.filter(func(shot): return shot.kind == "boomerang")
+	g._update_projectiles(0.05)
 	check(g.zombies[0].headgear_health < armor and g.zombies[0].handheld_health == door,"Fusion blade pierces handheld but cannot pierce headgear")
 	check(float(g.zombies[0].get("corrode_timer",0)) > 0 and float(g.zombies[0].get("slow_timer",0)) > 0,"Ice/fire blade applies both real statuses")
 	dispose(g)
@@ -191,7 +203,7 @@ func test_trio_and_control():
 	for point in g._zombie_hit_positions(g.zombies[0]):
 		var row: int = g._zombie_target_row(g.zombies[0],point)
 		g.grid[row][0] = g._create_plant("gatling_pea",row,0)
-		g.grid[row][0].fusion_attack_timer = 0
+		ready_weapons(g,row,0)
 	g._update_plants(0.1)
 	var rows := {}
 	for shot in g.projectiles: rows[shot.row] = true
@@ -200,8 +212,8 @@ func test_trio_and_control():
 	g = make_game()
 	g.grid[2][2] = g._create_plant("gum_corn",2,2)
 	g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+100)
-	g.grid[2][2].fusion_attack_timer = 0; g._update_plants(0.1); g._update_projectiles(2)
-	check(float(g.zombies[0].frozen_timer) > 0 and float(g.zombies[0].corrode_timer) > 0,"Gum corn uses actual stun and poison fields")
+	ready_weapons(g,2,2); g._update_plants(0.1); g._update_projectiles(2)
+	check(float(g.zombies[0].get("frozen_timer",0)) > 0 and float(g.zombies[0].corrode_timer) > 0,"Gum corn uses actual stun and poison fields")
 	dispose(g)
 
 func test_thorns_cadence():

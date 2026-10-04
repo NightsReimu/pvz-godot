@@ -41,12 +41,43 @@ static func draw_plant(canvas: CanvasItem, id: String, center: Vector2, scale: f
 		var pos: Vector2 = center+Vector2(cos(angle)*30,sin(angle)*12+7)*scale
 		canvas.draw_circle(pos,(1.8+pulse*0.4)*scale,color,true,-1,true)
 
+	for channel in plant.get("stats",{}).get("fusion_channels",[]):
+		if channel.style != "burst" and float(channel.interval) < 10: continue
+		var charge: float = clampf(1-float(plant.get("fusion_channel_timers",{}).get(channel.source,channel.interval))/float(channel.interval),0,1)
+		var dial: Vector2 = center+Vector2(-20,14)*scale
+		canvas.draw_circle(dial,7*scale,Color("374b40",alpha*0.8),true,-1,true)
+		canvas.draw_arc(dial,6*scale,-PI/2,-PI/2+TAU*maxf(0.01,charge),24,Color("ffd6a0",alpha*0.9),2*scale,true)
+		if charge > 0.9:
+			canvas.draw_circle(dial,9*scale,Color("f8c776",alpha*(0.12+pulse*0.06)),true,-1,true)
+		break
+	if "reflect" in t:
+		var plate: Vector2 = center+Vector2(33,-24)*scale
+		canvas.draw_line(plate+Vector2(-4,-8)*scale,plate+Vector2(4,8)*scale,Color("e0fbff",alpha*(0.4+pulse*0.15)),1.5*scale,true)
+
 static func draw_effect(canvas: CanvasItem, effect: Dictionary) -> void:
 	var progress: float = clampf(1-float(effect.time)/maxf(float(effect.duration),0.01),0,1)
 	var c: Vector2 = effect.position
 	var radius: float = float(effect.radius)
 	var color: Color = color_for(effect.get("traits",[])); color.a = (1-progress)*0.8
 	var shape: String = effect.shape
+	if shape == "fusion_blast":
+		var hue: Color = Color("b7a0de") if "frost" in effect.get("traits",[]) else Color("fac088")
+		hue.a = (1-progress)*0.65
+		if effect.get("blast_shape","") == "row":
+			var start: Vector2 = effect.get("from",c-Vector2(300,0)); var end: Vector2 = effect.get("to",c+Vector2(450,0))
+			canvas.draw_line(start,end,Color(hue,hue.a*0.3),35*(1-progress)+8,true)
+			for i in range(22):
+				var ember: Vector2 = start.lerp(end,i/21.0)
+				canvas.draw_colored_polygon(PackedVector2Array([ember+Vector2(-8,9),ember+Vector2(sin(i*2+progress*12)*8,-24-18*(1-progress)),ember+Vector2(9,9)]),hue)
+		else:
+			var wave: float = radius*sqrt(progress)
+			canvas.draw_circle(c,wave,Color(hue,hue.a*0.13),true,-1,true)
+			canvas.draw_arc(c,wave,0,TAU,64,hue,4*(1-progress)+1,true)
+			canvas.draw_arc(c,wave*0.7,0,TAU,48,Color("fff1bc",hue.a*0.6),2,true)
+			for i in range(14):
+				var direction := Vector2.from_angle(i*TAU/14+0.2)
+				canvas.draw_line(c+direction*wave*0.5,c+direction*(wave+12*(1-progress)),hue,3*(1-progress)+0.8,true)
+		return
 	if shape == "fusion_skill":
 		draw_skill(canvas,effect,progress,color)
 		return
@@ -90,6 +121,17 @@ static func draw_projectile(canvas: CanvasItem, projectile: Dictionary) -> void:
 	var r: float = float(projectile.get("radius",8))
 	var color: Color = color_for(projectile.get("fusion_traits",[]))
 	var dir: float = signf(float(projectile.get("speed",1)))
+	if projectile.has("fusion_blast"):
+		var b: Dictionary = projectile.fusion_blast
+		var hue: Color = Color("b8a6d5") if b.source == "doom_shroom" else Color("eea16d")
+		canvas.draw_circle(c,r+2,Color("634c4c"),true,-1,true)
+		canvas.draw_circle(c-Vector2(1,1),r,hue,true,-1,true)
+		canvas.draw_arc(c,r*0.65,-2.5,-0.3,12,Color("ffe6b6"),2,true)
+		canvas.draw_line(c+Vector2(-3,-r),c+Vector2(0,-r-6),Color("ab8658"),2,true)
+		canvas.draw_circle(c+Vector2(1,-r-6),2,Color("ffe5a3"),true,-1,true)
+		if float(projectile.get("arc_time",0))/maxf(0.01,float(projectile.get("arc_duration",1))) > 0.55:
+			canvas.draw_arc(Vector2(projectile.get("arc_target",c)),minf(230,float(b.radius)),0,TAU,48,Color(hue,0.16),1,true)
+		return
 	canvas.draw_line(c-Vector2(dir*r*3,0),c,Color(color,0.28),r*1.2,true)
 	if String(projectile.get("kind","")) == "boomerang":
 		var angle: float = float(canvas.get("level_time"))*12+c.x*0.02
@@ -111,7 +153,13 @@ static func draw_skill(canvas: CanvasItem, effect: Dictionary, progress: float, 
 	var c: Vector2 = target if target.is_finite() and skill in ["minefield","steam","miasma","devour","roots"] else origin
 	var r: float = 35+progress*float(effect.radius)*0.65
 	var alpha: float = 1-progress
-	if skill in ["laser","rail_storm","sun_lance","beacon"]:
+	if skill == "reflection":
+		for i in range(5):
+			var plate := c+Vector2.from_angle(i*TAU/5+progress*0.5)*r*0.7
+			canvas.draw_colored_polygon(PackedVector2Array([plate+Vector2(0,-16),plate+Vector2(10,-5),plate+Vector2(4,16),plate+Vector2(-10,5)]),Color("c1eff4",alpha*0.65))
+			canvas.draw_polyline(PackedVector2Array([plate-Vector2(28,8),plate,plate+Vector2(35,-15)]),Color("f3ffff",alpha),2,true)
+		canvas.draw_arc(c,r,0,TAU,48,Color("a2dfe9",alpha*0.5),2,true)
+	elif skill in ["laser","rail_storm","sun_lance","beacon"]:
 		var end: Vector2 = target if target.is_finite() else c+Vector2(260,0)
 		canvas.draw_line(c,end,Color(tint,alpha*0.2),26*alpha+3,true)
 		canvas.draw_line(c,end,Color("f8f8d9",alpha),4*alpha+1,true)

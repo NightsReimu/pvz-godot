@@ -7,7 +7,7 @@ func test_weapon_and_skill_contracts():
 	for passive in ["wallnut","coffee_bean","sunflower","plantern","pumpkin","lily_pad","flower_pot"]:
 		var id: String = g._fusion_result(passive,"peashooter")
 		g.grid[2][2] = g._create_plant(id,2,2)
-		g.grid[2][2].fusion_attack_timer = 0
+		ready_weapons(g,2,2)
 		g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+300)
 		g._update_plants(0.1)
 		check(not g.projectiles.is_empty(),"A passive base cannot shorten a ranged hybrid's range: "+passive)

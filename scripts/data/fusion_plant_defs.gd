@@ -1,4 +1,5 @@
 extends RefCounted
+const Combat = preload("res://scripts/data/fusion_combat_profiles.gd")
 
 # Symmetric recipes and canonical recursive grafts; hybrids are not ordinary seed cards.
 static var RECIPES: Dictionary = {}
@@ -97,7 +98,7 @@ static func skill_payload(style: String, tags: Array) -> Array:
 	var skills: Array = []
 	var primary := {"shooter":"barrage","sun":"solar","spread":"constellation","beam":"laser","lobber":"meteor","blade":"blades","roller":"bowling","bomb":"minefield","melee":"devour","guard":"bastion","control":"domain","support":"garden"}
 	skills.append(primary[style])
-	var effects := {"sun":"solar","heal":"renewal","shield":"bastion","awake":"awakening","magnet":"magnetic","hypno":"dream","summon":"spirits","wind":"tornado","reveal":"beacon","grave":"purge","cooling":"spring","root":"roots","shock":"lightning","frost":"blizzard","fire":"inferno","poison":"miasma","redirect":"vortex","thorns":"needles"}
+	var effects := {"sun":"solar","heal":"renewal","shield":"bastion","awake":"awakening","magnet":"magnetic","hypno":"dream","summon":"spirits","wind":"tornado","reveal":"beacon","grave":"purge","cooling":"spring","root":"roots","shock":"lightning","frost":"blizzard","fire":"inferno","poison":"miasma","redirect":"vortex","thorns":"needles","reflect":"reflection"}
 	for tag in tags:
 		if effects.has(tag) and not skills.has(effects[tag]): skills.append(effects[tag])
 	if "fire" in tags and "frost" in tags: skills.append("steam")
@@ -106,12 +107,15 @@ static func skill_payload(style: String, tags: Array) -> Array:
 	return skills
 
 static func skill_names() -> Dictionary:
-	return {"barrage":"百叶齐射","solar":"日冕丰收","constellation":"星阵交火","laser":"棱镜扫射","meteor":"陨星瓜雨","blades":"万刃回旋","bowling":"果轮冲阵","minefield":"连锁爆田","devour":"巨颚吞噬","bastion":"城墙护庭","domain":"灵域镇压","garden":"共生花园","renewal":"生命回潮","awakening":"醒梦加速","magnetic":"磁暴回收","dream":"蝶梦归队","spirits":"幽灵游行","tornado":"风之环流","beacon":"辉光审判","purge":"净土清墓","spring":"冷泉封火","roots":"荆棘根网","lightning":"雷霆连锁","blizzard":"冰晶封阵","inferno":"不死鸟炎阵","miasma":"毒蝶蚀域","vortex":"逆风换道","needles":"千刺反击","steam":"冰火汽爆","rail_storm":"磁轨雷暴","sun_lance":"日轮贯城"}
+	return {"reflection":"镜面折返","barrage":"百叶齐射","solar":"日冕丰收","constellation":"星阵交火","laser":"棱镜扫射","meteor":"陨星瓜雨","blades":"万刃回旋","bowling":"果轮冲阵","minefield":"连锁爆田","devour":"巨颚吞噬","bastion":"城墙护庭","domain":"灵域镇压","garden":"共生花园","renewal":"生命回潮","awakening":"醒梦加速","magnetic":"磁暴回收","dream":"蝶梦归队","spirits":"幽灵游行","tornado":"风之环流","beacon":"辉光审判","purge":"净土清墓","spring":"冷泉封火","roots":"荆棘根网","lightning":"雷霆连锁","blizzard":"冰晶封阵","inferno":"不死鸟炎阵","miasma":"毒蝶蚀域","vortex":"逆风换道","needles":"千刺反击","steam":"冰火汽爆","rail_storm":"磁轨雷暴","sun_lance":"日轮贯城"}
 
 static func skill_descriptions() -> Dictionary:
-	return {"barrage":"三轮远程齐射，追击可命中的敌行", "solar":"立刻产生三份强化阳光", "constellation":"向五行投射穿透星弹", "laser":"扫过五行的贯穿光束", "meteor":"向敌人落点投下三轮溅射炮弹", "blades":"三轮往返刀刃，来回均可命中", "bowling":"五行滚动爆破果轮", "minefield":"敌群与植物前方布下三次爆炸", "devour":"近身重击并回收生命", "bastion":"范围治疗、护盾及短暂无敌", "domain":"范围伤害、定身和缓速", "garden":"治疗自身与邻株，赋予十秒加速及护盾", "renewal":"范围治疗并留下八秒回春", "awakening":"唤醒睡眠植物并加速十秒", "magnetic":"回收周围手持与头戴金属，释放磁轨光束", "dream":"普通敌人累积梦蝶即魅惑，Boss受定身", "spirits":"召唤最多三名幽灵友军", "tornado":"推动普通敌人，驱散飞行敌人并清雾", "beacon":"全场显形，光束审判敌群", "purge":"清除范围坟墓，留下净土爆炸", "spring":"冷却周围岩浆，获得护盾", "roots":"全场缠根并在近处爆发荆棘", "lightning":"五行连锁电击和短暂震晕", "blizzard":"全场五秒减速与一秒冻结", "inferno":"五行烈焰，八秒持续灼烧", "miasma":"全场毒蚀并留下三次毒爆", "vortex":"推退普通敌群并切换合法邻行", "needles":"五行穿盾刺雨及反伤护甲", "steam":"冰火联合，敌群三次蒸汽爆炸", "rail_storm":"回收金属后发射五行磁轨雷束", "sun_lance":"产出阳光同时发射日轮贯穿束"}
+	return {"reflection":"反转场上敌方弹幕，并保留镜面拦截；相邻植物获得短时镜盾", "barrage":"三轮远程齐射，追击可命中的敌行", "solar":"立刻产生三份强化阳光", "constellation":"向五行投射穿透星弹", "laser":"扫过五行的贯穿光束", "meteor":"向敌人落点投下三轮溅射炮弹", "blades":"三轮往返刀刃，来回均可命中", "bowling":"五行滚动爆破果轮", "minefield":"一次释放各爆舱，保留圆形、整行或近身范围；随后重新充能", "devour":"近身重击并回收生命", "bastion":"范围治疗、护盾及短暂无敌", "domain":"范围伤害、定身和缓速", "garden":"治疗自身与邻株，赋予十秒加速及护盾", "renewal":"范围治疗并留下八秒回春", "awakening":"唤醒睡眠植物并加速十秒", "magnetic":"回收周围手持与头戴金属，释放磁轨光束", "dream":"普通敌人累积梦蝶即魅惑，Boss受定身", "spirits":"召唤最多三名幽灵友军", "tornado":"推动普通敌人，驱散飞行敌人并清雾", "beacon":"全场显形，光束审判敌群", "purge":"清除范围坟墓，留下净土爆炸", "spring":"冷却周围岩浆，获得护盾", "roots":"全场缠根并在近处爆发荆棘", "lightning":"五行连锁电击和短暂震晕", "blizzard":"全场五秒减速与一秒冻结", "inferno":"五行烈焰，八秒持续灼烧", "miasma":"全场毒蚀并留下三次毒爆", "vortex":"推退普通敌群并切换合法邻行", "needles":"五行穿盾刺雨及反伤护甲", "steam":"冰火联合，敌群三次蒸汽爆炸", "rail_storm":"回收金属后发射五行磁轨雷束", "sun_lance":"产出阳光同时发射日轮贯穿束"}
 
 static func attack_for(kind: String) -> String:
+	if kind in Combat.LOBBERS or "pult" in kind: return "lobber"
+	if kind in ["mirror_reed","holy_lotus"]: return "support"
+	if kind in ["core_blossom","glitch_walnut"]: return "bomb"
 	if kind in SUNS: return "sun"
 	if kind in GUARDS: return "guard"
 	if kind in BOMBS: return "bomb"
@@ -121,7 +125,7 @@ static func attack_for(kind: String) -> String:
 	if kind in CONTROL: return "control"
 	if kind in ["mango_bowling","wallnut_bowling"]: return "roller"
 	if "boomerang" in kind or kind == "spiral_bamboo": return "blade"
-	if "pult" in kind or kind in ["corn_cannon", "moonforge", "meteor_gourd", "meteor_flower", "caldera_lotus", "pepper_mortar", "chimney_pepper", "chambord_sniper"]: return "lobber"
+	if "pult" in kind or kind in Combat.LOBBERS: return "lobber"
 	if kind in ["starfruit", "threepeater", "lotus_lancer"]: return "spread"
 	return "shooter"
 
@@ -152,8 +156,18 @@ static func traits_for(kind: String, data: Dictionary) -> Array:
 	if kind == "cotton_candy": t.append("cloud")
 	if kind in ["threepeater", "starfruit", "lotus_lancer", "frost_fan", "prism_pea"]: t.append("lanes")
 	if data.has("pierce") or data.has("pierce_count") or kind in BEAMS: t.append("pierce")
-	if data.has("splash_radius") or kind in BOMBS: t.append("splash")
-	if float(data.get("damage",0)) > 0: t.append("shot")
+	if data.has("splash_radius"): t.append("splash")
+	if float(data.get("damage",0)) > 0 and not kind in Combat.BURSTS and kind != "mirror_reed": t.append("shot")
+	if kind == "mirror_reed": t.append("reflect")
+	if kind == "umbrella_leaf": t.append("umbrella")
+	if kind in ["fumarole_melon","brine_pot"] and not "splash" in t: t.append("splash")
+	if kind in ["thunder_god","thunder_pine","tesla_tulip","storm_reed","plasma_shooter","chain_lotus"]: t.append("chain")
+	if kind in ["prism_pea","sakura_shooter","glowvine","dragon_bubble_pult","toxic_gum_pult"]: t.append("split")
+	if kind == "pressure_bamboo": t.append("pressure")
+	if kind == "mirror_shroom": t.append("copy")
+	if kind == "phoenix_tree": t.append("revive")
+	if kind == "split_pea": t.append("rear")
+	if kind in ["cactus","seraph_flower"]: t.append("anti_air")
 	return t
 
 static func with_fusions(native: Dictionary, order: Array) -> Dictionary:
@@ -213,13 +227,12 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 		var components: Array = weights.keys(); components.sort()
 		for component in components:
 			for n in range(int(weights[component])): parts.append(component)
-	var health := 0.0; var damage := 0.0; var sun := 0.0; var cadence := 0.0
+	var health := 0.0; var sun := 0.0
 	var traits: Array = extras.duplicate(); var base: String = parts[0]
 	for p in parts:
 		var d: Dictionary = native[p]
-		health += float(d.health); damage += float(d.get("damage",d.get("contact_damage",d.get("pulse_damage",0))))
+		health += float(d.health)
 		if p in SUNS: sun += float(d.get("sun_amount",25 if p == "thermal_sunflower" else 50))
-		cadence += float(d.get("shoot_interval",d.get("attack_interval",d.get("pulse_interval",2.5))))
 		for tag in traits_for(p,d):
 			if not traits.has(tag): traits.append(tag)
 		if p in SUPPORTS: base = p
@@ -229,28 +242,50 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 			if p in ["hypno_shroom", "garlic", "umbrella_leaf", "plantern", "torchwood", "phoenix_tree", "tallnut", "pumpkin"]: base = p; break
 	if style in ["sun","support","guard","control"] and "shot" in traits:
 		style = combined_attack(weights)
-	if style == "support" and "fire" in traits: style = "shooter"; traits.append("shot")
 	var n: int = parts.size()
-	var shots: int = clampi(n,2,6)
-	var interval: float = clampf(cadence / n,1.1,5.0)
-	if style == "bomb": interval = 22.0
-	if style == "control" or style == "support": interval = 4.5
-	if style == "beam": interval = maxf(2.6,interval)
-	if style == "roller": interval = 5.0
-	var hit: float = maxf(12,damage * (1.0 if id in ["gatling_pea","triple_pea","siege_gatling"] else 0.85) / shots)
-	if style == "bomb": hit = clampf(damage * 0.65,180,2400)
-	if style == "beam" or style == "melee" or style == "lobber": hit *= shots * 0.72
-	var tags: Dictionary = {"sun":"光合", "fire":"灼烧", "frost":"缓速", "magnet":"回收金属", "hypno":"梦蝶魅惑", "root":"缠根", "shock":"雷链", "poison":"毒蚀", "wind":"风推", "heal":"回春", "shield":"护盾", "pierce":"贯穿手持盾", "splash":"溅射", "stun":"震晕", "grave":"清墓", "awake":"唤醒", "summon":"幽灵援军", "cooling":"冷却岩浆", "reveal":"显形", "redirect":"改道", "torch":"炬火", "water":"水栖", "cloud":"云栖", "ground":"地面攻击", "thorns":"反刺", "lanes":"跨行", "shot":"齐射"}
+	var channels: Array = Combat.channels(native,weights,traits,attack_for,traits_for)
+	var primary: Dictionary = {}
+	for channel in channels:
+		if channel.style == style: primary = channel; break
+	if primary.is_empty() and not channels.is_empty(): primary = channels[0]
+	var shots: int = int(primary.get("shots",1))
+	var interval: float = float(primary.get("interval",4.5))
+	var hit: float = float(primary.get("damage",0))
+	var tags: Dictionary = {"sun":"光合", "fire":"灼烧", "frost":"缓速", "magnet":"回收金属", "hypno":"梦蝶魅惑", "root":"缠根", "shock":"雷链", "poison":"毒蚀", "wind":"风推", "heal":"回春", "shield":"护盾", "pierce":"贯穿手持盾", "splash":"溅射", "stun":"震晕", "grave":"清墓", "awake":"唤醒", "summon":"幽灵援军", "cooling":"冷却岩浆", "reveal":"显形", "redirect":"改道", "torch":"炬火", "water":"水栖", "cloud":"云栖", "ground":"地面攻击", "thorns":"反刺", "lanes":"跨行", "shot":"齐射", "chain":"连锁", "split":"分裂", "pressure":"蓄压", "copy":"镜像复制", "reflect":"镜面反弹", "umbrella":"空袭拦截", "revive":"凤凰复生", "rear":"背向防守", "anti_air":"对空"}
 	var words: Array = []
 	for t in traits:
 		if words.size() < 6: words.append(String(tags.get(t,t)))
 	var inherited: Dictionary = native[base].duplicate(true)
 	inherited.erase("volcano_expansion"); inherited.erase("one_shot"); inherited.erase("stacks_on_plant")
-	inherited.merge({"name":name,"cost":0,"cooldown":7.5,"health":clampf(health*0.78,180,30000),"damage":minf(hit,2400),"shoot_interval":interval,"fusion_only":true,"fusion_base":base,"fusion_components":parts,"fusion_weights":weights,"fusion_recipe":[a,b],"fusion_attack":style,"fusion_traits":traits,"fusion_shots":shots,"fusion_tier":clampi(n-1,1,8),"sun_amount":mini(800,roundi(sun)),"sun_interval":maxf(12.0,24.0-float(n)),"ultimate_charge_time":clampf(52.0+n*4.0,56,84),"ultimate_duration":1.2,"ultimate_name":ultimate,"fusion_summary":"、".join(words)},true)
+	inherited.merge({"name":name,"cost":0,"cooldown":7.5,"health":clampf(health*0.78,180,30000),"damage":minf(hit,2400),"shoot_interval":interval,"fusion_channels":channels,"fusion_only":true,"fusion_base":base,"fusion_components":parts,"fusion_weights":weights,"fusion_recipe":[a,b],"fusion_attack":style,"fusion_traits":traits,"fusion_shots":shots,"fusion_tier":clampi(n-1,1,8),"sun_amount":mini(800,roundi(sun)),"sun_interval":maxf(12.0,24.0-float(n)),"ultimate_charge_time":clampf(52.0+n*4.0,56,84),"ultimate_duration":1.2,"ultimate_name":ultimate,"fusion_summary":"、".join(words)},true)
 	var healing := 0.0
 	for p in parts: healing += float(native[p].get("heal_amount",0))
 	inherited.fusion_heal = minf(600,maxf(14*(1+n*0.25),healing*0.78))
 	inherited.fusion_skills = skill_payload(style,traits)
+	var weapon_skills := {"shooter":"barrage","spread":"constellation","beam":"laser","lobber":"meteor","blade":"blades","roller":"bowling","control":"domain","melee":"devour","burst":"minefield"}
+	var attacks: Array = []
+	for channel in channels:
+		var skill: String = weapon_skills[channel.style]
+		if not attacks.has(skill): attacks.append(skill)
+		if not inherited.fusion_skills.has(skill): inherited.fusion_skills.append(skill)
+	inherited.fusion_weapon_skills = attacks
+	var steady_damage := 0.0
+	for channel in channels:
+		if channel.style != "burst": steady_damage += float(channel.damage)
+	inherited.fusion_utility_damage = clampf(steady_damage*1.8,40,300)/sqrt(maxf(1.0,float(inherited.fusion_skills.size()-attacks.size())))
+	inherited.fusion_combat_description = []
+	for channel in channels: inherited.fusion_combat_description.append(Combat.describe(channel,native))
+	var passive_notes := {
+		"mirror_reed":"镜芦苇：保留对敌方狙击与 Boss 弹幕的镜面反弹。",
+		"umbrella_leaf":"伞叶：继续保护周围植物，拦截空袭。",
+		"phoenix_tree":"凤凰树：保留原种的被动复生次数。",
+		"ice_queen":"冰晶女王：每 3.5 秒冰击周围最近四敌，24 伤害并冻结 2 秒。",
+		"frost_cypress":"寒霜柏：周围敌人减速 50%，累计停留 3 秒冻结 2.5 秒。",
+		"pressure_bamboo":"蓄压竹：空闲时积蓄最多三枚弹药，发现敌人后错峰抛射。",
+		"mirror_shroom":"镜像蘑菇：复制邻株持续武器伤害；一次性爆炸不能复制为光束。"
+	}
+	for source in passive_notes:
+		if weights.has(source): inherited.fusion_combat_description.append(passive_notes[source])
 	var descriptions: Array = []
 	var titles: Array = []
 	for skill in inherited.fusion_skills:

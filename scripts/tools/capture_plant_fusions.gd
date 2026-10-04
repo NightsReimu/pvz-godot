@@ -9,7 +9,7 @@ class Gallery extends GameScript:
 	func _save_game(): pass
 	func _draw():
 		draw_rect(Rect2(Vector2.ZERO,size),Color("263d32"))
-		draw_string(ui_font,Vector2(24,30),"融合花园 · 全组合与共生大招",HORIZONTAL_ALIGNMENT_LEFT,-1,22,Color("f5df9f"))
+		draw_string(ui_font,Vector2(24,30),"融合花园 · 原种特性与独立武器",HORIZONTAL_ALIGNMENT_LEFT,-1,22,Color("f5df9f"))
 		for i in range(skill_subjects.size()):
 			var skill: String = skill_subjects[i]
 			var tile := Rect2(Vector2(20+(i%6)*260,44+(i/6)*206),Vector2(250,196))
@@ -25,7 +25,7 @@ class Gallery extends GameScript:
 			_draw_plant_body(id,tile.position+Vector2(124,112),1.0,0)
 			draw_string(ui_font,tile.position+Vector2(10,182),String(d.get("ultimate_name",_ultimate_profile_for_kind(id).get("ultimate_name","盛放"))),HORIZONTAL_ALIGNMENT_LEFT,230,13,Color("526d4d"))
 func _run():
-	var directory := "res://output/plant-fusions-v159"
+	var directory := "res://output/plant-fusions-v160"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
 	var surface := SubViewport.new()
 	surface.size = Vector2i(1600,900); surface.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -47,6 +47,11 @@ func _run():
 		if before != gallery.rng.state: failures += 1
 		if surface.get_texture().get_image().save_png("%s/gallery-%02d.png" % [directory,page]) != OK: failures += 1
 	gallery.subjects = []
+	for pair in [["cherry_bomb","peashooter"],["doom_shroom","melon_pult"],["jalapeno","boomerang_shooter"],["cabbage_pult","peashooter"],["kernel_pult","torchwood"],["melon_pult","sunflower"],["mirror_reed","peashooter"],["mirror_reed","cabbage_pult"],["pressure_bamboo","peashooter"],["corn_cannon","sunflower"],["frost_cypress","peashooter"],["umbrella_leaf","cabbage_pult"]]:
+		gallery.subjects.append(Fusion.result(pair[0],pair[1]))
+	gallery.queue_redraw(); await process_frame; await RenderingServer.frame_post_draw
+	if surface.get_texture().get_image().save_png(directory+"/identity.png") != OK: failures += 1
+	gallery.subjects = []
 	var skills: Array = Fusion.skill_names().keys()
 	for page in range(int(ceil(skills.size()/24.0))):
 		gallery.skill_subjects = skills.slice(page*24,mini((page+1)*24,skills.size()))
@@ -64,21 +69,26 @@ func _run():
 		game._begin_level(-1,["sunflower","peashooter","repeater","snow_pea","torchwood","boomerang_shooter","wallnut","melon_pult"],level)
 		if not game._ensure_plant_fusion().enabled(): failures += 1
 		game.level_time = 12; game.battle_intro_timer = 0; game.sun_points = 900
-		var samples := [["twin_sunflower",Fusion.result("peashooter","healing_gourd"),"pea_bastion"],["triple_sunflower","steam_pea",Fusion.result("peashooter","coffee_bean")],["solar_crown","eclipse_blade",mixed],["sun_pea",Fusion.result("starfruit","torchwood"),"life_bastion"],["hourglass_bloom",Fusion.result("wallnut","magnet_shroom"),"phoenix_dragon"]]
+		var samples := [["twin_sunflower",Fusion.result("cherry_bomb","peashooter"),Fusion.result("cherry_bomb","cabbage_pult")],["triple_sunflower",Fusion.result("doom_shroom","melon_pult"),Fusion.result("cabbage_pult","peashooter")],["sun_pea",Fusion.result("mirror_reed","peashooter"),Fusion.result(Fusion.result("mirror_reed","cabbage_pult"),"peashooter")],["solar_crown",Fusion.result("pressure_bamboo","peashooter"),Fusion.result("mirror_reed","melon_pult")],["hourglass_bloom",Fusion.result("umbrella_leaf","cabbage_pult"),Fusion.result("phoenix_tree","peashooter")]]
 		for row in range(5):
 			for col in range(3):
 				game.grid[row][col] = game._create_plant(samples[row][col],row,col)
 				game.grid[row][col].sleep_timer = 0; game.grid[row][col].spawn_time = 0; game.grid[row][col].ultimate_charge = 1
 			game._spawn_zombie_at("cone_screen_door",row,game._cell_center(row,7).x)
-			game.zombies.back().spawn_time = 0
+			game.zombies.back().spawn_time = 0; game.zombies.back().health = 10000
+		for frame in range(20):
+			game._update_plants(0.1); game._update_projectiles(0.1)
 		game.banner_label.hide(); game.toast_label.hide(); game.selected_tool = "peashooter"
 		game.hover_preview_cell = Vector2i(0,0); game.hover_preview_initialized = true
 		for stage in ["garden","ultimate","tool","prepared","almanac"]:
 			if stage == "ultimate":
 				game.selected_tool = ""
+				game._try_activate_ultimate(0,2); game._try_activate_ultimate(1,1)
 				game._try_activate_ultimate(2,2); game._try_activate_ultimate(2,1)
 				game._try_activate_ultimate(3,1); game._try_activate_ultimate(0,1)
-				game._update_projectiles(0.15)
+				for frame in range(12):
+					game._update_plants(0.04); game._update_projectiles(0.04); game._update_effects(0.04)
+					game._update_ultimate_charges(0.04); game.level_time += 0.04
 			elif stage == "tool":
 				game.effects.clear(); game.selected_tool = "fusion"
 				game._ensure_plant_fusion().source_cell = Vector2i(0,0)
@@ -91,7 +101,7 @@ func _run():
 				game.hover_preview_cell = Vector2i(2,4)
 			elif stage == "almanac":
 				game.mode = game.MODE_ALMANAC; game.almanac_tab = "plants"
-				game.almanac_selected_kind = mixed; game.almanac_scroll = 0
+				game.almanac_selected_kind = samples[0][1]; game.almanac_scroll = 0
 				for id in Defs.PLANT_ORDER: game.plant_stars[id] = 1
 			var before := [game.grid.duplicate(true),game.zombies.duplicate(true),game.rng.state]
 			game.queue_redraw(); await process_frame; await RenderingServer.frame_post_draw

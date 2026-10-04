@@ -216,7 +216,7 @@ func spawn_sakura_split_projectiles(projectile: Dictionary, impact_position: Vec
 	var child_damage = maxf(6.0, float(projectile.get("damage", 0.0)) * 0.78)
 	var split_speed = float(projectile.get("split_speed", float(Defs.PLANTS["sakura_shooter"]["split_speed"])))
 	for velocity_y in [-split_speed, split_speed]:
-		game.projectiles.append({
+		var child: Dictionary = {
 			"kind": "sakura_petal",
 			"row": int(projectile["row"]),
 			"position": impact_position + Vector2(12.0, velocity_y * 0.012),
@@ -230,7 +230,11 @@ func spawn_sakura_split_projectiles(projectile: Dictionary, impact_position: Vec
 			"fire": false,
 			"free_aim": true,
 			"split_speed": split_speed,
-		})
+		}
+		if projectile.has("fusion_source"):
+			for field in ["fusion_source","fusion_channel_source","fusion_traits","fusion_mechanics","fusion_ultimate","anti_air","fire"]:
+				if projectile.has(field): child[field] = projectile[field]
+		game.projectiles.append(child)
 
 
 func _find_spatial_enemy_hit(projectile: Dictionary) -> int:
@@ -582,6 +586,10 @@ func update_projectiles(delta: float) -> void:
 					"fire": false,
 					"free_aim": absf(spread) > 0.01,
 				})
+			if projectile.has("fusion_source"):
+				for spawned in game.projectiles.slice(maxi(0,game.projectiles.size()-fragment_count)):
+					spawned.fusion_source = projectile.fusion_source; spawned.fusion_traits = projectile.fusion_traits
+					spawned.fusion_channel_source = projectile.get("fusion_channel_source",""); spawned.fusion_mechanics = projectile.get("fusion_mechanics",{})
 			game.projectiles.remove_at(i)
 			continue
 		projectile = apply_torchwood_to_projectile(projectile)

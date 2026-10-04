@@ -3852,7 +3852,7 @@ func support_neighbors(row: int, col: int) -> Array:
 
 func galaxy_damage_bonus(row: int, col: int) -> float:
 	for ally in support_neighbors(row, col):
-		if String(ally["kind"]) == "galaxy_sunflower" and passive_source_ready(ally):
+		if game._plant_has_component(ally,"galaxy_sunflower") and passive_source_ready(ally):
 			return float(Defs.PLANTS["galaxy_sunflower"]["damage_boost_ratio"])
 	return 0.0
 
@@ -3862,7 +3862,7 @@ func on_sun_collected() -> void:
 	for r in game.active_rows:
 		for c in range(game.COLS):
 			var source = game._top_plant_at(int(r), c)
-			if source == null or String(source["kind"]) != "solar_emperor" or not passive_source_ready(source):
+			if source == null or not game._plant_has_component(source,"solar_emperor") or not passive_source_ready(source):
 				continue
 			for ally in support_neighbors(int(r), c):
 				ally["solar_buff_timer"] = float(data["collect_buff_duration"])
@@ -3872,13 +3872,13 @@ func on_sun_collected() -> void:
 func try_passive_revival(plant: Dictionary, row: int, col: int) -> bool:
 	var kind = String(plant["kind"])
 	var revived := false
-	if kind == "phoenix_tree" and int(plant.get("revives_used", 0)) < int(Defs.PLANTS[kind]["revive_count"]):
+	if game._plant_has_component(plant,"phoenix_tree") and int(plant.get("revives_used", 0)) < int(Defs.PLANTS["phoenix_tree"]["revive_count"]):
 		plant["revives_used"] = int(plant.get("revives_used", 0)) + 1
 		plant["health"] = float(plant["max_health"])
 		revived = true
 	if not revived:
 		for source in support_neighbors(row, col):
-			if String(source["kind"]) != "holy_lotus" or not passive_source_ready(source):
+			if not game._plant_has_component(source,"holy_lotus") or not passive_source_ready(source):
 				continue
 			var data = Defs.PLANTS["holy_lotus"]
 			if float(source.get("save_cooldown", 0.0)) > 0.0 or float(source["health"]) <= float(data["save_hp_cost"]):
@@ -3892,7 +3892,7 @@ func try_passive_revival(plant: Dictionary, row: int, col: int) -> bool:
 		for r in game.active_rows:
 			for c in range(game.COLS):
 				var source = game._top_plant_at(int(r), c)
-				if source == null or String(source["kind"]) != "destiny_tree" or not passive_source_ready(source):
+				if source == null or not game._plant_has_component(source,"destiny_tree") or not passive_source_ready(source):
 					continue
 				# One roll per recipient, even when several destiny trees are present.
 				plant["destiny_revival_checked"] = true

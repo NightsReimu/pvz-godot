@@ -8498,7 +8498,7 @@ func _is_cell_protected_by_umbrella(row: int, col: int) -> bool:
 			var plant = _top_plant_at(other_row, other_col)
 			if plant == null:
 				continue
-			if String(plant.get("kind", "")) != "umbrella_leaf":
+			if not _plant_has_component(plant,"umbrella_leaf"):
 				continue
 			return true
 	return false
@@ -13566,7 +13566,7 @@ func _update_zombies(delta: float) -> void:
 				zombie = _apply_zombie_damage(zombie, float(Defs.PLANTS["thorn_cactus"]["thorns"]) * delta * _plant_enhance_multiplier_at_cell(target.x, target.y), 0.08)
 			elif String(plant["kind"]) == "crystal_nut" and float(plant.get("holy_invincible_timer", 0.0)) <= 0.0:
 				zombie = _apply_zombie_damage(zombie, bite_damage * float(Defs.PLANTS["crystal_nut"]["reflect_ratio"]) * _plant_enhance_multiplier_at_cell(target.x, target.y), 0.08)
-			if String(plant["kind"]) == "garlic":
+			if _plant_has_component(plant,"garlic"):
 				var redirected_row = _choose_adjacent_valid_row_for_kind(String(zombie["kind"]), int(zombie["row"]))
 				if redirected_row != int(zombie["row"]):
 					zombie["row"] = redirected_row
@@ -14067,7 +14067,7 @@ func _cleanup_dead_zombies() -> void:
 				var plant_variant = _targetable_plant_at(row, col)
 				if plant_variant == null:
 					continue
-				if String(plant_variant.get("kind", "")) != "soul_flower":
+				if not _plant_has_component(plant_variant,"soul_flower"):
 					continue
 				if not _ensure_plant_runtime().passive_source_ready(plant_variant):
 					continue
@@ -15071,6 +15071,13 @@ func _spawn_lotus_lancer_converge_barrage(origin: Vector2, target_index: int, sh
 	return shot_count
 
 
+func _plant_has_component(plant: Variant, component: String) -> bool:
+	if plant == null: return false
+	if String(plant.get("kind","")) == component: return true
+	var fusion: String = plant.get("fusion_kind","")
+	return Defs.PLANTS.get(fusion,{}).get("fusion_weights",{}).has(component) or (component == "mirror_reed" and float(plant.get("fusion_mirror_until",0)) > level_time)
+
+
 func _find_mirror_reed_reflector_in_row(row: int, from_x: float, to_x: float) -> Vector2i:
 	var min_x = minf(from_x, to_x)
 	var max_x = maxf(from_x, to_x)
@@ -15078,7 +15085,7 @@ func _find_mirror_reed_reflector_in_row(row: int, from_x: float, to_x: float) ->
 	var best_x := -999999.0
 	for col in range(COLS):
 		var plant_variant = _targetable_plant_at(row, col)
-		if plant_variant == null or String(plant_variant.get("kind", "")) != "mirror_reed":
+		if plant_variant == null or not _plant_has_component(plant_variant,"mirror_reed"):
 			continue
 		var center_x = _cell_center(row, col).x
 		if center_x <= min_x + 10.0 or center_x >= max_x - 10.0:
@@ -15139,7 +15146,7 @@ func _mirror_reed_on_segment(from: Vector2, to: Vector2, radius: float) -> Vecto
 	for row in range(min_row, max_row + 1):
 		for col in range(min_col, max_col + 1):
 			var plant = _targetable_plant_at(row, col)
-			if plant == null or String(plant.get("kind", "")) != "mirror_reed" or float(plant.get("health", 0.0)) <= 0.0:
+			if plant == null or not _plant_has_component(plant,"mirror_reed") or float(plant.get("health", 0.0)) <= 0.0:
 				continue
 			var center: Vector2 = _cell_center(row, col) + Vector2(0, -12)
 			var closest = Geometry2D.get_closest_point_to_segment(center, from, to)
@@ -15151,7 +15158,7 @@ func _mirror_reed_on_segment(from: Vector2, to: Vector2, radius: float) -> Vecto
 func _bounce_boss_danmaku(bullet: Dictionary, cell: Vector2i, ignore_cooldown: bool = false, snap_to_mirror: bool = true) -> bool:
 	# Turns a boss bullet around at the mirror so it flies back along its own line.
 	var mirror = _targetable_plant_at(cell.x, cell.y)
-	if mirror == null or String(mirror.get("kind", "")) != "mirror_reed" or float(mirror.get("health", 0.0)) <= 0.0:
+	if mirror == null or not _plant_has_component(mirror,"mirror_reed") or float(mirror.get("health", 0.0)) <= 0.0:
 		return false
 	if not ignore_cooldown and float(mirror.get("reflect_cooldown_until", 0.0)) > level_time:
 		return false
@@ -15204,7 +15211,7 @@ func _mirror_reed_reflect_boss_shot(cell: Vector2i, damage: float) -> bool:
 	# Boss danmaku that reaches a mirror reed is bounced into the nearest enemy.
 	# Returns true whenever the reed absorbs the shot, so the plant takes no damage.
 	var mirror = _targetable_plant_at(cell.x, cell.y)
-	if mirror == null or String(mirror.get("kind", "")) != "mirror_reed" or float(mirror.get("health", 0.0)) <= 0.0:
+	if mirror == null or not _plant_has_component(mirror,"mirror_reed") or float(mirror.get("health", 0.0)) <= 0.0:
 		return false
 	if float(mirror.get("reflect_cooldown_until", 0.0)) > level_time:
 		# Still shields the reed; only the counter-attack is throttled.
@@ -15252,7 +15259,7 @@ func _try_reflect_targeted_hostile_shot(zombie: Dictionary, target: Vector2i, da
 	if target.y == -1:
 		return {"reflected": false, "zombie": zombie}
 	var target_plant = _targetable_plant_at(target.x, target.y)
-	var mirror_cell = target if target_plant != null and String(target_plant.get("kind", "")) == "mirror_reed" else Vector2i(-1, -1)
+	var mirror_cell = target if target_plant != null and _plant_has_component(target_plant,"mirror_reed") else Vector2i(-1, -1)
 	if mirror_cell.y == -1:
 		var target_x = _cell_center(target.x, target.y).x
 		mirror_cell = _find_mirror_reed_reflector_in_row(target.x, shooter_origin.x, target_x)
@@ -22702,6 +22709,8 @@ func _fusion_detail_pages(kind: String) -> Array:
 	var d: Dictionary = Defs.PLANTS[kind]
 	var recipe: Array = d.fusion_recipe
 	var paragraphs: Array = ["配方：%s + %s" % [Defs.PLANTS[recipe[0]].name,Defs.PLANTS[recipe[1]].name],"可继续融合；大招技能随材料组合。"]
+	for channel in d.fusion_combat_description: paragraphs.append(channel)
+	paragraphs.append("各武器独立装填；爆舱不受攻速增益影响。")
 	for skill in d.fusion_skills: paragraphs.append("%s：%s。" % [FusionPlantDefs.skill_names()[skill],FusionPlantDefs.skill_descriptions()[skill]])
 	paragraphs.append("使用融合工具合并两株，或选择两张种子预合成。")
 	var lines: Array = _wrap_text_lines("\n".join(paragraphs),ALMANAC_DETAIL_RECT.size.x-88,20)
@@ -25577,7 +25586,7 @@ func _draw_plants() -> void:
 				var cook_pulse = 0.5 + 0.5 * sin(level_time * 6.0 + float(plant.get("anim_phase", 0.0)))
 				draw_circle(draw_center + Vector2(0.0, -10.0), 40.0 + cook_pulse * 5.0, Color(1.0, 0.52, 0.18, 0.14))
 				draw_arc(draw_center + Vector2(0.0, -18.0), 26.0 + cook_pulse * 4.0, level_time * 3.2, level_time * 3.2 + PI * 1.6, 26, Color(1.0, 0.82, 0.32, 0.68), 2.2)
-			if String(plant.get("kind", "")) == "mirror_reed":
+			if _plant_has_component(plant,"mirror_reed"):
 				var reflect_until := float(plant.get("reflect_cooldown_until", 0.0))
 				var reflect_active := reflect_until > level_time or float(plant.get("flash", 0.0)) > 0.0 or bool(plant.get("ultimate_active", false))
 				var mirror_pulse := 0.5 + 0.5 * sin(level_time * 7.5 + float(plant.get("anim_phase", 0.0)))
@@ -32618,7 +32627,7 @@ func _draw_text_block(text: String, rect: Rect2, font_size: int, text_color: Col
 func _plant_almanac_stats(kind: String) -> Array:
 	var data = Defs.PLANTS[kind]
 	if bool(data.get("fusion_only",false)):
-		return ["获得：配方融合（不占种子卡）","耐久：%d · 融合阶数：%d" % [int(data.health),int(data.fusion_tier)],"特性："+String(data.fusion_summary),"攻击周期：%.1f 秒 · 基础伤害：%d" % [float(data.shoot_interval),int(data.damage)],"大招：%s · %.0f 秒充能" % [data.ultimate_name,float(data.ultimate_charge_time)]]
+		return ["获得：配方融合（不占种子卡）","耐久：%d · 融合阶数：%d" % [int(data.health),int(data.fusion_tier)],"特性："+String(data.fusion_summary),"独立武器：%d 组 · 伤害/周期见下方分页" % data.fusion_channels.size(),"大招：%s · %.0f 秒充能" % [data.ultimate_name,float(data.ultimate_charge_time)]]
 	var stats: Array = [
 		"花费：%d" % int(data["cost"]),
 		"耐久：%d" % int(data["health"]),
