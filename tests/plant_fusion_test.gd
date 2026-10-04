@@ -64,8 +64,17 @@ func test_catalogue():
 		g.zombies[1] = g._hypnotize_zombie(g.zombies[1])
 		var friend_hp: float = g.zombies[1].health
 		g._update_plants(1.0)
+		if not d.fusion_attack in ["support","sun"] or "shot" in d.fusion_traits:
+			check(not g.projectiles.is_empty() or not g.rollers.is_empty() or float(g.zombies[0].health) < 100000 or not g._is_enemy_zombie(g.zombies[0]),"Fusion retains its real normal attack: "+id)
 		check(g.zombies[1].health == friend_hp,"Normal fusion respects allies: "+id)
+		var before: Array = [g.projectiles.size(),g.rollers.size(),g.suns.size(),g.zombies[0].duplicate(true),plant.duplicate(true)]
 		check(g._activate_plant_food(2,2),"Actual energy bean activation: "+id)
+		var after: Array = [g.projectiles.size(),g.rollers.size(),g.suns.size(),g.zombies[0],plant]
+		# Charge/cooldown/animation alone are not a working ultimate.
+		var beneficial: bool = before[0] != after[0] or before[1] != after[1] or before[2] != after[2] or before[3] != after[3]
+		for field in ["health","armor_health","fusion_haste_timer","fusion_renewal_timer","holy_invincible_timer"]:
+			beneficial = beneficial or float(after[4].get(field,0)) > float(before[4].get(field,0))
+		check(beneficial,"Every fusion ultimate changes actual combat/resources: "+id)
 		check(g.zombies[1].health == friend_hp,"Ultimate respects allies: "+id)
 		check(not g.effects.is_empty(),"Fusion ultimate has an effect: "+id)
 	dispose(g)
@@ -90,8 +99,9 @@ func test_resource_and_state():
 	g.card_cooldowns.sunflower = 0; g.selected_tool = "sunflower"; g._handle_board_click(Vector2i(2,2))
 	check(g.grid[2][2].fusion_kind == "triple_sunflower","Fusion plant can accept another seed")
 	g.grid[2][3] = g._create_plant("wallnut",2,3)
+	g.grid[2][3].reimu_sealed = true
 	before = g.grid[2][3].duplicate(true); var receiver: Dictionary = g.grid[2][2].duplicate(true)
-	check(not g._ensure_plant_fusion().merge_cells(Vector2i(2,3),Vector2i(2,2)),"Unknown fusion rejected")
+	check(not g._ensure_plant_fusion().merge_cells(Vector2i(2,3),Vector2i(2,2)),"Controlled donor fusion rejected")
 	check(g.grid[2][3] == before and g.grid[2][2] == receiver,"Failed board merge preserves both specimens")
 	dispose(g)
 

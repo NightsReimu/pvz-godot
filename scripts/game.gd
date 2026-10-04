@@ -5,6 +5,11 @@ const FusionPlantDefs = preload("res://scripts/data/fusion_plant_defs.gd")
 const PlantFusionRuntime = preload("res://scripts/runtime/plant_fusion_runtime.gd")
 const PlantFusionVisuals = preload("res://scripts/ui/plant_fusion_visuals.gd")
 var plant_fusion_runtime = null
+var fusion_almanac_cache: Array = []
+var fusion_almanac_stamp := ""
+var fusion_detail_page := 0
+var fusion_detail_kind := ""
+var fusion_detail_pages: Array = []
 const RumiaDarkSlash: Texture2D = preload("res://art/touhou_pose_extras/rumia/dark_slash.png")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const VectorUnitArt = preload("res://scripts/ui/vector_unit_art.gd")
@@ -7647,6 +7652,9 @@ func _handle_scroll_input(delta_y: float, mouse_pos: Vector2) -> bool:
 	if mode == MODE_ALMANAC and (ALMANAC_LIST_RECT.has_point(mouse_pos) or _almanac_list_view_rect().has_point(mouse_pos)):
 		_set_almanac_scroll(almanac_scroll + delta_y)
 		return true
+	if mode == MODE_ALMANAC and ALMANAC_DETAIL_RECT.has_point(mouse_pos) and bool(Defs.PLANTS.get(almanac_selected_kind,{}).get("fusion_only",false)):
+		fusion_detail_page = clampi(fusion_detail_page+(1 if delta_y > 0 else -1),0,maxi(0,_fusion_detail_pages(almanac_selected_kind).size()-1))
+		return true
 	if mode == MODE_ENHANCE and (_enhance_roster_panel_rect().has_point(mouse_pos) or _enhance_roster_view_rect().has_point(mouse_pos)):
 		_set_enhance_scroll(enhance_scroll + delta_y)
 		return true
@@ -7685,6 +7693,12 @@ func _handle_almanac_click(mouse_pos: Vector2) -> void:
 		return
 
 	var track_rect = _almanac_list_track_rect()
+	if almanac_tab == "plants" and bool(Defs.PLANTS.get(almanac_selected_kind,{}).get("fusion_only",false)):
+		var page_count: int = _fusion_detail_pages(almanac_selected_kind).size()
+		if _fusion_detail_button_rect(false).has_point(mouse_pos):
+			fusion_detail_page = maxi(0,fusion_detail_page-1); queue_redraw(); return
+		if _fusion_detail_button_rect(true).has_point(mouse_pos):
+			fusion_detail_page = mini(page_count-1,fusion_detail_page+1); queue_redraw(); return
 	if track_rect.has_point(mouse_pos):
 		var max_scroll = _almanac_max_scroll()
 		if max_scroll > 0.0:
@@ -9152,6 +9166,10 @@ func _plant_attack_cadence_scale(row: int, col: int) -> float:
 
 func _plant_cadence_delta(delta: float, row: int, col: int) -> float:
 	var attack_speed_mult = _plant_enhance_attack_speed_at_cell(row, col)
+	var p = null
+	if row >= 0 and row < grid.size() and col >= 0 and col < grid[row].size(): p = grid[row][col]
+	if p == null and row >= 0 and row < support_grid.size() and col >= 0 and col < support_grid[row].size(): p = support_grid[row][col]
+	if p != null and float(p.get("fusion_haste_timer",0)) > 0: attack_speed_mult *= 1.6
 	return delta * attack_speed_mult / _plant_attack_cadence_scale(row, col)
 
 
@@ -20037,12 +20055,16 @@ func _is_world_unlocked(world_key: String) -> bool:
 
 func _visible_almanac_plants() -> Array:
 	var result: Array = _player_plant_collection()
-	var native: Array = result.duplicate()
+	var stamp: String = str(result.hash())+":"+str(FusionPlantDefs.revision)
+	if stamp == fusion_almanac_stamp: return fusion_almanac_cache
+	var owned := {}
+	for component in result: owned[component] = true
 	for id in FusionPlantDefs.DEFINITIONS:
 		var available := true
-		for component in FusionPlantDefs.DEFINITIONS[id].fusion_components:
-			if not native.has(component): available = false; break
+		for component in FusionPlantDefs.DEFINITIONS[id].fusion_weights:
+			if not owned.has(component): available = false; break
 		if available: result.append(id)
+	fusion_almanac_stamp = stamp; fusion_almanac_cache = result
 	return result
 
 
@@ -22658,7 +22680,33 @@ func _draw_almanac_plant_detail(kind: String) -> void:
 			plant_text += "\n"
 		plant_text += String(lines[i])
 	var text_top := maxf(224, 76 + stats.size() * 32 + 12)
+	if bool(data.get("fusion_only",false)):
+		var pages: Array = _fusion_detail_pages(kind)
+		var page: int = clampi(fusion_detail_page,0,pages.size()-1)
+		_draw_text_block(pages[page],Rect2(ALMANAC_DETAIL_RECT.position+Vector2(44,text_top),Vector2(ALMANAC_DETAIL_RECT.size.x-88,ALMANAC_DETAIL_RECT.size.y-text_top-64)),20,Color(0.26,0.18,0.08),8)
+		if pages.size() > 1:
+			for next in [false,true]:
+				var button: Rect2 = _fusion_detail_button_rect(next)
+				ThemeLib.draw_rounded_panel(self,button,GardenMenus.PAPER,GardenMenus.BORDER,6,0)
+				ThemeLib.draw_label(self,ui_font,button,"下一页 ›" if next else "‹ 上一页",18,ThemeLib.INK,HORIZONTAL_ALIGNMENT_CENTER)
+			ThemeLib.draw_label(self,ui_font,Rect2(ALMANAC_DETAIL_RECT.position+Vector2(172,ALMANAC_DETAIL_RECT.size.y-48),Vector2(ALMANAC_DETAIL_RECT.size.x-344,28)),"技能说明 %d / %d" % [page+1,pages.size()],18,ThemeLib.INK,HORIZONTAL_ALIGNMENT_CENTER)
+		return
 	_draw_text_block(plant_text, Rect2(ALMANAC_DETAIL_RECT.position + Vector2(44, text_top), Vector2(ALMANAC_DETAIL_RECT.size.x - 88, ALMANAC_DETAIL_RECT.size.y - text_top - 28)), 20, Color(0.26, 0.18, 0.08), 8.0, 9)
+
+func _fusion_detail_button_rect(next: bool) -> Rect2:
+	return Rect2(ALMANAC_DETAIL_RECT.position+Vector2(ALMANAC_DETAIL_RECT.size.x-148 if next else 44,ALMANAC_DETAIL_RECT.size.y-48),Vector2(104,28))
+
+func _fusion_detail_pages(kind: String) -> Array:
+	if fusion_detail_kind == kind and not fusion_detail_pages.is_empty(): return fusion_detail_pages
+	fusion_detail_kind = kind; fusion_detail_page = 0; fusion_detail_pages = []
+	var d: Dictionary = Defs.PLANTS[kind]
+	var recipe: Array = d.fusion_recipe
+	var paragraphs: Array = ["配方：%s + %s" % [Defs.PLANTS[recipe[0]].name,Defs.PLANTS[recipe[1]].name],"可继续融合；大招技能随材料组合。"]
+	for skill in d.fusion_skills: paragraphs.append("%s：%s。" % [FusionPlantDefs.skill_names()[skill],FusionPlantDefs.skill_descriptions()[skill]])
+	paragraphs.append("使用融合工具合并两株，或选择两张种子预合成。")
+	var lines: Array = _wrap_text_lines("\n".join(paragraphs),ALMANAC_DETAIL_RECT.size.x-88,20)
+	for start in range(0,lines.size(),8): fusion_detail_pages.append("\n".join(lines.slice(start,mini(start+8,lines.size()))))
+	return fusion_detail_pages
 
 
 func _draw_almanac_zombie_detail(kind: String) -> void:
@@ -32834,7 +32882,7 @@ func _plant_almanac_lines(kind: String) -> Array:
 	if bool(Defs.PLANTS[kind].get("fusion_only",false)):
 		var data: Dictionary = Defs.PLANTS[kind]
 		var recipe: Array = data.fusion_recipe
-		return ["配方：%s + %s" % [Defs.PLANTS[recipe[0]].name,Defs.PLANTS[recipe[1]].name],"特性："+String(data.fusion_summary),"用融合工具点两株植物，或点两张种子再种下；也可把配方种子叠种到现有植物上。", "大招「%s」：强化攻击、扩大作用范围，并触发对应的光合、控制或护庭效果。" % data.ultimate_name] + _fusion_followups(kind)
+		return ["配方：%s + %s" % [Defs.PLANTS[recipe[0]].name,Defs.PLANTS[recipe[1]].name],"特性："+String(data.fusion_summary),"用融合工具点两株植物，或点两张种子再种下；也可把配方种子叠种到现有植物上。", "大招「%s」：%s" % [data.ultimate_name,data.fusion_ultimate_description]] + _fusion_followups(kind)
 	return AlmanacTextLib.plant_lines(kind) + _fusion_followups(kind)
 
 
@@ -33480,7 +33528,7 @@ func _fusion_result(a: String, b: String) -> String:
 	return FusionPlantDefs.result(a,b)
 
 func _fusion_followups(kind: String) -> Array:
-	var result: Array = []
+	var result: Array = ["可与任意原种或融合形态再次融合；新技能随材料组合。"]
 	for pair in FusionPlantDefs.RECIPES:
 		var ingredients: PackedStringArray = String(pair).split("+")
 		if ingredients.has(kind):

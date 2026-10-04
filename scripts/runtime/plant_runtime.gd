@@ -77,6 +77,7 @@ func update_plants(delta: float) -> void:
 				continue
 
 			var plant = plant_variant
+			if plant.has("fusion_haste_timer") or plant.has("fusion_renewal_timer"): game._ensure_plant_fusion().tick_buffs(plant,delta)
 			if float(plant.get("health", 0.0)) <= 0.0:
 				continue
 			plant["flash"] = maxf(0.0, float(plant["flash"]) - delta)
@@ -466,6 +467,7 @@ func update_plants(delta: float) -> void:
 			if support_variant == null:
 				continue
 			var support = support_variant
+			if support.has("fusion_haste_timer") or support.has("fusion_renewal_timer"): game._ensure_plant_fusion().tick_buffs(support,delta)
 			if String(support.get("kind", "")) == "cork_plug" and not support.has("fusion_kind"):
 				if _update_cork_plug_support(support, delta, row, col):
 					continue
