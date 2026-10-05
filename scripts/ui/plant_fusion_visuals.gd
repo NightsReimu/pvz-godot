@@ -602,6 +602,15 @@ static func draw_ammo_overlay(canvas: CanvasItem, shot: Dictionary) -> void:
 		canvas.draw_polyline(PackedVector2Array([p+Vector2(-r*2,0),p+Vector2(-r,-r),p+Vector2(-r*0.5,r),p+Vector2(r*1.5,0)]),Color("bcb5ff"),2,true)
 	if "dream" in tags: canvas.draw_arc(p,r+5,time,time+PI*1.5,18,Color("fca1f0"),2,true)
 	if "root" in tags: canvas.draw_arc(p,r+3,-time,-time+PI,18,Color("85d580"),2,true)
+	if "tea" in tags:
+		for i in range(3):
+			var petal := p+Vector2.from_angle(time*2+i*TAU/3)*(r+5)
+			canvas.draw_circle(petal,2.8,Color("fff3d2"),true,-1,true)
+		canvas.draw_arc(p,r+2,0,TAU,18,Color("caba67"),1.4,true)
+	if "milk" in tags:
+		var tail := p-Vector2(dir*(r*2.4),0)
+		canvas.draw_line(tail,p,Color("fff2cb"),r*0.7,true)
+		canvas.draw_circle(tail,3.0,Color("eac45c"),true,-1,true)
 
 # Ingredient-shaped payloads remain readable beneath the elemental trail.
 static func draw_ammo_body(canvas: CanvasItem, shot: Dictionary) -> bool:

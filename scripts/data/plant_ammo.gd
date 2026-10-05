@@ -2,7 +2,7 @@ extends RefCounted
 # Payload composition never replaces the native kind: orbit, return, split, arc and
 # armor rules continue to run in the same projectile handlers used by the parent.
 const BASES = ["pea","snow_pea","fire_pea","amber_pea","boomerang","sakura_petal","mist_bloom","glow_seed","heather_thorn","origami_plane","star_shot","moonforge_shot","prism_pea","shadow_pea","spiral_bamboo","cluster_boomerang","frost_boomerang","amber_ultimate_shard","mango","phoenix_flame","cabbage","kernel","butter","melon","chimney_fire","meteor_flower","dragon_bubble","toxic_gum","gator_orb","angel_spear","lotus_orbit_shot","lotus_converge_shot","prism_fragment","sakura_shard","obsidian_artichoke","sulfur_pod","pressure_bamboo","fumarole_melon","caldera_lotus","resonance_beet"]
-const ELEMENTS = ["flame","frost","venom","storm","dream","root"]
+const ELEMENTS = ["flame","frost","venom","storm","dream","root","tea","milk"]
 static func catalogue() -> Array:
 	var result: Array = BASES.duplicate()
 	for base in BASES:
@@ -20,8 +20,9 @@ static func compose(shot: Dictionary, weights: Dictionary, source: String = "") 
 		"flame":["torchwood","jalapeno","phoenix_tree","dragon_fruit","chimney_pepper","caldera_lotus"],
 		"frost":["snow_pea","ice_shroom","snow_bloom","frost_boomerang","ice_queen","frost_fan","frost_cypress"],
 		"venom":["heather_shooter","toxic_gum_pult","sulfur_pod"],
-		"storm":["storm_reed","thunder_pine","thunder_god","tesla_tulip","plasma_shooter"],
-		"dream":["hypno_shroom","chaos_shroom"],"root":["root_snare","anchor_fern","vine_emperor","glow_ivy"]}
+		"storm":["storm_reed","thunder_pine","thunder_god","tesla_tulip","plasma_shooter","plasma_shroom","chain_lotus","pulse_bulb","electric_bonk_choy"],
+		"dream":["hypno_shroom","chaos_shroom"],"root":["root_snare","anchor_fern","vine_emperor","glow_ivy"],
+		"tea":["jasmine_tea"],"milk":["golden_milk"]}
 	for element in families:
 		for component in families[element]:
 			if weights.has(component) and component != source and not element in elements: elements.append(element)

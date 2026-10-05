@@ -15,11 +15,19 @@ const SKY := {
 	"storm": [Color("#262b45"), Color("#55607a")],
 	"wind": [Color("#8fd1c6"), Color("#e9f2d7")],
 	"fog": [Color("#b7c1c4"), Color("#e4e7e2")],
+	"snow": [Color("#8eaec7"), Color("#e1eff4")],
+	"hail": [Color("#50667f"), Color("#b5cadb")],
+	"sandstorm": [Color("#b38c5c"), Color("#ebcf9a")],
+	"rainbow": [Color("#91cddf"), Color("#fff0ce")],
 }
 const GRADE := {
 	"clear": Color(1, 1, 1, 0.0), "sunny": Color(1.0, 0.82, 0.42, 0.10), "rain": Color(0.24, 0.34, 0.46, 0.16),
 	"storm": Color(0.1, 0.1, 0.26, 0.26), "wind": Color(0.6, 0.92, 0.82, 0.06), "fog": Color(0.86, 0.9, 0.9, 0.10),
+	"snow": Color(0.8, 0.9, 1, 0.16), "hail": Color(0.3, 0.46, 0.64, 0.14),
+	"sandstorm": Color(0.78, 0.58, 0.3, 0.18), "rainbow": Color(1, 0.9, 0.7, 0.04),
 }
+static var stone_texture: Texture2D
+static var grass_texture: Texture2D
 
 
 static func _mix(rt, table: Dictionary) -> Variant:
@@ -77,65 +85,77 @@ static func lane_color(game: Control, rt, row: int) -> Color:
 
 static func draw_background(game: Control, rt) -> void:
 	var size: Vector2 = game.size
-	var sky: Array = _mix(rt, SKY)
-	var time: float = game.ui_time
-	ThemeLib.draw_gradient_rect_v(game, Rect2(Vector2.ZERO, Vector2(size.x, 190.0)), sky[0], sky[1])
-	var sun_w = maxf(_weight(rt, "sunny"), _weight(rt, "clear") * 0.6)
-	if sun_w > 0.01:
-		var sun = Vector2(size.x * 0.82, 66.0)
-		for i in range(4):
-			game.draw_circle(sun, 30.0 + i * 16.0, Color(1.0, 0.92, 0.6, 0.08 * sun_w))
-		for i in range(12):
-			var dir = Vector2.from_angle(i * TAU / 12.0 + time * 0.08)
-			game.draw_line(sun + dir * 36.0, sun + dir * (52.0 + sin(time * 2.0 + i) * 6.0), Color(1.0, 0.86, 0.5, 0.35 * sun_w), 3.0, true)
-		game.draw_circle(sun, 28.0, Color(1.0, 0.95, 0.74, sun_w))
-		game.draw_circle(sun + Vector2(-7, -7), 11.0, Color(1, 1, 0.92, 0.6 * sun_w))
-	# Ink-wash mountain ranges, farthest first.
-	var ranges = [
-		[Color("#9fb3bf"), 128.0, 0.0024, 36.0],
-		[Color("#7f97a0"), 148.0, 0.0041, 30.0],
-		[Color("#6a8378"), 172.0, 0.0063, 22.0],
-	]
-	var grade: Color = _mix(rt, GRADE)
-	for layer in ranges:
-		var color: Color = Color(layer[0]).lerp(Color(grade.r, grade.g, grade.b), grade.a * 2.0)
-		var points: Array = [Vector2(0, 240)]
-		for i in range(33):
-			var x = size.x * i / 32.0
-			var y: float = float(layer[1]) - sin(x * float(layer[2]) * 3.1 + float(layer[1])) * float(layer[3]) - absf(sin(x * float(layer[2]) * 7.3)) * float(layer[3]) * 0.5
-			points.append(Vector2(x, y))
-		points.append(Vector2(size.x, 240))
-		poly(game, points, color)
-	# Mist band between ranges.
-	for i in range(6):
-		var drift = fmod(time * (6.0 + i) + i * 260.0, size.x + 400.0) - 200.0
-		oval(game, Vector2(drift, 150.0 + (i % 3) * 10.0), Vector2(180.0, 12.0), Color(1, 1, 1, 0.16))
-	_draw_pagoda(game, Vector2(size.x - 210.0, 186.0), 1.0, grade)
-	_draw_temple_hall(game, Vector2(122.0, 190.0), grade)
-	# Ground beyond the lawn: raked gravel and the approach path.
-	ThemeLib.draw_gradient_rect_v(game, Rect2(Vector2(0.0, 184.0), Vector2(size.x, size.y - 184.0)), Color("#c9b88f").lerp(Color(grade.r, grade.g, grade.b), grade.a), Color("#a99a73").lerp(Color(grade.r, grade.g, grade.b), grade.a))
-	for i in range(int(size.y / 18.0)):
-		var y = 196.0 + i * 18.0
-		game.draw_line(Vector2(0, y), Vector2(size.x, y + sin(i) * 3.0), Color(1, 1, 1, 0.07), 1.5, true)
-	# Wooden engawa in front of the hall, and the stone approach on the zombie side.
 	var origin: Vector2 = game.BOARD_ORIGIN
 	var board: Vector2 = game.board_size
-	game.draw_rect(Rect2(Vector2(origin.x - 58.0, origin.y - 12.0), Vector2(46.0, board.y + 24.0)), Color("#8c5a36"), true)
-	for i in range(int((board.y + 24.0) / 22.0)):
-		game.draw_line(Vector2(origin.x - 58.0, origin.y - 12.0 + i * 22.0), Vector2(origin.x - 12.0, origin.y - 12.0 + i * 22.0), Color("#5d3b24", 0.7), 1.5)
-	game.draw_rect(Rect2(Vector2(origin.x - 14.0, origin.y - 12.0), Vector2(6.0, board.y + 24.0)), Color("#d24b3a"), true)
-	var right = origin.x + board.x
-	game.draw_rect(Rect2(Vector2(right, origin.y), Vector2(size.x - right, board.y)), Color("#b9a983"), true)
-	for r in range(5):
-		for k in range(int((size.x - right) / 64.0) + 1):
-			var stone = Vector2(right + 30.0 + k * 64.0 + (r % 2) * 22.0, origin.y + 50.0 + r * game.CELL_SIZE.y)
-			oval(game, stone, Vector2(24.0, 14.0), Color("#9d9580"), 1.2)
-			oval(game, stone + Vector2(-5, -4), Vector2(9.0, 4.0), Color(1, 1, 1, 0.18))
-	_draw_torii(game, Vector2(right + 96.0, origin.y - 4.0), 1.0, grade)
-	# Stone lanterns and a maple framing the top edge of the lawn.
+	var horizon = origin.y - 8.0
+	var sky: Array = _mix(rt, SKY)
+	var grade: Color = _mix(rt, GRADE)
+	var time: float = game.ui_time
+	ThemeLib.draw_gradient_rect_v(game, Rect2(Vector2.ZERO, Vector2(size.x, horizon + 40.0)), sky[0], sky[1])
+	var sun_w = maxf(_weight(rt, "sunny"), maxf(_weight(rt, "clear") * 0.6, _weight(rt,"rainbow")*0.5))
+	var sun = Vector2(size.x * 0.83, horizon * 0.35)
+	for i in range(4):
+		game.draw_circle(sun, 22.0 + i * 14.0, Color(1.0, 0.92, 0.6, 0.07 * sun_w))
+	game.draw_circle(sun, 22.0, Color(1.0, 0.95, 0.74, sun_w))
+	# Low cloud banks and three ink-wash ridges keep the skyline behind the HUD.
+	for layer in range(3):
+		var points: Array = [Vector2(0,horizon+40)]
+		for i in range(49):
+			var x = size.x*i/48.0
+			var y = horizon*(0.65+layer*0.12)-absf(sin(x*(0.003+layer*0.002)+layer*3.7))*horizon*(0.28-layer*0.06)
+			points.append(Vector2(x,y))
+		points.append(Vector2(size.x,horizon+40))
+		var color = Color("#a6bec2").lerp(Color("#4c776d"), layer/2.0)
+		poly(game,points,color.lerp(Color(grade.r,grade.g,grade.b),grade.a))
+	for i in range(6):
+		var drift = fmod(time*(3.0+i)+i*270.0,size.x+400)-200
+		oval(game,Vector2(drift,horizon*(0.52+(i%3)*0.15)),Vector2(170,8),Color(1,1,1,0.13))
+	var cloud_tint = Color("#f5f1e4").lerp(Color("#445063"),maxf(_weight(rt,"storm"),_weight(rt,"hail")))
 	for i in range(5):
-		_draw_lantern(game, Vector2(origin.x + 60.0 + i * board.x / 4.4, origin.y - 18.0), 0.62 + (i % 2) * 0.08, rt)
-	_draw_maple(game, Vector2(origin.x - 40.0, origin.y - 34.0), time, rt)
+		var x = fmod(i*369.0+time*9.0,size.x+300)-150
+		var c = Vector2(x,horizon*0.22+(i%2)*13)
+		for k in range(3):
+			oval(game,c+Vector2(k*42-42,sin(k*1.7)*9),Vector2(58,17),Color(cloud_tint,0.3))
+	# Cached, hand-authored stone texture replaces repeated gravel linework.
+	var stone_color = Color.WHITE.lerp(Color(grade.r,grade.g,grade.b),grade.a*1.4)
+	game.draw_rect(Rect2(Vector2(0,horizon),Vector2(size.x,size.y-horizon)),Color("#aeb18e").lerp(Color(grade.r,grade.g,grade.b),grade.a))
+	if stone_texture == null: stone_texture = load("res://art/vector/ancient/courtyard_stone.svg")
+	if stone_texture != null:
+		_stone_patch(game,Rect2(Vector2(0,horizon),Vector2(origin.x,size.y-horizon)),stone_color)
+		_stone_patch(game,Rect2(Vector2(origin.x+board.x,horizon),Vector2(maxf(0,size.x-origin.x-board.x),size.y-horizon)),stone_color)
+		_stone_patch(game,Rect2(Vector2(origin.x,origin.y+board.y),Vector2(board.x,maxf(0,size.y-origin.y-board.y))),stone_color)
+	# Shrine roofs, a garden wall and carved stone rails frame the playing lawn.
+	var scenery_scale = clampf(horizon/170.0,0.38,1.0)
+	_draw_pagoda(game,Vector2(size.x-170.0*scenery_scale,horizon+5),scenery_scale,grade)
+	if size.y >= 500: _draw_temple_hall(game,Vector2(65,horizon+6),grade)
+	for x in range(int(origin.x),int(origin.x+board.x),72):
+		game.draw_rect(Rect2(x,horizon-16,68,18),Color("#eee2bd").lerp(Color(grade.r,grade.g,grade.b),grade.a))
+		game.draw_line(Vector2(x,horizon-17),Vector2(x+68,horizon-17),Color("#617e65"),4,true)
+		game.draw_rect(Rect2(x+10,horizon-11,48,7),Color("#a5b598"),false,1)
+	var right = origin.x+board.x
+	_draw_torii(game,Vector2(right+maxf(35,(size.x-right)*0.48),horizon+20),scenery_scale,grade)
+	for side in [-1,1]:
+		var x = origin.x-16 if side < 0 else right+10
+		game.draw_rect(Rect2(x,origin.y-5,6,board.y+10),Color("#526b48"),true)
+		for row in game.active_rows:
+			var y: float = game._row_center_y(int(row))
+			oval(game,Vector2(x+3,y),Vector2(9,28),Color("#92a77b"),1.4)
+			game.draw_line(Vector2(x-2,y-14),Vector2(x+7,y-14),Color("#d9d3aa"),1.5,true)
+	for i in range(5):
+		_draw_lantern(game,Vector2(origin.x+50+i*board.x/4.4,horizon),scenery_scale*0.62,rt)
+	_draw_maple(game,Vector2(origin.x-25,horizon-8),time,rt)
+	# Low bushes and scattered autumn leaves soften the stone path below the board.
+	for i in range(16):
+		var p = Vector2(origin.x+i*board.x/15.0,origin.y+board.y+14)
+		oval(game,p,Vector2(26,9),Color("#597847"),1.0)
+		oval(game,p+Vector2(5,-3),Vector2(17,5),Color("#81934f"))
+		for k in range(2):
+			oval(game,p+Vector2(k*16-5,18+sin(i+k)*7),Vector2(5,2),Color("#b6814e"),0,i)
+
+
+static func _stone_patch(game: Control, rect: Rect2, color: Color) -> void:
+	if rect.size.x <= 0 or rect.size.y <= 0: return
+	game.draw_texture_rect(stone_texture,rect,true,color)
 
 
 static func _draw_pagoda(game: Control, base: Vector2, s: float, grade: Color) -> void:
@@ -209,6 +229,12 @@ static func draw_ground(game: Control, rt) -> void:
 	# Mossy stepping stones and tufts make the courtyard read as a garden lawn.
 	var time: float = game.ui_time
 	var grade: Color = _mix(rt, GRADE)
+	if grass_texture == null: grass_texture = load("res://art/vector/ancient/courtyard_grass.svg")
+	if grass_texture != null:
+		for row in game.active_rows:
+			for col in range(game.COLS):
+				var tile: Rect2 = game._cell_rect(int(row),col)
+				game.draw_texture_rect(grass_texture,tile,false,Color(1,1,1,0.72))
 	if grade.a > 0.0:
 		game.draw_rect(Rect2(game.BOARD_ORIGIN - Vector2(60, 20), game.board_size + Vector2(120, 40)), Color(grade, grade.a * 0.7), true)
 	for row in game.active_rows:
@@ -227,6 +253,12 @@ static func draw_ground(game: Control, rt) -> void:
 			var phase = fmod(time * 1.6 + i * 0.37, 1.0)
 			var p = Vector2(game.BOARD_ORIGIN.x + fmod(i * 197.3, game.board_size.x), game.BOARD_ORIGIN.y + fmod(i * 131.7, game.board_size.y))
 			game.draw_arc(p, 3.0 + phase * 14.0, 0.0, TAU, 18, Color(0.85, 0.95, 1.0, (1.0 - phase) * 0.35 * rt.weather_blend), 1.2, true)
+	var snow = maxf(_weight(rt,"snow"),_weight(rt,"hail")*0.5)
+	if snow > 0.01:
+		for row in game.active_rows:
+			for col in range(game.COLS):
+				var cell: Rect2 = game._cell_rect(int(row),col)
+				oval(game,cell.position+Vector2(cell.size.x*0.5,cell.size.y-5),Vector2(cell.size.x*0.4,5),Color(0.92,0.97,1,0.6*snow))
 
 
 static func draw_corrosion(game: Control, rt) -> void:
@@ -377,6 +409,36 @@ static func draw_weather(game: Control, rt) -> void:
 		for i in range(5):
 			var x = size.x * 0.82 - i * 210.0
 			poly(game, [Vector2(x - 20.0, 0.0), Vector2(x + 30.0, 0.0), Vector2(x - 260.0, size.y), Vector2(x - 380.0, size.y)], Color(1.0, 0.94, 0.7, 0.05 * sunny))
+	var snow = _weight(rt,"snow")
+	var hail = _weight(rt,"hail")
+	if maxf(snow,hail) > 0.01:
+		for i in range(70):
+			var weight = hail if i % 3 == 0 and hail > 0.01 else maxf(snow,hail*0.4)
+			var p = Vector2(fposmod(i*113.7-time*30+sin(time+i)*14,size.x),fposmod(i*59.3+time*(410 if hail > 0.2 else 70+(i%4)*16),size.y))
+			var r = 1.7+(i%3)*0.9
+			game.draw_circle(p,r,Color(0.9,0.97,1,0.75*weight))
+			if i % 7 == 0 and snow > 0.1:
+				for k in range(3):
+					var ray = Vector2.from_angle(k*PI/3)*4
+					game.draw_line(p-ray,p+ray,Color(1,1,1,0.6*snow),1.0,true)
+	var sand = _weight(rt,"sandstorm")
+	if sand > 0.01:
+		for i in range(18):
+			var p = Vector2(size.x-fposmod(i*159+time*(110+(i%4)*30),size.x+300)+150,game.BOARD_ORIGIN.y+fposmod(i*61.3,game.board_size.y))
+			oval(game,p,Vector2(140,18+(i%3)*8),Color(0.8,0.67,0.42,0.09*sand))
+		for i in range(60):
+			var p = Vector2(fposmod(i*199-time*280,size.x),fposmod(i*47+sin(time+i)*6,size.y))
+			game.draw_line(p,p+Vector2(9,-2),Color(0.99,0.86,0.61,0.4*sand),1.2,true)
+	var rainbow = _weight(rt,"rainbow")
+	if rainbow > 0.01:
+		var palette = [Color("#f5a5a4"),Color("#f5c27d"),Color("#f2e2a3"),Color("#a7d697"),Color("#8bcbdc"),Color("#b9a4da")]
+		var c = Vector2(game.BOARD_ORIGIN.x+game.board_size.x*0.65,game.BOARD_ORIGIN.y+game.board_size.y*0.25)
+		for k in range(6):
+			game.draw_arc(c,game.board_size.x*0.42+k*7,PI*1.03,PI*1.97,72,Color(palette[k],0.24*rainbow),6.5,true)
+		for i in range(24):
+			var p = game.BOARD_ORIGIN+Vector2(fposmod(i*109.3,game.board_size.x),fposmod(i*51.7-time*16,game.board_size.y))
+			var alpha = (0.4+sin(time*2+i)*0.3)*rainbow
+			game.draw_circle(p,1.6,Color(palette[i%6],alpha))
 
 
 static func draw_weather_chip(game: Control, rt) -> void:
@@ -385,6 +447,7 @@ static func draw_weather_chip(game: Control, rt) -> void:
 	if compact:
 		# Phone HUDs fill the top row; the forecast hangs under the lawn instead.
 		rect = Rect2(game.BOARD_ORIGIN.x + game.board_size.x - 300.0, game.BOARD_ORIGIN.y + game.board_size.y + 4.0, 300.0, 28.0)
+		if game._is_minigame(): rect.position = Vector2(game.SEED_BANK_RECT.end.x-310,game.SEED_BANK_RECT.position.y+14)
 	elif game.SEED_BANK_RECT.end.y + 46.0 > game.BOARD_ORIGIN.y:
 		rect.position.y = game.BOARD_ORIGIN.y - 40.0
 	var info: Dictionary = rt.weather_info()
@@ -435,6 +498,19 @@ static func draw_weather_icon(canvas: CanvasItem, c: Vector2, kind: String, s: f
 		"fog":
 			for i in range(3):
 				canvas.draw_line(c + Vector2(-10 + (i % 2) * 3, -5 + i * 5) * s, c + Vector2(10 - (i % 2) * 3, -5 + i * 5) * s, Color("#e8eeee"), 2.4 * s, true)
+		"snow", "hail":
+			oval(canvas,c+Vector2(0,-5)*s,Vector2(11,5)*s,Color("#d5e8f1"))
+			for i in range(3):
+				var p = c+Vector2((i-1)*7,4+sin(time*3+i)*2)*s
+				canvas.draw_circle(p,(2.4 if kind == "hail" else 1.5)*s,Color("#f3fcff"))
+				if kind == "snow":
+					canvas.draw_line(p-Vector2(3,0)*s,p+Vector2(3,0)*s,Color.WHITE,s,true)
+		"sandstorm":
+			for i in range(3):
+				canvas.draw_line(c+Vector2(-11,-6+i*6)*s,c+Vector2(9,-8+i*6)*s,Color("#e7c48d"),2*s,true)
+		"rainbow":
+			var colors = [Color("#f6b2b6"),Color("#f4dc92"),Color("#a4d59e"),Color("#a8cdec")]
+			for i in range(4): canvas.draw_arc(c+Vector2(0,5)*s,(11-i*2)*s,PI,TAU,16,colors[i],2*s,true)
 
 
 # ---------------------------------------------------------------- plants
@@ -757,6 +833,12 @@ static func draw_effect(game: Control, effect: Dictionary) -> bool:
 	var c: Vector2 = effect.position
 	var radius = float(effect.radius)
 	match shape:
+		"ancient_hail_hit":
+			for k in range(7):
+				var dir = Vector2.from_angle(k*TAU/7+0.4)
+				var p = c+dir*radius*progress
+				poly(game,[p+Vector2(0,-4),p+Vector2(4,0),p+Vector2(0,4),p+Vector2(-4,0)],Color(0.85,0.96,1,ratio))
+			game.draw_arc(c,radius*progress,0,TAU,24,Color(0.7,0.9,1,ratio*0.6),1.5,true)
 		"ancient_milk_wave":
 			draw_wave(game, effect)
 		"ancient_hex":

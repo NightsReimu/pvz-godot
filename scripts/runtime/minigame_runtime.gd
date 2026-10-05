@@ -158,14 +158,14 @@ func zombie_visible(zombie: Dictionary) -> bool:
 	for row in range(maxi(0,int(zombie.row)-1),mini(game.board_rows,int(zombie.row)+2)):
 		for c in range(maxi(0,col-1),mini(game.COLS,col+2)):
 			var plant = game.grid[row][c]
-			if plant != null and plant.kind == "plantern" and float(plant.health)>0: return true
+			if plant != null and game._plant_has_component(plant,"plantern") and float(plant.health)>0: return true
 	return false
 
 func star_count() -> int:
 	var count := 0
 	for cell in Data.STAR_CELLS:
 		var plant = game.grid[cell.x][cell.y]
-		if plant != null and plant.kind == "starfruit" and float(plant.health)>0: count += 1
+		if plant != null and game._plant_has_component(plant,"starfruit") and float(plant.health)>0: count += 1
 	return count
 
 func fail_reason() -> String:
@@ -203,9 +203,13 @@ func board_click(cell: Vector2i) -> bool:
 		game._show_toast("本列没有可种植空位；先补花盆")
 		return true
 	for row in valid_rows:
-		var fresh: Dictionary = game._create_plant(kind,row,cell.y)
-		if kind == "flower_pot": game.support_grid[row][cell.y] = fresh
-		else: game.grid[row][cell.y] = fresh
+		var recipe: Dictionary = game._ensure_plant_fusion().candidate(kind,row,cell.y)
+		if not recipe.is_empty():
+			game._ensure_plant_fusion().apply_seed(kind,row,cell.y,recipe)
+		else:
+			var fresh: Dictionary = game._create_plant(kind,row,cell.y)
+			if kind == "flower_pot": game.support_grid[row][cell.y] = fresh
+			else: game.grid[row][cell.y] = fresh
 	game._consume_conveyor_card(kind)
 	game.selected_tool = ""
 	game._show_toast("整列种下 %d 株" % valid_rows.size())
@@ -245,7 +249,9 @@ func click(pos: Vector2) -> bool:
 func has_attacker() -> bool:
 	for row in game.grid:
 		for plant in row:
-			if plant != null and plant.kind in ["cabbage_pult","kernel_pult","melon_pult","snow_pea"]: return true
+			if plant == null or float(plant.health) <= 0: continue
+			for source in ["cabbage_pult","kernel_pult","melon_pult","snow_pea"]:
+				if game._plant_has_component(plant,source): return true
 	return false
 
 func status() -> String:

@@ -2154,7 +2154,7 @@ func _process(delta: float) -> void:
 		keine_runtime.update(delta)
 	if volcano_expansion != null or _is_volcano_level():
 		_ensure_volcano_expansion().update_world(delta)
-	if ancient_expansion != null or _is_ancient_level():
+	if ancient_expansion != null or _is_ancient_level() or current_level.has("weather_schedule"):
 		_ensure_ancient_expansion().update_world(delta)
 	_update_lava_cells(delta)
 	_update_cloud_sea(delta)
@@ -7422,7 +7422,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	lava_eruption_timers.clear()
 	if volcano_expansion != null:
 		volcano_expansion.reset()
-	if ancient_expansion != null or _is_ancient_level():
+	if ancient_expansion != null or _is_ancient_level() or current_level.has("weather_schedule"):
 		_ensure_ancient_expansion().reset()
 	next_event_index = 0
 	base_events_spawned = 0
@@ -10271,7 +10271,8 @@ func _tick_click_ultimate_for_plant(plant: Dictionary, delta: float) -> Dictiona
 		var data = Defs.PLANTS.get(String(plant.get("kind", "")), {})
 		if bool(data.get("gacha_only", false)):
 			charge_time *= 0.8
-		plant["ultimate_charge"] = minf(1.0, float(plant["ultimate_charge"]) + delta / charge_time)
+		var weather_charge = ancient_expansion.charge_factor() if ancient_expansion != null else 1.0
+		plant["ultimate_charge"] = minf(1.0, float(plant["ultimate_charge"]) + delta * weather_charge / charge_time)
 	return plant
 
 
@@ -19048,6 +19049,7 @@ func _explode_mine(row: int, col: int) -> void:
 func _trigger_jalapeno(row: int, col: int, boosted: bool = false) -> void:
 	var base_center = _cell_center(row, col)
 	var damage = float(Defs.PLANTS["jalapeno"]["damage"])
+	if ancient_expansion != null: damage *= ancient_expansion.element_factor("jalapeno",true)
 	var lanes: Array = [row]
 	if boosted:
 		for lane in [row - 1, row + 1]:
@@ -19585,6 +19587,7 @@ func _collect_thunder_chain_targets(start_index: int, chain_range: float, max_ta
 
 
 func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: float, chain_range: float, max_targets: int) -> int:
+	var weather_damage = ancient_expansion.element_factor("thunder_pine",false) if ancient_expansion != null else 1.0
 	var chain_indices = _collect_thunder_chain_targets(start_index, chain_range, max_targets)
 	if chain_indices.is_empty():
 		return 0
@@ -19593,7 +19596,7 @@ func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: 
 	for order in range(chain_indices.size()):
 		var zombie_index = int(chain_indices[order])
 		var zombie = zombies[zombie_index]
-		var damage = first_damage if order == 0 else chain_damage
+		var damage = (first_damage if order == 0 else chain_damage) * weather_damage
 		var strike_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0)
 		chain_points.append(strike_center)
 		zombie = _apply_zombie_damage(zombie, damage, 0.2)
@@ -19622,6 +19625,7 @@ func _strike_thunder_chain(start_index: int, first_damage: float, chain_damage: 
 
 
 func _strike_tesla_chain(source_position: Vector2, start_index: int, first_damage: float, chain_damage: float, chain_range: float, max_targets: int) -> int:
+	var weather_damage = ancient_expansion.element_factor("tesla_tulip",false) if ancient_expansion != null else 1.0
 	var chain_indices = _collect_thunder_chain_targets(start_index, chain_range, max_targets)
 	if chain_indices.is_empty():
 		return 0
@@ -19632,7 +19636,7 @@ func _strike_tesla_chain(source_position: Vector2, start_index: int, first_damag
 		var zombie_index = int(chain_indices[order])
 		var zombie = zombies[zombie_index]
 		var strike_center = Vector2(float(zombie["x"]), _row_center_y(int(zombie["row"])) - 12.0)
-		var damage = (first_damage if order == 0 else chain_damage) * chain_mult * (1.0 + float(order) * 0.06)
+		var damage = (first_damage if order == 0 else chain_damage) * chain_mult * (1.0 + float(order) * 0.06) * weather_damage
 		zombie = _apply_zombie_damage(zombie, damage, 0.24)
 		zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.22)
 		zombies[zombie_index] = zombie

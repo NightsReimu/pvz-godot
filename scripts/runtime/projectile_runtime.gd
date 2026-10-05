@@ -163,6 +163,14 @@ func track_target(shot: Dictionary, field: String) -> void:
 func apply_ammo_status(z: Dictionary, shot: Dictionary) -> Dictionary:
 	if not game._is_enemy_zombie(z) or float(z.health) <= 0: return z
 	z = Ammo.apply_status(z,shot)
+	var elements: Array = shot.get("ammo_elements",[])
+	if "tea" in elements:
+		game._ensure_ancient_expansion()
+		z.ancient_weak_until = maxf(float(z.get("ancient_weak_until",0)),game.level_time+3.0)
+	if "milk" in elements and not game._is_boss_zombie(z) and float(z.get("ammo_milk_ready_at",0)) <= game.level_time:
+		var push := 18.0 if not bool(shot.get("fusion_ultimate",false)) else 30.0
+		z.x = minf(float(z.x)+push,game.BOARD_ORIGIN.x+game.board_size.x+30.0)
+		z.ammo_milk_ready_at = game.level_time+0.8
 	if "dream" in shot.get("ammo_elements",[]) and not game._is_boss_zombie(z):
 		z.ammo_dream_hits = int(z.get("ammo_dream_hits",0))+1
 		if z.ammo_dream_hits >= 6: z = game._hypnotize_zombie(z)
@@ -451,17 +459,18 @@ func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
 
 
 func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: Vector2) -> void:
-	if game.ancient_expansion != null:
-		projectile["damage"] = float(projectile.get("damage", 0.0)) * game.ancient_expansion.projectile_factor(projectile)
 	if projectile.has("fusion_source") and not bool(projectile.get("fusion_native",false)):
 		game._ensure_plant_fusion().impact(projectile,impact_position)
 		return
 	apply_payload_area(projectile,impact_position)
 	if projectile.has("volcano_seed"):
-		game._ensure_volcano_expansion().impact(projectile, impact_position)
+		var payload = projectile.duplicate()
+		if game.ancient_expansion != null: payload.damage = float(payload.damage)*game.ancient_expansion.projectile_factor(payload)
+		game._ensure_volcano_expansion().impact(payload, impact_position)
 		return
 	var projectile_kind = String(projectile.get("kind", ""))
 	var damage = float(projectile.get("damage", 0.0))
+	if game.ancient_expansion != null: damage *= game.ancient_expansion.projectile_factor(projectile)
 	match projectile_kind:
 		"melon":
 			var splash_radius = float(projectile.get("splash_radius", 86.0))
@@ -934,7 +943,7 @@ func _apply_mango_roller_blast(roller: Dictionary, primary_index: int, impact_po
 		var zombie_position = game._zombie_target_point(zombie, impact_position)
 		if zombie_position.distance_to(impact_position) > impact_radius:
 			continue
-		zombie = game._apply_zombie_damage(zombie, float(roller["damage"]) * splash_ratio, 0.12)
+		zombie = game._apply_zombie_damage(zombie, _projectile_hit_damage(roller,zombie) * splash_ratio, 0.12)
 		zombie = apply_ammo_status(zombie,roller)
 		if roller.has("fusion_source"): zombie = game._ensure_plant_fusion().projectile_hit(zombie,roller)
 		game.zombies[z] = zombie
@@ -953,7 +962,7 @@ func update_rollers(delta: float) -> void:
 				continue
 			if absf(game._zombie_lane_x(zombie, int(roller.row)) - float(roller["x"])) > 26.0:
 				continue
-			zombie = game._apply_zombie_damage(zombie, float(roller["damage"]), 0.2)
+			zombie = game._apply_zombie_damage(zombie, _projectile_hit_damage(roller,zombie), 0.2)
 			zombie = apply_ammo_status(zombie,roller)
 			if roller.has("fusion_source"): zombie = game._ensure_plant_fusion().projectile_hit(zombie,roller)
 			game.zombies[z] = zombie

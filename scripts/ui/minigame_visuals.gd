@@ -116,13 +116,14 @@ static func draw_overlay(game: Control, rt: RefCounted) -> void:
 	if rt.id != "rain": return
 	var board := Rect2(game.BOARD_ORIGIN,game.board_size)
 	var age: float = game.level_time
-	game.draw_rect(board,Color(0.07,0.14,0.22,0.17))
-	for n in range(72):
-		var u := fposmod(float(n)*0.618-age*0.02,1)
-		var v := fposmod(float(n)*0.367+age*0.62,1)
-		var pos := board.position+board.size*Vector2(u,v)
-		game.draw_line(pos,pos+Vector2(-5,13),Color(0.75,0.9,1,0.27),1,true)
-	if fmod(age,19) < 0.14: game.draw_rect(board,Color(0.8,0.9,1,0.12))
+	if game.ancient_expansion == null or not game.ancient_expansion.active():
+		game.draw_rect(board,Color(0.07,0.14,0.22,0.17))
+		for n in range(72):
+			var u := fposmod(float(n)*0.618-age*0.02,1)
+			var v := fposmod(float(n)*0.367+age*0.62,1)
+			var pos := board.position+board.size*Vector2(u,v)
+			game.draw_line(pos,pos+Vector2(-5,13),Color(0.75,0.9,1,0.27),1,true)
+		if fmod(age,19) < 0.14: game.draw_rect(board,Color(0.8,0.9,1,0.12))
 	for packet in rt.packets:
 		var rect: Rect2 = rt.packet_rect(packet)
 		var expiring: bool = float(packet.life)<4

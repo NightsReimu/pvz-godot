@@ -4,7 +4,7 @@ const Defs = preload("res://scripts/game_defs.gd")
 const Fusion = preload("res://scripts/data/fusion_plant_defs.gd")
 const Ammo = preload("res://scripts/data/plant_ammo.gd")
 const CLOCKS = ["shot_cooldown","attack_timer","support_timer","pulse_timer","gust_timer","rear_shot_cooldown","geothermal_timer","copy_timer","honey_timer"]
-const NATIVE_ULTIMATES = ["scaredy_shroom","spikeweed","laser_lily","plasma_shroom","corn_cannon","moonforge","lotus_lancer","kernel_pult","cabbage_pult","melon_pult","boomerang_shooter","sakura_shooter","origami_blossom"]
+const NATIVE_ULTIMATES = ["scaredy_shroom","spikeweed","laser_lily","plasma_shroom","corn_cannon","moonforge","lotus_lancer","kernel_pult","cabbage_pult","melon_pult","boomerang_shooter","sakura_shooter","origami_blossom","dandelion","electric_bonk_choy"]
 const SHARED = ["health","max_health","armor_health","max_armor_health","holy_invincible_timer","save_cooldown","revives_used","geothermal_charge","fusion_mirror_until"]
 var game: Control
 func _init(owner: Control): game = owner

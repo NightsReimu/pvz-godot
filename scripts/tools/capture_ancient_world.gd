@@ -51,8 +51,8 @@ func _run() -> void:
 	root.mode = Window.MODE_WINDOWED
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	for viewport in [Vector2i(1600, 900), Vector2i(844, 390)]:
-		for weather in ["clear", "sunny", "rain", "storm", "wind", "fog"]:
-			if viewport.x != 1600 and weather != "storm":
+		for weather in ["clear", "sunny", "rain", "storm", "wind", "fog", "snow", "hail", "sandstorm", "rainbow"]:
+			if viewport.x != 1600 and weather not in ["storm", "snow", "rainbow"]:
 				continue
 			var game := _stage(viewport, weather)
 			var runtime = game._ensure_ancient_expansion()

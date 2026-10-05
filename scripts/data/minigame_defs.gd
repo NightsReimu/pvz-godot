@@ -26,7 +26,7 @@ static func level(id: String) -> Dictionary:
 	match id:
 		"rain":
 			cards = ["lily_pad", "peashooter", "repeater", "snow_pea", "wallnut", "cherry_bomb", "tangle_kelp", "starfruit"]
-			result.merge({"world":"fog", "terrain":"storm_fog", "row_count":6, "water_rows":[2,3], "mode":"conveyor", "start_sun":0}, true)
+			result.merge({"world":"fog", "terrain":"storm_fog", "row_count":6, "water_rows":[2,3], "mode":"conveyor", "start_sun":0, "weather_schedule":[{"weather":"rain", "duration":42.0},{"weather":"storm", "duration":24.0}]}, true)
 		"gems":
 			cards = []
 			result.start_sun = 0

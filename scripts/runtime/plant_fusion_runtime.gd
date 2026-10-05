@@ -15,7 +15,7 @@ func kind(plant: Dictionary) -> String:
 	return String(plant.get("fusion_kind",plant.get("kind","")))
 
 func enabled() -> bool:
-	return not game._is_minigame() and not String(game.current_level.get("mode","")) in ["bowling","whack","vasebreaker"]
+	return String(game.current_level.get("minigame", "")) != "gems" and not String(game.current_level.get("mode","")) in ["bowling","whack","vasebreaker"]
 
 func reset() -> void:
 	source_cell = Vector2i(-1,-1); source_seed = ""
@@ -117,6 +117,7 @@ func candidate(seed: String, row: int, col: int) -> Dictionary:
 
 func placement_error(seed: String, row: int, col: int, recipe: Dictionary) -> String:
 	var host: Dictionary = recipe.host
+	if bool(host.get("minigame_core",false)): return "守护核心不能参与融合"
 	if float(host.get("health",0)) <= 0: return "这株植物已经倒下"
 	if game._vase_index_at(row,col) != -1: return "先打碎这个花瓶"
 	if game._grave_index_at(row,col) != -1 and String(host.kind) != "grave_buster": return "这里有坟墓，先清理"
@@ -224,6 +225,8 @@ func merge_cells(from: Vector2i, to: Vector2i) -> bool:
 	if from.x < 0 or to.x < 0 or from.x >= game.ROWS or to.x >= game.ROWS or from.y < 0 or to.y < 0 or from.y >= game.COLS or to.y >= game.COLS: return false
 	var a = game._targetable_plant_at(from.x,from.y); var b = game._targetable_plant_at(to.x,to.y)
 	if a == null or b == null: return false
+	if bool(a.get("minigame_core",false)) or bool(b.get("minigame_core",false)):
+		game._show_toast("守护核心不能参与融合"); return false
 	var id: String = Fusion.result(kind(a),kind(b))
 	if id.is_empty(): game._show_toast("这两株没有融合配方"); return false
 	var layer: String = "grid" if game._top_plant_at(to.x,to.y) != null else "support"
@@ -411,6 +414,7 @@ func impact(shot: Dictionary, center: Vector2, skip_index: int = -1, splash: boo
 		if bool(z.get("balloon_flying",false)) or bool(z.get("jumping",false)): continue
 		if game._zombie_target_point(z,center).distance_to(center) > radius: continue
 		var damage: float = float(shot.damage)*(0.5 if splash else 1.0)
+		if game.ancient_expansion != null: damage *= game.ancient_expansion.projectile_factor(shot)
 		z = game._apply_zombie_damage(z,damage,0.14,0,false,bool(shot.get("pierce_handheld",false)),center.x)
 		game.zombies[i] = projectile_hit(z,shot)
 		hits += 1
@@ -452,6 +456,9 @@ func _skill_damage(p: Dictionary, row: int, col: int, skill: String) -> void:
 	var d: Dictionary = Defs.PLANTS[kind(p)]
 	var center: Vector2 = game._cell_center(row,col)
 	var damage: float = float(d.fusion_utility_damage)*game._projectile_damage_multiplier_for_spawn(row,center,String(p.kind))
+	if game.ancient_expansion != null:
+		var element_source: String = {"inferno":"jalapeno","steam":"jalapeno","blizzard":"snow_pea","lightning":"thunder_pine","rail_storm":"thunder_pine"}.get(skill,"")
+		damage *= game.ancient_expansion.element_factor(element_source,false)
 	var visible_hits := 0
 	for i in range(game.zombies.size()):
 		var z: Dictionary = game.zombies[i]
@@ -541,7 +548,7 @@ func ultimate(p: Dictionary, row: int, col: int) -> void:
 				ancient.pour_tea({},row,col,ancient._jasmine_cells(row,col,6),float(d.fusion_utility_damage)*1.5,12.0)
 		_skill_effect(p,row,col,skill)
 	_ultimate_strike(p,row,col,true)
-	p.fusion_skill_echoes = 2 if d.fusion_weapon_skills.any(func(skill): return skill in ["barrage","blades","constellation","bowling","meteor"]) or "steam" in d.fusion_skills or "miasma" in d.fusion_skills else 0
+	p.fusion_skill_echoes = 2 if d.fusion_channels.any(func(channel): return channel.style in ["shooter","spread","beam","lobber","blade","roller","melee"]) or "steam" in d.fusion_skills or "miasma" in d.fusion_skills else 0
 	p.fusion_echo_timer = 0.45
 	p.ultimate_active = true; p.ultimate_timer = 2.4; p.ultimate_charge = 0.0
 	p.ultimate_cooldown = 90.0
@@ -618,6 +625,8 @@ func _burst_impact(shot: Dictionary, center: Vector2) -> void:
 	var row: int = int(shot.row)
 	var radius: float = float(b.radius)
 	var shape: String = b.blast_shape
+	var damage: float = float(shot.damage)
+	if game.ancient_expansion != null: damage *= game.ancient_expansion.projectile_factor(shot)
 	var struck := 0
 	for i in range(game.zombies.size()):
 		var z: Dictionary = game.zombies[i]
@@ -628,7 +637,7 @@ func _burst_impact(shot: Dictionary, center: Vector2) -> void:
 		elif game._zombie_target_point(z,center).distance_to(center) > radius: continue
 		if b.source in ["potato_mine","squash","tangle_kelp","chomper"] and (bool(z.get("balloon_flying",false)) or bool(z.get("jumping",false))): continue
 		if shape == "single" and struck > 0: break
-		z = game._apply_zombie_damage(z,float(shot.damage),0.2)
+		z = game._apply_zombie_damage(z,damage,0.2)
 		if shape == "freeze":
 			z.frozen_timer = maxf(float(z.get("frozen_timer",0)),float(b.mechanics.get("freeze_duration",2.5)))
 			z = game._apply_zombie_slow(z,0.35,float(b.mechanics.get("slow_duration",5.0)))

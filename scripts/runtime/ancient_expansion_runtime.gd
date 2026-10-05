@@ -12,14 +12,19 @@ const PLANTS := ["dandelion", "jasmine_tea", "golden_milk", "samsara_eye", "elec
 const ZOMBIES := ["ancient_samurai", "ancient_mage", "ancient_strategist"]
 const WEATHER := {
 	"clear": {"name": "晴天", "summary": "风和日丽，没有天气修正", "color": Color("#9fd27a")},
-	"sunny": {"name": "烈日", "summary": "阳光+25%  火焰+20%  武士迟缓", "color": Color("#ffc54d")},
+	"sunny": {"name": "烈日", "summary": "阳光+25%  火焰+20%  铁甲迟缓", "color": Color("#ffc54d")},
 	"rain": {"name": "细雨", "summary": "火焰-40%  雷电+25%  茶渍扩散", "color": Color("#7fb8e8")},
 	"storm": {"name": "雷暴", "summary": "落雷劈向铁甲  电系出手+30%", "color": Color("#b3a3ff")},
 	"wind": {"name": "东风", "summary": "僵尸顺风+20%  蒲公英多一枚", "color": Color("#9fe0c8")},
 	"fog": {"name": "大雾", "summary": "直射只锁定4格  轮回窗口延长", "color": Color("#c9d3d6")},
+	"snow": {"name": "飘雪", "summary": "僵尸-25%  冰系+25%  火焰-15%", "color": Color("#bae7f4")},
+	"hail": {"name": "冰雹", "summary": "冰雹击甲28伤害  僵尸-15%", "color": Color("#95c6ed")},
+	"sandstorm": {"name": "沙尘", "summary": "直射视野3.5格  僵尸-10%", "color": Color("#e6bc7c")},
+	"rainbow": {"name": "虹光", "summary": "产阳+15%  出手与大招充能+15%", "color": Color("#e9b6e8")},
 }
 const SHOCK_KINDS := ["electric_bonk_choy", "tesla_tulip", "thunder_pine", "thunder_god", "storm_reed", "plasma_shooter", "plasma_shroom", "chain_lotus", "pulse_bulb"]
 const FIRE_KINDS := ["torchwood", "jalapeno", "pepper_mortar", "chimney_pepper", "magma_stream", "meteor_flower", "core_blossom", "phoenix_tree", "dragon_fruit", "dragon_bubble_pult", "caldera_lotus", "thermal_sunflower"]
+const FROST_KINDS := ["snow_pea", "ice_shroom", "snow_bloom", "frost_boomerang", "ice_queen", "frost_fan", "frost_cypress", "ice_cream"]
 const DEATH_MEMORY := 16.0
 
 var game: Control
@@ -32,6 +37,7 @@ var override_weather = ""
 var override_until = 0.0
 var override_owner = -1
 var lightning_timer = 6.0
+var hail_timer = 4.5
 var corroded: Dictionary = {}
 var deaths: Array = []
 var pending_revivals: Array = []
@@ -51,17 +57,22 @@ func reset() -> void:
 	override_until = 0.0
 	override_owner = -1
 	lightning_timer = 6.0
+	hail_timer = 4.5
 	corroded.clear()
 	deaths.clear()
 	pending_revivals.clear()
 	var schedule: Array = game.current_level.get("weather_schedule", [])
 	if not schedule.is_empty():
-		weather = String(schedule[0].get("weather", "clear"))
+		weather = _valid_weather(String(schedule[0].get("weather", "clear")))
 		previous_weather = weather
 
 
 func active() -> bool:
-	return game._is_ancient_level()
+	return game._is_ancient_level() or not game.current_level.get("weather_schedule", []).is_empty()
+
+
+func _valid_weather(value: String) -> String:
+	return value if WEATHER.has(value) else "clear"
 
 
 func current() -> String:
@@ -88,6 +99,7 @@ func schedule_remaining() -> float:
 # ---------------------------------------------------------------- weather
 
 func _set_weather(next: String, banner: String = "") -> void:
+	next = _valid_weather(next)
 	if next == weather:
 		return
 	previous_weather = weather
@@ -99,6 +111,7 @@ func _set_weather(next: String, banner: String = "") -> void:
 
 
 func set_override(next: String, owner_uid: int, duration: float) -> void:
+	if not WEATHER.has(next): return
 	override_weather = next
 	override_owner = owner_uid
 	override_until = game.level_time + duration
@@ -122,14 +135,18 @@ func update_world(delta: float) -> void:
 		return
 	weather_blend = minf(1.0, weather_blend + delta / 1.6)
 	var schedule: Array = game.current_level.get("weather_schedule", [])
-	var scheduled = weather
+	var scheduled = "clear"
 	if not schedule.is_empty():
 		schedule_timer += delta
-		var span = float(schedule[schedule_index % schedule.size()].get("duration", 30.0))
-		if schedule_timer >= span:
+		var cycle := 0.0
+		for entry in schedule: cycle += maxf(0.1, float(entry.get("duration", 30.0)))
+		schedule_timer = fmod(schedule_timer, cycle)
+		var span = maxf(0.1, float(schedule[schedule_index % schedule.size()].get("duration", 30.0)))
+		while schedule_timer >= span:
 			schedule_timer -= span
 			schedule_index = (schedule_index + 1) % schedule.size()
-		scheduled = String(schedule[schedule_index % schedule.size()].get("weather", "clear"))
+			span = maxf(0.1, float(schedule[schedule_index].get("duration", 30.0)))
+		scheduled = _valid_weather(String(schedule[schedule_index % schedule.size()].get("weather", "clear")))
 	if not override_weather.is_empty():
 		if game.level_time >= override_until or not _owner_alive(override_owner):
 			var fallen = not _owner_alive(override_owner)
@@ -146,6 +163,11 @@ func update_world(delta: float) -> void:
 		if lightning_timer <= 0.0:
 			lightning_timer = 6.5 + game.rng.randf_range(0.0, 2.0)
 			_call_lightning()
+	if weather == "hail":
+		hail_timer -= delta
+		if hail_timer <= 0.0:
+			hail_timer = 6.0
+			_call_hail()
 
 
 func sky_sun_factor() -> float:
@@ -155,11 +177,13 @@ func sky_sun_factor() -> float:
 		"sunny": return 0.68
 		"rain", "storm": return 1.6
 		"fog": return 1.2
+		"snow", "hail", "sandstorm": return 1.35
+		"rainbow": return 0.85
 	return 1.0
 
 
 func plant_sun_factor() -> float:
-	return 1.25 if is_weather(["sunny"]) else 1.0
+	return 1.25 if is_weather(["sunny"]) else (1.15 if is_weather(["rainbow"]) else 1.0)
 
 
 func element_factor(kind: String, fire: bool) -> float:
@@ -169,7 +193,10 @@ func element_factor(kind: String, fire: bool) -> float:
 	if fire or kind in FIRE_KINDS:
 		if weather == "sunny": factor *= 1.2
 		elif weather in ["rain", "storm"]: factor *= 0.6
+		elif weather in ["snow", "hail"]: factor *= 0.85
 	if kind in SHOCK_KINDS and weather in ["rain", "storm"]:
+		factor *= 1.25
+	if kind in FROST_KINDS and weather in ["snow", "hail"]:
 		factor *= 1.25
 	return factor
 
@@ -177,23 +204,37 @@ func element_factor(kind: String, fire: bool) -> float:
 func projectile_factor(projectile: Dictionary) -> float:
 	if not active():
 		return 1.0
-	var kind = String(projectile.get("source_kind", projectile.get("fusion_channel_source", "")))
+	var kind = String(projectile.get("fusion_channel_source", projectile.get("source_kind", "")))
+	if kind.is_empty(): kind = String(projectile.get("volcano_seed", projectile.get("kind", "")))
 	var fire = bool(projectile.get("fire", false)) or String(projectile.get("kind", "")).find("fire") != -1 or "flame" in projectile.get("ammo_elements", [])
-	return element_factor(kind, fire)
+	var factor = element_factor(kind, fire)
+	var tags: Array = projectile.get("ammo_elements", [])
+	if "storm" in tags and kind not in SHOCK_KINDS and is_weather(["rain", "storm"]): factor *= 1.25
+	if ("frost" in tags or float(projectile.get("slow_duration",0)) > 0) and kind not in FROST_KINDS and is_weather(["snow", "hail"]): factor *= 1.25
+	return factor
 
 
 func cadence_factor(plant) -> float:
-	if plant == null or not is_weather(["storm"]):
+	if plant == null or not active():
 		return 1.0
+	if weather == "rainbow": return 1.15
+	if weather != "storm": return 1.0
 	var kind = String(plant.get("kind", ""))
-	if kind in SHOCK_KINDS or game._plant_has_component(plant, "electric_bonk_choy"):
-		return 1.3
+	if kind in SHOCK_KINDS: return 1.3
+	for source in SHOCK_KINDS:
+		if game._plant_has_component(plant, source): return 1.3
 	return 1.0
+
+
+func charge_factor() -> float:
+	return 1.15 if is_weather(["rainbow"]) else 1.0
 
 
 func range_limit(range_value: float) -> float:
 	if is_weather(["fog"]):
 		return minf(range_value, game.CELL_SIZE.x * 4.5)
+	if is_weather(["sandstorm"]):
+		return minf(range_value, game.CELL_SIZE.x * 3.5)
 	return range_value
 
 
@@ -210,8 +251,11 @@ func speed_factor(z: Dictionary) -> float:
 				if enemy: factor *= 1.2
 			"rain", "storm":
 				factor *= 0.9
+			"snow": factor *= 0.75
+			"hail": factor *= 0.85
+			"sandstorm": factor *= 0.9
 			"sunny":
-				if String(z.get("kind", "")) == "ancient_samurai": factor *= 0.85
+				if String(z.get("kind", "")) == "ancient_samurai" or game.ZombieEquipment.metal_field(z) != "": factor *= 0.85
 	return factor
 
 
@@ -367,7 +411,7 @@ func update_spore(shot: Dictionary, delta: float) -> bool:
 	shot["position"] = apex.lerp(landing, d * d) + Vector2(sway * (1.0 - d), 0.0)
 	if d < 1.0:
 		return false
-	var damage = float(shot.damage)
+	var damage = float(shot.damage) * projectile_factor(shot)
 	if index >= 0:
 		_hit(index, damage, 0.18, true, landing.x)
 		# Grafted spores carry their partners' elemental payloads.
@@ -378,6 +422,7 @@ func update_spore(shot: Dictionary, delta: float) -> bool:
 			continue
 		if _zombie_point(game.zombies[i]).distance_to(landing) <= splash:
 			_hit(i, damage * 0.3, 0.1)
+			game.zombies[i] = game._ensure_projectile_runtime().apply_ammo_status(game.zombies[i], shot)
 	fx("ancient_spore_burst", landing, splash, 0.5, {"empowered": bool(shot.get("empowered", false))})
 	return true
 
@@ -589,7 +634,7 @@ func _update_bonk_choy(plant: Dictionary, delta: float, row: int, col: int) -> v
 	plant["ancient_punches"] = int(plant.get("ancient_punches", 0)) + 1
 	var power = _power(plant, row, col)
 	var point = _zombie_point(game.zombies[target])
-	_hit(target, float(data.damage) * power, 0.14)
+	_hit(target, float(data.damage) * power * element_factor("electric_bonk_choy",false), 0.14)
 	fx("ancient_punch", point + Vector2(0, -8), 26.0, 0.22, {"side": side})
 	game._play_sfx(game.SFX_HIT_HEAVY_PATH, -17.0, 1.25 + game.rng.randf_range(-0.08, 0.08))
 	if int(plant.ancient_punches) % int(data.lightning_every) == 0:
@@ -611,7 +656,7 @@ func _rush_punch(plant: Dictionary, row: int, col: int) -> void:
 			continue
 		if absi(int(z.row) - row) > 1 or absf(float(z.x) - center.x) > game.CELL_SIZE.x * 1.45:
 			continue
-		_hit(i, 40.0 * power, 0.12)
+		_hit(i, 40.0 * power * element_factor("electric_bonk_choy",false), 0.12)
 		if game.rng.randf() < 0.35:
 			fx("ancient_punch", _zombie_point(game.zombies[i]) + Vector2(0, -6), 22.0, 0.18, {"side": side})
 
@@ -689,6 +734,17 @@ func ultimate(plant: Dictionary, row: int, col: int) -> void:
 
 
 # ---------------------------------------------------------------- lightning & storm
+
+func _call_hail() -> void:
+	var hits := 0
+	for i in range(game.zombies.size()):
+		var z: Dictionary = game.zombies[i]
+		if not _enemy_alive(z) or game._is_hidden_from_lane_attacks(z): continue
+		var point = _zombie_point(z)
+		_hit(i, 28.0, 0.14)
+		fx("ancient_hail_hit", point, 26.0, 0.55)
+		hits += 1
+		if hits >= 12: break
 
 func _call_lightning() -> void:
 	var best = -1
@@ -1114,7 +1170,7 @@ func draw_spore(shot: Dictionary) -> void:
 
 
 func draw_ground() -> void:
-	if active():
+	if game._is_ancient_level():
 		Visuals.draw_ground(game, self)
 	Visuals.draw_corrosion(game, self)
 

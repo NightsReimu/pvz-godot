@@ -228,7 +228,7 @@ func test_columns(game: Control) -> void:
 	game.selected_tool = "cabbage_pult"
 	game._handle_board_click(Vector2i(2,4))
 	check(game.active_cards.count("cabbage_pult")==1,"Exactly one card consumed")
-	check(game.grid[1][4].kind=="wallnut","Existing plants preserved")
+	check(game._plant_has_component(game.grid[1][4],"wallnut") and game._plant_has_component(game.grid[1][4],"cabbage_pult"),"Existing plants retain their material when fused by a column seed")
 	for row in [0,2,3,4]: check(game.grid[row][4].kind=="cabbage_pult","Valid empty cells filled")
 
 func test_complete_waves(game: Control) -> void:

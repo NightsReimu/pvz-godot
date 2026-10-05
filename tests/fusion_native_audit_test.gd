@@ -17,6 +17,9 @@ func sample_patterns(g: Control, source: String, fused: bool) -> Dictionary:
  var signatures: Dictionary = {}
  var key: String = "peashooter" if source == "repeater" else source
  var id: String = Fusion.result(source,"wallnut") if fused else source
+ if id.is_empty() or not Defs.PLANTS.has(id):
+  check(false,"Missing audited fusion definition: "+source+" / "+id)
+  return signatures
  var p: Dictionary = g._create_plant(id,2,2); p.sleep_timer = 0; g.grid[2][2] = p
  for n in range(450):
   g.level_time += 0.1
@@ -35,7 +38,7 @@ func sample_patterns(g: Control, source: String, fused: bool) -> Dictionary:
 func test_all_native_patterns():
  var rows: Array = []
  for source in Native.PLANTS:
-  if source in Fusion.EXCLUDED: continue
+  if source in Fusion.EXCLUDED or source in Fusion.UNOBTAINABLE: continue
   var original = fixture(); var mixed = fixture()
   var baseline := sample_patterns(original,source,false)
   var inherited := sample_patterns(mixed,source,true)
@@ -47,7 +50,7 @@ func test_all_native_patterns():
   dispose(original); dispose(mixed)
  var file = FileAccess.open("res://output/fusion-native-audit162.json",FileAccess.WRITE)
  if file: file.store_string(JSON.stringify(rows,"  "))
- check(rows.size() == Native.PLANTS.size()-2,"Audit covers all eligible native materials")
+ check(rows.size() == Native.PLANTS.size()-Fusion.EXCLUDED.size()-Fusion.UNOBTAINABLE.size(),"Audit covers all eligible native materials")
 
 func test_composed_ammunition():
  var g = make_game(); g.rng.seed = 162

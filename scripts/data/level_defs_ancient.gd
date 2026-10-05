@@ -11,7 +11,7 @@ class_name AncientLevelDefs
 const LEVELS = [
 	{
 		"id": "8-1", "title": "古代世界 8-1 · 古都晨光",
-		"description": "晨雾散去的古都庭院。蒲公英的孢子会从天而降，越过盾牌命中本行最前方的敌人。身披大铠的武士首次出阵，居合一刀即可重创前排。留意右上角的天气：烈日下阳光更多，武士也更迟缓。",
+		"description": "晨雾散去的古都庭院。蒲公英的孢子会从天而降，越过盾牌命中本行最前方的敌人。身披大铠的武士首次出阵，居合一刀即可重创前排。烈日增加阳光并拖慢铁甲；战斗后段的虹光让产阳、攻击与大招充能提高15%。",
 		"terrain": "ancient", "world": "ancient",
 		"available_plants": ["sunflower", "peashooter", "wallnut", "cherry_bomb", "snow_pea", "repeater", "potato_mine", "torchwood", "tallnut", "kernel_pult", "dandelion"],
 		"unlock_plant": "dandelion", "start_sun": 175,
@@ -21,7 +21,7 @@ const LEVELS = [
 			{"weather": "clear", "duration": 40.0},
 			{"weather": "sunny", "duration": 32.0},
 			{"weather": "clear", "duration": 26.0},
-			{"weather": "sunny", "duration": 30.0},
+			{"weather": "rainbow", "duration": 30.0},
 		],
 		"events": [
 			{"time": 8.0, "kind": "normal", "row": 2},
@@ -55,6 +55,7 @@ const LEVELS = [
 			{"weather": "rain", "duration": 36.0},
 			{"weather": "clear", "duration": 20.0},
 			{"weather": "rain", "duration": 40.0},
+			{"weather": "rainbow", "duration": 24.0},
 		],
 		"events": [
 			{"time": 8.0, "kind": "conehead", "row": 2},
@@ -78,7 +79,7 @@ const LEVELS = [
 	},
 	{
 		"id": "8-3", "title": "古代世界 8-3 · 军师借风",
-		"description": "羽扇轻摇，东风骤起。军师僵尸坐镇后方，会借来东风、大雾或细雨，并指挥同伴绕向防守薄弱的一行。金铲铲牛奶一瓶冲刷整行，造成 1000 伤害并击退敌人——留给最危险的那一刻。",
+		"description": "羽扇轻摇，东风骤起。军师僵尸坐镇后方，会借来东风、大雾或细雨，并指挥同伴绕向薄弱的一行。沙尘中直射视野只有3格，投手仍能越过尘幕。金铲铲牛奶冲刷整行，造成1000伤害并击退敌人。",
 		"terrain": "ancient", "world": "ancient",
 		"available_plants": ["sunflower", "peashooter", "wallnut", "cherry_bomb", "snow_pea", "repeater", "potato_mine", "torchwood", "tallnut", "kernel_pult", "dandelion", "jasmine_tea", "golden_milk"],
 		"unlock_plant": "golden_milk", "start_sun": 225,
@@ -87,8 +88,9 @@ const LEVELS = [
 		"weather_schedule": [
 			{"weather": "clear", "duration": 30.0},
 			{"weather": "wind", "duration": 26.0},
-			{"weather": "sunny", "duration": 24.0},
+			{"weather": "sandstorm", "duration": 24.0},
 			{"weather": "rain", "duration": 28.0},
+			{"weather": "sunny", "duration": 24.0},
 		],
 		"events": [
 			{"time": 8.0, "kind": "normal", "row": 1},
@@ -113,7 +115,7 @@ const LEVELS = [
 	},
 	{
 		"id": "8-4", "title": "古代世界 8-4 · 雷雨轮回",
-		"description": "乌云压城，雷雨与大雾交替。轮回眼睛花能让 10 秒内倒下的植物原地复活，原格有植物时还会直接融合。雷暴天的落雷会劈向武士的铁甲，电系植物出手更快；大雾里直射植物只能看清 4 格。",
+		"description": "乌云压城，雷雨、大雾与寒流交替。轮回眼睛花让10秒内倒下的植物原地复活，原格有植物时直接融合。雷暴的落雷优先劈向铁甲；飘雪拖慢僵尸并强化冰系，冰雹每轮造成28伤害；大雾里直射视野只有4格。",
 		"terrain": "ancient", "world": "ancient",
 		"available_plants": ["sunflower", "peashooter", "wallnut", "cherry_bomb", "snow_pea", "repeater", "potato_mine", "torchwood", "tallnut", "kernel_pult", "dandelion", "jasmine_tea", "golden_milk", "samsara_eye"],
 		"unlock_plant": "samsara_eye", "start_sun": 250,
@@ -123,7 +125,8 @@ const LEVELS = [
 			{"weather": "rain", "duration": 24.0},
 			{"weather": "storm", "duration": 34.0},
 			{"weather": "fog", "duration": 26.0},
-			{"weather": "storm", "duration": 30.0},
+			{"weather": "snow", "duration": 24.0},
+			{"weather": "hail", "duration": 24.0},
 		],
 		"events": [
 			{"time": 8.0, "kind": "conehead", "row": 2},
@@ -149,18 +152,22 @@ const LEVELS = [
 	},
 	{
 		"id": "8-5", "title": "古代世界 8-5 · 天下布武",
-		"description": "古都终章：烈日、东风、细雨、雷暴与大雾轮番登场，三位军师同时坐镇。电眼菜问向前后挥出雷拳，每第四拳放出连锁闪电；雨天闪电跳得更远。守住庭院，击退武士大军。",
+		"description": "古都终章：烈日、东风、细雨、雷暴、大雾、飘雪、冰雹、沙尘与虹光轮番登场。电眼菜问向前后挥出雷拳，每第四拳放出连锁闪电；雨天闪电跳得更远。按天气调整冰火雷组合，击退武士大军。",
 		"terrain": "ancient", "world": "ancient",
 		"available_plants": ["sunflower", "peashooter", "wallnut", "cherry_bomb", "snow_pea", "repeater", "potato_mine", "torchwood", "tallnut", "kernel_pult", "dandelion", "jasmine_tea", "golden_milk", "samsara_eye", "electric_bonk_choy"],
 		"unlock_plant": "electric_bonk_choy", "start_sun": 300,
 		"row_count": 5, "time_scale": 0.76, "sky_sun_range": Vector2(6.0, 9.0),
 		"node_pos": Vector2(1340.0, 590.0),
 		"weather_schedule": [
-			{"weather": "sunny", "duration": 26.0},
-			{"weather": "wind", "duration": 22.0},
-			{"weather": "rain", "duration": 24.0},
-			{"weather": "storm", "duration": 28.0},
-			{"weather": "fog", "duration": 22.0},
+			{"weather": "sunny", "duration": 20.0},
+			{"weather": "wind", "duration": 16.0},
+			{"weather": "rain", "duration": 18.0},
+			{"weather": "storm", "duration": 20.0},
+			{"weather": "fog", "duration": 16.0},
+			{"weather": "snow", "duration": 18.0},
+			{"weather": "hail", "duration": 16.0},
+			{"weather": "sandstorm", "duration": 16.0},
+			{"weather": "rainbow", "duration": 24.0},
 		],
 		"events": [
 			{"time": 8.0, "kind": "conehead", "row": 1},

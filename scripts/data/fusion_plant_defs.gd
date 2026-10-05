@@ -325,6 +325,8 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 		if titles.size() < 3: titles.append(skill_names()[skill])
 	inherited.ultimate_name = "·".join(titles)
 	inherited.fusion_ultimate_description = "；".join(descriptions)
+	if channels.any(func(channel): return channel.style in ["shooter","spread","beam","lobber","blade","roller","melee"]):
+		inherited.fusion_ultimate_description += "；持续武器在起手后再齐射两轮（间隔0.45秒），爆舱仅起手触发。"
 	inherited.ultimate_duration = 2.4
 	inherited.fusion_art_dynamic = id.begins_with("mix_")
 	DEFINITIONS[id] = inherited
