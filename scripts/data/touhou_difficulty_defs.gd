@@ -43,7 +43,7 @@ const EXTENSIONS := {
 # Each column is a different move, retained by all subsequent difficulty tiers.
 # The first uses the character's pursuit pattern, then crossfire, then a domain.
 # These bosses provide their own EX/EX+ phase lists in MokouSpellDefs.
-const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss"]
+const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss", "shizuha_boss", "minoriko_boss"]
 
 static func boss_kinds() -> Array:
 	return EXTENSIONS.keys() + CUSTOM_EXTRA_BOSSES
@@ -141,8 +141,12 @@ static func build_level(base: Dictionary, choice: String) -> Dictionary:
 		return level
 	var settings: Dictionary = PROFILES[choice]
 	level["touhou_difficulty"] = choice
+	if String(base.get("id", "")) == "4-19":
+		level["mid_boss_nonspell_only"] = int(settings.rank) < 2
 	level["title"] = "%s · %s" % [String(base.title), settings.name]
 	if bool(settings.select):
+		if String(base.get("id", "")) == "4-19":
+			level["available_plants"].push_front("sunflower")
 		level["mode"] = "normal"
 		level["start_sun"] = 350
 		level["sky_sun_range"] = Vector2(7.0, 10.0)

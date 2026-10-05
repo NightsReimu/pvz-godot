@@ -100,6 +100,7 @@ static func draw_label(canvas: CanvasItem, font: Font, rect: Rect2, label: Strin
 
 
 static func draw_gradient_rect_v(canvas: CanvasItem, rect: Rect2, top_color: Color, bottom_color: Color) -> void:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0: return
 	canvas.draw_polygon(
 		PackedVector2Array([rect.position, rect.position + Vector2(rect.size.x, 0.0), rect.position + rect.size, rect.position + Vector2(0.0, rect.size.y)]),
 		PackedColorArray([top_color, top_color, bottom_color, bottom_color])
@@ -107,6 +108,7 @@ static func draw_gradient_rect_v(canvas: CanvasItem, rect: Rect2, top_color: Col
 
 
 static func draw_gradient_rect_h(canvas: CanvasItem, rect: Rect2, left_color: Color, right_color: Color) -> void:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0: return
 	canvas.draw_polygon(
 		PackedVector2Array([rect.position, rect.position + Vector2(rect.size.x, 0.0), rect.position + rect.size, rect.position + Vector2(0.0, rect.size.y)]),
 		PackedColorArray([left_color, right_color, right_color, left_color])

@@ -106,6 +106,8 @@ static func update_progress(game: Control, boss: Dictionary) -> bool:
 		boss["boss_pause_timer"] = 0.65
 	if not bool(encounter.depleted) or int(encounter.completed) < attacks.size():
 		return false
+	if String(boss.kind) in ["shizuha_boss", "minoriko_boss"] and game.aki_runtime != null:
+		game.aki_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) == "suika_boss" and game.suika_runtime != null:
 		game.suika_runtime.clear_owner(int(boss.uid))
 	if game.touhou_danmaku != null and boss.has("touhou_owner"):

@@ -1,6 +1,8 @@
 extends RefCounted
 class_name FogLevelDefs
 
+const Autumn = preload("res://scripts/data/level_defs_autumn.gd")
+
 const LEVELS = [
 {
 			"id": "4-1",
@@ -548,6 +550,7 @@ const LEVELS = [
 				{"time": 126.0, "kind": "fog_boss", "row": 2, "wave": true},
 			],
 		},
+		Autumn.LEVEL,
 		{
 			"id": "4-S1",
 			"title": "不丢除草机",

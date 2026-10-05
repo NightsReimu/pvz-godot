@@ -7,6 +7,7 @@ const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
 const Reisen = preload("res://scripts/data/reisen_spell_defs.gd")
 const Eirin = preload("res://scripts/data/eirin_spell_defs.gd")
 const Mokou = preload("res://scripts/data/mokou_spell_defs.gd")
+const Aki = preload("res://scripts/data/aki_spell_defs.gd")
 const Suika = preload("res://scripts/data/suika_spell_defs.gd")
 const Kaguya = preload("res://scripts/data/kaguya_spell_defs.gd")
 
@@ -207,6 +208,7 @@ const NONSPELLS := {
 
 
 static func phases_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind in ["shizuha_boss", "minoriko_boss"]: return Aki.phases(kind, level)
 	if kind == "suika_boss": return Suika.phases(level)
 	if kind in ["hakutaku_boss", "mokou_boss"]:
 		return Mokou.phases(kind, level)
@@ -241,6 +243,7 @@ static func card_from_entry(entry: Array) -> Dictionary:
 
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind in ["shizuha_boss", "minoriko_boss"]: return Aki.cards(kind, level)
 	if kind == "suika_boss": return Suika.cards(level)
 	if kind == "prismriver_boss":
 		return CARDS[kind].map(func(entry): return Difficulty.spell_variant(kind, level, entry))

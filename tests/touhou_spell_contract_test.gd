@@ -117,7 +117,7 @@ func _test_every_spell_has_live_pattern() -> void:
 			var warned_attack: bool = game.keine_runtime != null and not game.keine_runtime.attacks.is_empty()
 			check(not runtime.bullets.is_empty() or not runtime.beams.is_empty() or game.zombies.size() > 1 or warned_attack, "%s/%d must emit bullets, beams, summons or a collision-bearing attack telegraph" % [kind, cycle])
 			check(float(game.grid[2][3].health) == hp, "%s/%d must not deal invisible instant area damage on declaration" % [kind, cycle])
-			check(String(game._boss_cast_status(game.zombies[0]).text).contains(String(game.zombies[0].touhou_card.name)), "HUD must show the same card that is executing")
+			check(String(game._boss_cast_status(game.zombies[0]).text).contains(String(game.zombies[0].touhou_card.name)), "%s/%d HUD must show the executing %s; actual %s" % [kind, cycle, game.zombies[0].touhou_card.name, game._boss_cast_status(game.zombies[0]).text])
 			runtime.update(0.12)
 			check(runtime.bullets.size() <= runtime.MAX_BULLETS and runtime.beams.size() <= runtime.MAX_BEAMS, "patterns must respect particle budgets")
 			release(game)

@@ -3,6 +3,8 @@ extends RefCounted
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const DURATION := 1.65
 const THEMES := {
+	"shizuha_boss": [Color("f07846"), "maple"],
+	"minoriko_boss": [Color("f3cc71"), "grain"],
 	"hakutaku_boss": [Color("aee69b"), "ofuda"],
 	"mokou_boss": [Color("ff9869"), "petal"],
 	"kaguya_boss": [Color("efb7d6"), "clock"],
@@ -52,7 +54,20 @@ static func state(cast: Dictionary) -> Dictionary:
 static func glyph(canvas: CanvasItem, center: Vector2, radius: float, kind: String, angle: float, color: Color) -> void:
 	var axis := Vector2.from_angle(angle)
 	var side := axis.orthogonal()
-	if kind == "cross":
+	if kind == "maple":
+		var points := PackedVector2Array()
+		for p in [Vector2(0, -1), Vector2(0.25, -0.35), Vector2(0.8, -0.65), Vector2(0.5, -0.1), Vector2(1, 0.2), Vector2(0.3, 0.35), Vector2(0.2, 0.8), Vector2(0, 0.6), Vector2(-0.2, 0.8), Vector2(-0.3, 0.35), Vector2(-1, 0.2), Vector2(-0.5, -0.1), Vector2(-0.8, -0.65), Vector2(-0.25, -0.35)]:
+			points.append(center + Vector2(p).rotated(angle) * radius)
+		canvas.draw_colored_polygon(points, color)
+		canvas.draw_line(center - axis * radius * 0.7, center + axis * radius, Color(color, color.a * 0.75), 1.2, true)
+	elif kind == "grain":
+		canvas.draw_line(center - axis * radius, center + axis * radius, color, 1.5, true)
+		for i in range(3):
+			var node := center + axis * radius * (i * 0.5 - 0.55)
+			for sign in [-1, 1]:
+				var tip: Vector2 = node - axis * radius * 0.35 + side * sign * radius * 0.35
+				canvas.draw_line(node, tip, color, radius * 0.18, true)
+	elif kind == "cross":
 		canvas.draw_line(center - axis * radius, center + axis * radius, color, maxf(1.5, radius * 0.3), true)
 		canvas.draw_line(center - side * radius, center + side * radius, color, maxf(1.5, radius * 0.3), true)
 	elif kind == "eye":

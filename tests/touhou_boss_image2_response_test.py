@@ -46,7 +46,7 @@ def main() -> int:
     metadata_path = ROOT / "art/touhou_boss_animation_sources.json"
     assert_true(metadata_path.exists(), "committed Touhou boss animation metadata should exist")
     records = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert_true(len(records) == len(generator.BOSSES) + 5, "metadata must retain the earlier sets, Imperishable refresh, repaired Mokou and supplied Suika set")
+    assert_true(len(records) == len(generator.BOSSES) + 7, "metadata must retain the earlier sets, Imperishable refresh, repaired Mokou, supplied Suika and both Aki sets")
     assert_true(
         {record.get("source") for record in records} <= {
             "gpt-image-2_sheet", "user_sheet_imagegen_background_extraction",
@@ -63,8 +63,8 @@ def main() -> int:
     assert_true({r['kind'] for r in native_alpha} == {
         'wriggle_boss', 'mystia_boss', 'keine_boss', 'mokou_boss',
         'letty_boss', 'chen_boss', 'alice_boss', 'lily_white_boss',
-        'youmu_boss', 'yuyuko_boss', 'ran_boss', 'yukari_boss', 'prismriver_boss', 'suika_boss',
-    }, "the Imperishable and Cherry transparent supplied sheets must be attributed to their actual source")
+        'youmu_boss', 'yuyuko_boss', 'ran_boss', 'yukari_boss', 'prismriver_boss', 'suika_boss', 'shizuha_boss', 'minoriko_boss',
+    }, "the Imperishable, Cherry and Aki transparent supplied sheets must be attributed to their actual source")
     for record in native_alpha:
         assert_true(record['source_sha256'] == record['original_sha256'], "the supplied alpha sheets must not be regenerated")
         assert_true((ROOT / record['source_sheet']).exists(), "original alpha sheet must be saved")

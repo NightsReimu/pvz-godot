@@ -38,6 +38,8 @@ const TouhouPhaseRuntime = preload("res://scripts/runtime/touhou_phase_runtime.g
 const KeineBossRuntime = preload("res://scripts/runtime/keine_boss_runtime.gd")
 const TouhouSpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
 const MarisaBossRuntime = preload("res://scripts/runtime/marisa_boss_runtime.gd")
+const AutumnMapleScene = preload("res://scripts/ui/autumn_maple_scene.gd")
+const AkiBossRuntime = preload("res://scripts/runtime/aki_boss_runtime.gd")
 const SuikaBossRuntime = preload("res://scripts/runtime/suika_boss_runtime.gd")
 const ReimuBossRuntime = preload("res://scripts/runtime/reimu_boss_runtime.gd")
 const ReisenBossRuntime = preload("res://scripts/runtime/reisen_boss_runtime.gd")
@@ -631,7 +633,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"tewi_boss",
 	"reisen_boss",
 	"eirin_boss", "star_fairy", "kedama", "mini_kedama", "rabbit_airship",
-	"kaguya_boss", "kaguya_treasure", "hakutaku_boss", "mokou_boss", "suika_boss", "suika_mini", "suika_knot",
+	"kaguya_boss", "kaguya_treasure", "hakutaku_boss", "mokou_boss", "suika_boss", "suika_mini", "suika_knot", "shizuha_boss", "minoriko_boss", "aki_harvest_basket",
 	"moon_rabbit",
 	"moon_rabbit_guard",
 	"moon_portal",
@@ -1017,6 +1019,7 @@ var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
 var touhou_danmaku: TouhouDanmakuRuntime
 var keine_runtime: RefCounted
+var aki_runtime: RefCounted
 var suika_runtime: RefCounted
 var reimu_runtime: RefCounted
 var reisen_runtime: RefCounted
@@ -2139,6 +2142,8 @@ func _process(delta: float) -> void:
 	_update_scarlet_clocktower_hazards(delta)
 	_update_spawn_director(delta)
 	_update_conveyor(delta)
+	if aki_runtime != null:
+		aki_runtime.update(delta)
 	if suika_runtime != null:
 		suika_runtime.update(delta)
 	if reimu_runtime != null:
@@ -3301,7 +3306,7 @@ func _should_use_image2_zombie_texture(kind: String) -> bool:
 
 func _boss_frame_count_for_kind(kind: String) -> int:
 	match kind:
-		"suika_boss", "keine_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss", "eirin_boss", "kaguya_boss", "hakutaku_boss", "mokou_boss":
+		"shizuha_boss", "minoriko_boss", "suika_boss", "keine_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss", "eirin_boss", "kaguya_boss", "hakutaku_boss", "mokou_boss":
 			return 24
 		"rumia_boss":
 			return RUMIA_FRAME_COUNT
@@ -3349,6 +3354,10 @@ func _boss_frame_count_for_kind(kind: String) -> int:
 
 func _boss_frame_folder_for_kind(kind: String) -> String:
 	match kind:
+		"shizuha_boss":
+			return "res://art/shizuha"
+		"minoriko_boss":
+			return "res://art/minoriko"
 		"suika_boss":
 			return "res://art/suika"
 		"hakutaku_boss":
@@ -3429,7 +3438,7 @@ func _is_existing_touhou_boss_kind(kind: String) -> bool:
 
 
 func _boss_skill_cycle_length(kind: String) -> int:
-	if TouhouSpellDefs.CARDS.has(kind):
+	if _is_touhou_boss_kind(kind):
 		return TouhouSpellDefs.cards_for(kind, current_level).size()
 	var data = Dictionary(Defs.ZOMBIES.get(kind, {}))
 	if data.has("skill_cycle_length"):
@@ -3448,7 +3457,7 @@ func _boss_skill_cycle_length(kind: String) -> int:
 
 
 func _boss_skill_interval(kind: String, phase: int) -> float:
-	return _base_boss_skill_interval(kind, phase) * (float(TouhouDifficulty.profile(current_level).cadence) if TouhouSpellDefs.CARDS.has(kind) else 1.0)
+	return _base_boss_skill_interval(kind, phase) * (float(TouhouDifficulty.profile(current_level).cadence) if _is_touhou_boss_kind(kind) else 1.0)
 
 
 func _base_boss_skill_interval(kind: String, phase: int) -> float:
@@ -3476,7 +3485,7 @@ func _base_boss_skill_interval(kind: String, phase: int) -> float:
 
 
 func _boss_reinforcement_interval(kind: String, phase: int) -> float:
-	return _base_boss_reinforcement_interval(kind, phase) * (float(TouhouDifficulty.profile(current_level).cadence) if TouhouSpellDefs.CARDS.has(kind) else 1.0)
+	return _base_boss_reinforcement_interval(kind, phase) * (float(TouhouDifficulty.profile(current_level).cadence) if _is_touhou_boss_kind(kind) else 1.0)
 
 
 func _base_boss_reinforcement_interval(kind: String, phase: int) -> float:
@@ -7380,6 +7389,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		touhou_difficulty_menu.close()
 	if keine_runtime != null:
 		keine_runtime.reset()
+	if aki_runtime != null:
+		aki_runtime.reset()
 	if suika_runtime != null:
 		suika_runtime.reset()
 	if reimu_runtime != null:
@@ -8316,6 +8327,10 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.boss_bgm))
 			_show_banner("上白泽慧音封存了林间的历史！", 2.8)
+		elif kind in ["shizuha_boss", "minoriko_boss"]:
+			_ensure_aki_runtime()
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.boss_bgm))
 		elif kind == "suika_boss":
 			_ensure_suika_runtime()
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
@@ -10037,6 +10052,12 @@ func _ensure_marisa_runtime() -> RefCounted:
 	return marisa_runtime
 
 
+func _ensure_aki_runtime() -> RefCounted:
+	if aki_runtime == null:
+		aki_runtime = AkiBossRuntime.new(self)
+	return aki_runtime
+
+
 func _ensure_suika_runtime() -> RefCounted:
 	if suika_runtime == null:
 		suika_runtime = SuikaBossRuntime.new(self)
@@ -10901,6 +10922,7 @@ func _execute_volcano_corn_cannon_ultimate() -> void:
 
 
 func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, profile: Dictionary) -> void:
+	if aki_runtime != null: aki_runtime.cleanse_row(row)
 	if suika_runtime != null: suika_runtime.cleanse_row(row)
 	if float(plant.get("health", 0.0)) > 0.0:
 		_restore_plant_health(plant, maxf(0, float(plant.max_health) - float(plant.health)), true)
@@ -14080,6 +14102,9 @@ func _cleanup_dead_zombies() -> void:
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
 		if keine_runtime != null and String(zombie.kind) == "keine_boss":
 			keine_runtime.clear_owner(int(zombie.get("uid", -1)))
+		if aki_runtime != null:
+			if String(zombie.kind) == "aki_harvest_basket": aki_runtime.on_basket_death(zombie)
+			if String(zombie.kind) in ["shizuha_boss", "minoriko_boss"]: aki_runtime.clear_owner(int(zombie.uid))
 		if suika_runtime != null and String(zombie.kind) == "suika_boss":
 			suika_runtime.clear_owner(int(zombie.uid))
 		if reimu_runtime != null and String(zombie.kind) == "reimu_boss":
@@ -14853,6 +14878,11 @@ func _is_boss_kind(kind: String) -> bool:
 
 func _is_boss_zombie(zombie: Dictionary) -> bool:
 	return _is_boss_kind(String(zombie.get("kind", "")))
+
+
+func _is_touhou_boss_kind(kind: String) -> bool:
+	# Preserve existing unnamed roads such as Tewi as well as dedicated modules.
+	return TouhouSpellDefs.CARDS.has(kind) or TouhouDifficulty.boss_kinds().has(kind)
 
 
 func _is_stage_ending_boss(zombie: Dictionary) -> bool:
@@ -16372,6 +16402,11 @@ func _city_boss_roster_for_phase(phase: int) -> Array:
 
 
 func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
+	if kind in ["shizuha_boss", "minoriko_boss"]:
+		if _active_zombie_count() < 30:
+			var pool: Array = ["normal", "conehead", "newspaper"] if phase == 0 else (["conehead", "buckethead", "screen_door"] if phase == 1 else ["buckethead", "newspaper", "football", "balloon_zombie"])
+			_spawn_zombie(String(pool[rng.randi_range(0, pool.size() - 1)]), -1, true)
+		return
 	if kind == "suika_boss":
 		if _active_zombie_count() < 35:
 			var pool: Array = ["normal", "conehead", "buckethead"] if phase == 0 else (["conehead", "ancient_samurai"] if phase == 1 else ["ancient_samurai", "ancient_mage", "buckethead"])
@@ -17110,6 +17145,9 @@ func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
+	if String(zombie.kind) in ["shizuha_boss", "minoriko_boss"]:
+		_ensure_aki_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
+		return _ensure_touhou_danmaku().cast(zombie)
 	if String(zombie.kind) == "suika_boss":
 		_ensure_suika_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
 		return _ensure_touhou_danmaku().cast(zombie)
@@ -18350,13 +18388,15 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		kaguya_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) == "keine_boss" and keine_runtime != null:
 		keine_runtime.cancel_cast(int(zombie.get("uid", -1)))
+	if String(zombie.kind) in ["shizuha_boss", "minoriko_boss"] and aki_runtime != null:
+		aki_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) == "suika_boss" and suika_runtime != null:
 		suika_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) == "reimu_boss" and reimu_runtime != null:
 		reimu_runtime.clear_owner(int(zombie.get("uid", -1)))
 	if String(zombie.kind) == "marisa_boss" and marisa_runtime != null:
 		marisa_runtime.clear_owner(int(zombie.get("uid", -1)))
-	if TouhouSpellDefs.CARDS.has(String(zombie.get("kind", ""))):
+	if _is_touhou_boss_kind(String(zombie.get("kind", ""))):
 		if touhou_danmaku != null and zombie.has("touhou_owner"):
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
 		zombie["touhou_invulnerable"] = false
@@ -20694,7 +20734,8 @@ func _update_conveyor(delta: float) -> void:
 		if String(active_cards[i]) == "":
 			_fill_conveyor_slot(i)
 			# Deliberately unhurried, matching the original belt cadence.
-			conveyor_spawn_timer = rng.randf_range(4.6, 6.8)
+			var delivery: Vector2 = current_level.get("conveyor_interval", Vector2(4.6, 6.8))
+			conveyor_spawn_timer = rng.randf_range(maxf(1.0, delivery.x), maxf(maxf(1.0, delivery.x), delivery.y))
 			return
 	conveyor_spawn_timer = 1.4
 
@@ -20884,6 +20925,9 @@ func _extra_spawn_count_for_event(event_index: int, event: Dictionary) -> int:
 
 
 func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) -> String:
+	if String(current_level.get("terrain", "")) == "autumn_maple":
+		var pool: Array = ["normal", "conehead", "newspaper", "buckethead", "screen_door"]
+		return String(pool[posmod(event_index + extra_index, pool.size())])
 	if String(current_level.get("id", "")) == "3-25":
 		var pool: Array = current_level.enemy_whitelist
 		return String(pool[posmod(event_index + extra_index, pool.size())])
@@ -22181,6 +22225,14 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 	var water := Color(0.2, 0.56, 0.72)
 	var hazard := Color(0.96, 0.36, 0.12)
 	match terrain_key:
+		"autumn_maple":
+			label = "六行红枫旱地"
+			sky_top = Color("dc7650")
+			sky_bottom = Color("f3d59b")
+			ground = Color("af9365")
+			lane = Color("bca270")
+			lane_alt = Color("af9365")
+			accent = Color("e05837")
 		"ancient":
 			label = "东方古城庭院"
 			sky_top = Color("#e9cda9")
@@ -23210,6 +23262,8 @@ func _draw_battle_scene() -> void:
 		mokou_runtime.draw_ground()
 	if ancient_expansion != null:
 		ancient_expansion.draw_ground()
+	if aki_runtime != null:
+		aki_runtime.draw_ground()
 	if suika_runtime != null:
 		suika_runtime.draw_ground()
 	_draw_hover()
@@ -23245,6 +23299,10 @@ func _draw_battle_scene() -> void:
 		kaguya_runtime.draw_overlay()
 	if mokou_runtime != null:
 		mokou_runtime.draw_overlay()
+	if String(current_level.get("terrain", "")) == "autumn_maple":
+		AutumnMapleScene.draw_ambient(self)
+	if aki_runtime != null:
+		aki_runtime.draw_overlay()
 	if suika_runtime != null:
 		suika_runtime.draw_overlay()
 	_draw_sakuya_time_stop_overlay()
@@ -23336,6 +23394,9 @@ func _draw_endless_bonus_overlay() -> void:
 
 
 func _draw_battle_background() -> void:
+	if String(current_level.get("terrain", "")) == "autumn_maple":
+		AutumnMapleScene.draw_background(self)
+		return
 	if _is_ancient_level():
 		_ensure_ancient_expansion().draw_background()
 		if bool(current_level.get("suika_banquet", false)):
@@ -24365,6 +24426,9 @@ func _draw_battle_background() -> void:
 
 
 func _draw_battle_board() -> void:
+	if String(current_level.get("terrain", "")) == "autumn_maple":
+		AutumnMapleScene.draw_board(self)
+		return
 	if _is_ancient_level():
 		_ensure_ancient_expansion().draw_board()
 		return
@@ -25518,7 +25582,7 @@ func _boss_cast_status(boss: Dictionary) -> Dictionary:
 		var cycle = int(boss.get("boss_last_skill_cycle", 0)) if recovering else int(boss.get("boss_skill_cycle", 0))
 		var label: String = ["熔炉落石", "火口共鸣", "炉卫集结"][cycle % 3]
 		return {"text": "%s  %s" % [label, "收招" if recovering else ("蓄力 %.1fs" % remaining if casting else "%.1fs" % remaining)], "progress": clampf(1.0 - remaining / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0) if casting else 0.0, "color": Color("#ffce76") if casting else Color("#d2e5dc")}
-	if TouhouSpellDefs.CARDS.has(String(boss.get("kind", ""))):
+	if _is_touhou_boss_kind(String(boss.get("kind", ""))):
 		if boss.has("touhou_encounter") and String(boss.get("rumia_state", "")) == "phase" and float(boss.get("rumia_state_timer", 0.0)) > 0.0:
 			return {"text": "阶段转换", "progress": 0.0, "color": Color(0.72, 0.91, 1.0)}
 		var active = float(boss.get("touhou_cast_remaining", 0.0)) > 0.0
@@ -30534,6 +30598,8 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _ensure_kaguya_runtime().frame_index(zombie)
 		"keine_boss":
 			return _keine_frame_index(zombie)
+		"shizuha_boss", "minoriko_boss":
+			return _ensure_aki_runtime().frame_index(zombie)
 		"suika_boss":
 			return _ensure_suika_runtime().frame_index(zombie)
 		"reimu_boss":
@@ -32184,6 +32250,12 @@ func _draw_zombie_body(center: Vector2, zombie: Dictionary) -> void:
 	if kind == "keine_boss":
 		_ensure_keine_runtime().draw_boss(center, zombie)
 		return
+	if kind in ["shizuha_boss", "minoriko_boss"]:
+		AutumnMapleScene.draw_boss(self, center, zombie)
+		return
+	if kind == "aki_harvest_basket":
+		_ensure_aki_runtime().draw_basket(center, zombie)
+		return
 	if kind in ["suika_boss", "suika_mini"]:
 		_ensure_suika_runtime().draw_boss(center, zombie, kind == "suika_mini")
 		return
@@ -32933,7 +33005,7 @@ func _zombie_almanac_stats(kind: String) -> Array:
 		head_hp += float(data.get("shield_health", 0.0))
 	if head_hp > 0.0: stats.append("头戴护具（橙金）：%d" % int(head_hp))
 	if hand_hp > 0.0: stats.append("手持护具（蓝）：%d" % int(hand_hp))
-	if TouhouSpellDefs.CARDS.has(kind):
+	if _is_touhou_boss_kind(kind):
 		stats.append("阶段：%d" % TouhouSpellDefs.phase_count(kind))
 	match FusionZombieDefs.base_kind(kind):
 		"ducky_tube", "lifebuoy_normal":

@@ -4,6 +4,8 @@ extends RefCounted
 # Height excludes transparent canvas padding and faint spell glows.
 const BODY_HEIGHT := 180.0
 const IDLE_HEIGHTS := {
+	"shizuha_boss": 241.0,
+	"minoriko_boss": 242.0,
 	"suika_boss": 255.0,
 	"mokou_boss": 208.0,
 	"hakutaku_boss": 238.0,
@@ -37,6 +39,8 @@ const IDLE_HEIGHTS := {
 }
 
 const IDLE_BOTTOM := {
+	"shizuha_boss": 320.0,
+	"minoriko_boss": 320.0,
 	"suika_boss": 319.0,
 	"mokou_boss": 319.0,
 	"hakutaku_boss": 254.0,
@@ -72,6 +76,22 @@ const IDLE_BOTTOM := {
 # These supplied sheets contain different actions, rather than generated
 # inbetweens of eight interchangeable poses. Keep reactions out of spell casts.
 const SCARLET_ANIMATIONS := {
+	"shizuha_boss": {
+		"idle": [0, 1, 2, 1], "walk": [3, 4, 5, 4],
+		"shot": [6, 7, 8, 7], "leaf": [6, 7, 8, 7],
+		"leaves": [6, 7, 8, 7], "channel": [9, 10, 11, 10],
+		"harvest": [15, 16, 17, 16], "final": [18, 19, 20, 19],
+		"hit": [12, 13, 14], "phase": [15, 16, 17, 23],
+		"defeat": [21, 22],
+	},
+	"minoriko_boss": {
+		"idle": [0, 1, 2, 1], "walk": [3, 4, 5, 4],
+		"shot": [6, 7, 8, 7], "leaf": [6, 7, 8, 7],
+		"leaves": [6, 7, 8, 7], "channel": [9, 10, 11, 10],
+		"harvest": [15, 16, 17, 16], "final": [18, 19, 20, 23],
+		"hit": [21, 22, 21], "phase": [15, 16, 17, 23],
+		"defeat": [21, 22],
+	},
 	"rumia_boss": {
 		"hit": [12, 13, 14], "summon": [9, 10, 11, 10],
 		"beam": [6, 7, 8, 7], "swallow": [6, 7, 8, 7],

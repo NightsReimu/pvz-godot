@@ -6,6 +6,7 @@ const PrismriverDanmaku = preload("res://scripts/runtime/prismriver_danmaku.gd")
 const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
+const AkiDanmaku = preload("res://scripts/runtime/aki_danmaku.gd")
 const SuikaDanmaku = preload("res://scripts/runtime/suika_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
 const ReisenDanmaku = preload("res://scripts/runtime/reisen_danmaku.gd")
@@ -63,7 +64,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	clear_owner(owner)
 	var pattern = String(card.pattern)
 	var duration := 3.4
-	if String(boss.kind) in ["suika_boss", "reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
+	if String(boss.kind) in ["shizuha_boss", "minoriko_boss", "suika_boss", "reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
 		duration = float(card.get("duration", 4.8))
 	if String(boss.kind) in ["hakutaku_boss", "mokou_boss"]:
 		duration = float(card.get("duration", 6.0))
@@ -92,7 +93,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	casts.append(session)
 	if String(card.origin) == "nonspell":
 		game._show_banner(String(card.name), 1.8)
-	if String(boss.kind) not in ["suika_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss"]:
+	if String(boss.kind) not in ["shizuha_boss", "minoriko_boss", "suika_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss"]:
 		game.effects.append({"shape": String(boss.kind).trim_suffix("_boss") + "_spell_seal", "position": center, "radius": 72.0, "time": 0.45, "duration": 0.45, "color": Color(0.9, 0.86, 1.0, 0.25)})
 	if pattern == "wraith_charm":
 		game._spawn_youmu_wraiths_from(center, 2 + mini(int(session.phase), 1), int(session.phase))
@@ -246,6 +247,9 @@ func _update_actors(c: Dictionary) -> void:
 
 
 func _emit_wave(c: Dictionary) -> void:
+	if String(c.kind) in ["shizuha_boss", "minoriko_boss"]:
+		AkiDanmaku.emit(self, c)
+		return
 	if String(c.kind) == "suika_boss":
 		SuikaDanmaku.emit(self, c)
 		return
@@ -974,6 +978,9 @@ func draw() -> void:
 		var color = Color(b.color)
 		var radius = float(b.radius)
 		if not board.grow(-radius * 2).has_point(point):
+			continue
+		if String(b.shape) in ["aki_leaf", "aki_grain", "aki_potato"]:
+			AkiDanmaku.draw_bullet(game, b)
 			continue
 		if String(b.shape) in ["suika_fire", "suika_stone"]:
 			SuikaDanmaku.draw_bullet(game, b)

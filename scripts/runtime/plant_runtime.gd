@@ -107,6 +107,7 @@ func update_plants(delta: float) -> void:
 				continue
 
 			var action_delta := delta * (float(game.suika_runtime.action_factor(row, col)) if game.suika_runtime != null else 1.0)
+			if game.aki_runtime != null: action_delta *= float(game.aki_runtime.action_factor(row, col))
 			if plant.has("fusion_kind"):
 				game._ensure_plant_fusion().update(plant,action_delta,row,col)
 				game.grid[row][col] = plant
@@ -134,6 +135,7 @@ func update_plants(delta: float) -> void:
 			if game._plant_charm_blocks_actions(support):
 				continue
 			var support_delta := delta * (float(game.suika_runtime.action_factor(row, col)) if game.suika_runtime != null else 1.0)
+			if game.aki_runtime != null: support_delta *= float(game.aki_runtime.action_factor(row, col))
 			if support.has("fusion_kind"):
 				support.sleep_timer = maxf(0,float(support.get("sleep_timer",0))-delta)
 				var stilled: bool = (game.mokou_runtime != null and game.mokou_runtime.plant_stilled(row,col)) or (game.kaguya_runtime != null and game.kaguya_runtime.plant_stilled(row,col))
