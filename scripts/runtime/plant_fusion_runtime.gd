@@ -462,7 +462,18 @@ func _garden(p: Dictionary, row: int, col: int, fortified: bool = false) -> void
 				ally.max_armor_health = maxf(float(ally.get("max_armor_health",0)),float(ally.armor_health))
 				if fortified: ally.holy_invincible_timer = maxf(float(ally.get("holy_invincible_timer",0)),2.0)
 
-func _skill_damage(p: Dictionary, row: int, col: int, skill: String) -> void:
+# An ultimate reaches as far as its action: the lanes ahead, the field ahead, or the cells around.
+func _scope(d: Dictionary) -> String:
+	return String(Fusion.Ultimates.SCOPE.get(String(d.fusion_skills[0]),"radius"))
+
+func _in_scope(scope: String, z: Dictionary, point: Vector2, row: int, center: Vector2) -> bool:
+	match scope:
+		"lanes": return absi(game._zombie_target_row(z,point)-row) <= 1 and point.x >= center.x-30
+		"front": return point.x >= center.x-30
+		"radius": return point.distance_to(center) <= game.CELL_SIZE.x*3.2
+	return true
+
+func _skill_damage(p: Dictionary, row: int, col: int, skill: String, scope: String = "board") -> void:
 	var d: Dictionary = Defs.PLANTS[kind(p)]
 	var center: Vector2 = game._cell_center(row,col)
 	var damage: float = float(d.fusion_utility_damage)*game._projectile_damage_multiplier_for_spawn(row,center,String(p.kind))
@@ -488,6 +499,7 @@ func _skill_damage(p: Dictionary, row: int, col: int, skill: String) -> void:
 			game.zombies[i] = z
 			if visible_hits < 4: _skill_effect(p,row,col,skill,point); visible_hits += 1
 			continue
+		if not _in_scope(scope,z,point,row,center): continue
 		if skill in ["minefield","devour"] and point.distance_to(center) > game.CELL_SIZE.x*3.2: continue
 		if skill == "devour" and (bool(z.get("balloon_flying",false)) or bool(z.get("jumping",false))): continue
 		if skill in ["minefield","purge"] and bool(z.get("balloon_flying",false)) and sky.is_empty(): continue
@@ -517,19 +529,21 @@ func _ultimate_strike(p: Dictionary, row: int, col: int, opening: bool = false) 
 	if native_runtime == null: native_runtime = NativeRuntime.new(game)
 	native_runtime.update(p,0.01,row,col,true,opening)
 	for skill in d.fusion_skills:
-		if skill in ["steam","miasma"]: _skill_damage(p,row,col,skill)
+		if skill in ["steam","miasma"]: _skill_damage(p,row,col,skill,_scope(d))
 	_skill_effect(p,row,col,d.fusion_skills[0])
 
 func ultimate(p: Dictionary, row: int, col: int) -> void:
 	var d: Dictionary = Defs.PLANTS[kind(p)]; var center: Vector2 = game._cell_center(row,col)
+	var scope := _scope(d)
 	_support(p,row,col,true)
+	# Every explosive chamber detonates at the opening, whatever the signature move.
+	for channel in d.fusion_channels:
+		if channel.style == "burst":
+			_burst(p,row,col,channel,true)
+			p.fusion_channel_timers[channel.source] = float(channel.interval)
 	for skill in d.fusion_skills:
 		match skill:
-			"minefield":
-				for channel in d.fusion_channels:
-					if channel.style == "burst":
-						_burst(p,row,col,channel,true)
-						p.fusion_channel_timers[channel.source] = float(channel.interval)
+			"devour","domain": _skill_damage(p,row,col,skill,"radius")
 			"reflection":
 				if game.touhou_danmaku != null:
 					for bullet in game.touhou_danmaku.bullets:
@@ -550,10 +564,13 @@ func ultimate(p: Dictionary, row: int, col: int) -> void:
 						var ally = game._targetable_plant_at(r,c)
 						if ally != null and center.distance_to(game._cell_center(r,c)) < game.CELL_SIZE.x*3.2: ally.fusion_renewal_timer = 8.0
 			"spirits": _summon_spirits(row,col,3); p.fusion_summon_timer = 22.0
-			"tornado","vortex": game._trigger_blover_fog_clear(8.0); _skill_damage(p,row,col,skill)
-			"magnetic": _support(p,row,col,true); _skill_damage(p,row,col,"rail_storm")
-			"beacon": game._trigger_blover_fog_clear(10.0); _skill_damage(p,row,col,skill)
-			"purge","dream","roots","lightning","blizzard","inferno","needles","rail_storm","sun_lance": _skill_damage(p,row,col,skill)
+			"tornado","vortex": game._trigger_blover_fog_clear(8.0); _skill_damage(p,row,col,skill,scope)
+			"magnetic": _support(p,row,col,true); _skill_damage(p,row,col,"rail_storm",scope)
+			"beacon": game._trigger_blover_fog_clear(10.0); _skill_damage(p,row,col,skill,scope)
+			"sun_lance":
+				game._spawn_sun(center+Vector2(0,-35),center.y,"plant_food",maxi(50,int(d.sun_amount)))
+				_skill_damage(p,row,col,skill,scope)
+			"purge","dream","roots","lightning","blizzard","inferno","needles","rail_storm": _skill_damage(p,row,col,skill,scope)
 			"samsara": game._ensure_ancient_expansion().fusion_revive(row,col,true)
 			"tea_ceremony":
 				var ancient = game._ensure_ancient_expansion()

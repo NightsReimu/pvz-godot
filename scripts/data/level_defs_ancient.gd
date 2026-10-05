@@ -205,7 +205,7 @@ const LEVELS = [
 		"mid_boss_kind": "suika_boss", "mid_boss_final_preview": true,
 		"mid_boss_locked_progress": 0.5, "mid_boss_banner": "伊吹萃香 · 先陪我喝一杯吧！",
 		"boss_intro_bgm": "res://audio/bgm/night.mp3", "boss_bgm": "res://audio/th075_suika_boss.mp3",
-		"available_plants": ["sunflower", "peashooter", "wallnut", "cherry_bomb", "snow_pea", "repeater", "threepeater", "torchwood", "tallnut", "kernel_pult", "umbrella_leaf", "healing_gourd", "dandelion", "jasmine_tea", "golden_milk", "samsara_eye", "electric_bonk_choy", "melon_pult", "winter_melon", "jalapeno"],
+		"available_plants": ["peashooter", "wallnut", "cherry_bomb", "snow_pea", "repeater", "threepeater", "torchwood", "tallnut", "kernel_pult", "umbrella_leaf", "healing_gourd", "dandelion", "jasmine_tea", "golden_milk", "samsara_eye", "electric_bonk_choy", "melon_pult", "jalapeno"],
 		"conveyor_plants": ["peashooter", "repeater", "repeater", "snow_pea", "threepeater", "wallnut", "tallnut", "kernel_pult", "melon_pult", "umbrella_leaf", "healing_gourd", "healing_gourd", "jasmine_tea", "golden_milk", "dandelion", "samsara_eye", "electric_bonk_choy", "torchwood", "cherry_bomb", "jalapeno"],
 		"conveyor_interval": Vector2(2.4, 3.4), "start_sun": 0,
 		"row_count": 5, "time_scale": 0.78, "sky_sun_range": Vector2(99.0, 99.0),

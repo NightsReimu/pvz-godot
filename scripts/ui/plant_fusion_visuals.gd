@@ -343,9 +343,11 @@ static func _beam(canvas: CanvasItem, a: Vector2, b: Vector2, width: float, pal:
 static func _fireball(canvas: CanvasItem, c: Vector2, r: float, progress: float, pal: Array, seed: float) -> void:
 	var fade: float = 1.0-progress
 	var grow: float = r*(0.45+0.55*sqrt(progress))
-	canvas.draw_circle(c,grow,_a(pal[0],fade*0.55),true,-1,true)
-	canvas.draw_circle(c,grow*0.78,_a(pal[1],fade*0.75),true,-1,true)
-	canvas.draw_circle(c,grow*0.48*(1.0-progress*0.5),_a(pal[2],fade),true,-1,true)
+	# The fireball flashes and clears quickly; flames and the shock ring carry the rest.
+	var flash: float = pow(fade,1.8)
+	canvas.draw_circle(c,grow,_a(pal[0],flash*0.42),true,-1,true)
+	canvas.draw_circle(c,grow*0.78,_a(pal[1],flash*0.6),true,-1,true)
+	canvas.draw_circle(c,grow*0.48*(1.0-progress*0.5),_a(pal[2],flash),true,-1,true)
 	for i in range(9):
 		var a: float = i*TAU/9+seed
 		flame(canvas,c+Vector2.from_angle(a)*grow*0.55,Vector2.from_angle(a),grow*(0.55+0.2*sin(i*2.1+seed)),grow*0.22,fade,pal)
@@ -461,15 +463,39 @@ static func draw_projectile(canvas: CanvasItem, projectile: Dictionary) -> void:
 
 # ---------------------------------------------------------------- ultimates
 
+# Each skill keeps its own element colour, whatever the plant that casts it.
+const SKILL_TONE := {"inferno":"fire","steam":"fire","minefield":"fire","meteor":"fire","blizzard":"frost","spring":"frost","reflection":"frost",
+	"lightning":"shock","rail_storm":"shock","miasma":"poison","dream":"hypno","spirits":"hypno","samsara":"hypno","domain":"hypno",
+	"tornado":"wind","vortex":"wind","roots":"leaf","needles":"leaf","devour":"leaf","renewal":"heal","garden":"heal","bastion":"shield",
+	"tea_ceremony":"shield","beacon":"sun","sun_lance":"sun","solar":"sun","purge":"sun","awakening":"sun","magnetic":"magnet"}
+const BEAMS := ["laser","rail_storm","sun_lance","beacon"]
+const STRUCK := ["minefield","steam","miasma","devour","roots","meteor"]
+
+
+# A struck enemy shows a small mark of the skill instead of a second copy of the whole cast.
+static func _impact(canvas: CanvasItem, p: Vector2, pal: Array, progress: float, fade: float) -> void:
+	glow(canvas,p,14+progress*10,pal[1],fade*0.8)
+	ring(canvas,p,10+progress*16,2.2,pal[1],fade)
+	for i in range(6):
+		var dir := Vector2.from_angle(i*TAU/6+0.3)
+		canvas.draw_line(p+dir*(6+progress*10),p+dir*(12+progress*16),_a(pal[2],fade),2.0,true)
+
+
 static func draw_skill(canvas: CanvasItem, effect: Dictionary, progress: float, tint: Color) -> void:
 	var skill: String = effect.skill
 	var origin: Vector2 = effect.position
 	var target: Vector2 = effect.get("target",Vector2.INF)
-	var c: Vector2 = target if target.is_finite() and skill in ["minefield","steam","miasma","devour","roots"] else origin
+	var hit: bool = target.is_finite()
 	var r: float = 35+progress*float(effect.radius)*0.65
 	var fade: float = 1-progress
 	var traits: Array = effect.get("traits",[])
-	var pal: Array = palette(traits)
+	var pal: Array = PALETTES[SKILL_TONE[skill]] if SKILL_TONE.has(skill) else palette(traits)
+	if hit and not skill in BEAMS and not skill in STRUCK and skill != "lightning":
+		_impact(canvas,target,pal,progress,fade)
+		return
+	var c: Vector2 = target if hit and skill in STRUCK else origin
+	# Heavy casts shrink where they land on a struck enemy.
+	if hit and skill in ["minefield","steam","meteor"]: r *= 0.62
 	var time: float = float(canvas.get("level_time"))
 	match skill:
 		"reflection":
@@ -480,7 +506,9 @@ static func draw_skill(canvas: CanvasItem, effect: Dictionary, progress: float, 
 				canvas.draw_line(plate+Vector2(-2,-8),plate+Vector2(3,6),_a(Color.WHITE,fade),1.6,true)
 			ring(canvas,c,r,2,PALETTES.frost[1],fade*0.7)
 		"laser","rail_storm","sun_lance","beacon":
-			var end: Vector2 = target if target.is_finite() else c+Vector2(300,0)
+			# Without a struck target the beam sweeps its whole lane to the board edge.
+			var edge: float = float(canvas.get("BOARD_ORIGIN").x)+float(canvas.get("board_size").x) if canvas.get("board_size") != null else c.x+300
+			var end: Vector2 = target if hit else Vector2(edge,c.y)
 			var beam_pal: Array = PALETTES.sun if skill in ["sun_lance","beacon"] else (PALETTES.shock if skill == "rail_storm" else pal)
 			_beam(canvas,c,end,16*fade+4,beam_pal,fade)
 			for i in range(6):
@@ -519,7 +547,7 @@ static func draw_skill(canvas: CanvasItem, effect: Dictionary, progress: float, 
 				bolt(canvas,c,end,PALETTES.shock[1],2.6*fade+0.8,i+progress*40,fade)
 				glow(canvas,end,10*fade+3,PALETTES.shock[2],fade)
 		"domain":
-			canvas.draw_circle(c,r,Color(0.56,0.5,0.86,0.12*fade),true,-1,true)
+			canvas.draw_circle(c,r,Color(0.56,0.5,0.86,0.07*fade),true,-1,true)
 			ring(canvas,c,r,2.4,Color("c9b6f2"),fade,progress*2)
 			ring(canvas,c,r*0.72,1.6,Color("e9dcff"),fade,-progress*3)
 			for i in range(12):
@@ -583,9 +611,19 @@ static func draw_skill(canvas: CanvasItem, effect: Dictionary, progress: float, 
 				else: sparkle(canvas,p,5,tone[2],fade)
 		"minefield","meteor","purge":
 			if skill == "meteor":
-				var drop: Vector2 = c+Vector2(60,-140)*(1.0-minf(1.0,progress*2.2))
+				# Shells arc down onto the struck enemy, or onto the field ahead; never onto the caster.
+				var land: Vector2 = c if hit else origin+Vector2(170,0)
+				var fall: float = minf(1.0,progress*2.2)
+				var drop: Vector2 = land+Vector2(-60,-150)*(1.0-fall)
 				polygon(canvas,teardrop(drop,Vector2(0.4,1).normalized()*-1,40,10),_a(PALETTES.fire[1],fade*0.7))
 				canvas.draw_circle(drop,9,_a(Color("e9a85d"),fade),true,-1,true)
+				if fall >= 1.0: _fireball(canvas,land,r*0.55,(progress-0.45)/0.55,PALETTES.fire,float(land.x)*0.02)
+				return
+			if skill == "minefield" and not hit:
+				# The detonation itself is drawn where each chamber bursts; the plant only flashes its fuse.
+				ring(canvas,c,18+progress*22,3.0,PALETTES.fire[1],fade)
+				sparkle(canvas,c+Vector2(0,-26),10*fade+4,PALETTES.fire[2],fade)
+				return
 			if skill == "purge":
 				glow(canvas,c,r*0.7,PALETTES.sun[2],fade)
 				for i in range(8):

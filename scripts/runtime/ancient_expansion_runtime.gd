@@ -431,7 +431,7 @@ func update_spore(shot: Dictionary, delta: float) -> bool:
 func _jasmine_cells(row: int, col: int, columns: int, rows: int = 1) -> Array:
 	var cells: Array = []
 	for r in range(row - rows, row + rows + 1):
-		if r < 0 or r >= game.ROWS or not game._is_row_active(r):
+		if r < 0 or r >= mini(game.ROWS, game.board_rows) or not game._is_row_active(r):
 			continue
 		for c in range(col, mini(game.COLS, col + 1 + columns)):
 			cells.append(Vector2i(r, c))
@@ -970,7 +970,7 @@ func _hex_targets(z: Dictionary) -> Array:
 	var reach_cells = 4 if is_weather(["fog"]) else 6
 	var options: Array = []
 	for r in range(int(z.row) - 1, int(z.row) + 2):
-		if r < 0 or r >= game.ROWS or not game._is_row_active(r):
+		if r < 0 or r >= mini(game.ROWS, game.board_rows) or not game._is_row_active(r):
 			continue
 		for c in range(game.COLS):
 			var plant = game.grid[r][c]

@@ -32,6 +32,7 @@ const THEMES := {
 	"wriggle_boss": [Color("b8ea81"), "petal"],
 	"mystia_boss": [Color("edb6e3"), "note"],
 	"keine_boss": [Color("a5e5e8"), "ofuda"],
+	"suika_boss": [Color("f2b072"), "diamond"],
 }
 
 
@@ -121,8 +122,14 @@ static func draw(game: Control, cast: Dictionary) -> void:
 	var board := Rect2(game.BOARD_ORIGIN, game.board_size)
 	var ui_scale := maxf(scale, 0.62)
 	var slide := (1.0 - float(visual.expand)) * 44.0 * ui_scale
-	var banner := Rect2(board.position + Vector2(18 * ui_scale + slide, 12 * ui_scale), Vector2(board.size.x - 36 * ui_scale, 60 * ui_scale))
-	ThemeLib.draw_rounded_panel(game, banner, Color(0.035, 0.045, 0.085, alpha * 0.86), Color(color, alpha * 0.65), 10 * ui_scale, 0.0)
-	glyph(game, banner.position + Vector2(30, 30) * ui_scale, 13 * ui_scale, String(visual.glyph), -PI * 0.5, Color(color, alpha))
-	ThemeLib.draw_label(game, game.ui_font, Rect2(banner.position + Vector2(55, 3) * ui_scale, Vector2(94, 54) * ui_scale), "符卡展开", maxi(12, roundi(16 * ui_scale)), Color(color, alpha))
-	ThemeLib.draw_label(game, game.ui_font, Rect2(banner.position + Vector2(153, 3) * ui_scale, Vector2(banner.size.x - 170 * ui_scale, 54 * ui_scale)), String(visual.name), maxi(16, roundi(26 * ui_scale)), Color(1, 0.97, 0.91, alpha), HORIZONTAL_ALIGNMENT_RIGHT, maxi(10, roundi(14 * ui_scale)))
+	# A compact tag at the board's upper-right edge, as in the original games, so the first
+	# row of plants stays readable while the card is declared.
+	var name_size := maxi(15, roundi(22 * ui_scale))
+	var name_width: float = game.ui_font.get_string_size(String(visual.name), HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x
+	var height := 42.0 * ui_scale
+	var width := minf(board.size.x - 36 * ui_scale, name_width + 168 * ui_scale)
+	var banner := Rect2(Vector2(board.end.x - 14 * ui_scale - width + slide, board.position.y - height * 0.5), Vector2(width, height))
+	ThemeLib.draw_rounded_panel(game, banner, Color(0.035, 0.045, 0.085, alpha * 0.74), Color(color, alpha * 0.7), 9 * ui_scale, 0.0)
+	glyph(game, banner.position + Vector2(22 * ui_scale, height * 0.5), 10 * ui_scale, String(visual.glyph), -PI * 0.5, Color(color, alpha))
+	ThemeLib.draw_label(game, game.ui_font, Rect2(banner.position + Vector2(40, 0) * ui_scale, Vector2(84 * ui_scale, height)), "符卡展开", maxi(11, roundi(14 * ui_scale)), Color(color, alpha))
+	ThemeLib.draw_label(game, game.ui_font, Rect2(banner.position + Vector2(124 * ui_scale, 0), Vector2(banner.size.x - 136 * ui_scale, height)), String(visual.name), name_size, Color(1, 0.97, 0.91, alpha), HORIZONTAL_ALIGNMENT_RIGHT, maxi(10, roundi(13 * ui_scale)))

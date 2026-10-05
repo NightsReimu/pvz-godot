@@ -230,7 +230,7 @@ func draw_knot(center: Vector2, body: Dictionary) -> void:
 			age = float(k.age)
 	var radius := 24.0 + captured * 1.2
 	game.draw_circle(center + Vector2(0, -12), radius, Color(0.19, 0.08, 0.28, 0.85))
-	game.draw_arc(center + Vector2(0, -12), radius, -PI / 2, -PI / 2 + TAU * clampf(float(body.health) / float(body.max_health), 0, 1), 32, GOLD, 3, true)
+	game.draw_arc(center + Vector2(0, -12), radius, -PI / 2, -PI / 2 + TAU * clampf(float(body.get("health", 1.0)) / maxf(1.0, float(body.get("max_health", body.get("health", 1.0)))), 0, 1), 32, GOLD, 3, true)
 	for i in range(maxi(3, captured)):
 		var pos := center + Vector2(0, -12) + Vector2.from_angle(age * 2 + i * TAU / maxi(3, captured)) * radius * 0.65
 		game.draw_circle(pos, 5, Color("a7dd86"))

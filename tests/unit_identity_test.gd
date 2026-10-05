@@ -51,7 +51,8 @@ class DrawingProbe extends GameScript:
 
 	func _try_get_boss_frame_texture(kind: String, frame: int) -> Texture2D:
 		var texture := super._try_get_boss_frame_texture(kind, frame)
-		wrong_texture = wrong_texture or kind != current_kind
+		# A summoned miniature may declare that it wears its summoner's frames.
+		wrong_texture = wrong_texture or (kind != current_kind and String(Defs.ZOMBIES.get(current_kind, {}).get("boss_frames", "")) != kind)
 		missing_texture = missing_texture or texture == null
 		textures_used[kind] = texture != null
 		return texture

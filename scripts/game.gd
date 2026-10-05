@@ -10991,7 +10991,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				var st = _find_global_frontmost_target()
 				if int(st.get("row", -1)) == -1: break
 				_ensure_plant_runtime().spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -40.0), Vector2(float(st["x"]), _row_center_y(int(st["row"])) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 90.0)) * 1.5, 140.0), Color(1.0, 0.94, 0.52), 86.0, 14.0, float(Defs.PLANTS[kind].get("splash_radius", 72.0)) + 30.0, 0.0, "skylight_melon")
-			effects.append({"position": center, "radius": 150.0, "time": 0.38, "duration": 0.38, "color": Color(1.0, 0.96, 0.48, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 150.0, "time": 0.38, "duration": 0.38, "color": Color(1.0, 0.96, 0.48, 0.3)})
 			_trigger_screen_shake(5.0)
 		"cluster_boomerang":
 			for cb in range(12):
@@ -11010,7 +11010,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				gz["x"] += rng.randf_range(-40.0, 40.0)
 				gz["special_pause_timer"] = maxf(float(gz.get("special_pause_timer", 0.0)), 0.6)
 				zombies[zi] = gz
-			effects.append({"position": center, "radius": 200.0, "time": 0.36, "duration": 0.36, "color": Color(0.48, 0.88, 0.78, 0.32)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.36, "duration": 0.36, "color": Color(0.48, 0.88, 0.78, 0.32)})
 			_trigger_screen_shake(5.0)
 
 		# === CAMPAIGN CORE: SUN PRODUCERS ===
@@ -11040,7 +11040,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if center.distance_to(Vector2(float(mz["x"]), _row_center_y(int(mz["row"])))) > 260.0: continue
 				mz["special_pause_timer"] = maxf(float(mz.get("special_pause_timer", 0.0)), 1.8)
 				zombies[zi] = mz
-			effects.append({"position": center, "radius": 160.0, "time": 0.38, "duration": 0.38, "color": Color(0.64, 0.48, 0.92, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 160.0, "time": 0.38, "duration": 0.38, "color": Color(0.64, 0.48, 0.92, 0.3)})
 		"marigold":
 			for s in range(6):
 				var angle = TAU * float(s) / 6.0
@@ -11058,7 +11058,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				for _w in range(2):
 					for tp in range(9):
 						projectiles.append({"row": lane, "position": Vector2(center.x + 24.0 + float(tp % 3) * 8.0, _row_center_y(lane) - 10.0 + float(tp % 2) * 6.0), "speed": 560.0, "velocity_y": 0.0, "damage": maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 20.0), "color": Color(0.22, 0.78, 0.22), "radius": 7.0, "reflected": false, "fire": false, "free_aim": false})
-			effects.append({"position": center, "radius": 180.0, "time": 0.34, "duration": 0.34, "color": Color(0.26, 0.82, 0.24, 0.24)})
+			effects.append({"pulse": true, "position": center, "radius": 180.0, "time": 0.34, "duration": 0.34, "color": Color(0.26, 0.82, 0.24, 0.24)})
 			_trigger_screen_shake(5.0)
 		"starfruit":
 			for star_dir in range(5):
@@ -11078,13 +11078,13 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					var pm_tgt = _find_frontmost_zombie(ar_row)
 					if pm_tgt == -1: break
 					_ensure_plant_runtime().spawn_roof_lobbed_projectile("cabbage", ar_row, _cell_center(ar_row, col) + Vector2(12.0, -36.0), Vector2(float(zombies[pm_tgt]["x"]), _row_center_y(ar_row) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 32.0)) * 1.5, 52.0), Color(1.0, 0.36, 0.12), 74.0, 10.0, float(Defs.PLANTS[kind].get("splash_radius", 56.0)) + 24.0, 0.0, "pepper_mortar")
-			effects.append({"position": center, "radius": 180.0, "time": 0.42, "duration": 0.42, "color": Color(1.0, 0.38, 0.14, 0.34)})
+			effects.append({"pulse": true, "position": center, "radius": 180.0, "time": 0.42, "duration": 0.42, "color": Color(1.0, 0.38, 0.14, 0.34)})
 			_trigger_screen_shake(6.0)
 		"mango_bowling":
 			for m_row_variant in active_rows:
 				var m_row = int(m_row_variant)
 				_spawn_bowling_roller(m_row, col + 1, true)
-			effects.append({"position": center, "radius": 160.0, "time": 0.36, "duration": 0.36, "color": Color(1.0, 0.72, 0.18, 0.32)})
+			effects.append({"pulse": true, "position": center, "radius": 160.0, "time": 0.36, "duration": 0.36, "color": Color(1.0, 0.72, 0.18, 0.32)})
 			_trigger_screen_shake(5.0)
 
 		# === CAMPAIGN CORE: DEFENSE ===
@@ -11113,7 +11113,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if tdist < 160.0:
 					tz["rooted_timer"] = maxf(float(tz.get("rooted_timer", 0.0)), 3.0)
 					zombies[zi] = tz
-			effects.append({"position": center, "radius": 160.0, "time": 0.38, "duration": 0.38, "color": Color(0.54, 0.76, 0.38, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 160.0, "time": 0.38, "duration": 0.38, "color": Color(0.54, 0.76, 0.38, 0.3)})
 			_trigger_screen_shake(6.0)
 		"pumpkin":
 			for rr in range(ROWS):
@@ -11126,7 +11126,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					grid[rr][cc] = pp
 			plant = _apply_pumpkin_shell_to_plant(plant, true)
 			_set_targetable_plant(row, col, plant)
-			effects.append({"position": center, "radius": 300.0, "time": 0.4, "duration": 0.4, "color": Color(1.0, 0.78, 0.34, 0.26)})
+			effects.append({"pulse": true, "position": center, "radius": 300.0, "time": 0.4, "duration": 0.4, "color": Color(1.0, 0.78, 0.34, 0.26)})
 			_trigger_screen_shake(4.0)
 		"cactus_guard":
 			plant["health"] = float(plant["max_health"])
@@ -11139,7 +11139,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if Vector2(float(cgz["x"]), _row_center_y(int(cgz["row"]))).distance_to(center) < 200.0:
 					cgz = _apply_zombie_damage(cgz, 80.0, 0.2, 2.0)
 					zombies[zi] = cgz
-			effects.append({"position": center, "radius": 200.0, "time": 0.34, "duration": 0.34, "color": Color(0.68, 0.82, 0.36, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.34, "duration": 0.34, "color": Color(0.68, 0.82, 0.36, 0.28)})
 			_trigger_screen_shake(4.0)
 		"holo_nut":
 			plant["health"] = float(plant["max_health"])
@@ -11164,7 +11164,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					gz["row"] = nr; gz["special_pause_timer"] = maxf(float(gz.get("special_pause_timer", 0.0)), 0.5)
 					gz["flash"] = maxf(float(gz.get("flash", 0.0)), 0.18)
 					zombies[zi] = gz
-			effects.append({"position": center, "radius": 250.0, "time": 0.36, "duration": 0.36, "color": Color(0.92, 0.96, 0.86, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 250.0, "time": 0.36, "duration": 0.36, "color": Color(0.92, 0.96, 0.86, 0.28)})
 			_trigger_screen_shake(3.0)
 		"umbrella_leaf":
 			for zi in range(zombies.size()-1, -1, -1):
@@ -11181,7 +11181,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 						up["armor_health"] = maxf(float(up.get("armor_health",0.0)), 400.0)
 						up["max_armor_health"] = maxf(float(up.get("max_armor_health",0.0)), 400.0)
 						grid[rr][cc] = up
-			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.44, 0.84, 0.96, 0.26)})
+			effects.append({"pulse": true, "position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.44, 0.84, 0.96, 0.26)})
 			_trigger_screen_shake(3.0)
 
 		# === CAMPAIGN CORE: EXPLOSIVES ===
@@ -11214,7 +11214,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				sqz = _apply_zombie_damage(sqz, float(Defs.PLANTS["squash"]["damage"]), 0.35, 0.0, true)
 				zombies[sqz_idx] = sqz
 			plant["health"] = 0.0
-			effects.append({"position": center, "radius": 320.0, "time": 0.36, "duration": 0.36, "color": Color(0.76, 0.88, 0.24, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 320.0, "time": 0.36, "duration": 0.36, "color": Color(0.76, 0.88, 0.24, 0.28)})
 			_trigger_screen_shake(6.0)
 		"tangle_kelp":
 			var tk_targets = _find_closest_zombies_in_radius(center, 300.0, 4)
@@ -11223,7 +11223,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				tkz = _apply_zombie_damage(tkz, float(Defs.PLANTS["tangle_kelp"]["damage"]), 0.3, 0.0, true)
 				zombies[tkz_idx] = tkz
 			plant["health"] = 0.0
-			effects.append({"position": center, "radius": 300.0, "time": 0.34, "duration": 0.34, "color": Color(0.42, 0.82, 0.54, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 300.0, "time": 0.34, "duration": 0.34, "color": Color(0.42, 0.82, 0.54, 0.28)})
 			_trigger_screen_shake(5.0)
 		"snow_bloom":
 			for sr in range(ROWS):
@@ -11252,7 +11252,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 						si["flash"] = maxf(float(si.get("flash",0.0)), 0.2)
 						grid[rr][cc] = si
 			_damage_zombies_in_circle(center, 180.0, 100.0)
-			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.56, 0.98, 0.46, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.56, 0.98, 0.46, 0.28)})
 			_trigger_screen_shake(4.0)
 		"vine_lasher":
 			# Figure-eight volley: a spread of frost darts weaving down the lane.
@@ -11301,7 +11301,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 						ap["rooted_timer"] = maxf(float(ap.get("rooted_timer",0.0)), 5.0)
 						ap["flash"] = maxf(float(ap.get("flash",0.0)), 0.16)
 						_set_targetable_plant(ar, ac, ap)
-			effects.append({"position": center, "radius": 200.0, "time": 0.34, "duration": 0.34, "color": Color(0.42, 0.74, 0.58, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.34, "duration": 0.34, "color": Color(0.42, 0.74, 0.58, 0.28)})
 			_trigger_screen_shake(5.0)
 		"glowvine":
 			for gr in range(max(0,row-1), min(ROWS,row+2)):
@@ -11313,7 +11313,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					_restore_plant_health(gp, 200.0)
 					gp["flash"] = maxf(float(gp.get("flash",0.0)), 0.14)
 					grid[gr][gc] = gp
-			effects.append({"position": center, "radius": 200.0, "time": 0.38, "duration": 0.38, "color": Color(0.52, 0.98, 0.72, 0.26)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.38, "duration": 0.38, "color": Color(0.52, 0.98, 0.72, 0.26)})
 			_trigger_screen_shake(3.0)
 		"brine_pot":
 			for _bp in range(4):
@@ -11323,7 +11323,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				_damage_zombies_in_circle(bi, float(Defs.PLANTS["brine_pot"]["splash_radius"]) + 30.0, 140.0)
 				_damage_obstacles_in_circle(bi, float(Defs.PLANTS["brine_pot"]["splash_radius"]), 140.0)
 				_spawn_bog_pool(bi, float(Defs.PLANTS["brine_pot"]["bog_radius"]) + 40.0, float(Defs.PLANTS["brine_pot"]["bog_duration"]) + 4.0)
-			effects.append({"position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(0.28, 0.56, 0.44, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(0.28, 0.56, 0.44, 0.3)})
 			_trigger_screen_shake(5.0)
 		"storm_reed":
 			for lane in active_rows:
@@ -11336,7 +11336,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if se_row != -1:
 					var sei = _find_nearest_enemy_index_to_point(Vector2(float(sett["x"]), _row_center_y(se_row)))
 					if sei != -1: _strike_thunder_chain(sei, 140.0, 70.0, 180.0, 4)
-			effects.append({"position": center, "radius": 200.0, "time": 0.4, "duration": 0.4, "color": Color(0.92, 0.96, 0.48, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.4, "duration": 0.4, "color": Color(0.92, 0.96, 0.48, 0.3)})
 			_trigger_screen_shake(7.0)
 		"root_snare":
 			for zi in range(zombies.size()):
@@ -11346,7 +11346,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				rs = _apply_zombie_damage(rs, 120.0, 0.22)
 				rs["rooted_timer"] = maxf(float(rs.get("rooted_timer",0.0)), 8.0)
 				zombies[zi] = rs
-			effects.append({"position": center, "radius": 500.0, "time": 0.4, "duration": 0.4, "color": Color(0.58, 0.46, 0.24, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 500.0, "time": 0.4, "duration": 0.4, "color": Color(0.58, 0.46, 0.24, 0.28)})
 			_trigger_screen_shake(6.0)
 		"meteor_gourd":
 			for _mg in range(5):
@@ -11356,7 +11356,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				_damage_zombies_in_circle(mi, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 30.0, 200.0)
 				_damage_obstacles_in_circle(mi, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 30.0, 200.0)
 				_spawn_meteor_strike_effect(mi, float(Defs.PLANTS["meteor_gourd"]["splash_radius"]) + 28.0, 0.36, Color(1.0, 0.46, 0.14, 0.36))
-			effects.append({"position": center, "radius": 180.0, "time": 0.42, "duration": 0.42, "color": Color(1.0, 0.52, 0.16, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 180.0, "time": 0.42, "duration": 0.42, "color": Color(1.0, 0.52, 0.16, 0.3)})
 			_trigger_screen_shake(7.0)
 		"leyline":
 			var ll_range = float(Defs.PLANTS[kind].get("range", 260.0)) + 120.0
@@ -11394,7 +11394,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				hz = _hypnotize_zombie(hz)
 				hz["special_pause_timer"] = maxf(float(hz.get("special_pause_timer",0.0)), 1.0)
 				zombies[zi] = hz
-			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.92, 0.44, 1.0, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.92, 0.44, 1.0, 0.3)})
 			_trigger_screen_shake(4.0)
 
 		# === CAMPAIGN CORE: MAGNET ===
@@ -11405,7 +11405,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if Vector2(float(mz["x"]), _row_center_y(int(mz["row"]))).distance_to(center) > 400.0: continue
 				if not _can_magnet_strip(mz): continue
 				zombies[zi] = _strip_metal_from_zombie(mz)
-			effects.append({"position": center, "radius": 400.0, "time": 0.36, "duration": 0.36, "color": Color(0.82, 0.74, 1.0, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 400.0, "time": 0.36, "duration": 0.36, "color": Color(0.82, 0.74, 1.0, 0.3)})
 			_trigger_screen_shake(5.0)
 
 		# === CAMPAIGN CORE: REVEAL / LIGHT ===
@@ -11440,7 +11440,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for _gs in range(5):
 				var angle = rng.randf_range(0.0, TAU)
 				_spawn_sun(center + Vector2(cos(angle)*rng.randf_range(26.0, 70.0), sin(angle)*rng.randf_range(20.0, 50.0)), center.y - 20.0, "plant_food", 25)
-			effects.append({"position": center, "radius": 200.0, "time": 0.36, "duration": 0.36, "color": Color(0.48, 0.94, 0.36, 0.26)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.36, "duration": 0.36, "color": Color(0.48, 0.94, 0.36, 0.26)})
 			_trigger_screen_shake(4.0)
 
 		# === CAMPAIGN CORE: DRUM / WAKE ===
@@ -11452,7 +11452,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				dz = _apply_zombie_damage(dz, 100.0, 0.2)
 				dz["special_pause_timer"] = maxf(float(dz.get("special_pause_timer",0.0)), 1.5)
 				zombies[zi] = dz
-			effects.append({"position": center, "radius": 280.0, "time": 0.38, "duration": 0.38, "color": Color(0.88, 0.72, 0.32, 0.26)})
+			effects.append({"pulse": true, "position": center, "radius": 280.0, "time": 0.38, "duration": 0.38, "color": Color(0.88, 0.72, 0.32, 0.26)})
 			_trigger_screen_shake(5.0)
 		"coffee_bean":
 			_wake_all_plants()
@@ -11465,7 +11465,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 						cp["flash"] = maxf(float(cp.get("flash",0.0)), 0.16)
 						grid[rr][cc] = cp
 			_sleep_zombies_in_radius(center, 300.0, 3.0, false)
-			effects.append({"position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.72, 0.52, 0.36, 0.26)})
+			effects.append({"pulse": true, "position": center, "radius": 300.0, "time": 0.36, "duration": 0.36, "color": Color(0.72, 0.52, 0.36, 0.26)})
 			_trigger_screen_shake(3.0)
 
 		# === CAMPAIGN CORE: TORCHWOOD (FIRE) ===
@@ -11501,7 +11501,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 						hp["max_armor_health"] = maxf(float(hp.get("max_armor_health", 0.0)), stacked_shield)
 						hp["shell_kind"] = "holy_shield"
 						hp["flash"] = maxf(float(hp.get("flash", 0.0)), 0.2)
-			effects.append({"position": center, "radius": 400.0, "time": 0.42, "duration": 0.42, "color": Color(0.56, 0.98, 0.42, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 400.0, "time": 0.42, "duration": 0.42, "color": Color(0.56, 0.98, 0.42, 0.28)})
 			_trigger_screen_shake(4.0)
 		"cotton_candy":
 			for rr in range(maxi(0, row - 1), mini(ROWS, row + 2)):
@@ -11577,18 +11577,18 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 		"ice_queen":
 			for z in zombies:
 				z["frozen_timer"] = maxf(float(z.get("frozen_timer", 0.0)), 5.0)
-			effects.append({"position": center, "radius": 600.0, "time": 0.6, "duration": 0.6, "color": Color(0.56, 0.82, 1.0, 0.4)})
+			effects.append({"pulse": true, "position": center, "radius": 600.0, "time": 0.6, "duration": 0.6, "color": Color(0.56, 0.82, 1.0, 0.4)})
 		"vine_emperor":
 			for z in zombies:
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 				if zpos.distance_to(center) < 240.0:
 					z["rooted_timer"] = maxf(float(z.get("rooted_timer", 0.0)), 8.0)
-			effects.append({"position": center, "radius": 240.0, "time": 0.5, "duration": 0.5, "color": Color(0.28, 0.62, 0.22, 0.5)})
+			effects.append({"pulse": true, "position": center, "radius": 240.0, "time": 0.5, "duration": 0.5, "color": Color(0.28, 0.62, 0.22, 0.5)})
 		"soul_flower":
-			effects.append({"position": center, "radius": 200.0, "time": 0.4, "duration": 0.4, "color": Color(0.62, 0.36, 0.82, 0.4)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.4, "duration": 0.4, "color": Color(0.62, 0.36, 0.82, 0.4)})
 		"plasma_shooter":
 			_damage_zombies_in_row_segment(row, -INF, INF, 2000.0, 0.0, true)
-			effects.append({"position": Vector2(center.x + 400.0, center.y), "radius": 800.0, "time": 0.8, "duration": 0.8, "color": Color(0.18, 0.72, 0.92, 0.6)})
+			effects.append({"pulse": true, "position": Vector2(center.x + 400.0, center.y), "radius": 800.0, "time": 0.8, "duration": 0.8, "color": Color(0.18, 0.72, 0.92, 0.6)})
 			_trigger_screen_shake(10.0)
 		"crystal_nut":
 			plant["health"] = float(plant["max_health"])
@@ -11597,21 +11597,21 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 		"dragon_fruit":
 			for r in range(maxi(0, row - 1), mini(grid.size(), row + 2)):
 				_damage_zombies_in_row_segment(r, center.x, center.x + 400.0, 200.0, 0.0, true)
-			effects.append({"position": center + Vector2(200.0, 0.0), "radius": 400.0, "time": 1.0, "duration": 1.0, "color": Color(1.0, 0.42, 0.12, 0.5)})
+			effects.append({"pulse": true, "position": center + Vector2(200.0, 0.0), "radius": 400.0, "time": 1.0, "duration": 1.0, "color": Color(1.0, 0.42, 0.12, 0.5)})
 			_trigger_screen_shake(8.0)
 		"time_rose":
 			for z in zombies:
 				z["frozen_timer"] = maxf(float(z.get("frozen_timer", 0.0)), 6.0)
-			effects.append({"position": center, "radius": 500.0, "time": 0.6, "duration": 0.6, "color": Color(0.82, 0.56, 0.86, 0.4)})
+			effects.append({"pulse": true, "position": center, "radius": 500.0, "time": 0.6, "duration": 0.6, "color": Color(0.82, 0.56, 0.86, 0.4)})
 		"galaxy_sunflower":
 			sun_points += 500
-			effects.append({"position": center, "radius": 300.0, "time": 0.8, "duration": 0.8, "color": Color(1.0, 0.92, 0.36, 0.5)})
+			effects.append({"pulse": true, "position": center, "radius": 300.0, "time": 0.8, "duration": 0.8, "color": Color(1.0, 0.92, 0.36, 0.5)})
 			_trigger_screen_shake(6.0)
 		"void_shroom":
 			for z in zombies:
 				z["health"] = float(z["health"]) - 800.0
 				z["flash"] = 0.5
-			effects.append({"position": center, "radius": 600.0, "time": 1.2, "duration": 1.2, "color": Color(0.18, 0.06, 0.28, 0.6)})
+			effects.append({"pulse": true, "position": center, "radius": 600.0, "time": 1.2, "duration": 1.2, "color": Color(0.18, 0.06, 0.28, 0.6)})
 			_trigger_screen_shake(12.0)
 		"phoenix_tree":
 			for z in zombies:
@@ -11621,7 +11621,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					z["flash"] = 0.5
 			plant["health"] = float(plant["max_health"])
 			_set_targetable_plant(row, col, plant)
-			effects.append({"position": center, "radius": 200.0, "time": 0.8, "duration": 0.8, "color": Color(1.0, 0.52, 0.12, 0.6)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.8, "duration": 0.8, "color": Color(1.0, 0.52, 0.12, 0.6)})
 			_trigger_screen_shake(10.0)
 			_spawn_death_poof(center, Color(1.0, 0.6, 0.2))
 		"thunder_god":
@@ -11630,7 +11630,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				z["flash"] = 0.4
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 				_spawn_death_poof(zpos, Color(0.86, 0.82, 0.22))
-			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 800.0, "time": 1.0, "duration": 1.0, "color": Color(0.86, 0.82, 0.22, 0.4)})
+			effects.append({"pulse": true, "position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 800.0, "time": 1.0, "duration": 1.0, "color": Color(0.86, 0.82, 0.22, 0.4)})
 			_trigger_screen_shake(12.0)
 		"amber_shooter":
 			var amber_target_index = _find_lane_target(row, center.x, board_size.x + CELL_SIZE.x)
@@ -11674,7 +11674,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				launched += 1
 			plant["shot_cooldown"] = 0.08
 			_set_targetable_plant(row, col, plant)
-			effects.append({"position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(1.0, 0.8, 0.46, 0.3)})
+			effects.append({"pulse": true, "position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(1.0, 0.8, 0.46, 0.3)})
 		"origami_blossom":
 			var volley_count := 12
 			for volley_index in range(volley_count):
@@ -11790,7 +11790,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					summon = _hypnotize_zombie(summon)
 					summon["special_pause_timer"] = maxf(float(summon.get("special_pause_timer", 0.0)), 0.42)
 					zombies[zombies.size() - 1] = summon
-			effects.append({"position": center, "radius": 180.0, "time": 0.42, "duration": 0.42, "color": Color(0.74, 0.42, 0.96, 0.32)})
+			effects.append({"pulse": true, "position": center, "radius": 180.0, "time": 0.42, "duration": 0.42, "color": Color(0.74, 0.42, 0.96, 0.32)})
 		"seraph_flower":
 			var seraph_data = Defs.PLANTS[kind]
 			for lane in [row - 1, row, row + 1]:
@@ -11822,7 +11822,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					var magma_center = _cell_center(magma_row, magma_col)
 					_damage_zombies_in_circle(magma_center, CELL_SIZE.x * 0.46, float(magma_data.get("ultimate_damage", 180.0)))
 					_apply_ash_hits_in_circle(magma_center, CELL_SIZE.x * 0.46, 1)
-			effects.append({"position": center, "radius": 180.0, "time": 0.46, "duration": 0.46, "color": Color(1.0, 0.36, 0.12, 0.34)})
+			effects.append({"pulse": true, "position": center, "radius": 180.0, "time": 0.46, "duration": 0.46, "color": Color(1.0, 0.36, 0.12, 0.34)})
 		"orange_bloom":
 			var orange_targets: Array = []
 			for zombie_index in range(zombies.size()):
@@ -11848,7 +11848,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for coal_row in range(max(0, row - 1), min(ROWS, row + 2)):
 				for coal_col in range(col, min(COLS, col + 4)):
 					_spawn_coal_patch(coal_row, coal_col, float(Defs.PLANTS[kind].get("ember_duration", 10.0)) + 4.0, float(Defs.PLANTS[kind].get("ember_dps", 18.0)) * 1.45)
-			effects.append({"position": center, "radius": 190.0, "time": 0.36, "duration": 0.36, "color": Color(0.26, 0.18, 0.18, 0.34)})
+			effects.append({"pulse": true, "position": center, "radius": 190.0, "time": 0.36, "duration": 0.36, "color": Color(0.26, 0.18, 0.18, 0.34)})
 		"chambord_sniper":
 			for lane_variant in active_rows:
 				var sniper_row = int(lane_variant)
@@ -11863,7 +11863,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 		"dream_disc":
 			_sleep_zombies_in_radius(center, 320.0, float(Defs.PLANTS[kind].get("sleep_duration", 6.0)) + 3.0, false)
 			_damage_zombies_in_circle(center, 180.0, float(Defs.PLANTS[kind].get("ultimate_damage", 68.0)))
-			effects.append({"position": center, "radius": 220.0, "time": 0.34, "duration": 0.34, "color": Color(0.64, 0.58, 0.96, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 220.0, "time": 0.34, "duration": 0.34, "color": Color(0.64, 0.58, 0.96, 0.28)})
 		"prism_pea":
 			var ppos = center
 			for angle_deg in [-60, -30, 0, 30, 60]:
@@ -11892,7 +11892,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					z["x"] = float(z["x"]) - 180.0
 					z["frozen_timer"] = max(float(z.get("frozen_timer", 0.0)), 2.5)
 					z["flash"] = 0.3
-			effects.append({"position": mpos, "radius": 500.0, "time": 1.2, "duration": 1.2, "color": Color(0.8, 0.3, 1.0, 0.5)})
+			effects.append({"pulse": true, "position": mpos, "radius": 500.0, "time": 1.2, "duration": 1.2, "color": Color(0.8, 0.3, 1.0, 0.5)})
 			_trigger_screen_shake(6.0)
 		"thorn_cactus":
 			var tpos = center
@@ -11914,7 +11914,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					"free_aim": true,
 				})
 			plant["health"] = min(float(plant["health"]) + float(plant.get("max_health", 200.0)) * 0.4, float(plant.get("max_health", 200.0)))
-			effects.append({"position": tpos, "radius": 160.0, "time": 0.8, "duration": 0.8, "color": Color(0.4, 0.7, 0.2, 0.6)})
+			effects.append({"pulse": true, "position": tpos, "radius": 160.0, "time": 0.8, "duration": 0.8, "color": Color(0.4, 0.7, 0.2, 0.6)})
 		"bubble_lotus":
 			for row_idx in range(grid.size()):
 				for col_idx in range(grid[row_idx].size()):
@@ -11922,7 +11922,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					if cell != null and cell.get("kind", "") != "":
 						cell["armor_health"] = float(cell.get("armor_health", 0.0)) + float(Defs.PLANTS[kind]["ultimate_shield"])
 						cell["max_armor_health"] = maxf(float(cell.get("max_armor_health", 0.0)), float(cell["armor_health"]))
-			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 700.0, "time": 1.5, "duration": 1.5, "color": Color(0.2, 0.8, 1.0, 0.35)})
+			effects.append({"pulse": true, "position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 700.0, "time": 1.5, "duration": 1.5, "color": Color(0.2, 0.8, 1.0, 0.35)})
 		"spiral_bamboo":
 			var spos = center
 			for lane in range(max(0, row - 2), min(ROWS, row + 3)):
@@ -11941,7 +11941,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for z in zombies:
 				if int(z["row"]) == row:
 					z["slow_timer"] = max(float(z.get("slow_timer", 0.0)), 6.0)
-			effects.append({"position": hpos, "radius": 300.0, "time": 1.0, "duration": 1.0, "color": Color(1.0, 0.85, 0.1, 0.5)})
+			effects.append({"pulse": true, "position": hpos, "radius": 300.0, "time": 1.0, "duration": 1.0, "color": Color(1.0, 0.85, 0.1, 0.5)})
 		"echo_fern":
 			var epos = center
 			for zi in range(zombies.size()):
@@ -11951,7 +11951,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					z = _apply_zombie_damage(z, 180.0, 0.4, 0.0, false, true)
 					z["frozen_timer"] = max(float(z.get("frozen_timer", 0.0)), 2.0)
 					zombies[zi] = z
-				effects.append({"position": epos, "radius": 600.0, "time": 1.0, "duration": 1.0, "color": Color(0.5, 0.9, 0.7, 0.45)})
+				effects.append({"pulse": true, "position": epos, "radius": 600.0, "time": 1.0, "duration": 1.0, "color": Color(0.5, 0.9, 0.7, 0.45)})
 			_trigger_screen_shake(7.0)
 		"glow_ivy":
 			var gpos = center
@@ -11960,7 +11960,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					z["rooted_timer"] = max(float(z.get("rooted_timer", 0.0)), 4.0)
 					z["health"] = float(z["health"]) - 80.0
 					z["flash"] = 0.3
-			effects.append({"position": gpos, "radius": 400.0, "time": 1.2, "duration": 1.2, "color": Color(0.3, 1.0, 0.6, 0.4)})
+			effects.append({"pulse": true, "position": gpos, "radius": 400.0, "time": 1.2, "duration": 1.2, "color": Color(0.3, 1.0, 0.6, 0.4)})
 		"laser_lily":
 			var lpos = center
 			for row_off in [-1, 0, 1]:
@@ -11982,7 +11982,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					z["health"] = float(z["health"]) - 300.0
 					z["frozen_timer"] = max(float(z.get("frozen_timer", 0.0)), 1.5)
 					z["flash"] = 0.4
-			effects.append({"position": rpos, "radius": 350.0, "time": 1.0, "duration": 1.0, "color": Color(0.7, 0.55, 0.3, 0.6)})
+			effects.append({"pulse": true, "position": rpos, "radius": 350.0, "time": 1.0, "duration": 1.0, "color": Color(0.7, 0.55, 0.3, 0.6)})
 			_trigger_screen_shake(12.0)
 		"aurora_orchid":
 			for row_idx in range(grid.size()):
@@ -11992,7 +11992,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 						_restore_plant_health(cell, 200.0)
 						cell["aurora_buff_timer"] = 12.0
 						cell["aurora_buff_ratio"] = 0.7
-			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 800.0, "time": 2.0, "duration": 2.0, "color": Color(0.3, 1.0, 0.8, 0.35)})
+			effects.append({"pulse": true, "position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 800.0, "time": 2.0, "duration": 2.0, "color": Color(0.3, 1.0, 0.8, 0.35)})
 		"blast_pomegranate":
 			var bpos = center
 			for i in range(3):
@@ -12010,7 +12010,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for z in zombies:
 				z["frozen_timer"] = max(float(z.get("frozen_timer", 0.0)), 4.0)
 				z["flash"] = 0.3
-				effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 900.0, "time": 1.5, "duration": 1.5, "color": Color(0.5, 0.85, 1.0, 0.45)})
+				effects.append({"pulse": true, "position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 900.0, "time": 1.5, "duration": 1.5, "color": Color(0.5, 0.85, 1.0, 0.45)})
 			_trigger_screen_shake(8.0)
 		"mirror_shroom":
 			var mpos = center
@@ -12020,7 +12020,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if cell != null and cell.get("kind", "") != "" and cell["kind"] != "mirror_shroom":
 					var cx = _cell_center(target_row, col_idx).x
 					_damage_zombies_in_row_segment(target_row, cx, INF, 200.0, 0.0, true)
-				effects.append({"position": mpos, "radius": 300.0, "time": 1.0, "duration": 1.0, "color": Color(0.8, 0.9, 1.0, 0.55)})
+				effects.append({"pulse": true, "position": mpos, "radius": 300.0, "time": 1.0, "duration": 1.0, "color": Color(0.8, 0.9, 1.0, 0.55)})
 		# -- Core-campaign explicit click ultimates --
 		"peashooter":
 			var pea_damage = maxf(float(Defs.PLANTS[kind].get("damage", 20.0)), 22.0)
@@ -12158,7 +12158,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if int(tgt.get("row", -1)) == -1:
 					break
 				_ensure_plant_runtime().spawn_roof_lobbed_projectile("cabbage", row, center + Vector2(12.0, -30.0), Vector2(float(tgt["x"]), _row_center_y(int(tgt["row"])) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 40.0)) * 2.0, 90.0), Color(0.56, 0.92, 0.34), 68.0, 10.0, 0.0, 0.0, "cabbage_pult")
-			effects.append({"position": center, "radius": 150.0, "time": 0.36, "duration": 0.36, "color": Color(0.66, 0.88, 0.26, 0.28)})
+			effects.append({"pulse": true, "position": center, "radius": 150.0, "time": 0.36, "duration": 0.36, "color": Color(0.66, 0.88, 0.26, 0.28)})
 			_trigger_screen_shake(5.0)
 		"kernel_pult":
 			for _kn in range(6):
@@ -12174,7 +12174,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if int(wm_tgt.get("row", -1)) == -1:
 					break
 				_ensure_plant_runtime().spawn_roof_lobbed_projectile("melon", row, center + Vector2(10.0, -34.0), Vector2(float(wm_tgt["x"]), _row_center_y(int(wm_tgt["row"])) - 8.0), maxf(float(Defs.PLANTS[kind].get("damage", 80.0)) * 2.0, 180.0), Color(0.42, 0.82, 0.26), 80.0, 14.0, float(Defs.PLANTS[kind].get("splash_radius", 66.0)), 0.0, "melon_pult")
-			effects.append({"position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(0.26, 0.64, 0.16, 0.32)})
+			effects.append({"pulse": true, "position": center, "radius": 160.0, "time": 0.4, "duration": 0.4, "color": Color(0.26, 0.64, 0.16, 0.32)})
 			_trigger_screen_shake(6.0)
 		"chain_lotus":
 			var clpos = center
@@ -12199,7 +12199,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				hit_ids.append(best_index)
 				clpos = Vector2(float(best_z["x"]), _row_center_y(int(best_z["row"])))
 				dmg = maxf(dmg * 0.85, 60.0)
-			effects.append({"position": center, "radius": 200.0, "time": 0.8, "duration": 0.8, "color": Color(0.2, 0.9, 0.8, 0.6)})
+			effects.append({"pulse": true, "position": center, "radius": 200.0, "time": 0.8, "duration": 0.8, "color": Color(0.2, 0.9, 0.8, 0.6)})
 		"plasma_shroom":
 			var pspos = center
 			for row_off in [-1, 0, 1]:
@@ -12207,7 +12207,8 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if target_row < 0 or target_row >= grid.size():
 					continue
 				_damage_zombies_in_row_segment(target_row, -INF, INF, 350.0, 0.0, true)
-				effects.append({"position": Vector2(pspos.x, _row_center_y(target_row)), "radius": 200.0, "time": 1.2, "duration": 1.2, "color": Color(0.5, 0.2, 1.0, 0.6)})
+				# A plasma arc sweeps each lane instead of a wide disc covering the plants.
+				effects.append({"shape": "fusion_skill", "skill": "rail_storm", "position": Vector2(pspos.x, _row_center_y(target_row)), "target": Vector2.INF, "radius": 160.0, "time": 1.0, "duration": 1.0, "color": Color.WHITE, "traits": ["shock"], "tier": 1})
 			_trigger_screen_shake(10.0)
 		"meteor_flower":
 			for _i in range(12):
@@ -12234,7 +12235,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 						cell["destiny_speed_timer"] = 12.0
 						cell["aurora_buff_timer"] = 12.0
 						cell["aurora_buff_ratio"] = 0.5
-				effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 900.0, "time": 2.5, "duration": 2.5, "color": Color(1.0, 0.9, 0.3, 0.4)})
+				effects.append({"pulse": true, "position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 900.0, "time": 2.5, "duration": 2.5, "color": Color(1.0, 0.9, 0.3, 0.4)})
 			_trigger_screen_shake(10.0)
 		"abyss_tentacle":
 			var apos = center
@@ -12252,7 +12253,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			var sepos = center
 			_spawn_ultimate_suns(15)
 			_damage_zombies_in_row_segment(row, -INF, INF, 300.0, 0.0, true)
-			effects.append({"position": sepos, "radius": 500.0, "time": 1.5, "duration": 1.5, "color": Color(1.0, 0.9, 0.1, 0.7)})
+			effects.append({"pulse": true, "position": sepos, "radius": 500.0, "time": 1.5, "duration": 1.5, "color": Color(1.0, 0.9, 0.1, 0.7)})
 			_trigger_screen_shake(11.0)
 		"shadow_assassin":
 			var sa_sorted = zombies.duplicate()
@@ -12270,7 +12271,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				if cbpos.distance_to(zpos) < 450.0:
 					z["health"] = float(z["health"]) - 800.0
 					z["flash"] = 0.6
-			effects.append({"position": cbpos, "radius": 450.0, "time": 1.8, "duration": 1.8, "color": Color(1.0, 0.4, 0.0, 0.7)})
+			effects.append({"pulse": true, "position": cbpos, "radius": 450.0, "time": 1.8, "duration": 1.8, "color": Color(1.0, 0.4, 0.0, 0.7)})
 			_trigger_screen_shake(16.0)
 		"holy_lotus":
 			for row_idx in range(grid.size()):
@@ -12279,7 +12280,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					if cell != null and cell.get("kind", "") != "":
 						_restore_plant_health(cell, maxf(0, float(cell.get("max_health", 200.0)) - float(cell.health)))
 						cell["holy_invincible_timer"] = 3.0
-			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 900.0, "time": 2.0, "duration": 2.0, "color": Color(1.0, 0.95, 0.7, 0.5)})
+			effects.append({"pulse": true, "position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 900.0, "time": 2.0, "duration": 2.0, "color": Color(1.0, 0.95, 0.7, 0.5)})
 			_trigger_screen_shake(8.0)
 		"chaos_shroom":
 			for _i in range(5):
@@ -12302,7 +12303,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 					4:
 						for z in zombies:
 							z["rooted_timer"] = max(float(z.get("rooted_timer", 0.0)), 4.0)
-			effects.append({"position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 800.0, "time": 1.5, "duration": 1.5, "color": Color(float(randf()), float(randf()), float(randf()), 0.6)})
+			effects.append({"pulse": true, "position": Vector2(size.x * 0.5, size.y * 0.5), "radius": 800.0, "time": 1.5, "duration": 1.5, "color": Color(float(randf()), float(randf()), float(randf()), 0.6)})
 			_trigger_screen_shake(10.0)
 		"corn_cannon":
 			_execute_volcano_corn_cannon_ultimate()
@@ -26371,6 +26372,19 @@ func _image2_flipped_zombie_texture(kind: String, source: Texture2D) -> Texture2
 	return flipped
 
 
+func _draw_wide_pulse(center: Vector2, radius: float, ratio: float, color: Color) -> void:
+	var grow := 1.0 - ratio
+	var reach := minf(radius, maxf(board_size.x, board_size.y)) * (0.35 + grow * 0.65)
+	var tone := Color(color.r, color.g, color.b, 1.0)
+	draw_circle(center, reach, Color(tone, minf(color.a, 0.32) * 0.22))
+	draw_arc(center, reach, 0.0, TAU, 96, Color(tone, minf(1.0, color.a * 1.6)), 5.0 * ratio + 1.5, true)
+	draw_arc(center, reach * 0.82, 0.0, TAU, 80, Color(tone.lightened(0.45), color.a * 0.9), 2.2 * ratio + 0.8, true)
+	for i in range(16):
+		var angle := float(i) * TAU / 16.0 + grow * 0.8
+		var spark := center + Vector2.from_angle(angle) * reach
+		draw_circle(spark, 2.6 * ratio + 1.2, Color(tone.lightened(0.6), color.a * 1.4), true, -1, true)
+
+
 func _try_draw_image2_effect(shape: String, effect: Dictionary, ratio: float, effect_color: Color) -> bool:
 	var texture := CombatVectorArt.effect_texture(shape)
 	if texture == null:
@@ -26459,6 +26473,10 @@ func _draw_effects() -> void:
 				var spark_angle := float(spark_index) * TAU / 5.0 + ui_time * 1.6
 				var spark_pos := place_center + Vector2(cos(spark_angle), sin(spark_angle)) * place_radius * 0.72
 				draw_circle(spark_pos, 2.4 * ratio + 1.0, Color(0.96, 1.0, 0.72, effect_color.a * 0.8))
+			continue
+		# Wide legacy ultimate circles expand as a shockwave ring instead of a flat disc over the lawn.
+		if shape == "circle" and bool(effect.get("pulse", false)):
+			_draw_wide_pulse(Vector2(effect["position"]), float(effect["radius"]), ratio, effect_color)
 			continue
 		if _try_draw_image2_effect(shape, effect, ratio, effect_color):
 			continue

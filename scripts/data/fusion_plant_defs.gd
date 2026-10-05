@@ -1,5 +1,6 @@
 extends RefCounted
 const Combat = preload("res://scripts/data/fusion_combat_profiles.gd")
+const Ultimates = preload("res://scripts/data/fusion_ultimates.gd")
 
 # Symmetric recipes and canonical recursive grafts; hybrids are not ordinary seed cards.
 static var RECIPES: Dictionary = {}
@@ -120,18 +121,6 @@ static func combined_attack(weights: Dictionary) -> String:
 		if int(scores[style]) > int(scores[best]): best = style
 	return best
 
-static func skill_payload(style: String, tags: Array) -> Array:
-	var skills: Array = []
-	var primary := {"shooter":"barrage","sun":"solar","spread":"constellation","beam":"laser","lobber":"meteor","blade":"blades","roller":"bowling","bomb":"minefield","melee":"devour","guard":"bastion","control":"domain","support":"garden"}
-	skills.append(primary[style])
-	var effects := {"weaken":"tea_ceremony","samsara":"samsara","sun":"solar","heal":"renewal","shield":"bastion","awake":"awakening","magnet":"magnetic","hypno":"dream","summon":"spirits","wind":"tornado","reveal":"beacon","grave":"purge","cooling":"spring","root":"roots","shock":"lightning","frost":"blizzard","fire":"inferno","poison":"miasma","redirect":"vortex","thorns":"needles","reflect":"reflection"}
-	for tag in tags:
-		if effects.has(tag) and not skills.has(effects[tag]): skills.append(effects[tag])
-	if "fire" in tags and "frost" in tags: skills.append("steam")
-	if "magnet" in tags and "shock" in tags: skills.append("rail_storm")
-	if "sun" in tags and "shot" in tags: skills.append("sun_lance")
-	return skills
-
 static func skill_names() -> Dictionary:
 	return {"tea_ceremony":"茶香满庭","samsara":"轮回再临","reflection":"镜面折返","barrage":"百叶齐射","solar":"日冕丰收","constellation":"星阵交火","laser":"棱镜扫射","meteor":"陨星瓜雨","blades":"万刃回旋","bowling":"果轮冲阵","minefield":"连锁爆田","devour":"巨颚吞噬","bastion":"城墙护庭","domain":"灵域镇压","garden":"共生花园","renewal":"生命回潮","awakening":"醒梦加速","magnetic":"磁暴回收","dream":"蝶梦归队","spirits":"幽灵游行","tornado":"风之环流","beacon":"辉光审判","purge":"净土清墓","spring":"冷泉封火","roots":"荆棘根网","lightning":"雷霆连锁","blizzard":"冰晶封阵","inferno":"不死鸟炎阵","miasma":"毒蝶蚀域","vortex":"逆风换道","needles":"千刺反击","steam":"冰火汽爆","rail_storm":"磁轨雷暴","sun_lance":"日轮贯城"}
 
@@ -161,7 +150,7 @@ static func traits_for(kind: String, data: Dictionary) -> Array:
 	if kind in GUARDS or kind in ["holy_flower", "bubble_lotus", "umbrella_leaf"]: t.append("shield")
 	if kind in ["healing_gourd", "holy_lotus", "aurora_orchid", "holo_nut", "cotton_candy", "destiny_tree", "phoenix_tree"]: t.append("heal")
 	if "frost" in kind or "snow" in kind or "ice" in kind or kind == "time_rose": t.append("frost")
-	if kind in ["torchwood", "jalapeno", "dragon_fruit", "phoenix_tree", "mamba_tree", "magma_stream", "core_blossom", "chimney_pepper", "pepper_mortar", "caldera_lotus"]: t.append("fire")
+	if kind in ["torchwood", "jalapeno", "dragon_fruit", "phoenix_tree", "mamba_tree", "magma_stream", "core_blossom", "chimney_pepper", "pepper_mortar", "caldera_lotus", "meteor_flower"]: t.append("fire")
 	if "magnet" in kind: t.append("magnet")
 	if kind in ["hypno_shroom", "chaos_shroom"]: t.append("hypno")
 	if kind in ["root_snare", "anchor_fern", "vine_emperor", "abyss_tentacle", "sand_lotus", "glow_ivy"]: t.append("root")
@@ -223,11 +212,11 @@ static func with_fusions(native: Dictionary, order: Array) -> Dictionary:
 		var name: String = String(labels[style]) + String(native[kind].name)
 		if first == "twin_sunflower": name = "双头向日葵"
 		if first == "gatling_pea": name = "机枪射手"
-		_add(native, kind, kind, first, name, style, [], name + "盛放")
+		_add(native, kind, kind, first, name, style, [], "")
 		var second: String = "fusion_prime_" + kind
 		if kind == "sunflower": second = "triple_sunflower"
 		if kind == "repeater": second = "siege_gatling"
-		_add(native, first, kind, second, "三辉向日葵" if kind == "sunflower" else ("重炮机枪花" if kind == "repeater" else "共鸣" + String(native[kind].name)), style, [], "共鸣" + String(native[kind].name) + "领域")
+		_add(native, first, kind, second, "三辉向日葵" if kind == "sunflower" else ("重炮机枪花" if kind == "repeater" else "共鸣" + String(native[kind].name)), style, [], "")
 	# Four original pea ingredients, matching two double shooters.
 	RECIPES[key("triple_pea", "peashooter")] = "gatling_pea"
 	_add(native,"twin_sunflower","twin_sunflower","solar_crown","日冠向日葵","sun",["sun","heal"],"日冠丰收")
@@ -293,19 +282,26 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 	var healing := 0.0
 	for p in parts: healing += float(native[p].get("heal_amount",0))
 	inherited.fusion_heal = minf(600,maxf(14*(1+n*0.25),healing*0.78))
-	inherited.fusion_skills = skill_payload(style,traits)
 	var weapon_skills := {"shooter":"barrage","spread":"constellation","beam":"laser","lobber":"meteor","blade":"blades","roller":"bowling","control":"domain","melee":"devour","burst":"minefield"}
 	var attacks: Array = []
 	for channel in channels:
 		if channel.style == "payload": continue
 		var skill: String = weapon_skills[channel.style]
 		if not attacks.has(skill): attacks.append(skill)
-		if not inherited.fusion_skills.has(skill): inherited.fusion_skills.append(skill)
 	inherited.fusion_weapon_skills = attacks
+	var traits_of := {}
+	var attack_of := {}
+	for part in weights:
+		traits_of[part] = traits_for(part,native[part]); attack_of[part] = attack_for(part)
+	var signature: Dictionary = Ultimates.compose(style,parts,weights,traits,traits_of,attack_of,ultimate,
+		channels.any(func(channel): return channel.style == "burst"),
+		channels.any(func(channel): return channel.style in ["shooter","spread","beam","lobber","blade","roller"]),
+		channels.filter(func(channel): return channel.style == "payload").map(func(channel): return channel.source))
+	inherited.fusion_skills = signature.skills
 	var steady_damage := 0.0
 	for channel in channels:
 		if channel.style != "burst": steady_damage += float(channel.damage)
-	inherited.fusion_utility_damage = clampf(steady_damage*1.8,40,300)/sqrt(maxf(1.0,float(inherited.fusion_skills.size()-attacks.size())))
+	inherited.fusion_utility_damage = clampf(steady_damage*1.8,40,300)/sqrt(maxf(1.0,float(inherited.fusion_skills.size()-1)))
 	inherited.fusion_combat_description = []
 	for channel in channels: inherited.fusion_combat_description.append(Combat.describe(channel,native))
 	var passive_notes := {
@@ -319,15 +315,8 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 	}
 	for source in passive_notes:
 		if weights.has(source): inherited.fusion_combat_description.append(passive_notes[source])
-	var descriptions: Array = []
-	var titles: Array = []
-	for skill in inherited.fusion_skills:
-		descriptions.append("%s：%s" % [skill_names()[skill],skill_descriptions()[skill]])
-		if titles.size() < 3: titles.append(skill_names()[skill])
-	inherited.ultimate_name = "·".join(titles)
-	inherited.fusion_ultimate_description = "；".join(descriptions)
-	if channels.any(func(channel): return channel.style in ["shooter","spread","beam","lobber","blade","roller","melee"]):
-		inherited.fusion_ultimate_description += "；持续武器在起手后再齐射两轮（间隔0.45秒），爆舱仅起手触发。"
+	inherited.ultimate_name = signature.name
+	inherited.fusion_ultimate_description = signature.description
 	inherited.ultimate_duration = 2.4
 	inherited.fusion_art_dynamic = id.begins_with("mix_")
 	DEFINITIONS[id] = inherited
