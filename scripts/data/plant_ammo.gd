@@ -45,3 +45,26 @@ static func apply_status(z: Dictionary, shot: Dictionary) -> Dictionary:
 	if "storm" in elements: z.special_pause_timer = maxf(float(z.get("special_pause_timer",0)),0.25)
 	if "root" in elements: z.rooted_timer = maxf(float(z.get("rooted_timer",0)),1.2)
 	return z
+
+# A volley shares the ash budget, including repeated pea heads. Never inherit
+# the disposable plant's 1800/2000 damage or a heavy weapon's splash damage.
+static func compose_ash(shot: Dictionary, weights: Dictionary, volley_size: int, ultimate: bool) -> void:
+	var bonus := 0.0
+	var radius := 0.0
+	var dark := false
+	for source in ["cherry_bomb", "doom_shroom"]:
+		if not weights.has(source): continue
+		bonus += 12.0 * minf(1.6, sqrt(float(weights[source])))
+		radius = maxf(radius, 48.0 if source == "cherry_bomb" else 64.0)
+		dark = dark or source == "doom_shroom"
+	bonus = minf(24.0, bonus) * (1.5 if ultimate else 1.0) / maxi(1, volley_size)
+	if radius > 0:
+		shot.damage = float(shot.damage) + bonus
+		shot.ash_radius = radius
+		shot.ash_damage = bonus
+		shot.ash_dark = dark
+		shot.ash_hits = []
+		shot.color = Color("b78de3") if dark else Color("ef7663")
+	if weights.has("jalapeno"):
+		shot.burn_damage = maxf(float(shot.get("burn_damage",0)), 14.0 if ultimate else 10.0)
+		shot.burn_duration = maxf(float(shot.get("burn_duration",0)), 3.2)

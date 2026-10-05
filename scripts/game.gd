@@ -8192,6 +8192,7 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		var difficulty_health := float(TouhouDifficulty.profile(current_level).health)
 		boss_unit.health *= difficulty_health
 		boss_unit.max_health *= difficulty_health
+		TouhouPhaseRuntime.configure_health(boss_unit, current_level, Defs.ZOMBIES)
 		TouhouPhaseRuntime.start(boss_unit, current_level)
 		zombies[boss_index] = boss_unit
 		if kind == "rumia_boss":
@@ -18000,8 +18001,9 @@ func _trigger_ran_boss_successor(zombie: Dictionary) -> Dictionary:
 	successor["kind"] = "yukari_boss"
 	successor["row"] = row
 	successor["x"] = _boss_anchor_x("yukari_boss")
-	successor["health"] = float(data.get("health", 42800.0))
-	successor["max_health"] = float(data.get("health", 42800.0))
+	successor["health"] = float(data.get("health", 42800.0)) * float(TouhouDifficulty.profile(current_level).health)
+	successor["max_health"] = successor.health
+	TouhouPhaseRuntime.configure_health(successor, current_level, Defs.ZOMBIES)
 	TouhouPhaseRuntime.start(successor, current_level)
 	successor["base_speed"] = 0.0
 	successor["attack_dps"] = 0.0

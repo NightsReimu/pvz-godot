@@ -196,6 +196,7 @@ func _test_routes() -> void:
 		check(boss.touhou_encounter.complete, choice + " Eirin route finishes")
 		boss.touhou_final_preview = true
 		boss.max_health = 42000.0
+		Game.TouhouPhaseRuntime.configure_health(boss, game.current_level, Game.Defs.ZOMBIES)
 		Game.TouhouPhaseRuntime.start(boss, game.current_level)
-		check(boss.health == 5040.0 and Spells.card_for(boss, game.current_level).pattern == "eirin_vessel", "Road uses low HP and its canonical vessel spell")
+		check(boss.health == 3780.0 and Spells.card_for(boss, game.current_level).pattern == "eirin_vessel", "Road uses low HP and its canonical vessel spell")
 		release(game)

@@ -8,38 +8,30 @@ func profile(id: String, source: String) -> Dictionary:
 func test_explosive_channels():
  var g = make_game()
  var id: String = Fusion.result("cherry_bomb","peashooter")
- var pea := profile(id,"peashooter"); var bomb := profile(id,"cherry_bomb")
- check(not pea.is_empty() and not bomb.is_empty(),"Cherry/pea must have independent sustained and burst channels")
- if not pea.is_empty() and not bomb.is_empty():
-  check(float(pea.damage) <= 24 and float(bomb.interval) >= 24,"Burst damage cannot leak into rapid pea fire")
-  check(bomb.blast_shape == "circle" and float(bomb.radius) >= 150,"Cherry retains its area explosion")
-  var doom := profile(Fusion.result("doom_shroom","peashooter"),"doom_shroom")
-  check(float(doom.radius) > float(bomb.radius) and float(doom.interval) > float(bomb.interval),"Doom has a larger explosion with a longer charge")
- var p: Dictionary = g._create_plant(id,2,2); g.grid[2][2] = p
- g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+300)
- g.zombies[0].health = 10000
+ var pea := profile(id,"peashooter"); var ammo := profile(id,"cherry_bomb")
+ check(not pea.is_empty() and ammo.get("style","") == "payload","Cherry/pea embeds a small explosive payload in native peas")
+ var bomb_id: String = Fusion.result("cherry_bomb","wallnut")
+ var bomb := profile(bomb_id,"cherry_bomb")
+ var doom := profile(Fusion.result("doom_shroom","wallnut"),"doom_shroom")
+ check(bomb.style == "burst" and float(bomb.damage) <= 620 and float(bomb.interval) >= 24,"Non-ballistic cherry retains a weaker independently charged explosion")
+ check(float(doom.radius) > float(bomb.radius) and float(doom.interval) > float(bomb.interval),"Non-ballistic doom retains its larger and slower explosion")
+ var p: Dictionary = g._create_plant(bomb_id,2,2); g.grid[2][2] = p
+ var center: Vector2 = g._cell_center(2,2)
+ for offset in [80,120]:
+  g._spawn_zombie_at("normal",2,center.x+offset); g.zombies.back().health = 10000
+ g._spawn_zombie_at("normal",0,center.x+80); g.zombies.back().health = 10000
+ g._spawn_zombie_at("normal",2,center.x+100); g.zombies.back().health = 10000; g.zombies[3] = g._hypnotize_zombie(g.zombies[3])
  g._update_plants(1)
- check(not g.projectiles.is_empty(),"Pea still fires while explosive chamber charges")
- for shot in g.projectiles: check(float(shot.damage) <= 24,"First rapid bullet must not inherit 1800 damage")
- check(is_equal_approx(float(g.zombies[0].health),10000),"No free explosion immediately after grafting")
- if not bomb.is_empty():
-  g.projectiles.clear(); p.fusion_channel_timers.cherry_bomb = 0
-  g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+350); g.zombies[1].health = 10000
-  g._spawn_zombie_at("normal",0,g._cell_center(0,2).x+300); g.zombies[2].health = 10000
-  g._spawn_zombie_at("normal",2,g._cell_center(2,2).x+320); g.zombies[3] = g._hypnotize_zombie(g.zombies[3])
-  var friendly_hp: float = g.zombies[3].health
-  g._update_plants(0.01)
-  for n in range(160): g._update_projectiles(0.02)
-  check(g.zombies[0].health < 10000 and g.zombies[1].health < 10000,"Charged cherry shell damages the cluster around its landing point")
-  check(g.zombies[2].health == 10000 and g.zombies[3].health == friendly_hp,"Explosion respects radius and friendly zombies")
-  var cooldown: float = p.fusion_channel_timers.cherry_bomb
-  var next: Dictionary = g._ensure_plant_fusion().combined(Fusion.result(id,"sunflower"),p)
-  check(float(next.get("fusion_channel_timers",{}).get("cherry_bomb",0)) >= cooldown,"Recursive grafting cannot refill a burst chamber")
-  g._ensure_plant_fusion().ultimate(p,2,2)
-  var charged := 0
-  for shot in g.projectiles:
-   if shot.get("fusion_channel_source","") == "cherry_bomb": charged += 1
-  check(charged == 1,"Ultimate fires one charged explosion, without copying it into every pea bullet")
+ check(float(g.zombies[0].health) == 10000,"Grafting does not grant an immediate free explosion")
+ p.fusion_channel_timers.cherry_bomb = 0; g._update_plants(0.01)
+ check(g.zombies[0].health < 10000 and g.zombies[1].health < 10000,"Charged defensive cherry hits its local cluster")
+ check(g.zombies[2].health == 10000 and g.zombies[3].health == 10000,"Charged blast respects radius and allies")
+ var cooldown: float = p.fusion_channel_timers.cherry_bomb
+ var next: Dictionary = g._ensure_plant_fusion().combined(Fusion.result(bomb_id,"sunflower"),p)
+ check(float(next.fusion_channel_timers.cherry_bomb) >= cooldown,"Recursive grafting cannot refill an actual burst chamber")
+ var before: float = g.zombies[0].health
+ g._ensure_plant_fusion().ultimate(p,2,2)
+ check(before-float(g.zombies[0].health) <= float(bomb.damage)*1.15+0.01,"Charged ultimate has a bounded 15% blast bonus")
  dispose(g)
 
 func test_lobbers_and_heavy_cadence():
@@ -99,7 +91,7 @@ func test_additional_identity_and_balance():
  for shot in g.projectiles:
   if shot.get("fusion_channel_source","") == "pressure_bamboo" and shot.has("arc_target"): lobbed += 1
  check(lobbed == 3 and int(p.pressure_ammo) == 0,"Stored pressure rounds discharge as a real staggered lob volley")
- g.grid[2][2] = g._create_plant(Fusion.result("cherry_bomb","peashooter"),2,2)
+ g.grid[2][2] = g._create_plant(Fusion.result("cherry_bomb","wallnut"),2,2)
  p = g.grid[2][2]; p.fusion_haste_timer = 10
  g._update_plants(1)
  check(is_equal_approx(float(p.fusion_channel_timers.cherry_bomb),31),"Haste cannot accelerate a destructive burst cooldown")

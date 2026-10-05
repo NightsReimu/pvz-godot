@@ -1,7 +1,30 @@
 extends RefCounted
 
 const Spells = preload("res://scripts/data/touhou_spell_defs.gd")
-const SELF_MIDBOSS_HEALTH_RATIO := 0.12
+const SELF_MIDBOSS_HEALTH_RATIO := 0.09
+const ROAD_HEALTH_RATIO := 0.18
+const ROAD_FINALE_CAP := 0.10
+const FINALE_HEALTH_MULTIPLIER := 1.45
+
+
+static func configure_health(boss: Dictionary, level: Dictionary, definitions: Dictionary) -> void:
+	# Spawn owns role scaling, before phase floors/HUD bounds are calculated.
+	var preview := bool(boss.get("touhou_final_preview", false))
+	var road := preview or (String(boss.kind) == String(level.get("mid_boss_kind", "")) and not bool(level.get("mid_boss_final_preview", false)))
+	var health := float(boss.max_health)
+	if road:
+		health *= SELF_MIDBOSS_HEALTH_RATIO if preview else ROAD_HEALTH_RATIO
+		var finale_health := 0.0
+		for event in level.get("events", []):
+			var kind := String(event.get("kind", ""))
+			if Spells.Difficulty.boss_kinds().has(kind):
+				finale_health = float(definitions[kind].health) * float(Spells.Difficulty.profile(level).health)
+		if finale_health > 0: health = minf(health, finale_health * ROAD_FINALE_CAP)
+	else:
+		health *= FINALE_HEALTH_MULTIPLIER
+	boss["touhou_road_boss"] = road
+	boss.max_health = health
+	boss.health = health
 
 
 static func start(boss: Dictionary, level: Dictionary) -> void:
@@ -12,10 +35,8 @@ static func start(boss: Dictionary, level: Dictionary) -> void:
 		phases = [[phases[0][0].duplicate(true)]]
 		if String(boss.kind) == "eirin_boss":
 			phases = [[Spells.Eirin.road_card(level)]]
-		boss.max_health *= SELF_MIDBOSS_HEALTH_RATIO
-		boss.health = boss.max_health
 	if String(boss.kind) == String(level.get("mid_boss_kind", "")) and bool(level.get("mid_boss_nonspell_only", false)):
-		# A different-character road boss owns its HP; never apply the self-preview ratio.
+		# Different-character roads retain their authored nonspell identity.
 		phases = [[phases[0][0].duplicate(true)]]
 		boss["touhou_road_nonspell"] = true
 	boss["touhou_encounter"] = {"phases": phases, "index": 0, "attack": 0, "completed": 0, "casting": false, "depleted": false, "complete": false}

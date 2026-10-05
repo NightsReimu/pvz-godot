@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6** · **当前版本 v1.0.169** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.170** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -29,7 +29,7 @@
 | 僵尸与 Boss 定义（含 163 种融合） | 298 |
 | 关卡定义 | 196 |
 | 主世界 | 8 |
-| 自动测试入口 | 156 |
+| 自动测试入口 | 158 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
 
@@ -62,6 +62,10 @@
 **v1.0.154 妖妖梦 Boss 素材更新**：蕾蒂、橙、爱丽丝、莉莉霍瓦特、魂魄妖梦、西行寺幽幽子、八云蓝与八云紫换用新提供的素材；按人物和完整特效逐个分离，单独保存 192 帧，保留人偶、半灵、九尾、翅膀和原始透明光效。重新对应待机、移动、施法与受击动作，统一人物高度和脚部锚点。[版本说明](docs/releases/v1.0.154.md)。
 
 ![妖妖梦八位 Boss 素材更新原生截图](docs/readme/cherry-boss-v154.png)
+
+**v1.0.170 东方战斗与灰烬弹头平衡**：统一降低所有东方道中血量，终末血量提高 45%，覆盖 24 条路线与 90 个难度组合，并补齐八云蓝换八云紫的血量缩放。樱桃与射手融合改为小范围爆炸子弹，辣椒附加灼烧，毁灭菇附加暗爆；纯爆炸融合减伤，保留独立蓄力。[版本说明](docs/releases/v1.0.170.md)。
+
+![灰烬融合：樱桃爆炸豌豆、辣椒灼烧与毁灭菇暗爆弹头](docs/readme/ash-ammo-v170.png)
 
 **v1.0.169 发布版音乐兼容**：修复导出包只保留 Godot 导入音频时的背景音乐加载，继续循环播放并共用缓存。再次核对四档道中使用原有夜晚音乐，只有满血终末萃香登场才切换用户提供的终末 BGM。[版本说明](docs/releases/v1.0.169.md)。
 

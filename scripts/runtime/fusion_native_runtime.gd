@@ -97,6 +97,9 @@ func update(p: Dictionary, delta: float, row: int, col: int, ultimate: bool = fa
 					extra.damage = float(extra.damage)/power*(1.8 if ultimate else 1.0)
 					game.projectiles.append(extra)
 			for shot in original: shot.damage = float(shot.damage)/power*(1.8 if ultimate else 1.0)
+		for shot in game.projectiles.slice(start):
+			if not data.fusion_channels.any(func(channel): return channel.style == "payload"): continue
+			Ammo.compose_ash(shot,data.fusion_weights,game.projectiles.size()-start,ultimate)
 		for index in range(roller_start,game.rollers.size()):
 			var roller: Dictionary = game.rollers[index]
 			roller.damage = float(roller.damage)*power

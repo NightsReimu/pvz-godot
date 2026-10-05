@@ -618,7 +618,7 @@ func _burst(p: Dictionary, row: int, col: int, channel: Dictionary, ultimate: bo
 	var impact: Vector2 = candidates[0].point if delivery and not candidates.is_empty() else center
 	if channel.blast_shape == "single" and not candidates.is_empty(): impact = candidates[0].point
 	var burst: Dictionary = channel.duplicate(true)
-	burst.damage = float(channel.damage)*(1.3 if ultimate else 1.0)
+	burst.damage = float(channel.damage)*(1.15 if ultimate else 1.0)
 	if ultimate and channel.blast_shape == "circle": burst.radius = float(channel.radius)*1.3
 	if delivery:
 		game._ensure_plant_runtime().spawn_roof_lobbed_projectile("fusion_burst",row,center+Vector2(8,-25),impact,float(burst.damage),Color("f8b57b"),110,13,float(burst.radius),0,String(p.kind))

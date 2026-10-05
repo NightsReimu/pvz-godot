@@ -182,6 +182,32 @@ func apply_ammo_status(z: Dictionary, shot: Dictionary) -> Dictionary:
 		if z.ammo_dream_hits >= 6: z = game._hypnotize_zombie(z)
 	return z
 
+# Secondary ash damage is a fixed small payload, independent of native splash
+# and armor bonuses. Each enemy can receive it once per projectile lifetime.
+func ash_impact(shot: Dictionary, center: Vector2, skip_index: int = -1) -> void:
+	var radius := float(shot.get("ash_radius",0))
+	if radius <= 0: return
+	var damage := float(shot.get("ash_damage",0))
+	if game.ancient_expansion != null: damage *= game.ancient_expansion.projectile_factor(shot)
+	var hits: Array = shot.get("ash_hits",[])
+	if skip_index >= 0 and skip_index < game.zombies.size():
+		var primary_uid := int(game.zombies[skip_index].get("uid",-1))
+		if not hits.has(primary_uid): hits.append(primary_uid)
+	for i in range(game.zombies.size()):
+		if i == skip_index: continue
+		var z: Dictionary = game.zombies[i]
+		var uid := int(z.get("uid",-1))
+		if hits.has(uid) or not game._is_enemy_zombie(z) or float(z.health) <= 0: continue
+		if game._is_hidden_from_lane_attacks(z) or bool(z.get("jumping",false)): continue
+		if game._zombie_target_point(z,center).distance_to(center) > radius: continue
+		game.zombies[i] = apply_ammo_status(game._apply_zombie_damage(z,damage,0.12),shot)
+		hits.append(uid)
+	shot.ash_hits = hits
+	game._damage_obstacles_in_circle(center,radius,damage)
+	var tint := Color("b989ed") if bool(shot.get("ash_dark",false)) else Color("ff865e")
+	game.effects.append({"shape":"fusion_wave","position":center,"radius":radius,"time":0.28,"duration":0.28,"traits":["hypno"] if bool(shot.get("ash_dark",false)) else ["fire"],"tier":1,"color":tint})
+
+
 func apply_payload_area(shot: Dictionary, center: Vector2) -> void:
 	var radius: float = maxf(42,float(shot.get("splash_radius",0)))
 	for i in range(game.zombies.size()):
@@ -237,6 +263,7 @@ func _emit_amber_ultimate_impact(impact_position: Vector2, armored: bool) -> voi
 func _apply_boomerang_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12, projectile: Dictionary = {}) -> Dictionary:
 	zombie = game._apply_zombie_damage(zombie, damage, flash_amount, 0.0, false, true, float(Vector2(projectile.get("position", Vector2.INF)).x))
 	zombie = apply_ammo_status(zombie,projectile)
+	ash_impact(projectile,game._zombie_target_point(zombie,Vector2(projectile.get("position",Vector2.ZERO))),find_zombie_index_by_uid(int(zombie.get("uid",-1))))
 	if projectile.has("fusion_source"):
 		zombie = game._ensure_plant_fusion().projectile_hit(zombie,projectile)
 	if bool(projectile.get("flame_boomerang", false)):
@@ -289,8 +316,9 @@ func spawn_sakura_split_projectiles(projectile: Dictionary, impact_position: Vec
 			"split_speed": split_speed,
 		}
 		if projectile.has("fusion_source") or projectile.has("ammo_elements"):
-			for field in ["fusion_source","fusion_channel_source","fusion_traits","fusion_mechanics","fusion_ultimate","fusion_native","ammo_elements","ammo_identity","burn_damage","burn_duration","dot_damage","dot_duration","anti_air","fire"]:
+			for field in ["fusion_source","fusion_channel_source","fusion_traits","fusion_mechanics","fusion_ultimate","fusion_native","ammo_elements","ammo_identity","burn_damage","burn_duration","dot_damage","dot_duration","anti_air","fire","ash_radius","ash_dark"]:
 				if projectile.has(field): child[field] = projectile[field]
+		if projectile.has("ash_damage"): child.ash_damage = float(projectile.ash_damage)*0.35; child.ash_hits = []
 		game.projectiles.append(child)
 
 
@@ -468,6 +496,7 @@ func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: V
 	if projectile.has("fusion_source") and not bool(projectile.get("fusion_native",false)):
 		game._ensure_plant_fusion().impact(projectile,impact_position)
 		return
+	ash_impact(projectile,impact_position)
 	apply_payload_area(projectile,impact_position)
 	if projectile.has("volcano_seed"):
 		var payload = projectile.duplicate()
@@ -660,8 +689,9 @@ func update_projectiles(delta: float) -> void:
 					"free_aim": absf(spread) > 0.01,
 				})
 			for spawned in game.projectiles.slice(maxi(0,game.projectiles.size()-fragment_count)):
-				for field in ["fusion_source","fusion_traits","fusion_channel_source","fusion_mechanics","fusion_native","ammo_elements","ammo_identity","fire","anti_air","burn_damage","dot_damage","slow_duration"]:
+				for field in ["fusion_source","fusion_traits","fusion_channel_source","fusion_mechanics","fusion_native","ammo_elements","ammo_identity","fire","anti_air","burn_damage","dot_damage","slow_duration","ash_radius","ash_dark"]:
 					if projectile.has(field): spawned[field] = projectile[field]
+				if projectile.has("ash_damage"): spawned.ash_damage = float(projectile.ash_damage)/maxi(1,fragment_count); spawned.ash_hits = []
 			game.projectiles.remove_at(i)
 			continue
 		projectile = apply_torchwood_to_projectile(projectile)
@@ -669,6 +699,7 @@ func update_projectiles(delta: float) -> void:
 			var impact_target = Vector2(projectile.get("target", projectile_pos))
 			var impact_distance = projectile_pos.distance_to(impact_target)
 			if impact_distance <= maxf(float(projectile.get("radius", 12.0)) * 1.3, float(projectile.get("speed", 0.0)) * delta):
+				ash_impact(projectile,impact_target)
 				game._explode_moonforge_projectile(projectile, impact_target)
 				game.projectiles.remove_at(i)
 				continue
@@ -762,10 +793,12 @@ func update_projectiles(delta: float) -> void:
 				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), float(projectile.get("stun_duration", 0.0)))
 			if projectile_kind == "moon_meteor":
 				game.zombies[hit_index] = zombie
+				ash_impact(projectile,hit_position,hit_index)
 				game._explode_moonforge_projectile(projectile, Vector2(hit_position.x, hit_position.y - 10.0))
 				game.projectiles.remove_at(i)
 				continue
 			game.zombies[hit_index] = zombie
+			ash_impact(projectile,hit_position,hit_index)
 			if projectile.has("fusion_source") and not bool(projectile.get("fusion_native",false)) and float(projectile.get("splash_radius",0)) > 0:
 				game._ensure_plant_fusion().impact(projectile,hit_position,hit_index,true)
 			if game.has_method("_emit_projectile_impact_feedback"):

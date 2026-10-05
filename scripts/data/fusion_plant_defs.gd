@@ -297,6 +297,7 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 	var weapon_skills := {"shooter":"barrage","spread":"constellation","beam":"laser","lobber":"meteor","blade":"blades","roller":"bowling","control":"domain","melee":"devour","burst":"minefield"}
 	var attacks: Array = []
 	for channel in channels:
+		if channel.style == "payload": continue
 		var skill: String = weapon_skills[channel.style]
 		if not attacks.has(skill): attacks.append(skill)
 		if not inherited.fusion_skills.has(skill): inherited.fusion_skills.append(skill)

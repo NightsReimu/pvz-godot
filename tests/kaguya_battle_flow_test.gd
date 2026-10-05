@@ -64,7 +64,7 @@ func _run() -> void:
 				quit(1)
 				return
 			check(game.current_bgm_path == level.boss_bgm and game.music_player.playing,"Finale switches to supplied Kaguya BGM")
-			check(is_equal_approx(hp,float(boss.max_health)*42000/44000*0.12),"Eirin road HP remains identical to A despite another finale")
+			check(is_equal_approx(hp,float(boss.max_health)*42000/44000*0.09/1.45),"Eirin road HP remains identical to A despite another finale")
 			game.zombies = [boss]
 			game.touhou_danmaku.clear()
 			for row in range(6):

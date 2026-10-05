@@ -74,7 +74,7 @@ func _run() -> void:
 				game.free()
 				quit(1)
 				return
-			check(is_equal_approx(float(boss.max_health) * 0.12, hp) and game.current_bgm_path == level.boss_bgm and game.music_player.playing, "Finale has full HP and supplied boss music")
+			check(is_equal_approx(float(boss.max_health) * 0.09 / 1.45, hp) and game.current_bgm_path == level.boss_bgm and game.music_player.playing, "Finale has full HP and supplied boss music")
 			game.zombies = [boss]
 			game.touhou_danmaku.clear()
 			for row in range(6):

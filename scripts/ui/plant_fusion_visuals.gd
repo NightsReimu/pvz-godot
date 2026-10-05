@@ -638,11 +638,18 @@ static func draw_skill(canvas: CanvasItem, effect: Dictionary, progress: float, 
 # The native kernel/butter/petal/blade silhouette stays visible inside each payload.
 static func draw_ammo_overlay(canvas: CanvasItem, shot: Dictionary) -> void:
 	var tags: Array = shot.get("ammo_elements",[])
-	if tags.is_empty(): return
+	if tags.is_empty() and not shot.has("ash_radius"): return
 	var p: Vector2 = shot.position
 	var r: float = float(shot.get("radius",9))
 	var time: float = float(canvas.get("level_time"))
 	var dir: float = -1 if float(shot.get("speed",1)) < 0 else 1
+	if shot.has("ash_radius"):
+		var dark := bool(shot.get("ash_dark",false))
+		var tint := Color("cf9aff") if dark else Color("ff866e")
+		canvas.draw_arc(p,r+4,time*3,time*3+TAU*0.8,20,tint,2.2,true)
+		for i in range(3):
+			var spark := p-Vector2(dir*(r*1.8+i*5),sin(time*15+i*2)*5)
+			canvas.draw_circle(spark,2.6-i*0.5,tint,true,-1,true)
 	if "flame" in tags:
 		for i in range(3):
 			var phase: float = time*12+i*2.1
@@ -673,6 +680,16 @@ static func draw_ammo_overlay(canvas: CanvasItem, shot: Dictionary) -> void:
 
 # Ingredient-shaped payloads remain readable beneath the elemental trail.
 static func draw_ammo_body(canvas: CanvasItem, shot: Dictionary) -> bool:
+	if shot.has("ash_radius") and String(shot.get("kind","")) in ["pea","snow_pea","shadow_pea"]:
+		var center: Vector2 = shot.position
+		var radius := float(shot.get("radius",8))
+		var tint := Color("a16bd1") if bool(shot.get("ash_dark",false)) else Color("ed6557")
+		canvas.draw_circle(center,radius,tint,true,-1,true)
+		canvas.draw_arc(center,radius,0,TAU,20,Color("62383f"),1.5,true)
+		canvas.draw_circle(center+Vector2(-radius*0.3,-radius*0.35),radius*0.25,Color("ffe4c8"),true,-1,true)
+		canvas.draw_polyline(PackedVector2Array([center+Vector2(-2,-radius),center+Vector2(-5,-radius-5),center+Vector2(-2,-radius-7)]),Color("655544"),1.5,true)
+		canvas.draw_circle(center+Vector2(-2,-radius-7),2.2,Color("ffd779"),true,-1,true)
+		return true
 	if shot.get("ammo_elements",[]).is_empty(): return false
 	var kind: String = shot.get("kind","")
 	var p: Vector2 = shot.position

@@ -104,7 +104,7 @@ func _test_higher_route(kind: String) -> void:
 		inherited_moves = original_moves
 	var game := _difficulty_game(kind, choices.back())
 	var boss: Dictionary = game.zombies[0]
-	check(is_equal_approx(float(boss.max_health), float(Game.Defs.ZOMBIES[kind].health) * float(Difficulty.profile(game.current_level).health)), "Spawn must apply the chosen boss health once")
+	check(is_equal_approx(float(boss.max_health), float(Game.Defs.ZOMBIES[kind].health) * float(Difficulty.profile(game.current_level).health) * 1.45), "Spawn must apply the chosen boss health once")
 	var required := 0
 	for phase in boss.touhou_encounter.phases:
 		required += phase.size()
