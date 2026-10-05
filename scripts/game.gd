@@ -12963,8 +12963,7 @@ func _update_zombies(delta: float) -> void:
 		if String(zombie["kind"]) == "balloon_zombie" and bool(zombie.get("balloon_flying", false)):
 			if float(zombie.get("special_pause_timer", 0.0)) <= 0.0:
 				zombie["x"] -= _current_zombie_speed(zombie) * delta
-			if float(zombie["x"]) <= BOARD_ORIGIN.x - 24.0:
-				_lose_level()
+			if not _check_zombie_home_entry(zombie):
 				return
 			zombies[i] = zombie
 			continue
@@ -13631,19 +13630,28 @@ func _update_zombies(delta: float) -> void:
 				float(Defs.ZOMBIES["nezha"]["burn_dps"]) * delta
 			)
 
-		if int(zombie["row"]) >= 0 and int(zombie["row"]) < mowers.size() and float(zombie["x"]) <= BOARD_ORIGIN.x - 24.0:
-			var mower = mowers[int(zombie["row"])]
-			if bool(mower["armed"]):
-				mower["armed"] = false
-				mower["active"] = true
-				mowers[int(zombie["row"])] = mower
-				if _objective_active():
-					objective_runtime.notify_mower_activated()
-			elif not bool(mower["active"]):
-				_lose_level()
-				return
+		if not _check_zombie_home_entry(zombie):
+			return
 
 		zombies[i] = zombie
+
+
+func _check_zombie_home_entry(zombie: Dictionary) -> bool:
+	# Flying balloons bypass biting, but still share the lawn mower's last defense.
+	var row := int(zombie["row"])
+	if row < 0 or row >= mowers.size() or float(zombie["x"]) > BOARD_ORIGIN.x - 24.0:
+		return true
+	var mower = mowers[row]
+	if bool(mower["armed"]):
+		mower["armed"] = false
+		mower["active"] = true
+		mowers[row] = mower
+		if _objective_active():
+			objective_runtime.notify_mower_activated()
+	elif not bool(mower["active"]):
+		_lose_level()
+		return false
+	return true
 
 
 func _update_mowers(delta: float) -> void:
