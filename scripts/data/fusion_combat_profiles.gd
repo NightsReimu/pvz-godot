@@ -2,6 +2,9 @@ extends RefCounted
 
 # Damage belongs to its original weapon. Disposable explosions never feed a DPS weapon.
 const LOBBERS := ["cabbage_pult","kernel_pult","melon_pult","corn_cannon","moonforge","meteor_gourd","meteor_flower","pepper_mortar","chimney_pepper","skylight_melon","obsidian_artichoke","sulfur_pod","pressure_bamboo","fumarole_melon","caldera_lotus","blast_pomegranate","dandelion"]
+# Ash blasts reach balloons and other fliers, like the native cherry, jalapeno and doom.
+const ASH := ["cherry_bomb","jalapeno","doom_shroom","ice_shroom","core_blossom","glitch_walnut","snow_bloom"]
+
 const BURSTS := {
  "cherry_bomb":{"damage":990.0,"interval":32.0,"radius":155.0,"blast_shape":"circle","deliver":true},
  "doom_shroom":{"damage":1260.0,"interval":48.0,"radius":220.0,"blast_shape":"circle","deliver":true},

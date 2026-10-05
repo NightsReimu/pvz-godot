@@ -199,7 +199,7 @@ static func traits_for(kind: String, data: Dictionary) -> Array:
 	if kind == "mirror_shroom": t.append("copy")
 	if kind == "phoenix_tree": t.append("revive")
 	if kind == "split_pea": t.append("rear")
-	if kind in ["cactus","seraph_flower","lantern_bloom","lotus_lancer","origami_blossom","dandelion"]: t.append("anti_air")
+	if kind in ["cactus","seraph_flower","lantern_bloom","lotus_lancer","origami_blossom","dandelion"] or kind in Combat.ASH: t.append("anti_air")
 	return t
 
 static func with_fusions(native: Dictionary, order: Array) -> Dictionary:

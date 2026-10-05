@@ -25,7 +25,7 @@ class Gallery extends GameScript:
 			_draw_plant_body(id,tile.position+Vector2(124,112),1.0,0)
 			draw_string(ui_font,tile.position+Vector2(10,182),String(d.get("ultimate_name",_ultimate_profile_for_kind(id).get("ultimate_name","盛放"))),HORIZONTAL_ALIGNMENT_LEFT,230,13,Color("526d4d"))
 func _run():
-	var directory := "res://output/plant-fusions-v163"
+	var directory := "res://output/plant-fusions-v164"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
 	var surface := SubViewport.new()
 	surface.size = Vector2i(1600,900); surface.render_target_update_mode = SubViewport.UPDATE_ALWAYS

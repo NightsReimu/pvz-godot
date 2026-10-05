@@ -14,6 +14,16 @@ func _init(owner: Control): game = owner
 func kind(plant: Dictionary) -> String:
 	return String(plant.get("fusion_kind",plant.get("kind","")))
 
+# Ash material keeps its native reach into the sky; other hidden targets stay hidden.
+func _hidden_from(source: String, z: Dictionary) -> bool:
+	if bool(z.get("balloon_flying",false)) and source in Fusion.Combat.ASH: return false
+	return game._is_hidden_from_lane_attacks(z)
+
+func _has_ash(d: Dictionary) -> bool:
+	for source in d.get("fusion_weights",{}):
+		if source in Fusion.Combat.ASH: return true
+	return false
+
 func enabled() -> bool:
 	return String(game.current_level.get("minigame", "")) != "gems" and not String(game.current_level.get("mode","")) in ["bowling","whack","vasebreaker"]
 
@@ -460,6 +470,8 @@ func _skill_damage(p: Dictionary, row: int, col: int, skill: String) -> void:
 		var element_source: String = {"inferno":"jalapeno","steam":"jalapeno","blizzard":"snow_pea","lightning":"thunder_pine","rail_storm":"thunder_pine"}.get(skill,"")
 		damage *= game.ancient_expansion.element_factor(element_source,false)
 	var visible_hits := 0
+	# Blast skills of an ash fusion strike fliers like the ash ingredient itself.
+	var sky: String = "cherry_bomb" if skill in ["minefield","inferno","steam"] and _has_ash(d) else ""
 	for i in range(game.zombies.size()):
 		var z: Dictionary = game.zombies[i]
 		if not game._is_enemy_zombie(z) or float(z.health) <= 0: continue
@@ -467,7 +479,7 @@ func _skill_damage(p: Dictionary, row: int, col: int, skill: String) -> void:
 		if skill in ["tornado","vortex"] and bool(z.get("balloon_flying",false)):
 			z.balloon_flying = false; z.flying = false
 			game.zombies[i] = z
-		if game._is_hidden_from_lane_attacks(z):
+		if _hidden_from(sky,z):
 			game.zombies[i] = z
 			continue
 		var point: Vector2 = game._zombie_target_point(z,center)
@@ -478,7 +490,7 @@ func _skill_damage(p: Dictionary, row: int, col: int, skill: String) -> void:
 			continue
 		if skill in ["minefield","devour"] and point.distance_to(center) > game.CELL_SIZE.x*3.2: continue
 		if skill == "devour" and (bool(z.get("balloon_flying",false)) or bool(z.get("jumping",false))): continue
-		if skill in ["minefield","purge"] and bool(z.get("balloon_flying",false)): continue
+		if skill in ["minefield","purge"] and bool(z.get("balloon_flying",false)) and sky.is_empty(): continue
 		if skill in ["laser","rail_storm","sun_lance","beacon"] and game._is_roof_direct_fire_blocked(center.x,point.x,game._zombie_target_row(z,point)): continue
 		var hit: float = minf(damage,float(z.health)*0.1) if skill == "dream" else damage
 		z = game._apply_zombie_damage(z,hit,0.18,0,false,skill in ["laser","rail_storm","sun_lance","beacon","needles"],center.x)
@@ -593,7 +605,7 @@ func _burst(p: Dictionary, row: int, col: int, channel: Dictionary, ultimate: bo
 	for i in range(game.zombies.size()):
 		var z: Dictionary = game.zombies[i]
 		if not game._is_enemy_zombie(z) or float(z.health) <= 0: continue
-		if channel.blast_shape != "freeze" and game._is_hidden_from_lane_attacks(z): continue
+		if channel.blast_shape != "freeze" and _hidden_from(channel.source,z): continue
 		if delivery and not game._zombie_has_row(z,row): continue
 		var point: Vector2 = game._zombie_target_point(z,center)
 		if delivery and point.x < center.x-16: continue
@@ -631,7 +643,7 @@ func _burst_impact(shot: Dictionary, center: Vector2) -> void:
 	for i in range(game.zombies.size()):
 		var z: Dictionary = game.zombies[i]
 		if not game._is_enemy_zombie(z) or float(z.health) <= 0: continue
-		if shape != "freeze" and game._is_hidden_from_lane_attacks(z): continue
+		if shape != "freeze" and _hidden_from(b.source,z): continue
 		if shape == "row":
 			if not game._zombie_has_row(z,row): continue
 		elif game._zombie_target_point(z,center).distance_to(center) > radius: continue

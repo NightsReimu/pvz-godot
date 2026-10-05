@@ -19,5 +19,5 @@ func _initialize():
 		if not keep.has(stem):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path("res://art/vector/fusions/"+name))
 			removed += 1
-	print("Composed %d fusion SVGs from the plant parts library; removed %d stale files" % [count,removed])
+	print("Composed %d fusion SVGs from the fusion anatomy library; removed %d stale files" % [count,removed])
 	quit()

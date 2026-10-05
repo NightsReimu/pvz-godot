@@ -183,23 +183,15 @@ static func draw_plant(canvas: CanvasItem, id: String, center: Vector2, scale: f
 	var t: Array = plant.get("stats",{}).get("fusion_traits",[])
 	var time: float = float(canvas.get("level_time"))
 	var phase: float = float(plant.get("anim_phase",0))
-	# Idle motes follow the dominant material and never ring the silhouette.
-	if "sun" in t:
-		for i in range(3):
-			var rise: float = fposmod(time*0.5+i*0.33+phase,1.0)
-			var p: Vector2 = center+Vector2(-18+i*16+sin(time*2+i)*3,-20-rise*30)*scale
-			canvas.draw_circle(p,(1.6-rise)*scale+0.4,_a(PALETTES.sun[2],alpha*(1.0-rise)*0.9),true,-1,true)
-	if "fire" in t:
-		for i in range(3):
-			var rise: float = fposmod(time*0.9+i*0.31+phase,1.0)
-			var p: Vector2 = center+Vector2(-20+i*14+sin(time*5+i*2)*3,-12-rise*36)*scale
-			canvas.draw_circle(p,(1.8-rise*1.2)*scale,_a(PALETTES.fire[1],alpha*(1.0-rise)),true,-1,true)
-	if "frost" in t:
-		var drift: float = fposmod(time*0.4+phase,1.0)
-		snowflake(canvas,center+Vector2(22,-30+drift*24)*scale,3.2*scale,PALETTES.frost[2],alpha*(1.0-drift)*0.85,time)
-	if "shock" in t and fposmod(time*1.3+phase,2.0) < 0.18:
-		var a: Vector2 = center+Vector2(-14,-34)*scale
-		bolt(canvas,a,a+Vector2(10,12)*scale,PALETTES.shock[1],1.2*scale,time*10,alpha*0.9)
+	# Idle effects follow the hybrid's leading elements and rise from its crest.
+	var layout: Dictionary = Art.layout(id,Defs.PLANTS[id])
+	var crest: Vector2 = center+Vector2(layout.crown)*scale
+	var head: Vector2 = center+Vector2(layout.head)*scale
+	var span: float = maxf(14.0,(float(layout.right)-float(layout.left))*0.5)*scale
+	var shown := 0
+	for element in layout.elements:
+		if shown >= 2: break
+		if _idle(canvas,String(element),crest,head,span,scale,time,phase+shown*0.37,alpha): shown += 1
 	for channel in plant.get("stats",{}).get("fusion_channels",[]):
 		if channel.style != "burst" and float(channel.interval) < 10: continue
 		var charge: float = clampf(1-float(plant.get("fusion_channel_timers",{}).get(channel.source,channel.interval))/float(channel.interval),0,1)
@@ -217,6 +209,73 @@ static func draw_plant(canvas: CanvasItem, id: String, center: Vector2, scale: f
 		var plate: Vector2 = center+Vector2(33,-24)*scale
 		var shine: float = 0.4+0.3*sin(time*3+phase)
 		canvas.draw_line(plate+Vector2(-4,-8)*scale,plate+Vector2(4,8)*scale,Color(0.88,1,1,alpha*shine),1.6*scale,true)
+
+
+static func _idle(canvas: CanvasItem, element: String, crest: Vector2, head: Vector2, span: float, scale: float, time: float, phase: float, alpha: float) -> bool:
+	match element:
+		"fire":
+			for i in range(3):
+				var rise: float = fposmod(time*0.9+i*0.31+phase,1.0)
+				var p: Vector2 = crest+Vector2((-0.6+i*0.6)*span*0.6+sin(time*5+i*2)*2*scale,-4*scale-rise*30*scale)
+				canvas.draw_circle(p,(1.9-rise*1.3)*scale,_a(PALETTES.fire[1 if i%2 else 2],alpha*(1.0-rise)),true,-1,true)
+			glow(canvas,crest+Vector2(0,2)*scale,(9+2*sin(time*7+phase))*scale,PALETTES.fire[1],alpha*0.35)
+		"frost":
+			for i in range(2):
+				var drift: float = fposmod(time*0.35+i*0.5+phase,1.0)
+				snowflake(canvas,head+Vector2((i*2-1)*span*0.9+sin(time+i)*3*scale,-12*scale+drift*30*scale),2.8*scale,PALETTES.frost[2],alpha*(1.0-drift)*0.85,time*(1+i))
+		"shock":
+			if fposmod(time*1.4+phase,1.6) < 0.22:
+				var a: Vector2 = crest+Vector2(-span*0.5,2*scale)
+				bolt(canvas,a,a+Vector2(span,10*scale),PALETTES.shock[1],1.3*scale,time*10,alpha*0.9)
+			sparkle(canvas,crest+Vector2(span*0.6,-2*scale),2.2*scale*(0.6+0.4*sin(time*9+phase)),PALETTES.shock[2],alpha*0.8)
+		"poison":
+			for i in range(3):
+				var rise: float = fposmod(time*0.45+i*0.33+phase,1.0)
+				var p: Vector2 = crest+Vector2((i-1)*span*0.45+sin(time*2+i)*2*scale,-rise*26*scale)
+				canvas.draw_arc(p,(1.2+rise*1.8)*scale,0,TAU,12,_a(PALETTES.poison[1],alpha*(1.0-rise)),1.0*scale,true)
+		"dream":
+			var orbit: float = time*1.3+phase*TAU
+			butterfly(canvas,head+Vector2(cos(orbit)*span*1.15,-10*scale+sin(orbit*1.7)*6*scale),0.8*scale,sin(time*12)*0.5+0.5,PALETTES.hypno,alpha*0.9)
+		"shadow":
+			for i in range(2):
+				var rise: float = fposmod(time*0.4+i*0.5+phase,1.0)
+				var p: Vector2 = crest+Vector2((i*2-1)*span*0.4+sin(time*1.5+i*3)*4*scale,-rise*28*scale)
+				crescent(canvas,p,(2.6-rise)*scale,time+i,Color("8e7bc4"),alpha*(1.0-rise)*0.8)
+		"blast":
+			var flick: float = 0.5+0.5*sin(time*14+phase*9)
+			star(canvas,crest+Vector2(span*0.5,-6*scale),(2.2+flick*1.6)*scale,_a(Color("ffd76a"),alpha),time*3,0.0)
+			if flick > 0.8: sparkle(canvas,crest+Vector2(span*0.5+4*scale,-10*scale),2*scale,Color("fff6d0"),alpha)
+		"sun":
+			for i in range(3):
+				var rise: float = fposmod(time*0.5+i*0.33+phase,1.0)
+				var p: Vector2 = head+Vector2((i-1)*span*0.7+sin(time*2+i)*3*scale,-8*scale-rise*30*scale)
+				canvas.draw_circle(p,(1.6-rise)*scale+0.4,_a(PALETTES.sun[2],alpha*(1.0-rise)*0.9),true,-1,true)
+		"water":
+			var fall: float = fposmod(time*0.6+phase,1.0)
+			canvas.draw_colored_polygon(teardrop(head+Vector2(span*0.8,fall*24*scale),Vector2.DOWN,4*scale,2.2*scale),_a(Color("9fdcf2"),alpha*(1.0-fall)))
+		"wind":
+			var swirl: float = time*2.2+phase*TAU
+			leaf_shape(canvas,head+Vector2(cos(swirl)*span*1.2,sin(swirl)*8*scale-6*scale),swirl,6*scale,PALETTES.wind[1],alpha*0.85)
+		"light","holy":
+			for i in range(2):
+				var twinkle: float = 0.5+0.5*sin(time*4+i*2.1+phase*5)
+				sparkle(canvas,crest+Vector2((i*2-1)*span*0.7,-4*scale-i*6*scale),(1.4+twinkle*1.6)*scale,PALETTES.sun[2],alpha*twinkle)
+		"heal":
+			var rise: float = fposmod(time*0.5+phase,1.0)
+			var p: Vector2 = head+Vector2(-span*0.8,-rise*24*scale)
+			canvas.draw_rect(Rect2(p-Vector2(0.8,2.4)*scale,Vector2(1.6,4.8)*scale),_a(PALETTES.heal[1],alpha*(1-rise)))
+			canvas.draw_rect(Rect2(p-Vector2(2.4,0.8)*scale,Vector2(4.8,1.6)*scale),_a(PALETTES.heal[1],alpha*(1-rise)))
+		"tea","milk","smoke":
+			for i in range(2):
+				var rise: float = fposmod(time*0.4+i*0.5+phase,1.0)
+				var p: Vector2 = crest+Vector2((i*2-1)*4*scale+sin(time*3+i)*2*scale,-2*scale-rise*22*scale)
+				canvas.draw_circle(p,(1.6+rise*2.2)*scale,Color(1,1,1,alpha*(1.0-rise)*0.45),true,-1,true)
+		"metal":
+			if fposmod(time*0.8+phase,1.2) < 0.4:
+				ring(canvas,crest,10*scale,1.2*scale,PALETTES.magnet[1],alpha*0.6,PI,PI)
+		_:
+			return false
+	return true
 
 
 # ---------------------------------------------------------------- one-shot effects
