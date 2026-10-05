@@ -342,4 +342,5 @@ func _run() -> void:
 	test_fusions()
 	test_rootstock_fix()
 	print("Ancient world: %d failure(s)" % failures)
+	await process_frame # Flush freed audio players before the audio server exits.
 	quit(1 if failures else 0)

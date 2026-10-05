@@ -7,12 +7,14 @@ const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
 const Reisen = preload("res://scripts/data/reisen_spell_defs.gd")
 const Eirin = preload("res://scripts/data/eirin_spell_defs.gd")
 const Mokou = preload("res://scripts/data/mokou_spell_defs.gd")
+const Suika = preload("res://scripts/data/suika_spell_defs.gd")
 const Kaguya = preload("res://scripts/data/kaguya_spell_defs.gd")
 
 # TH06/TH07 Normal routes, followed by Extra/Phantasm where specified.
 # Columns: reference ID, display name, pattern, animation pose.
 # Sources and the tower-defense adaptations are documented in docs/touhou-spells.md.
 const CARDS := {
+	"suika_boss": Suika.CANON,
 	"hakutaku_boss": Mokou.KEINE,
 	"mokou_boss": Mokou.MOKOU,
 	"eirin_boss": [["th08-124", "觉神「神代的记忆」", "eirin_memories", "shot"]],
@@ -205,6 +207,7 @@ const NONSPELLS := {
 
 
 static func phases_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind == "suika_boss": return Suika.phases(level)
 	if kind in ["hakutaku_boss", "mokou_boss"]:
 		return Mokou.phases(kind, level)
 	var phases: Array = []
@@ -238,6 +241,7 @@ static func card_from_entry(entry: Array) -> Dictionary:
 
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
+	if kind == "suika_boss": return Suika.cards(level)
 	if kind == "prismriver_boss":
 		return CARDS[kind].map(func(entry): return Difficulty.spell_variant(kind, level, entry))
 	if kind in ["hakutaku_boss", "mokou_boss"]:

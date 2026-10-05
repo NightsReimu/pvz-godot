@@ -193,6 +193,7 @@ func activate(row: int, col: int) -> bool:
 	var plant = plant_variant
 	if float(plant.get("health", 0.0)) <= 0.0 or game._plant_charm_blocks_actions(plant):
 		return false
+	if game.suika_runtime != null: game.suika_runtime.cleanse_row(row)
 	plant["sleep_timer"] = 0.0
 	var center = game._cell_center(row, col)
 	var kind = String(plant.get("fusion_kind",plant["kind"]))

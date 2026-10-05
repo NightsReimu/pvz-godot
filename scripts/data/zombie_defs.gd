@@ -2,6 +2,9 @@ extends RefCounted
 class_name ZombieDefs
 
 const ZOMBIES: Dictionary = {
+	"suika_boss": {"name": "伊吹萃香", "health": 19600.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 450, "skill_interval_base": 8.8, "skill_interval_phase_scale": 0.45, "skill_interval_min": 7.0, "reinforcement_interval_base": 9.0, "reinforcement_interval_phase_scale": 0.6, "reinforcement_interval_min": 6.4, "almanac": ["伊吹萃香：操纵密与疏、嗜酒而力大的鬼。《东方萃梦想》六张故事符卡按原名展开，终末为「百万鬼夜行」。", "原创伊吹瓢酒河预警后拖慢本行植物；茶与牛奶保护附近，大招清本行。萃豆酒仓会吸收普通豌豆，可先打碎。道中是弱化非符，终末满血登场，战斗期间仍有僵尸增援。"]},
+	"suika_mini": {"name": "小小萃香", "health": 230.0, "speed": 29.0, "attack_dps": 20.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["萃香借疏密操纵分出的有实体小鬼，能被植物和小推车击败。", "小鬼在符卡阶段结束或主人退场时消散。"]},
+	"suika_knot": {"name": "萃豆酒仓", "health": 420.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["本作原创的可破坏密度酒仓，只在萃香的萃豆符中出现。", "聚豆上限8颗；投射物与大招可直接破坏酒仓，破坏后不会反击。"]},
 	"ancient_samurai": {
 		"name": "古代武士僵尸", "health": 1200.0, "speed": 14.0, "attack_dps": 120.0,
 		"reward": 60, "shield_health": 900.0, "ancient_expansion": true,

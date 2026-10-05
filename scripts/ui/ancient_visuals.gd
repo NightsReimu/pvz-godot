@@ -97,6 +97,8 @@ static func draw_background(game: Control, rt) -> void:
 		return
 	var grade: Color = _mix(rt, GRADE)
 	var tint = Color.WHITE.lerp(Color(grade.r, grade.g, grade.b), grade.a * 1.5)
+	if bool(game.current_level.get("suika_banquet", false)):
+		tint = Color(0.53, 0.43, 0.69)
 	var tex: Vector2 = courtyard_texture.get_size()
 	var origin: Vector2 = game.BOARD_ORIGIN
 	var bottom: float = origin.y + game.board_size.y
@@ -518,13 +520,25 @@ static func draw_weather_chip(game: Control, rt) -> void:
 		# Phone HUDs fill the top row; the forecast hangs under the lawn instead.
 		rect = Rect2(game.BOARD_ORIGIN.x + game.board_size.x - 300.0, game.BOARD_ORIGIN.y + game.board_size.y + 4.0, 300.0, 28.0)
 		if game._is_minigame(): rect.position = Vector2(game.SEED_BANK_RECT.end.x-310,game.SEED_BANK_RECT.position.y+14)
+		if bool(game.current_level.get("suika_banquet", false)):
+			# Touhou phase names occupy the space below the board on phones.
+			rect = Rect2(game.BOARD_ORIGIN.x + game.board_size.x - 260.0, game.BOARD_ORIGIN.y - 27.0, 260.0, 24.0)
 	elif game.SEED_BANK_RECT.end.y + 46.0 > game.BOARD_ORIGIN.y:
 		rect.position.y = game.BOARD_ORIGIN.y - 40.0
-	var info: Dictionary = rt.weather_info()
+	var info: Dictionary = rt.weather_info().duplicate()
+	var clear_night: bool = bool(game.current_level.get("suika_banquet", false)) and String(rt.weather) == "clear"
+	if clear_night:
+		info.name = "晴夜"
+		info.summary = "酒宴庭院 · 无天气修正"
+		info.color = Color("c7a6e7")
 	var accent: Color = info.color
 	ThemeLib.draw_rounded_panel(game, rect, Color(0.12, 0.14, 0.16, 0.86), accent.darkened(0.2), 10.0, 0.18, 0.08)
 	var icon = rect.position + Vector2(20.0, 17.0)
-	draw_weather_icon(game, icon, rt.weather, 1.0, game.ui_time)
+	if clear_night:
+		game.draw_circle(icon, 7, Color("f4d597"))
+		game.draw_circle(icon + Vector2(3, -2), 6, Color("393345"))
+	else:
+		draw_weather_icon(game, icon, rt.weather, 1.0, game.ui_time)
 	var overridden: bool = not rt.override_weather.is_empty()
 	var title = "%s%s" % [String(info.name), "  · 军师" if overridden else ""]
 	ThemeLib.draw_label(game, game.ui_font, Rect2(rect.position + Vector2(40, 2), Vector2(96, 30)), title, 16, accent.lightened(0.3) if not overridden else Color("#ff9d8a"))

@@ -43,7 +43,7 @@ const EXTENSIONS := {
 # Each column is a different move, retained by all subsequent difficulty tiers.
 # The first uses the character's pursuit pattern, then crossfire, then a domain.
 # These bosses provide their own EX/EX+ phase lists in MokouSpellDefs.
-const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss"]
+const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss"]
 
 static func boss_kinds() -> Array:
 	return EXTENSIONS.keys() + CUSTOM_EXTRA_BOSSES

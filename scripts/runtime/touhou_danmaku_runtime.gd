@@ -6,6 +6,7 @@ const PrismriverDanmaku = preload("res://scripts/runtime/prismriver_danmaku.gd")
 const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
+const SuikaDanmaku = preload("res://scripts/runtime/suika_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
 const ReisenDanmaku = preload("res://scripts/runtime/reisen_danmaku.gd")
 const EirinDanmaku = preload("res://scripts/runtime/eirin_danmaku.gd")
@@ -62,7 +63,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	clear_owner(owner)
 	var pattern = String(card.pattern)
 	var duration := 3.4
-	if String(boss.kind) in ["reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
+	if String(boss.kind) in ["suika_boss", "reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
 		duration = float(card.get("duration", 4.8))
 	if String(boss.kind) in ["hakutaku_boss", "mokou_boss"]:
 		duration = float(card.get("duration", 6.0))
@@ -85,13 +86,13 @@ func cast(boss: Dictionary) -> Dictionary:
 	boss["touhou_cast_remaining"] = duration
 	boss["touhou_cast_duration"] = duration
 	var center = Vector2(float(boss.get("x", game._boss_anchor_x(String(boss.kind)))), game._row_center_y(int(boss.get("row", 2))) - 12.0)
-	var session := {"owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
+	var session := {"boss_uid": int(boss.get("uid", -1)), "owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
 	if String(boss.kind) == "prismriver_boss":
 		session["instrument_points"] = PrismriverTrio.bodies(game, boss).map(func(body): return Vector2(body.position))
 	casts.append(session)
 	if String(card.origin) == "nonspell":
 		game._show_banner(String(card.name), 1.8)
-	if String(boss.kind) not in ["reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss"]:
+	if String(boss.kind) not in ["suika_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss"]:
 		game.effects.append({"shape": String(boss.kind).trim_suffix("_boss") + "_spell_seal", "position": center, "radius": 72.0, "time": 0.45, "duration": 0.45, "color": Color(0.9, 0.86, 1.0, 0.25)})
 	if pattern == "wraith_charm":
 		game._spawn_youmu_wraiths_from(center, 2 + mini(int(session.phase), 1), int(session.phase))
@@ -245,6 +246,9 @@ func _update_actors(c: Dictionary) -> void:
 
 
 func _emit_wave(c: Dictionary) -> void:
+	if String(c.kind) == "suika_boss":
+		SuikaDanmaku.emit(self, c)
+		return
 	if String(c.kind) == "prismriver_boss":
 		PrismriverDanmaku.emit(self, c)
 		return
@@ -770,7 +774,9 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			b.position.y = clampf(point.y, board.position.y + 5, board.end.y - 5)
 			b.velocity.y *= -1
 			b.bounces -= 1
-		if String(b.kind) == "reimu_boss":
+		if String(b.kind) == "suika_boss":
+			before = SuikaDanmaku.advance_bullet(self, b, before)
+		elif String(b.kind) == "reimu_boss":
 			before = ReimuDanmaku.advance_bullet(b, before, motion_delta)
 		elif String(b.kind) == "marisa_boss":
 			before = MarisaDanmaku.advance_bullet(b, before, motion_delta)
@@ -968,6 +974,9 @@ func draw() -> void:
 		var color = Color(b.color)
 		var radius = float(b.radius)
 		if not board.grow(-radius * 2).has_point(point):
+			continue
+		if String(b.shape) in ["suika_fire", "suika_stone"]:
+			SuikaDanmaku.draw_bullet(game, b)
 			continue
 		if bool(b.get("reisen_phantom", false)):
 			# Hollow displaced images are harmless. The true location remains marked.

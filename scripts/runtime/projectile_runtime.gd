@@ -28,9 +28,15 @@ func _init(game_owner: Control) -> void:
 
 func spawn_projectile(row: int, spawn_position: Vector2, projectile_color: Color, damage: float, slow_duration: float, speed: float = 460.0, radius: float = 8.0, source_kind: String = "") -> void:
 	_play_firing_sfx_for(source_kind)
+	var ultimate_shot := false
+	if game.suika_runtime != null:
+		var source_col: int = clampi(int((spawn_position.x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x), 0, game.COLS - 1)
+		var source = game._targetable_plant_at(row, source_col)
+		ultimate_shot = source != null and (bool(source.get("ultimate_active", false)) or float(source.get("plant_food_timer", 0.0)) > 0.0)
 	var damage_mult = float(game.call("_projectile_damage_multiplier_for_spawn", row, spawn_position))
 	game.projectiles.append({
 		"kind": "pea",
+		"plant_food": ultimate_shot,
 		"row": row,
 		"position": spawn_position,
 		"speed": speed,

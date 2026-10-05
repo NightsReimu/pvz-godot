@@ -84,6 +84,10 @@ def extract(name, source, config=None):
     # the ownership seeds separates them; their original soft alpha is restored
     # afterwards rather than cut away along a rectangular grid boundary.
     mask = (alpha > config.get('seed_alpha', 32)).astype('uint8')
+    # Some supplied poses touch through a shared glow. Reviewed seed dividers
+    # separate those bodies; distance ownership restores every original pixel.
+    for x0, y0, x1, y1 in config.get('seed_dividers', []):
+        mask[y0:y1, x0:x1] = 0
     count, labels, stats, centers = cv2.connectedComponentsWithStats(mask, 8)
     bodies = [label for label in range(1, count) if stats[label, 4] > 10000]
     seeds = [(x, y) for row, y in zip(config['centers'], config['rows']) for x in row]

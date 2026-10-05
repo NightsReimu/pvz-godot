@@ -115,4 +115,5 @@ func _run() -> void:
 	test_direct_fire_weather()
 	test_weather_lifecycle()
 	print("Weather and ancient payloads: %d failures" % failures)
+	await process_frame # Flush freed audio players before the audio server exits.
 	quit(1 if failures else 0)
