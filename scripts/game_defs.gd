@@ -16,5 +16,6 @@ const AncientLevelDefs = preload("res://scripts/data/level_defs_ancient.gd")
 
 const PLANT_ORDER = PlantDefs.ORDER
 static var PLANTS: Dictionary = FusionPlantDefs.with_fusions(PlantDefs.PLANTS, PlantDefs.ORDER)
-static var ZOMBIES: Dictionary = FusionZombieDefs.with_fusions(ZombieDefs.ZOMBIES)
+const ZombieBalance = preload("res://scripts/data/zombie_balance.gd")
+static var ZOMBIES: Dictionary = ZombieBalance.apply(FusionZombieDefs.with_fusions(ZombieDefs.ZOMBIES))
 static var LEVELS = DayLevelDefs.LEVELS + NightLevelDefs.LEVELS + PoolLevelDefs.LEVELS + FogLevelDefs.LEVELS + RoofLevelDefs.LEVELS + CityLevelDefs.LEVELS + VolcanoLevelDefs.LEVELS + AncientLevelDefs.LEVELS

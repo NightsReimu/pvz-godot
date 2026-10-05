@@ -9,7 +9,7 @@ const ZOMBIES: Dictionary = {
 	"suika_mini": {"name": "小小萃香", "boss_frames": "suika_boss", "health": 230.0, "speed": 29.0, "attack_dps": 20.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["萃香借疏密操纵分出的有实体小鬼，能被植物和小推车击败。", "小鬼在符卡阶段结束或主人退场时消散。"]},
 	"suika_knot": {"name": "萃豆酒仓", "health": 420.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["本作原创的可破坏密度酒仓，只在萃香的萃豆符中出现。", "聚豆上限8颗；投射物与大招可直接破坏酒仓，破坏后不会反击。"]},
 	"ancient_samurai": {
-		"name": "古代武士僵尸", "health": 1200.0, "speed": 14.0, "attack_dps": 120.0,
+		"name": "古代武士僵尸", "balance_fixed": true, "health": 1200.0, "speed": 14.0, "attack_dps": 120.0,
 		"reward": 60, "shield_health": 900.0, "ancient_expansion": true,
 		"iaido_damage": 260.0,
 		"almanac": ["身披大铠的武士，总耐久 2100（本体 1200 + 大铠 900）。接触新的植物时拔刀居合，立即造成 260 伤害，之后每秒斩出 120 伤害；大铠随受损分段剥落。烈日下重甲闷热，移速 -15%；雷暴天的落雷优先劈向它的铁甲。"],

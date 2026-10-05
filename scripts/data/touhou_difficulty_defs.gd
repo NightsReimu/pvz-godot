@@ -2,12 +2,12 @@ extends RefCounted
 
 # Easy/EX are compatibility baselines. Extra+ is an original challenge mode.
 const PROFILES := {
-	"easy": {"name": "Easy", "rank": 0, "health": 1.45, "damage": 1.0, "density": 0.9, "speed": 0.96, "cadence": 1.08, "phases": 0, "waves": 0, "select": false, "color": "8ece9a"},
-	"normal": {"name": "Normal", "rank": 1, "health": 1.8, "damage": 1.12, "density": 1.05, "speed": 1.02, "cadence": 0.99, "phases": 1, "waves": 2, "select": false, "color": "72c6e5"},
-	"hard": {"name": "Hard", "rank": 2, "health": 2.25, "damage": 1.28, "density": 1.2, "speed": 1.09, "cadence": 0.89, "phases": 2, "waves": 4, "select": false, "color": "e9c46a"},
-	"lunatic": {"name": "Lunatic", "rank": 3, "health": 2.8, "damage": 1.46, "density": 1.38, "speed": 1.17, "cadence": 0.8, "phases": 3, "waves": 6, "select": true, "color": "ee809a"},
-	"extra": {"name": "EX", "rank": 0, "health": 1.45, "damage": 1.0, "density": 0.96, "speed": 1.0, "cadence": 1.0, "phases": 0, "waves": 0, "select": false, "color": "e9c46a"},
-	"extra_plus": {"name": "EX+", "rank": 3, "health": 2.5, "damage": 1.4, "density": 1.33, "speed": 1.15, "cadence": 0.8, "phases": 2, "waves": 6, "select": true, "color": "ee809a"},
+	"easy": {"name": "Easy", "rank": 0, "health": 1.67, "damage": 1.0, "density": 0.95, "speed": 0.96, "cadence": 0.97, "phases": 0, "waves": 0, "select": false, "color": "8ece9a"},
+	"normal": {"name": "Normal", "rank": 1, "health": 2.07, "damage": 1.12, "density": 1.11, "speed": 1.02, "cadence": 0.89, "phases": 1, "waves": 2, "select": false, "color": "72c6e5"},
+	"hard": {"name": "Hard", "rank": 2, "health": 2.25, "damage": 1.28, "density": 1.2, "speed": 1.09, "cadence": 0.88, "phases": 2, "waves": 4, "select": false, "color": "e9c46a"},
+	"lunatic": {"name": "Lunatic", "rank": 3, "health": 3.22, "damage": 1.46, "density": 1.46, "speed": 1.17, "cadence": 0.72, "phases": 3, "waves": 6, "select": true, "color": "ee809a"},
+	"extra": {"name": "EX", "rank": 0, "health": 1.67, "damage": 1.0, "density": 1.02, "speed": 1.0, "cadence": 0.9, "phases": 0, "waves": 0, "select": false, "color": "e9c46a"},
+	"extra_plus": {"name": "EX+", "rank": 3, "health": 2.88, "damage": 1.4, "density": 1.41, "speed": 1.15, "cadence": 0.72, "phases": 2, "waves": 6, "select": true, "color": "ee809a"},
 }
 
 # Theme, collision family, animation pose. Extra moves are explicitly original.
@@ -132,7 +132,8 @@ static func profile(level: Dictionary) -> Dictionary:
 static func boss_damage_multiplier(level: Dictionary) -> float:
 	if not level.has("touhou_difficulty") and not is_touhou(level):
 		return 1.0
-	return {"easy": 0.50, "normal": 0.60, "hard": 0.72, "lunatic": 0.86, "extra": 0.50, "extra_plus": 0.82}.get(String(level.get("touhou_difficulty", "easy")), 0.50)
+	# Boss danmaku used to land at half strength on Easy; every tier now hits about 30% harder.
+	return {"easy": 0.66, "normal": 0.78, "hard": 0.84, "lunatic": 1.1, "extra": 0.68, "extra_plus": 1.05}.get(String(level.get("touhou_difficulty", "easy")), 0.66)
 
 
 static func build_level(base: Dictionary, choice: String) -> Dictionary:

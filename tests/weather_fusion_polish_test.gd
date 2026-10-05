@@ -91,7 +91,7 @@ func test_direct_fire_weather() -> void:
 	var g = make_game("8-1","rain")
 	var z = spawn(g,"normal",2,6.0)
 	g._strike_thunder_chain(0,20,10,100,1)
-	check(is_equal_approx(200.0-float(g.zombies[0].health),25.0), "Rain strengthens native thunder chain damage")
+	check(is_equal_approx(float(Defs.ZOMBIES.normal.health)-float(g.zombies[0].health),25.0), "Rain strengthens native thunder chain damage")
 	z.health = 200.0
 	g._strike_tesla_chain(g._cell_center(2,1),0,20,10,100,1)
 	check(is_equal_approx(200.0-float(g.zombies[0].health),25.0), "Rain strengthens native tesla chain damage")

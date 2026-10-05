@@ -1,4 +1,5 @@
 extends RefCounted
+const SpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
 
 const Danmaku = preload("res://scripts/runtime/aki_danmaku.gd")
 const KINDS := ["shizuha_boss", "minoriko_boss"]
@@ -199,18 +200,14 @@ func update(delta: float) -> void:
 			unit.health = 0.0
 			baskets.remove_at(i)
 
+# Poses follow the supplied sheet's declared actions, shared with the sprite checks.
 func frame_index(boss: Dictionary) -> int:
+	var actions: Dictionary = SpriteDefs.SCARLET_ANIMATIONS.get(String(boss.get("kind", "")), {})
 	var pose := String(boss.get("rumia_state", "idle"))
-	var frames: Array = [0, 1, 2, 1]
-	match pose:
-		"arrival", "shift": frames = [3, 4, 5, 4]
-		"shot": frames = [6, 7, 8, 7]
-		"leaf", "leaves": frames = [6, 7, 8, 7]
-		"channel": frames = [9, 10, 11, 10]
-		"harvest": frames = [15, 16, 17, 16]
-		"phase", "final": frames = [18, 19, 20, 19]
-	if float(boss.get("health", 1.0)) <= 0.0: frames = [21, 22, 23]
-	elif float(boss.get("flash", 0.0)) > 0.1 and float(boss.get("touhou_cast_remaining", 0.0)) <= 0.0: frames = [21, 22, 21] if String(boss.kind) == "minoriko_boss" else [12, 13, 14]
+	if pose in ["arrival", "shift"]: pose = "walk"
+	var frames: Array = actions.get(pose, actions.get("idle", [0, 1, 2, 1]))
+	if float(boss.get("health", 1.0)) <= 0.0: frames = actions.get("defeat", frames)
+	elif float(boss.get("impact_timer", 0.0)) > 0.0 or (float(boss.get("flash", 0.0)) > 0.1 and float(boss.get("touhou_cast_remaining", 0.0)) <= 0.0): frames = actions.get("hit", frames)
 	return int(frames[posmod(int(float(boss.get("animation_time", game.level_time)) * 7.0), frames.size())])
 
 func draw_ground() -> void:

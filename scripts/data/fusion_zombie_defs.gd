@@ -14,6 +14,7 @@ const HEAD_BASES := [
 	"medic_zombie", "shieldbearer_zombie", "saboteur_zombie", "rift_zombie", "bomber_zombie",
 	"umbrella_zombie", "shania_zombie", "shade_zombie", "camel_zombie",
 	"cinder_runner", "kiln_mason", "ash_bell", "sulfur_carrier", "vent_tunneler",
+	"ancient_mage", "ancient_strategist",
 ]
 const HELMET_BASES := [
 	"ninja", "pole_vault", "dancing", "backup_dancer", "pogo_zombie", "ski_zombie",
@@ -30,7 +31,12 @@ const HEADS := {
 	"bucket": {"name":"铁桶", "health":900.0, "metal":true, "wave":9, "reward":12},
 	"football": {"name":"橄榄球头盔", "health":1261.0, "metal":true, "wave":12, "reward":16},
 	"dark_football": {"name":"暗黑头盔", "health":2682.0, "metal":true, "wave":16, "reward":24},
+	# A brick cannot be pulled off by a magnet; the samurai helmet is metal.
+	"brick": {"name":"砖块", "health":1400.0, "metal":false, "wave":13, "reward":14},
+	"kabuto": {"name":"武士盔", "health":1050.0, "metal":true, "wave":15, "reward":15},
 }
+# Helmets any bare-headed zombie can wear (native helmets cannot stack).
+const WORN_HEADS := ["cone", "bucket", "brick", "kabuto"]
 static var RECIPES: Dictionary = _recipes()
 
 static func _recipes() -> Dictionary:
@@ -38,7 +44,7 @@ static func _recipes() -> Dictionary:
 	for base in HEAD_BASES:
 		# Native helmet + added door below supplies these canonical combinations.
 		if base == "screen_door": continue
-		for head in ["cone", "bucket"]:
+		for head in WORN_HEADS:
 			_add(result, String(base), String(head), false)
 	for base in HELMET_BASES:
 		for head in ["football", "dark_football"]:
@@ -46,7 +52,7 @@ static func _recipes() -> Dictionary:
 	for base in DOOR_BASES:
 		_add(result, String(base), "", true)
 		if base in HEAD_BASES:
-			for head in ["cone", "bucket"]:
+			for head in WORN_HEADS:
 				_add(result, String(base), String(head), true)
 		if base in HELMET_BASES:
 			for head in ["football", "dark_football"]:

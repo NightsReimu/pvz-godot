@@ -94,6 +94,20 @@ static func _headgear(canvas: CanvasItem, head: Vector2, s: float, kind: String,
 			canvas.draw_line(c + Vector2(-12,-48) * s, c + Vector2(-14,-37) * s, Color("#dbe9e6", alpha), 4 * s, true)
 			canvas.draw_line(c + Vector2(-20,-34) * s, c + Vector2(20,-34) * s, Color("#566e77", alpha), 3 * s, true)
 			canvas.draw_arc(c + Vector2(0,-40) * s, 22 * s, 0.15, PI - 0.15, 20, Color("#566e77", alpha), 1.8 * s, true)
+		"brick":
+			Detail.polygon(canvas, c, s, [Vector2(-19,-34),Vector2(-18,-55),Vector2(18,-57),Vector2(20,-34)], Color("#b8613e", alpha))
+			for y in [-48.0, -41.0]:
+				canvas.draw_line(c + Vector2(-18,y) * s, c + Vector2(19,y) * s, Color("#e8c9a2", alpha), 1.4 * s, true)
+			for seam in [Vector2(-6,-55), Vector2(8,-48), Vector2(-9,-41), Vector2(5,-41)]:
+				canvas.draw_line(c + seam * s, c + (seam + Vector2(0,7)) * s, Color("#e8c9a2", alpha), 1.4 * s, true)
+			if worn: Detail.polygon(canvas, c, s, [Vector2(10,-57),Vector2(19,-56),Vector2(19,-47)], Color("#3a2a24", alpha), 0)
+		"kabuto":
+			Detail.contour(canvas, c, s, [Vector2(-22,-33),Vector2(-20,-47),Vector2(-8,-56),Vector2(9,-56),Vector2(21,-47),Vector2(23,-33),Vector2(13,-30),Vector2(-14,-30)], Color("#3d3a48", alpha))
+			canvas.draw_line(c + Vector2(-24,-33) * s, c + Vector2(25,-33) * s, Color("#7b7488", alpha), 3.4 * s, true)
+			if not worn:
+				Detail.polygon(canvas, c, s, [Vector2(-3,-55),Vector2(-16,-70),Vector2(-8,-55)], Color("#e3b84f", alpha))
+				Detail.polygon(canvas, c, s, [Vector2(3,-55),Vector2(16,-70),Vector2(8,-55)], Color("#e3b84f", alpha))
+			canvas.draw_circle(c + Vector2(0,-50) * s, 3.2 * s, Color("#c4433a", alpha))
 		_:
 			var red := Color("#594c68" if kind == "dark_football" else "#bf534a", alpha)
 			Detail.contour(canvas, c, s, [Vector2(-21,-36),Vector2(-21,-47),Vector2(-10,-56),Vector2(10,-55),Vector2(22,-44),Vector2(19,-26),Vector2(11,-21),Vector2(6,-36)], red)

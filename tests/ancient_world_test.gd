@@ -174,8 +174,9 @@ func test_jasmine_tea() -> void:
 	for z in g.zombies: z.base_speed = 0.0
 	g.grid[2][1].shot_cooldown = 0.0
 	g._update_plants(0.05)
-	check(float(g.zombies[0].health) < 200.0 and float(g.zombies[1].health) < 200.0, "Tea reaches the 3x3 block ahead")
-	check(is_equal_approx(float(g.zombies[2].health), 200.0), "Tea does not reach beyond three columns")
+	var plain := float(Defs.ZOMBIES.normal.health)
+	check(float(g.zombies[0].health) < plain and float(g.zombies[1].health) < plain, "Tea reaches the 3x3 block ahead")
+	check(is_equal_approx(float(g.zombies[2].health), plain), "Tea does not reach beyond three columns")
 	var rt = g._ensure_ancient_expansion()
 	check(rt.is_corroded(Vector2i(1, g._zombie_cell_col(float(a.x)))), "Poured lawn is corroded")
 	step(g, 0.1)
@@ -201,7 +202,7 @@ func test_golden_milk() -> void:
 	var full := float(Defs.ZOMBIES.buckethead.health) + float(Defs.ZOMBIES.buckethead.get("shield_health", 0.0))
 	check(full - total >= 999.0 or float(hit.health) <= 0.0, "Milk deals 1000 damage along the row")
 	check(float(hit.x) > start_x + 60.0, "Milk knocks zombies back")
-	check(is_equal_approx(float(g.zombies[1].health), 200.0), "Milk stays in its own row")
+	check(is_equal_approx(float(g.zombies[1].health), float(Defs.ZOMBIES.normal.health)), "Milk stays in its own row")
 	dispose(g)
 
 

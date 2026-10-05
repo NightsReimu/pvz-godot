@@ -99,7 +99,9 @@ func _test_split_data_modules_exist_and_match_game_defs() -> bool:
 		if not plant_defs.PLANTS.has(kind):
 			passed = _assert_true(plant_defs.PLANTS.has(GameDefs.PLANTS[kind].get("fusion_base","")) and bool(GameDefs.PLANTS[kind].get("fusion_only",false)), "Added plant must resolve to a native fusion ingredient: " + kind) and passed
 	for kind in zombie_defs.ZOMBIES:
-		passed = _assert_true(GameDefs.ZOMBIES.get(kind) == zombie_defs.ZOMBIES[kind], "Native zombie definition must match its split module: " + kind) and passed
+		# Runtime definitions are the split module after the shared lawn balance pass.
+		var balanced: Dictionary = GameDefs.ZombieBalance.apply({kind: zombie_defs.ZOMBIES[kind].duplicate(true)})[kind]
+		passed = _assert_true(GameDefs.ZOMBIES.get(kind) == balanced, "Native zombie definition must match its split module: " + kind) and passed
 	for kind in GameDefs.ZOMBIES:
 		if not zombie_defs.ZOMBIES.has(kind):
 			passed = _assert_true(zombie_defs.ZOMBIES.has(GameDefs.ZOMBIES[kind].get("fusion_base", "")), "Added equipment variant must resolve to a native definition: " + kind) and passed

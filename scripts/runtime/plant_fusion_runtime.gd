@@ -473,6 +473,59 @@ func _in_scope(scope: String, z: Dictionary, point: Vector2, row: int, center: V
 		"radius": return point.distance_to(center) <= game.CELL_SIZE.x*3.2
 	return true
 
+# The opening strike gives every combat ultimate an immediate hit, even when the
+# hybrid's own weapons are short-ranged or its chambers have no target in reach.
+func _signature_strike(p: Dictionary, row: int, col: int) -> void:
+	var d: Dictionary = Defs.PLANTS[kind(p)]
+	var action: String = d.fusion_skills[0]
+	# Resource ultimates act through sun and healing; a detonation is its own strike.
+	if action in ["solar","garden"]: return
+	if action == "minefield" and d.fusion_channels.any(func(channel): return channel.style == "burst"): return
+	var center: Vector2 = game._cell_center(row,col)
+	var strike: float = float(d.get("fusion_strike_damage",180.0))*game._projectile_damage_multiplier_for_spawn(row,center,String(p.kind))
+	var factor: float = {"barrage":0.8,"blades":0.8,"laser":1.0,"bowling":1.0,"meteor":1.0,"constellation":0.9,"minefield":1.0,"devour":1.4,"domain":0.6,"bastion":0.5}.get(action,0.8)
+	var scope := _scope(d)
+	var sky: String = "cherry_bomb" if _has_ash(d) else ""
+	var targets: Array = []
+	for i in range(game.zombies.size()):
+		var z: Dictionary = game.zombies[i]
+		if not game._is_enemy_zombie(z) or float(z.health) <= 0 or _hidden_from(sky,z): continue
+		var point: Vector2 = game._zombie_target_point(z,center)
+		if _in_scope(scope,z,point,row,center): targets.append({"index":i,"point":point})
+	if targets.is_empty() and action == "minefield":
+		# A detonation with nothing in reach is hurled at the nearest enemy in its lanes.
+		var best := -1; var reach := INF
+		for i in range(game.zombies.size()):
+			var z: Dictionary = game.zombies[i]
+			if not game._is_enemy_zombie(z) or float(z.health) <= 0 or _hidden_from(sky,z): continue
+			var point: Vector2 = game._zombie_target_point(z,center)
+			if absi(game._zombie_target_row(z,point)-row) <= 1 and point.x >= center.x-30 and point.x-center.x < reach: reach = point.x-center.x; best = i
+		if best >= 0:
+			var landing: Vector2 = game._zombie_target_point(game.zombies[best],center)
+			for i in range(game.zombies.size()):
+				var z: Dictionary = game.zombies[i]
+				if game._is_enemy_zombie(z) and float(z.health) > 0 and not _hidden_from(sky,z) and game._zombie_target_point(z,landing).distance_to(landing) <= game.CELL_SIZE.x*0.9:
+					targets.append({"index":i,"point":game._zombie_target_point(z,landing)})
+	if action in ["meteor","constellation"]:
+		targets.sort_custom(func(a,b): return a.point.x < b.point.x)
+		targets = targets.slice(0,6)
+	elif action == "devour":
+		targets.sort_custom(func(a,b): return float(game.zombies[a.index].health) > float(game.zombies[b.index].health))
+		targets = targets.slice(0,2)
+	var shown := 0
+	for target in targets:
+		var i: int = target.index
+		var z: Dictionary = game.zombies[i]
+		z = game._apply_zombie_damage(z,strike*factor,0.22,0,false,action in ["laser","bowling"],center.x)
+		match action:
+			"domain": z.rooted_timer = maxf(float(z.get("rooted_timer",0)),3.0); z = game._apply_zombie_slow(z,0.35,4.0)
+			"bastion":
+				z.special_pause_timer = maxf(float(z.get("special_pause_timer",0)),1.0)
+				if not game._is_boss_zombie(z): z.x = minf(float(z.x)+game.CELL_SIZE.x*0.6,game.BOARD_ORIGIN.x+game.board_size.x+30)
+		game.zombies[i] = _status(z,p,row,col,true)
+		if shown < 6: _skill_effect(p,row,col,action,target.point); shown += 1
+	if action == "devour" and not targets.is_empty(): game._restore_plant_health(p,float(p.max_health)*0.25,false)
+
 func _skill_damage(p: Dictionary, row: int, col: int, skill: String, scope: String = "board") -> void:
 	var d: Dictionary = Defs.PLANTS[kind(p)]
 	var center: Vector2 = game._cell_center(row,col)
@@ -536,6 +589,7 @@ func ultimate(p: Dictionary, row: int, col: int) -> void:
 	var d: Dictionary = Defs.PLANTS[kind(p)]; var center: Vector2 = game._cell_center(row,col)
 	var scope := _scope(d)
 	_support(p,row,col,true)
+	_signature_strike(p,row,col)
 	# Every explosive chamber detonates at the opening, whatever the signature move.
 	for channel in d.fusion_channels:
 		if channel.style == "burst":
@@ -543,7 +597,6 @@ func ultimate(p: Dictionary, row: int, col: int) -> void:
 			p.fusion_channel_timers[channel.source] = float(channel.interval)
 	for skill in d.fusion_skills:
 		match skill:
-			"devour","domain": _skill_damage(p,row,col,skill,"radius")
 			"reflection":
 				if game.touhou_danmaku != null:
 					for bullet in game.touhou_danmaku.bullets:
@@ -634,6 +687,16 @@ func _burst(p: Dictionary, row: int, col: int, channel: Dictionary, ultimate: bo
 	if candidates.is_empty() and not ultimate: return false
 	var impact: Vector2 = candidates[0].point if delivery and not candidates.is_empty() else center
 	if channel.blast_shape == "single" and not candidates.is_empty(): impact = candidates[0].point
+	# An ultimate with nothing in its blast radius hurls the charge at the nearest enemy
+	# in its lanes; the damage stays the chamber's own, bounded ultimate blast.
+	var in_blast: bool = candidates.any(func(candidate): return Vector2(candidate.point).distance_to(center) <= float(channel.radius))
+	if ultimate and not delivery and not in_blast and channel.blast_shape in ["circle","single","sleep","snare","pull","magma"]:
+		var nearest := INF
+		for z in game.zombies:
+			if not game._is_enemy_zombie(z) or float(z.health) <= 0 or _hidden_from(channel.source,z): continue
+			var point: Vector2 = game._zombie_target_point(z,center)
+			if absi(game._zombie_target_row(z,point)-row) <= 1 and point.x >= center.x-30 and point.x-center.x < nearest:
+				nearest = point.x-center.x; impact = point
 	var burst: Dictionary = channel.duplicate(true)
 	burst.damage = float(channel.damage)*(1.15 if ultimate else 1.0)
 	if ultimate and channel.blast_shape == "circle": burst.radius = float(channel.radius)*1.3

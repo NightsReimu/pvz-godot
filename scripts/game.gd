@@ -30,6 +30,7 @@ const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
 const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
 const FusionZombieDefs = preload("res://scripts/data/fusion_zombie_defs.gd")
+const ZombieBalance = preload("res://scripts/data/zombie_balance.gd")
 const ZombieEquipment = preload("res://scripts/runtime/zombie_equipment.gd")
 const FusionZombieVisuals = preload("res://scripts/ui/fusion_zombie_visuals.gd")
 const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
@@ -921,6 +922,7 @@ var conveyor_spawn_timer := 0.0
 var conveyor_card_visual: Array = []
 var level_end_time := 1.0
 var next_event_index := 0
+var campaign_fusion_rng := RandomNumberGenerator.new()
 var base_events_spawned := 0
 var total_spawned_units := 0
 var expected_spawn_units := 1
@@ -7458,6 +7460,7 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 	if ancient_expansion != null or _is_ancient_level() or current_level.has("weather_schedule"):
 		_ensure_ancient_expansion().reset()
 	next_event_index = 0
+	campaign_fusion_rng.seed = hash(String(current_level.get("id", "")) + ("/hard" if bool(current_level.get("hard_mode", false)) else ""))
 	base_events_spawned = 0
 	total_spawned_units = 0
 	expected_spawn_units = 1
@@ -7832,14 +7835,14 @@ func _begin_next_batch() -> void:
 			if is_final:
 				_queue_final_grave_wave_spawns()
 		batch_spawn_queue.append({
-			"kind": String(event["kind"]),
+			"kind": _campaign_fusion_variant(String(event["kind"])),
 			"row": event_row,
 			"delay_scale": 1.0,
 			"progress_event": true,
 		})
 		var extra_count = _extra_spawn_count_for_event(event_index, event)
 		for extra_index in range(extra_count):
-			var support_kind = _support_spawn_kind(String(event["kind"]), event_index, extra_index)
+			var support_kind = _campaign_fusion_variant(_support_spawn_kind(String(event["kind"]), event_index, extra_index))
 			batch_spawn_queue.append({
 				"kind": support_kind,
 				"row": _support_spawn_row_for_event(event_row, support_kind),
@@ -7850,6 +7853,18 @@ func _begin_next_batch() -> void:
 	next_event_index += batch_size
 	batch_spawn_remaining = batch_spawn_queue.size()
 	spawn_director_timer = 0.01
+
+
+# From the second world on, some wave zombies arrive already wearing fused gear.
+func _campaign_fusion_variant(kind: String) -> String:
+	var plan: Dictionary = ZombieBalance.campaign_fusion(current_level)
+	if plan.is_empty() or _is_boss_kind(kind):
+		return kind
+	var variants := FusionZombieDefs.variants_for(kind, int(plan.gate))
+	if variants.is_empty() or campaign_fusion_rng.randf() >= float(plan.chance):
+		return kind
+	variants.sort()
+	return String(variants[campaign_fusion_rng.randi_range(0, variants.size() - 1)])
 
 
 func _replenish_whack_graves() -> void:
@@ -20240,9 +20255,7 @@ func _visible_almanac_zombies() -> Array:
 		if encountered.has(kind) and not seen.has(kind):
 			seen[kind] = true
 			result.append(kind)
-	for id in FusionZombieDefs.RECIPES:
-		if encountered.has(FusionZombieDefs.RECIPES[id].base):
-			result.append(id)
+	# Fused gear variants fight in waves but, like hybrid plants, stay out of the almanac.
 	return result
 
 

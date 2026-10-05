@@ -89,7 +89,7 @@ const SCARLET_ANIMATIONS := {
 		"shot": [6, 7, 8, 7], "leaf": [6, 7, 8, 7],
 		"leaves": [6, 7, 8, 7], "channel": [9, 10, 11, 10],
 		"harvest": [15, 16, 17, 16], "final": [18, 19, 20, 23],
-		"hit": [21, 22, 21], "phase": [15, 16, 17, 23],
+		"hit": [12, 13, 14], "phase": [15, 16, 17, 23],
 		"defeat": [21, 22],
 	},
 	"rumia_boss": {

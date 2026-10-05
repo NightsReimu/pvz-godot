@@ -114,7 +114,7 @@ func _test_damage_pressure() -> void:
 	var probe := {}
 	game.touhou_danmaku._bullet({"kind": "reisen_boss", "owner": 1, "phase": 0, "wave": 0}, Vector2.ZERO, 0, 100, Color.RED, "orb", {"damage": 20.0})
 	probe = game.touhou_danmaku.bullets.back()
-	check(is_equal_approx(float(probe.damage), 20.0 * 1.35 * 0.72), "Hard Reisen bullets must clear the upgraded damage floor")
+	check(is_equal_approx(float(probe.damage), 20.0 * 1.35 * game.TouhouDifficulty.boss_damage_multiplier(game.current_level)), "Hard Reisen bullets must clear the upgraded damage floor")
 	release(game)
 
 

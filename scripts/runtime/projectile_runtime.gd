@@ -752,7 +752,7 @@ func update_projectiles(delta: float) -> void:
 				zombie["balloon_flying"] = false
 				zombie["base_speed"] = float(Defs.ZOMBIES["balloon_zombie"]["speed"])
 				zombie["special_pause_timer"] = maxf(float(zombie.get("special_pause_timer", 0.0)), 0.18)
-				zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]))
+				zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile.get("slow_duration", 0.0)))
 				game.zombies[hit_index] = zombie
 				game.effects.append({
 					"position": Vector2(hit_position.x, hit_position.y - 30.0),
@@ -777,7 +777,7 @@ func update_projectiles(delta: float) -> void:
 				or String(projectile.get("kind", "")).find("boomerang") != -1
 			# Piercing is an attack property even after the last extra hit is spent.
 			projectile["pierce_handheld"] = pierce_handheld
-			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile["slow_duration"]),
+			zombie = game._apply_zombie_damage(zombie, hit_damage, 0.12, float(projectile.get("slow_duration", 0.0)),
 				bool(projectile.get("ignore_shield", false)), pierce_handheld,
 				float(zombie.x) - signf(float(projectile.get("speed", 0.0))))
 			zombie = apply_ammo_status(zombie,projectile)

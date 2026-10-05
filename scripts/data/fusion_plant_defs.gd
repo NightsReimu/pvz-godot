@@ -302,6 +302,13 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 	for channel in channels:
 		if channel.style != "burst": steady_damage += float(channel.damage)
 	inherited.fusion_utility_damage = clampf(steady_damage*1.8,40,300)/sqrt(maxf(1.0,float(inherited.fusion_skills.size()-1)))
+	# The opening strike of an ultimate is worth about seven seconds of the hybrid's sustained fire.
+	var sustained := 0.0
+	for channel in channels:
+		if channel.style == "payload": continue
+		sustained += float(channel.damage)*float(channel.get("shots",1))/maxf(0.5,float(channel.interval))
+	inherited.fusion_strike_damage = clampf(sustained*7.0,180.0,1100.0)*(1.0+0.1*minf(4.0,float(n-2)))
+	inherited.fusion_utility_damage = maxf(float(inherited.fusion_utility_damage),float(inherited.fusion_strike_damage)*0.35)
 	inherited.fusion_combat_description = []
 	for channel in channels: inherited.fusion_combat_description.append(Combat.describe(channel,native))
 	var passive_notes := {

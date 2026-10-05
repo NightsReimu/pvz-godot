@@ -37,7 +37,7 @@ const PREFIX := {
 	"cork_plug":"木塞","cyclone_grass":"旋草","sand_lotus":"沙莲","frost_boomerang":"霜刃","toxic_gum_pult":"毒胶","corn_cannon":"玉米","holy_flower":"圣光","ice_cream":"冰淇",
 	"gator_cannon":"鳄炮","thermal_sunflower":"地热","obsidian_artichoke":"黑曜","steam_clover":"汽叶","pumice_wall":"浮岩","sulfur_pod":"硫磺","resonance_beet":"共振","pressure_bamboo":"蓄压",
 	"fumarole_melon":"喷气","magnet_orchid":"磁兰","caldera_lotus":"火山","dandelion":"飞絮","jasmine_tea":"茶香","golden_milk":"奶浪","samsara_eye":"轮回","electric_bonk_choy":"雷拳",
-	"glowvine":"光藤","anchor_fern":"锚蕨",
+	"glowvine":"光藤","anchor_fern":"锚蕨","mist_orchid":"雾兰","brine_pot":"盐沼",
 }
 const ACTION_TEXT := {
 	"barrage":"所有持续武器立即齐射，并以0.45秒间隔追击两轮，保留各自弹道与锁敌",
@@ -47,11 +47,17 @@ const ACTION_TEXT := {
 	"blades":"回旋武器齐出并追击两轮，去程与回程都能命中",
 	"bowling":"滚出强化果轮，沿途连续撞击",
 	"minefield":"所有爆舱立刻引爆，保留圆形、整行或近身范围，随后重新充能",
-	"devour":"吞咬周围3格内的敌人造成重击，并回复自身25%生命",
+	"devour":"重咬身边最强的两个敌人，并回复自身25%生命",
 	"bastion":"周围植物回复生命、获得护盾与2秒无敌",
 	"solar":"立刻产出三份强化阳光",
 	"garden":"治疗自身与邻株，赋予十秒加速及护盾",
-	"domain":"周围3格内敌人受到伤害、定身2秒并减速",
+	"domain":"展开灵域，重创周围3格内敌人，定身3秒并减速",
+}
+# Every combat ultimate opens with a strike of its own, so a click always lands.
+const STRIKE_TEXT := {
+	"barrage":"起手对前方三行敌人各重击一次","blades":"起手对前方三行敌人各重击一次","laser":"起手贯穿前方三行敌人",
+	"bowling":"起手撞击前方三行敌人","meteor":"起手轰击最靠近房子的6个敌人","constellation":"起手星落最靠近房子的6个敌人",
+	"minefield":"起手炸伤周围3格敌人，范围内无敌人时炸向本行最近的敌人","bastion":"起手震退周围3格敌人并眩晕1秒",
 }
 const INFUSION_TEXT := {
 	"inferno":"{area}燃起烈焰，敌人灼烧8秒","blizzard":"{area}敌人减速5秒并冻结1秒","lightning":"{area}降下连锁电击并短暂震晕",
@@ -88,9 +94,11 @@ static func compose(style: String, parts: Array, weights: Dictionary, traits: Ar
 		if attack_of[part] == style: actors.append(part)
 		else: partners.append(part)
 	var limit: int = 2 if distinct.size() >= 3 else 1
+	var conditional_limit: int = limit
 	var infusions: Array = []
 	var sources: Array = []
 	var counted := 0
+	var conditional := 0
 	for entry in INFUSIONS:
 		if counted >= limit: break
 		var skill: String = entry[0]
@@ -101,10 +109,13 @@ static func compose(style: String, parts: Array, weights: Dictionary, traits: Ar
 		if skill in ["inferno","blizzard"] and "steam" in infusions: continue
 		if skill in ["magnetic","lightning"] and "rail_storm" in infusions: continue
 		if skill == "solar" and "sun_lance" in infusions: continue
+		# At most one waiting effect (revival, reflection, waking, cooling) per pair of materials.
+		if skill in CONDITIONAL and conditional >= conditional_limit: continue
 		var source: String = _provider(needed, distinct, partners, traits_of)
 		infusions.append(skill); sources.append(source)
 		# Revival, reflection, waking and cooling only act when needed; a combat infusion still follows.
-		if not skill in CONDITIONAL: counted += 1
+		if skill in CONDITIONAL: conditional += 1
+		else: counted += 1
 	var name := explicit_name
 	if name.is_empty():
 		var noun: String = NOUN[action]
@@ -126,6 +137,8 @@ static func compose(style: String, parts: Array, weights: Dictionary, traits: Ar
 		else: name = String(PREFIX.get(lead,"共生"))+noun
 	var area: String = AREA[scope]
 	var parts_text: Array = [ACTION_TEXT[action]]
+	if STRIKE_TEXT.has(action) and not (action == "minefield" and has_bursts): parts_text.append(STRIKE_TEXT[action])
+	if action == "minefield" and has_bursts: parts_text.append("爆炸范围内没有敌人时，炸向本行附近最近的敌人")
 	if has_bursts and action != "minefield": parts_text.append("所有爆舱同时引爆")
 	for source in warheads:
 		if WARHEAD_TEXT.has(source): parts_text.append(WARHEAD_TEXT[source])
