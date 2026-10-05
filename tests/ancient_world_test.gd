@@ -6,6 +6,13 @@ const Fusion = preload("res://scripts/data/fusion_plant_defs.gd")
 const Worlds = preload("res://scripts/data/world_data.gd")
 var failures := 0
 
+class MechanicsGame extends Game:
+	# These synchronous simulations test units/weather. Audio playback is covered
+	# by battle-flow and export tests; avoid accumulating native audio callbacks.
+	func _play_sfx(_path: String, _volume_db: float = -12.0, _pitch_scale: float = 1.0) -> void:
+		pass
+	func _play_bgm(_path: String) -> void:
+		pass
 
 func _initialize():
 	call_deferred("_run")
@@ -25,7 +32,7 @@ func level_index(id: String) -> int:
 
 
 func make_game(id: String = "8-1", weather: String = "") -> Control:
-	var g = Game.new()
+	var g = MechanicsGame.new()
 	g.size = Vector2(1600, 900)
 	root.add_child(g)
 	g.set_process(false)
@@ -343,4 +350,5 @@ func _run() -> void:
 	test_rootstock_fix()
 	print("Ancient world: %d failure(s)" % failures)
 	await process_frame # Flush freed audio players before the audio server exits.
+	await create_timer(0.15).timeout
 	quit(1 if failures else 0)

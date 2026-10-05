@@ -3193,7 +3193,16 @@ func _load_audio_stream(path: String) -> AudioStream:
 		return audio_stream_cache[path]
 	var absolute_path = ProjectSettings.globalize_path(path)
 	if not FileAccess.file_exists(absolute_path):
-		return null
+		# Exported packages retain the imported AudioStream and remap, while
+		# the original MP3 is absent. Resolve it through ResourceLoader.
+		var imported: AudioStreamMP3 = ResourceLoader.load(path) as AudioStreamMP3 if ResourceLoader.exists(path) else null
+		if imported == null:
+			return null
+		imported.loop = true
+		imported.loop_offset = 0.0
+		shared_audio_stream_cache[path] = imported
+		audio_stream_cache[path] = imported
+		return imported
 	var file = FileAccess.open(absolute_path, FileAccess.READ)
 	if file == null:
 		return null

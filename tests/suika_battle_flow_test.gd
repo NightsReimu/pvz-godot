@@ -24,6 +24,12 @@ func _run() -> void:
 		game._handle_primary_click(game._cell_center(4, 1))
 		check(game.grid[4][1] != null, choice + ": seed controls must work on the fifth stone lane")
 		game._spawn_frozen_branch_midboss()
+		game._drain_asset_prewarm_queue()
+		for frame in range(120):
+			game._process(0.05)
+			if frame % 30 == 0: await process_frame
+		check(game.pending_bgm_path != String(level.boss_bgm), "Road must never queue the supplied final BGM")
+		check(game.music_player.stream == game._try_get_cached_audio_stream(String(level.boss_intro_bgm)) and game.music_player.playing, "Road actual playback remains the existing night track")
 		var road: Dictionary = game.zombies.filter(func(z): return z.kind == "suika_boss").back()
 		check(road.touhou_final_preview and road.touhou_encounter.phases.size() == 1, "Road Suika only demonstrates a nonspell")
 		check(game.current_bgm_path == level.boss_intro_bgm, "The road preview must not start final music")
@@ -38,6 +44,7 @@ func _run() -> void:
 		var boss: Dictionary = game.zombies.filter(func(z): return z.kind == "suika_boss").back()
 		check(int(boss.uid) != road_uid and boss.max_health > road_hp * 8 and boss.health == boss.max_health, "Final Suika is a fresh full-health encounter")
 		check(game.current_bgm_path == level.boss_bgm and game.music_player.playing, "Finale actually plays the supplied MP3")
+		check(game.music_player.stream == game._try_get_cached_audio_stream(String(level.boss_bgm)), "Only full finale uses the supplied final BGM playback stream")
 		check(boss.has("touhou_encounter") and int(game._boss_health_bar_layout(boss).segments) == 1, "Suika must use the same live per-phase blood bar as other Touhou bosses")
 		check(game._boss_cast_status(boss).text.contains("非符"), "Suika must show her Touhou attack declaration before casting")
 		var enemy_count := game.zombies.size()
