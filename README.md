@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6** · **当前版本 v1.0.166** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.167** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -29,7 +29,7 @@
 | 僵尸与 Boss 定义（含 163 种融合） | 295 |
 | 关卡定义 | 195 |
 | 主世界 | 8 |
-| 自动测试入口 | 149 |
+| 自动测试入口 | 150 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
 
@@ -62,6 +62,10 @@
 **v1.0.154 妖妖梦 Boss 素材更新**：蕾蒂、橙、爱丽丝、莉莉霍瓦特、魂魄妖梦、西行寺幽幽子、八云蓝与八云紫换用新提供的素材；按人物和完整特效逐个分离，单独保存 192 帧，保留人偶、半灵、九尾、翅膀和原始透明光效。重新对应待机、移动、施法与受击动作，统一人物高度和脚部锚点。[版本说明](docs/releases/v1.0.154.md)。
 
 ![妖妖梦八位 Boss 素材更新原生截图](docs/readme/cherry-boss-v154.png)
+
+**v1.0.167 东方古城庭院与青石棋盘**：第八世界重制为红柱瓦殿、灰砖宫墙、石狮、铜灯与雕刻石阶围绕的古城庭院；45格全部改成云纹青石种植台，带石材纹理、倒角、裂纹与苔痕接缝。专用建筑带让场景在实战中可见，桌面与手机分别适配；雨天石台变湿并泛起水纹，雪天沿石台边缘积雪，世界封面和选卡预览同步更新。[版本说明](docs/releases/v1.0.167.md)。
+
+![v1.0.167 东方古城庭院实战](docs/readme/ancient-city-v167.png)
 
 **v1.0.166 小推车气球拦截修复**：飞行中的气球僵尸抵达房子边界时会正常启动本行小推车，并由小推车清除；小推车正在运行时不会提前判负，用尽后仍按正常规则判负，挑战目标也会记录此次启动。[版本说明](docs/releases/v1.0.166.md)。
 

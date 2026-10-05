@@ -1,8 +1,7 @@
 extends RefCounted
 
-# Procedural art for the Ancient World: courtyard scenery, living weather, the
-# three ancient zombies, plant overlays and every ancient effect. Plants use the
-# shared SVG models; motion, sparks and weather react here every frame.
+# Dedicated courtyard scenery, carved stone board, living weather, ancient
+# zombies and combat effects. Plants retain the shared SVG models.
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const Details = preload("res://scripts/ui/combat_details.gd")
 const UnitArt = preload("res://scripts/ui/vector_unit_art.gd")
@@ -27,7 +26,9 @@ const GRADE := {
 	"sandstorm": Color(0.78, 0.58, 0.3, 0.18), "rainbow": Color(1, 0.9, 0.7, 0.04),
 }
 static var stone_texture: Texture2D
-static var grass_texture: Texture2D
+static var courtyard_texture: Texture2D
+static var slab_textures: Array[Texture2D] = []
+const COURTYARD_PATH := "res://art/ancient/city_courtyard.png"
 
 
 static func _mix(rt, table: Dictionary) -> Variant:
@@ -74,7 +75,7 @@ static func oval(canvas: CanvasItem, center: Vector2, radii: Vector2, color: Col
 # ---------------------------------------------------------------- scenery
 
 static func lane_color(game: Control, rt, row: int) -> Color:
-	var base = Color("#5f9a49") if row % 2 == 0 else Color("#558f42")
+	var base = Color("#a3b0b1") if row % 2 == 0 else Color("#98a6a9")
 	if rt.active():
 		var grade: Color = _mix(rt, GRADE)
 		base = base.lerp(Color(grade.r, grade.g, grade.b), grade.a * 1.6)
@@ -83,7 +84,94 @@ static func lane_color(game: Control, rt, row: int) -> Color:
 	return base
 
 
+static func courtyard() -> Texture2D:
+	if courtyard_texture == null and ResourceLoader.exists(COURTYARD_PATH):
+		courtyard_texture = load(COURTYARD_PATH)
+	return courtyard_texture
+
+
 static func draw_background(game: Control, rt) -> void:
+	courtyard()
+	if courtyard_texture == null:
+		_draw_fallback_background(game, rt)
+		return
+	var grade: Color = _mix(rt, GRADE)
+	var tint = Color.WHITE.lerp(Color(grade.r, grade.g, grade.b), grade.a * 1.5)
+	var tex: Vector2 = courtyard_texture.get_size()
+	var origin: Vector2 = game.BOARD_ORIGIN
+	var bottom: float = origin.y + game.board_size.y
+	var right: float = origin.x + game.board_size.x
+	# Four architectural bands meet the real board edges instead of being hidden
+	# behind the HUD or stretched into the lanes on different aspect ratios.
+	game.draw_texture_rect(courtyard_texture, Rect2(Vector2.ZERO, game.size), false, tint)
+	_draw_city_region(game, Rect2(0, 0, game.size.x, origin.y), Rect2(0, 0, tex.x, tex.y * 0.31), tint)
+	_draw_city_region(game, Rect2(0, origin.y, origin.x, game.board_size.y), Rect2(0, tex.y * 0.31, tex.x * 0.12, tex.y * 0.58), tint)
+	_draw_city_region(game, Rect2(right, origin.y, game.size.x - right, game.board_size.y), Rect2(tex.x * 0.87, tex.y * 0.31, tex.x * 0.13, tex.y * 0.58), tint)
+	_draw_city_region(game, Rect2(0, bottom, game.size.x, game.size.y - bottom), Rect2(0, tex.y * 0.89, tex.x, tex.y * 0.11), tint)
+	# Lantern illumination gets warmer as the courtyard darkens.
+	var dusk = maxf(_weight(rt, "storm"), maxf(_weight(rt, "rain"), _weight(rt, "fog")))
+	for side in [-1, 1]:
+		var lamp = Vector2(origin.x * 0.58 if side < 0 else right + (game.size.x - right) * 0.42, origin.y + game.board_size.y * 0.32)
+		var pulse = 0.75 + sin(game.ui_time * 2.2 + side) * 0.15
+		game.draw_circle(lamp, minf(30.0, origin.x * 0.2), Color(1, 0.68, 0.25, 0.055 * pulse * (0.5 + dusk)))
+
+
+static func _draw_city_region(game: Control, destination: Rect2, source: Rect2, tint: Color) -> void:
+	if destination.size.x > 0 and destination.size.y > 0:
+		game.draw_texture_rect_region(courtyard_texture, destination, source, tint)
+
+
+static func slab_rect(game: Control, row: int, col: int) -> Rect2:
+	return game._cell_rect(row, col).grow(-maxf(1.1, minf(game.CELL_SIZE.x, game.CELL_SIZE.y) * 0.022))
+
+
+static func slab_texture(row: int, col: int) -> Texture2D:
+	if slab_textures.is_empty():
+		for variant in range(3):
+			var path = "res://art/vector/ancient/courtyard_slab_%d.svg" % variant
+			if ResourceLoader.exists(path): slab_textures.append(load(path))
+	return null if slab_textures.is_empty() else slab_textures[(row * 13 + col * 7) % slab_textures.size()]
+
+
+static func draw_board(game: Control, rt) -> void:
+	var grade: Color = _mix(rt, GRADE)
+	var wet = maxf(_weight(rt, "rain"), _weight(rt, "storm"))
+	var tint = Color.WHITE.lerp(Color(grade.r, grade.g, grade.b), grade.a * 1.2).darkened(wet * 0.12)
+	var board = Rect2(game.BOARD_ORIGIN, game.board_size)
+	var rim = maxf(4.0, minf(game.CELL_SIZE.x, game.CELL_SIZE.y) * 0.08)
+	game.draw_rect(board.grow(rim + 3), Color("#3f5055") * tint, true)
+	game.draw_rect(board.grow(rim), Color("#869698") * tint, true)
+	game.draw_rect(board.grow(rim * 0.4), Color("#c1b18e") * tint, false, maxf(1.0, rim * 0.3))
+	game.draw_rect(board, Color("#4f6468") * tint, true)
+	for row in range(game.board_rows):
+		for col in range(game.COLS):
+			var slab = slab_rect(game, row, col)
+			var tone = tint.darkened(0.025 * ((row * 7 + col * 3) % 3))
+			if not game._is_row_active(row): tone = tone.darkened(0.5)
+			var texture = slab_texture(row, col)
+			if texture == null:
+				game.draw_rect(slab, Color("#a3afb2") * tone, true)
+			else:
+				game.draw_texture_rect(texture, slab, false, tone)
+			# Only the joints grow moss; the slab face stays clear for the units.
+			if (row + col) % 3 == 0:
+				var p = slab.position + Vector2(slab.size.x * 0.82, slab.size.y + 1)
+				oval(game, p, Vector2(slab.size.x * 0.09, maxf(1.0, rim * 0.16)), Color(0.26, 0.37, 0.29, 0.55))
+			if wet > 0.01:
+				game.draw_line(slab.position + Vector2(8, 6), slab.position + Vector2(slab.size.x - 8, 6), Color(0.83, 0.91, 0.96, 0.2 * wet), 1, true)
+	# Carved bronze corner keys tie the planting platform to the ancient walls.
+	for corner in [board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)]:
+		game.draw_circle(corner, rim * 0.56, Color("#c7a66a") * tint)
+		game.draw_circle(corner, rim * 0.24, Color("#677577") * tint)
+	if game.size.y >= 500:
+		var numerals = ["壹", "贰", "叁", "肆", "伍", "陆"]
+		for row in game.active_rows:
+			var c = Vector2(game.BOARD_ORIGIN.x - rim - 18, game._row_center_y(int(row)))
+			oval(game, c, Vector2(12, 19), Color("#56686a"), 1, 0)
+			ThemeLib.draw_label(game, game.ui_font, Rect2(c - Vector2(10, 16), Vector2(20, 32)), numerals[int(row)], 14, Color("#d6c49c"))
+
+
+static func _draw_fallback_background(game: Control, rt) -> void:
 	var size: Vector2 = game.size
 	var origin: Vector2 = game.BOARD_ORIGIN
 	var board: Vector2 = game.board_size
@@ -226,39 +314,21 @@ static func _draw_maple(game: Control, base: Vector2, time: float, rt) -> void:
 
 
 static func draw_ground(game: Control, rt) -> void:
-	# Mossy stepping stones and tufts make the courtyard read as a garden lawn.
 	var time: float = game.ui_time
-	var grade: Color = _mix(rt, GRADE)
-	if grass_texture == null: grass_texture = load("res://art/vector/ancient/courtyard_grass.svg")
-	if grass_texture != null:
-		for row in game.active_rows:
-			for col in range(game.COLS):
-				var tile: Rect2 = game._cell_rect(int(row),col)
-				game.draw_texture_rect(grass_texture,tile,false,Color(1,1,1,0.72))
-	if grade.a > 0.0:
-		game.draw_rect(Rect2(game.BOARD_ORIGIN - Vector2(60, 20), game.board_size + Vector2(120, 40)), Color(grade, grade.a * 0.7), true)
-	for row in game.active_rows:
-		var r = int(row)
-		for col in range(game.COLS):
-			var c: Vector2 = game._cell_center(r, col)
-			if (r * 7 + col * 3) % 5 == 0:
-				oval(game, c + Vector2(-18, 30), Vector2(13, 6), Color(0.72, 0.7, 0.62, 0.32))
-			if (r + col) % 3 == 0:
-				for k in range(3):
-					var tuft = c + Vector2(-30 + k * 26, 40 - (k % 2) * 4)
-					game.draw_line(tuft, tuft + Vector2(-3, -7), Color(0.2, 0.42, 0.18, 0.45), 1.6)
-					game.draw_line(tuft, tuft + Vector2(3, -8), Color(0.2, 0.42, 0.18, 0.45), 1.6)
-	if rt.weather in ["rain", "storm"] and rt.active():
-		for i in range(14):
-			var phase = fmod(time * 1.6 + i * 0.37, 1.0)
-			var p = Vector2(game.BOARD_ORIGIN.x + fmod(i * 197.3, game.board_size.x), game.BOARD_ORIGIN.y + fmod(i * 131.7, game.board_size.y))
-			game.draw_arc(p, 3.0 + phase * 14.0, 0.0, TAU, 18, Color(0.85, 0.95, 1.0, (1.0 - phase) * 0.35 * rt.weather_blend), 1.2, true)
-	var snow = maxf(_weight(rt,"snow"),_weight(rt,"hail")*0.5)
+	var wet = maxf(_weight(rt, "rain"), _weight(rt, "storm"))
+	if wet > 0.01:
+		for i in range(18):
+			var phase = fposmod(time * 1.6 + i * 0.37, 1.0)
+			var p = Vector2(game.BOARD_ORIGIN.x + fposmod(i * 197.3, game.board_size.x), game.BOARD_ORIGIN.y + fposmod(i * 131.7, game.board_size.y))
+			oval(game, p, Vector2(14.0 + phase * 8.0, 3.0 + phase * 2.0), Color(0.7, 0.84, 0.91, 0.07 * wet))
+			game.draw_arc(p, 3.0 + phase * 12.0, 0.0, TAU, 18, Color(0.85, 0.95, 1.0, (1.0 - phase) * 0.3 * wet), 1.0, true)
+	var snow = maxf(_weight(rt, "snow"), _weight(rt, "hail") * 0.5)
 	if snow > 0.01:
 		for row in game.active_rows:
 			for col in range(game.COLS):
-				var cell: Rect2 = game._cell_rect(int(row),col)
-				oval(game,cell.position+Vector2(cell.size.x*0.5,cell.size.y-5),Vector2(cell.size.x*0.4,5),Color(0.92,0.97,1,0.6*snow))
+				var cell = slab_rect(game, int(row), col)
+				oval(game, cell.position + Vector2(cell.size.x * 0.5, cell.size.y - 5), Vector2(cell.size.x * 0.42, minf(5.0, cell.size.y * 0.06)), Color(0.92, 0.97, 1.0, 0.62 * snow))
+				oval(game, cell.position + Vector2(cell.size.x * 0.15, 4), Vector2(cell.size.x * 0.1, 2), Color(1, 1, 1, 0.55 * snow))
 
 
 static func draw_corrosion(game: Control, rt) -> void:

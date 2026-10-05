@@ -17,7 +17,7 @@ const WORLD_COPY := {
 	"roof": ["把防线延伸到天空", "在倾斜的红瓦屋顶安放花盆。投掷植物、伞叶与风向装置一起抵御空中的威胁。", "斜坡屋顶 / 花盆种植 / 投掷阵容"],
 	"city": ["霓虹尽头，寒潮将至", "沿着街区和地铁轨道推进。用城市植物守住路口，再迎战席卷全城的暴风雪。", "霓虹街区 / 轨道地形 / 暴风雪"],
 	"volcano": ["向熔岩深处进发", "在火山坡面建立防线。运用地热与蒸汽冷却，穿越岩浆火口，迎战熔岩尸王。", "地热蓄能 / 蒸汽冷却 / 熔岩终章"],
-	"ancient": ["风雨之中的古都", "穿过鸟居与石灯笼守住古都庭院。读懂天气的变化，迎击武士、法师与执扇的军师。", "天气系统 / 古代僵尸 / 五株新植物"],
+	"ancient": ["风雨之中的古都", "红柱瓦殿、宫墙与石狮围绕青石庭院。读懂十种天气的变化，守住雕纹石台，迎击武士、法师与执扇的军师。", "古城庭院 / 青石种植台 / 十种天气"],
 }
 
 
@@ -55,9 +55,7 @@ static func draw_home_entry(game: Control, rect: Rect2, title: String, subtitle:
 	if large:
 		var art_rect := Rect2(surface.position + Vector2(420, 32), Vector2(258, 205))
 		game.storybook_ui.panel(game, art_rect.grow(7), Color("e6ddb8"), GREEN, 0.08)
-		var artwork: Texture2D = game._world_ui_texture("scene_atlas")
-		if artwork != null:
-			game.draw_texture_rect_region(artwork, art_rect, scene_region(artwork.get_size(), game.WorldDataLib.index_of(game.current_world_key), art_rect.size.x / art_rect.size.y))
+		draw_scene(game, art_rect, game.WorldDataLib.index_of(game.current_world_key))
 		icon_rect = Rect2(surface.position + Vector2(502, 60 + bob), Vector2(160, 154))
 		game.storybook_ui.ambient(game, art_rect.grow(-10), game.current_world_key, 6)
 		game.storybook_ui.nine_slice(game, "wood_plaque", Rect2(surface.position + Vector2(32, 201), Vector2(304, 40)))
@@ -97,9 +95,7 @@ static func draw_home(game: Control) -> void:
 		var active: bool = String(world.key) == game.current_world_key
 		var stamp := chip.grow(-3)
 		game.storybook_ui.panel(game, chip, Color("dfe9c6") if active else PAPER, BORDER, 0.04)
-		var atlas: Texture2D = game._world_ui_texture("scene_atlas")
-		if atlas != null:
-			game.draw_texture_rect_region(atlas, stamp, scene_region(atlas.get_size(), i), Color.WHITE if unlocked else Color(0.55, 0.57, 0.51))
+		draw_scene(game, stamp, i, Color.WHITE if unlocked else Color(0.55, 0.57, 0.51))
 		game.draw_circle(chip.position + Vector2(14, 14), 11, GREEN)
 		label(game, Rect2(chip.position + Vector2(3, 3), Vector2(22, 22)), str(i + 1), 13, PAPER, true)
 		if active:
@@ -147,7 +143,6 @@ static func draw_world_select(game: Control) -> void:
 	var selected: Dictionary = game._selected_world_data()
 	var key := String(selected.key)
 	var unlocked: bool = game._is_world_unlocked(key)
-	var atlas: Texture2D = game._world_ui_texture("scene_atlas")
 	for i in range(Worlds.all().size()):
 		var world: Dictionary = Worlds.all()[i]
 		var row: Rect2 = game._world_card_rect(i)
@@ -156,8 +151,7 @@ static func draw_world_select(game: Control) -> void:
 		var surface: Rect2 = game.storybook_ui.surface(game, row, "world:" + str(i), false, i * 0.025)
 		game.storybook_ui.panel(game, surface, Color("dbe8bc") if active else PAPER, GREEN if active else BORDER, 0.16)
 		var stamp := Rect2(surface.position + Vector2(10, 7), Vector2(62, 46))
-		if atlas != null:
-			game.draw_texture_rect_region(atlas, stamp, scene_region(atlas.get_size(), i, stamp.size.x / stamp.size.y), Color.WHITE if available else Color(0.58, 0.6, 0.56))
+		draw_scene(game, stamp, i, Color.WHITE if available else Color(0.58, 0.6, 0.56))
 		game.draw_circle(stamp.position + Vector2(10, 10), 9, GREEN)
 		label(game, Rect2(stamp.position, Vector2(20, 20)), str(i + 1), 12, PAPER, true)
 		var text_rect: Rect2 = game._world_select_card_text_rect(i)
@@ -207,10 +201,25 @@ static func draw_world_select(game: Control) -> void:
 	label(game, Rect2(438, 705, 1040, 26), "左侧挑选目的地  ·  左右键 / 滑动切换  ·  点击进入地图开始冒险", 15, PAPER, true)
 
 
+static func draw_scene(game: Control, rect: Rect2, index: int, tint: Color = Color.WHITE) -> void:
+	if index == Worlds.index_of("ancient"):
+		var city: Texture2D = game.AncientVisuals.courtyard()
+		if city != null:
+			game.draw_texture_rect_region(city, rect, crop_region(Rect2(Vector2.ZERO, city.get_size()), rect.size.x / rect.size.y), tint)
+			return
+	var atlas: Texture2D = game._world_ui_texture("scene_atlas")
+	if atlas != null:
+		game.draw_texture_rect_region(atlas, rect, scene_region(atlas.get_size(), index, rect.size.x / rect.size.y), tint)
+
+
 static func scene_region(texture_size: Vector2, index: int, aspect: float = 1.0) -> Rect2:
 	var tile := texture_size / Vector2(4, 2)
 	var safe_index := clampi(index, 0, 7)
 	var region := Rect2(Vector2(safe_index % 4, floori(safe_index / 4.0)) * tile, tile).grow(-1)
+	return crop_region(region, aspect)
+
+
+static func crop_region(region: Rect2, aspect: float) -> Rect2:
 	var cropped := region.size
 	if cropped.x / cropped.y > aspect:
 		cropped.x = cropped.y * aspect

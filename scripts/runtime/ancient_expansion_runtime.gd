@@ -1175,6 +1175,10 @@ func draw_ground() -> void:
 	Visuals.draw_corrosion(game, self)
 
 
+func draw_board() -> void:
+	Visuals.draw_board(game, self)
+
+
 func draw_background() -> void:
 	Visuals.draw_background(game, self)
 

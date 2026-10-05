@@ -2,8 +2,8 @@ extends RefCounted
 class_name AncientLevelDefs
 
 # 古代世界 (Ancient World) — Chapter 8.
-# A temple courtyard of grass and flagstones under a living sky. Every stage
-# follows a weather schedule (clear / sunny / rain / storm / wind / fog) that
+# An old Eastern city courtyard of carved flagstones under a living sky. Every stage
+# follows one of ten weather states in a schedule that
 # loops for the whole battle; strategist zombies can temporarily override it.
 # Each stage introduces one new plant, which is usable in that stage and stays
 # in the collection afterwards.
@@ -44,7 +44,7 @@ const LEVELS = [
 	},
 	{
 		"id": "8-2", "title": "古代世界 8-2 · 雨落茶庭",
-		"description": "细雨打湿了茶庭。茉莉花茶浇过的草地会腐蚀僵尸，使它们虚弱、承受更多伤害；雨天腐蚀范围更大。古代法师会把植物变成小羊，尽快击败它解除法术。雨中火焰减弱、雷电增强。",
+		"description": "细雨打湿了茶庭的青石台。茉莉花茶浇过的地面会腐蚀僵尸，使它们虚弱、承受更多伤害；雨天腐蚀范围更大。古代法师会把植物变成小羊，尽快击败它解除法术。雨中火焰减弱、雷电增强。",
 		"terrain": "ancient", "world": "ancient",
 		"available_plants": ["sunflower", "peashooter", "wallnut", "cherry_bomb", "snow_pea", "repeater", "potato_mine", "torchwood", "tallnut", "kernel_pult", "dandelion", "jasmine_tea"],
 		"unlock_plant": "jasmine_tea", "start_sun": 200,

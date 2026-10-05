@@ -250,13 +250,10 @@ func finish(game: Control, draw_mode: String) -> void:
 
 
 func world_art(game: Control, rect: Rect2, index: int, tint: Color = Color.WHITE) -> void:
-	var atlas: Texture2D = game._world_ui_texture("scene_atlas")
-	if atlas == null:
-		return
 	var progress := ThemeLib.ease_ui(clampf(preview_age / 0.32, 0, 1)) if preview_index == index else 1.0
 	if previous_preview >= 0 and previous_preview != index and progress < 1:
-		game.draw_texture_rect_region(atlas, rect, game.GardenMenus.scene_region(atlas.get_size(), previous_preview, rect.size.x / rect.size.y), tint)
+		game.GardenMenus.draw_scene(game, rect, previous_preview, tint)
 	var new_tint := tint
 	new_tint.a *= progress
-	game.draw_texture_rect_region(atlas, rect, game.GardenMenus.scene_region(atlas.get_size(), index, rect.size.x / rect.size.y), new_tint)
+	game.GardenMenus.draw_scene(game, rect, index, new_tint)
 	ambient(game, rect.grow(-8), String(game.WorldDataLib.all()[index].key), 12)

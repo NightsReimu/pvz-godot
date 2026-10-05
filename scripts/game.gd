@@ -197,7 +197,7 @@ const WORLD_UI_ASSETS := {
 	"card_roof": "res://art/world_ui/world_card_roof.png",
 	"card_city": "res://art/world_ui/world_card_city.png",
 	"card_volcano": "res://art/world_ui/world_card_volcano.png",
-	"card_ancient": "res://art/world_ui/world_card_ancient.png",
+	"card_ancient": "res://art/world_ui/world_card_ancient_city.png",
 }
 const POLISHED_PROJECTILE_TEXTURE_PATHS := {
 	"pea": "res://art/polish/pea-polished.png",
@@ -1380,6 +1380,11 @@ func _refresh_battle_layout() -> void:
 		top_margin = hud_top + (124.0 if short_hud else 148.0)
 	if not Dictionary(current_level.get("objective", {})).is_empty():
 		top_margin += 32.0
+	if _is_ancient_level():
+		# Reserve a visible temple facade; the stone board owns its own scenery.
+		top_margin += 22.0 if short_hud else 78.0
+		left_margin = maxf(left_margin, safe_rect.position.x + safe_rect.size.x * (0.095 if short_hud else 0.12))
+		right_margin = maxf(right_margin, viewport.x - safe_rect.end.x + safe_rect.size.x * (0.07 if short_hud else 0.11))
 	var bottom_margin = clampf(viewport.y * (0.06 if is_mobile else 0.08), 64.0, 82.0 if is_mobile else 112.0)
 	if safe_rect.size.y < 600.0:
 		bottom_margin = 58.0
@@ -22130,6 +22135,14 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 	var water := Color(0.2, 0.56, 0.72)
 	var hazard := Color(0.96, 0.36, 0.12)
 	match terrain_key:
+		"ancient":
+			label = "东方古城庭院"
+			sky_top = Color("#e9cda9")
+			sky_bottom = Color("#e1d3bb")
+			ground = Color("#879395")
+			lane = Color("#a3afb2")
+			lane_alt = Color("#98a7aa")
+			accent = Color("#c7a66a")
 		"night", "vasebreaker_night":
 			label = "夜晚庭院"
 			sky_top = Color(0.04, 0.07, 0.17)
@@ -22492,6 +22505,10 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 			var gap_center = rect.position + Vector2(rect.size.x * (0.38 + float(gap_index) * 0.25), horizon_h * (0.52 + float(gap_index) * 0.18))
 			draw_arc(gap_center, 25.0, 0.0, TAU, 32, Color(0.72, 0.42, 1.0, 0.22 * alpha_scale), 5.0)
 			draw_circle(gap_center, 18.0, Color(0.02, 0.01, 0.08, 0.38 * alpha_scale))
+	if terrain_key == "ancient":
+		var city_texture = AncientVisuals.courtyard()
+		if city_texture != null:
+			draw_texture_rect(city_texture, rect, false, Color(1, 1, 1, alpha_scale))
 	var board_margin := Vector2(rect.size.x * 0.08, rect.size.y * 0.36)
 	var board_rect := Rect2(rect.position + board_margin, Vector2(rect.size.x * 0.84, rect.size.y * 0.48))
 	var row_count := int(style.get("row_count", DEFAULT_BOARD_ROWS))
@@ -22534,6 +22551,10 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 				"nether_stone":
 					tile_color = Color(0.48, 0.49, 0.62, 0.54 * alpha_scale) if (row + col) % 2 == 0 else Color(0.34, 0.35, 0.5, 0.56 * alpha_scale)
 			draw_rect(tile_rect, tile_color, true)
+			if terrain_key == "ancient":
+				var stone_slab = AncientVisuals.slab_texture(row, col)
+				if stone_slab != null:
+					draw_texture_rect(stone_slab, tile_rect, false, Color(1, 1, 1, alpha_scale))
 			if cell_kind == "cloud":
 				var cloud_center = tile_rect.position + tile_rect.size * 0.5
 				draw_circle(cloud_center + Vector2(-tile_rect.size.x * 0.16, 0.0), minf(tile_rect.size.x, tile_rect.size.y) * 0.22, Color(1.0, 1.0, 1.0, 0.34 * alpha_scale))
@@ -24292,6 +24313,9 @@ func _draw_battle_background() -> void:
 
 
 func _draw_battle_board() -> void:
+	if _is_ancient_level():
+		_ensure_ancient_expansion().draw_board()
+		return
 	var freeze_visual_ratio = _freeze_transition_visual_ratio()
 	var clock_floor_style := _scarlet_clocktower_floor_style() if _is_scarlet_clocktower_level() else {}
 	for row in range(board_rows):
