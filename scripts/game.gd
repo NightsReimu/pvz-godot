@@ -40,6 +40,8 @@ const KeineBossRuntime = preload("res://scripts/runtime/keine_boss_runtime.gd")
 const TouhouSpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
 const MarisaBossRuntime = preload("res://scripts/runtime/marisa_boss_runtime.gd")
 const AutumnMapleScene = preload("res://scripts/ui/autumn_maple_scene.gd")
+const HinaBossRuntime = preload("res://scripts/runtime/hina_boss_runtime.gd")
+const HinaMountainScene = preload("res://scripts/ui/hina_mountain_scene.gd")
 const AkiBossRuntime = preload("res://scripts/runtime/aki_boss_runtime.gd")
 const SuikaBossRuntime = preload("res://scripts/runtime/suika_boss_runtime.gd")
 const ReimuBossRuntime = preload("res://scripts/runtime/reimu_boss_runtime.gd")
@@ -634,7 +636,7 @@ const ZOMBIE_ALMANAC_ORDER := [
 	"tewi_boss",
 	"reisen_boss",
 	"eirin_boss", "star_fairy", "kedama", "mini_kedama", "rabbit_airship",
-	"kaguya_boss", "kaguya_treasure", "hakutaku_boss", "mokou_boss", "suika_boss", "suika_mini", "suika_knot", "shizuha_boss", "minoriko_boss", "aki_harvest_basket",
+	"kaguya_boss", "kaguya_treasure", "hakutaku_boss", "mokou_boss", "suika_boss", "suika_mini", "suika_knot", "shizuha_boss", "minoriko_boss", "aki_harvest_basket", "hina_boss", "hina_misfortune_doll",
 	"moon_rabbit",
 	"moon_rabbit_guard",
 	"moon_portal",
@@ -1021,6 +1023,7 @@ var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
 var touhou_danmaku: TouhouDanmakuRuntime
 var keine_runtime: RefCounted
+var hina_runtime: RefCounted
 var aki_runtime: RefCounted
 var suika_runtime: RefCounted
 var reimu_runtime: RefCounted
@@ -2144,6 +2147,8 @@ func _process(delta: float) -> void:
 	_update_scarlet_clocktower_hazards(delta)
 	_update_spawn_director(delta)
 	_update_conveyor(delta)
+	if hina_runtime != null:
+		hina_runtime.update(delta)
 	if aki_runtime != null:
 		aki_runtime.update(delta)
 	if suika_runtime != null:
@@ -3308,7 +3313,7 @@ func _should_use_image2_zombie_texture(kind: String) -> bool:
 
 func _boss_frame_count_for_kind(kind: String) -> int:
 	match kind:
-		"shizuha_boss", "minoriko_boss", "suika_boss", "keine_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss", "eirin_boss", "kaguya_boss", "hakutaku_boss", "mokou_boss":
+		"hina_boss", "shizuha_boss", "minoriko_boss", "suika_boss", "keine_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss", "eirin_boss", "kaguya_boss", "hakutaku_boss", "mokou_boss":
 			return 24
 		"rumia_boss":
 			return RUMIA_FRAME_COUNT
@@ -3360,6 +3365,8 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 			return "res://art/shizuha"
 		"minoriko_boss":
 			return "res://art/minoriko"
+		"hina_boss":
+			return "res://art/hina"
 		"suika_boss":
 			return "res://art/suika"
 		"hakutaku_boss":
@@ -7391,6 +7398,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		touhou_difficulty_menu.close()
 	if keine_runtime != null:
 		keine_runtime.reset()
+	if hina_runtime != null:
+		hina_runtime.reset()
 	if aki_runtime != null:
 		aki_runtime.reset()
 	if suika_runtime != null:
@@ -8342,6 +8351,11 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
 				_play_bgm(String(current_level.boss_bgm))
 			_show_banner("上白泽慧音封存了林间的历史！", 2.8)
+		elif kind == "hina_boss":
+			_ensure_hina_runtime()
+			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
+				_play_bgm(String(current_level.boss_bgm))
+			_show_banner("键山雏 · 秘神流雏" if _is_stage_ending_boss(boss_unit) else "键山雏 · 山路收厄", 2.8)
 		elif kind in ["shizuha_boss", "minoriko_boss"]:
 			_ensure_aki_runtime()
 			if _is_stage_ending_boss(boss_unit) and String(current_level.get("boss_bgm", "")) != "":
@@ -10067,6 +10081,12 @@ func _ensure_marisa_runtime() -> RefCounted:
 	return marisa_runtime
 
 
+func _ensure_hina_runtime() -> RefCounted:
+	if hina_runtime == null:
+		hina_runtime = HinaBossRuntime.new(self)
+	return hina_runtime
+
+
 func _ensure_aki_runtime() -> RefCounted:
 	if aki_runtime == null:
 		aki_runtime = AkiBossRuntime.new(self)
@@ -10395,7 +10415,9 @@ func _try_activate_ultimate(row: int, col: int) -> bool:
 	_set_click_ultimate_candidate(row, col, layer, plant)
 	_trigger_screen_shake(6.0)
 	_show_toast("%s: %s!" % [String(Defs.PLANTS[kind].get("name", kind)), String(profile.get("ultimate_name", "终极技能"))])
+	var hina_first := projectiles.size()
 	_execute_ultimate(plant, kind, row, col, profile)
+	if hina_runtime != null: hina_runtime.tag_emissions(hina_first,row,col,plant)
 	return true
 
 
@@ -10938,6 +10960,7 @@ func _execute_volcano_corn_cannon_ultimate() -> void:
 
 func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, profile: Dictionary) -> void:
 	if aki_runtime != null: aki_runtime.cleanse_row(row)
+	if hina_runtime != null: hina_runtime.cleanse_row(row)
 	if suika_runtime != null: suika_runtime.cleanse_row(row)
 	if float(plant.get("health", 0.0)) > 0.0:
 		_restore_plant_health(plant, maxf(0, float(plant.max_health) - float(plant.health)), true)
@@ -12866,7 +12889,7 @@ func _update_zombies(delta: float) -> void:
 			zombie["slow_timer"] = maxf(float(zombie.get("slow_timer", 0.0)), 0.45)
 		if float(zombie.get("corrode_timer", 0.0)) > 0.0 and float(zombie.get("corrode_dps", 0.0)) > 0.0:
 			zombie = _apply_zombie_damage(zombie, float(zombie["corrode_dps"]) * delta, 0.04)
-		if String(zombie.kind) in TouhouEnemyRuntime.KINDS and _ensure_touhou_enemies().update_unit(zombie, delta):
+		if TouhouEnemyRuntime.handles(String(zombie.kind)) and _ensure_touhou_enemies().update_unit(zombie, delta):
 			zombies[i] = zombie
 			continue
 		if String(zombie.kind) in ["marisa_mushroom", "moon_portal"]:
@@ -14117,6 +14140,9 @@ func _cleanup_dead_zombies() -> void:
 			touhou_danmaku.clear_owner(int(zombie.touhou_owner))
 		if keine_runtime != null and String(zombie.kind) == "keine_boss":
 			keine_runtime.clear_owner(int(zombie.get("uid", -1)))
+		if hina_runtime != null:
+			if String(zombie.kind) == "hina_misfortune_doll": hina_runtime.on_doll_death(zombie)
+			if String(zombie.kind) == "hina_boss": hina_runtime.clear_owner(int(zombie.uid))
 		if aki_runtime != null:
 			if String(zombie.kind) == "aki_harvest_basket": aki_runtime.on_basket_death(zombie)
 			if String(zombie.kind) in ["shizuha_boss", "minoriko_boss"]: aki_runtime.clear_owner(int(zombie.uid))
@@ -14134,7 +14160,7 @@ func _cleanup_dead_zombies() -> void:
 			mokou_runtime.clear_owner(int(zombie.uid))
 		if kaguya_runtime != null and String(zombie.kind) == "kaguya_boss":
 			kaguya_runtime.clear_owner(int(zombie.uid))
-		if String(zombie.kind) == "kedama":
+		if FusionZombieDefs.base_kind(String(zombie.kind)) == "kedama":
 			_ensure_touhou_enemies().on_death(zombie)
 		if String(zombie.get("kind", "")) == "yuyuko_boss" and bool(Defs.ZOMBIES["yuyuko_boss"].get("revive_once", false)) and not bool(zombie.get("yuyuko_revived", false)):
 			zombies[i] = _trigger_yuyuko_boss_revival(zombie)
@@ -16094,6 +16120,8 @@ func _update_rumia_hover(zombie: Dictionary, delta: float) -> Dictionary:
 
 func _hover_boss_effect_tint(kind: String) -> Color:
 	match kind:
+		"hina_boss":
+			return Color(0.31, 0.86, 0.76, 0.24)
 		"marisa_boss":
 			return Color(1.0, 0.8, 0.4, 0.24)
 		"daiyousei_boss":
@@ -16417,6 +16445,11 @@ func _city_boss_roster_for_phase(phase: int) -> Array:
 
 
 func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
+	if kind == "hina_boss":
+		if _active_zombie_count() < 32:
+			var pool: Array = ["kedama", "star_fairy", "cone_kedama", "cone_star_fairy"] if phase < 2 else ["bucket_kedama", "bucket_star_fairy", "kedama", "star_fairy", "cone_ninja", "cone_backup_dancer"]
+			_spawn_zombie(String(pool[rng.randi_range(0, pool.size() - 1)]), -1, true)
+		return
 	if kind in ["shizuha_boss", "minoriko_boss"]:
 		if _active_zombie_count() < 30:
 			var pool: Array = ["normal", "conehead", "newspaper"] if phase == 0 else (["conehead", "buckethead", "screen_door"] if phase == 1 else ["buckethead", "newspaper", "football", "balloon_zombie"])
@@ -17160,6 +17193,10 @@ func _trigger_yukari_boss_skill(zombie: Dictionary) -> Dictionary:
 
 
 func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
+	if String(zombie.kind) == "hina_boss":
+		zombie = _ensure_touhou_danmaku().cast(zombie)
+		_ensure_hina_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
+		return zombie
 	if String(zombie.kind) in ["shizuha_boss", "minoriko_boss"]:
 		_ensure_aki_runtime().cast(zombie, String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", "")))
 		return _ensure_touhou_danmaku().cast(zombie)
@@ -18403,6 +18440,8 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		kaguya_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) == "keine_boss" and keine_runtime != null:
 		keine_runtime.cancel_cast(int(zombie.get("uid", -1)))
+	if String(zombie.kind) == "hina_boss" and hina_runtime != null:
+		hina_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) in ["shizuha_boss", "minoriko_boss"] and aki_runtime != null:
 		aki_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) == "suika_boss" and suika_runtime != null:
@@ -20938,6 +20977,9 @@ func _extra_spawn_count_for_event(event_index: int, event: Dictionary) -> int:
 
 
 func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) -> String:
+	if String(current_level.get("terrain", "")) == "hina_mountain_forest":
+		var pool: Array = ["kedama", "star_fairy", "cone_kedama", "cone_star_fairy", "kedama", "star_fairy", "cone_backup_dancer"]
+		return String(pool[posmod(event_index + extra_index, pool.size())])
 	if String(current_level.get("terrain", "")) == "autumn_maple":
 		var pool: Array = ["normal", "conehead", "newspaper", "buckethead", "screen_door"]
 		return String(pool[posmod(event_index + extra_index, pool.size())])
@@ -22238,6 +22280,14 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 	var water := Color(0.2, 0.56, 0.72)
 	var hazard := Color(0.96, 0.36, 0.12)
 	match terrain_key:
+		"hina_mountain_forest":
+			label = "六行山麓梯田"
+			sky_top = Color("254f45")
+			sky_bottom = Color("a6b685")
+			ground = Color("797a53")
+			lane = Color("94956a")
+			lane_alt = Color("87885f")
+			accent = Color("48bda8")
 		"autumn_maple":
 			label = "六行红枫旱地"
 			sky_top = Color("dc7650")
@@ -22474,6 +22524,9 @@ func _selection_preview_cell_kind(style: Dictionary, row: int, col: int) -> Stri
 
 
 func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: float = 1.0, show_label: bool = false) -> void:
+	if String(style.get("terrain_key", "")) == "hina_mountain_forest":
+		HinaMountainScene.draw_preview(self, rect, alpha_scale, show_label)
+		return
 	var sky_top := _selection_preview_color(style.get("sky_top", null), Color(0.45, 0.72, 1.0), alpha_scale)
 	var sky_bottom := _selection_preview_color(style.get("sky_bottom", null), Color(0.78, 0.9, 0.62), alpha_scale)
 	var ground := _selection_preview_color(style.get("ground", null), Color(0.55, 0.75, 0.34), alpha_scale)
@@ -23275,6 +23328,8 @@ func _draw_battle_scene() -> void:
 		mokou_runtime.draw_ground()
 	if ancient_expansion != null:
 		ancient_expansion.draw_ground()
+	if hina_runtime != null:
+		hina_runtime.draw_ground()
 	if aki_runtime != null:
 		aki_runtime.draw_ground()
 	if suika_runtime != null:
@@ -23314,10 +23369,15 @@ func _draw_battle_scene() -> void:
 		mokou_runtime.draw_overlay()
 	if String(current_level.get("terrain", "")) == "autumn_maple":
 		AutumnMapleScene.draw_ambient(self)
+	if String(current_level.get("terrain", "")) == "hina_mountain_forest":
+		HinaMountainScene.draw_ambient(self)
+	if hina_runtime != null:
+		hina_runtime.draw_overlay()
 	if aki_runtime != null:
 		aki_runtime.draw_overlay()
 	if suika_runtime != null:
 		suika_runtime.draw_overlay()
+	if touhou_enemies != null: touhou_enemies.draw_overlay()
 	_draw_sakuya_time_stop_overlay()
 	_draw_vfx_particles()
 	if _is_minigame(): MinigameVisuals.draw_overlay(self,minigame_runtime)
@@ -23407,6 +23467,9 @@ func _draw_endless_bonus_overlay() -> void:
 
 
 func _draw_battle_background() -> void:
+	if String(current_level.get("terrain", "")) == "hina_mountain_forest":
+		HinaMountainScene.draw_background(self)
+		return
 	if String(current_level.get("terrain", "")) == "autumn_maple":
 		AutumnMapleScene.draw_background(self)
 		return
@@ -24439,6 +24502,9 @@ func _draw_battle_background() -> void:
 
 
 func _draw_battle_board() -> void:
+	if String(current_level.get("terrain", "")) == "hina_mountain_forest":
+		HinaMountainScene.draw_board(self)
+		return
 	if String(current_level.get("terrain", "")) == "autumn_maple":
 		AutumnMapleScene.draw_board(self)
 		return
@@ -25525,7 +25591,7 @@ func _draw_boss_health_bar() -> void:
 		var phase_count := TouhouSpellDefs.phase_count(String(boss.kind), current_level)
 		phase_label = "%d / %d 阶段" % [phase_count if survival and not timed_survival else int(encounter.index) + 1, phase_count]
 		if bool(boss.get("touhou_final_preview", false)) or bool(boss.get("touhou_road_nonspell", false)):
-			phase_label = "道中 · 符卡" if String(boss.kind) == "eirin_boss" else "道中 · 非符"
+			phase_label = "道中 · 符卡" if String(boss.kind) == "eirin_boss" or bool(boss.get("touhou_road_spell", false)) else "道中 · 非符"
 		health = maxf(0.0, health - float(encounter.floor))
 		trail_health = maxf(health, trail_health - float(encounter.floor))
 		max_health = maxf(1.0, float(encounter.ceiling) - float(encounter.floor))
@@ -30611,6 +30677,8 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 			return _ensure_kaguya_runtime().frame_index(zombie)
 		"keine_boss":
 			return _keine_frame_index(zombie)
+		"hina_boss":
+			return _ensure_hina_runtime().frame_index(zombie)
 		"shizuha_boss", "minoriko_boss":
 			return _ensure_aki_runtime().frame_index(zombie)
 		"suika_boss":
@@ -32263,6 +32331,12 @@ func _draw_zombie_body(center: Vector2, zombie: Dictionary) -> void:
 	if kind == "keine_boss":
 		_ensure_keine_runtime().draw_boss(center, zombie)
 		return
+	if kind == "hina_boss":
+		HinaMountainScene.draw_boss(self, center, zombie)
+		return
+	if kind == "hina_misfortune_doll":
+		_ensure_hina_runtime().draw_doll(center, zombie)
+		return
 	if kind in ["shizuha_boss", "minoriko_boss"]:
 		AutumnMapleScene.draw_boss(self, center, zombie)
 		return
@@ -33171,7 +33245,11 @@ func _plant_has_food_power(plant: Dictionary) -> bool:
 
 
 func _activate_plant_food(row: int, col: int) -> bool:
-	return _ensure_plant_food_runtime().activate(row, col)
+	var hina_first := projectiles.size()
+	var activated: bool = _ensure_plant_food_runtime().activate(row, col)
+	if activated and hina_runtime != null:
+		hina_runtime.tag_emissions(hina_first,row,col,{"ultimate_active": true})
+	return activated
 
 
 func _spawn_bonus_potato_mines(origin_row: int, origin_col: int, amount: int) -> void:

@@ -21,6 +21,12 @@ static func pose(game, c: Vector2, z: Dictionary) -> Dictionary:
 	var scale := 1.0
 	var alpha := 1.0
 	match kind:
+		"kedama":
+			body = c + Vector2(0, sin(game.level_time * 3 + phase) * 3)
+			head = Vector2(0, -16); scale = 0.80
+		"star_fairy":
+			body = c + Vector2(0, sin(game.level_time * 3 + phase) * 3)
+			head = Vector2(0, -34); scale = 0.75
 		"imp":
 			body = c + Vector2(0, -absf(sin(game.level_time * (4.2 + raw_speed * 0.08) + phase)) * 2 if custom_moving else 0)
 			head = Vector2(0, -18); scale = 0.71

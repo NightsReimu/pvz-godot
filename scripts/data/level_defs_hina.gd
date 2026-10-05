@@ -1,0 +1,38 @@
+extends RefCounted
+
+const ENEMIES := ["kedama", "star_fairy", "cone_kedama", "bucket_kedama", "brick_kedama", "kabuto_kedama", "cone_star_fairy", "bucket_star_fairy", "brick_star_fairy", "kabuto_star_fairy", "cone_ninja", "bucket_newspaper", "cone_backup_dancer"]
+const LEVEL := {
+	"id": "4-20", "title": "东方 4-20 · 山麓厄神之路",
+	"description": "六行旱地山林，沿土石梯田走进厄神之路。道中键山雏短暂隐现后宣告一张弱化符卡；终末雏展开原作护符、厄运之轮与流刑人偶，并逐级加入原创苗圃厄印。旋转青印预警霉运，本行大招净化；打碎流雏人偶解除本行厄运并反击附近普通敌人。毛玉、精灵与融合护甲敌群持续支援。E/N/H传送带，L自选卡。",
+	"terrain": "hina_mountain_forest", "mode": "conveyor", "boss_level": true,
+	"unlock_requirements": ["4-19"], "water_rows": [], "row_count": 6,
+	"mid_boss_kind": "hina_boss", "mid_boss_final_preview": true, "mid_boss_locked_progress": 0.38,
+	"mid_boss_banner": "键山雏 · 厄神收集山路上的厄运",
+	"boss_intro_bgm": "res://audio/bgm/touhou/4-20-stage.mp3", "boss_bgm": "res://audio/bgm/touhou/4-20-ending.mp3",
+	"enemy_whitelist": ENEMIES,
+	"available_plants": ["peashooter", "repeater", "threepeater", "snow_pea", "wallnut", "tallnut", "pumpkin", "kernel_pult", "melon_pult", "torchwood", "healing_gourd", "umbrella_leaf", "starfruit", "cherry_bomb", "jalapeno", "magnet_shroom", "jasmine_tea"],
+	"conveyor_plants": ["repeater", "repeater", "repeater", "threepeater", "snow_pea", "wallnut", "wallnut", "tallnut", "pumpkin", "kernel_pult", "melon_pult", "melon_pult", "torchwood", "healing_gourd", "healing_gourd", "umbrella_leaf", "starfruit", "cherry_bomb", "jalapeno", "magnet_shroom", "jasmine_tea"],
+	"conveyor_interval": Vector2(1.4, 2.0), "start_sun": 0, "unlock_plant": "",
+	"time_scale": 0.86, "sky_sun_range": Vector2(99, 99), "node_pos": Vector2(1948, 365),
+	"events": [
+		{"time": 10.0, "kind": "kedama", "row": 2},
+		{"time": 18.0, "kind": "kedama", "row": 5},
+		{"time": 27.0, "kind": "star_fairy", "row": 0},
+		{"time": 36.0, "kind": "flag", "wave": true},
+		{"time": 43.0, "kind": "cone_kedama", "row": 3},
+		{"time": 50.0, "kind": "cone_star_fairy", "row": 1},
+		{"time": 59.0, "kind": "kedama", "row": 4},
+		{"time": 68.0, "kind": "flag", "wave": true},
+		{"time": 78.0, "kind": "star_fairy", "row": 2},
+		{"time": 88.0, "kind": "bucket_kedama", "row": 5},
+		{"time": 96.0, "kind": "bucket_star_fairy", "row": 0},
+		{"time": 104.0, "kind": "flag", "wave": true},
+		{"time": 113.0, "kind": "cone_ninja", "row": 3},
+		{"time": 124.0, "kind": "brick_kedama", "row": 1},
+		{"time": 133.0, "kind": "kabuto_star_fairy", "row": 4},
+		{"time": 141.0, "kind": "bucket_newspaper", "row": 2},
+		{"time": 151.0, "kind": "brick_star_fairy", "row": 5},
+		{"time": 160.0, "kind": "kabuto_kedama", "row": 0},
+		{"time": 175.0, "kind": "hina_boss", "row": 2},
+	],
+}

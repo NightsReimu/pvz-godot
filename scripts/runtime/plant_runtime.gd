@@ -108,12 +108,17 @@ func update_plants(delta: float) -> void:
 
 			var action_delta := delta * (float(game.suika_runtime.action_factor(row, col)) if game.suika_runtime != null else 1.0)
 			if game.aki_runtime != null: action_delta *= float(game.aki_runtime.action_factor(row, col))
+			if game.hina_runtime != null: action_delta *= float(game.hina_runtime.action_factor(row, col))
+			var hina_first: int = game.projectiles.size()
+			var hina_ultimate := game.hina_runtime != null and (bool(plant.get("ultimate_active", false)) or float(plant.get("plant_food_timer", 0)) > 0 or int(plant.get("plant_food_charges", 0)) > 0)
 			if plant.has("fusion_kind"):
 				game._ensure_plant_fusion().update(plant,action_delta,row,col)
+				if game.hina_runtime != null: game.hina_runtime.tag_emissions(hina_first,row,col,{"ultimate_active": hina_ultimate})
 				game.grid[row][col] = plant
 				continue
 
 			game.grid[row][col] = null if update_native(plant,action_delta,row,col) else plant
+			if game.hina_runtime != null: game.hina_runtime.tag_emissions(hina_first,row,col,{"ultimate_active": hina_ultimate})
 
 	for row in range(game.ROWS):
 		for col in range(game.COLS):
@@ -136,11 +141,15 @@ func update_plants(delta: float) -> void:
 				continue
 			var support_delta := delta * (float(game.suika_runtime.action_factor(row, col)) if game.suika_runtime != null else 1.0)
 			if game.aki_runtime != null: support_delta *= float(game.aki_runtime.action_factor(row, col))
+			if game.hina_runtime != null: support_delta *= float(game.hina_runtime.action_factor(row, col))
+			var hina_first: int = game.projectiles.size()
+			var hina_ultimate := game.hina_runtime != null and (bool(support.get("ultimate_active", false)) or float(support.get("plant_food_timer", 0)) > 0 or int(support.get("plant_food_charges", 0)) > 0)
 			if support.has("fusion_kind"):
 				support.sleep_timer = maxf(0,float(support.get("sleep_timer",0))-delta)
 				var stilled: bool = (game.mokou_runtime != null and game.mokou_runtime.plant_stilled(row,col)) or (game.kaguya_runtime != null and game.kaguya_runtime.plant_stilled(row,col))
 				if float(support.get("sleep_timer",0)) <= 0 and not stilled:
 					game._ensure_plant_fusion().update(support,support_delta,row,col)
+				if game.hina_runtime != null: game.hina_runtime.tag_emissions(hina_first,row,col,{"ultimate_active": hina_ultimate})
 				game.support_grid[row][col] = support
 				continue
 			match String(support.get("kind", "")):
@@ -150,6 +159,7 @@ func update_plants(delta: float) -> void:
 			if float(support.get("plant_food_timer", 0.0)) <= 0.0 and String(support.get("plant_food_mode", "")) != "":
 				support["plant_food_mode"] = ""
 			game.support_grid[row][col] = support
+			if game.hina_runtime != null: game.hina_runtime.tag_emissions(hina_first,row,col,{"ultimate_active": hina_ultimate})
 
 
 # Shared by ordinary plants and independently clocked fusion components.

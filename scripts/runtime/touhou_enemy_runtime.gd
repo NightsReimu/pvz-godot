@@ -1,20 +1,36 @@
 extends RefCounted
 
+const Fusions = preload("res://scripts/data/fusion_zombie_defs.gd")
+
+static func handles(kind: String) -> bool:
+	return Fusions.base_kind(kind) in KINDS
+
 const KINDS = ["star_fairy", "kedama", "mini_kedama", "rabbit_airship", "eirin_medicine", "kaguya_treasure"]
 var game: Control
 
 func _init(owner: Control) -> void:
 	game = owner
 
+func draw_overlay() -> void:
+	for z in game.zombies:
+		if Fusions.base_kind(String(z.kind)) != "star_fairy" or float(z.health) <= 0 or float(z.get("fairy_warning", 0)) <= 0: continue
+		var cell: Vector2i = z.fairy_target
+		var center: Vector2 = game._cell_center(cell.x, cell.y)
+		var rect: Rect2 = game._cell_rect(cell.x, cell.y).grow(-3)
+		var unit: float = minf(rect.size.x, rect.size.y)
+		game.draw_line(Vector2(float(z.x), game._row_center_y(int(z.row)) - 20), center, Color(0.86, 0.80, 1, 0.60), maxf(1.2, unit * 0.02), true)
+		game.draw_rect(rect, Color(0.76, 0.63, 1, 0.10))
+		game.draw_arc(center, unit * 0.30, -PI / 2, -PI / 2 + TAU * clampf(1 - float(z.fairy_warning), 0, 1), 24, Color("ebceff"), maxf(1.2, unit * 0.025), true)
+
 func update_unit(z: Dictionary, delta: float) -> bool:
 	if float(z.health) <= 0 or game.boss_time_stop_timer > 0:
-		return String(z.kind) in ["rabbit_airship", "eirin_medicine", "kaguya_treasure"]
-	if String(z.kind) in ["eirin_medicine", "kaguya_treasure"]:
+		return Fusions.base_kind(String(z.kind)) in ["rabbit_airship", "eirin_medicine", "kaguya_treasure"]
+	if Fusions.base_kind(String(z.kind)) in ["eirin_medicine", "kaguya_treasure"]:
 		return true
-	if String(z.kind) == "rabbit_airship":
+	if Fusions.base_kind(String(z.kind)) == "rabbit_airship":
 		_update_airship(z, delta)
 		return true
-	if String(z.kind) == "star_fairy" and game._is_enemy_zombie(z):
+	if Fusions.base_kind(String(z.kind)) == "star_fairy" and game._is_enemy_zombie(z):
 		z["fairy_timer"] = float(z.get("fairy_timer", 5.0)) - delta
 		if float(z.fairy_timer) <= 0:
 			z.fairy_timer = 5.0
@@ -62,7 +78,7 @@ func _update_airship(z: Dictionary, delta: float) -> void:
 			z.airship_next_col += 1 if returning else -1
 
 func on_death(z: Dictionary) -> void:
-	if String(z.kind) != "kedama" or z.get("kedama_split", false):
+	if Fusions.base_kind(String(z.kind)) != "kedama" or z.get("kedama_split", false):
 		return
 	z["kedama_split"] = true
 	for n in range(2):
@@ -88,7 +104,7 @@ func _star(center: Vector2, radius: float, color: Color, rotation: float = 0.0) 
 	game.draw_colored_polygon(points, color)
 
 func draw_unit(center: Vector2, z: Dictionary) -> void:
-	var kind = String(z.kind)
+	var kind = Fusions.base_kind(String(z.kind))
 	var t = game.level_time + float(z.get("anim_phase", 0))
 	var p = center + Vector2(0, sin(t * 3) * 3)
 	if kind == "kaguya_treasure":

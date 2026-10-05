@@ -33,6 +33,9 @@ static func start(boss: Dictionary, level: Dictionary) -> void:
 		return
 	if bool(boss.get("touhou_final_preview", false)):
 		phases = [[phases[0][0].duplicate(true)]]
+		if String(boss.kind) == "hina_boss":
+			phases = [[Spells.Hina.road_card(level)]]
+			boss["touhou_road_spell"] = true
 		if String(boss.kind) == "eirin_boss":
 			phases = [[Spells.Eirin.road_card(level)]]
 	if String(boss.kind) == String(level.get("mid_boss_kind", "")) and bool(level.get("mid_boss_nonspell_only", false)):
@@ -40,7 +43,7 @@ static func start(boss: Dictionary, level: Dictionary) -> void:
 		phases = [[phases[0][0].duplicate(true)]]
 		boss["touhou_road_nonspell"] = true
 	boss["touhou_encounter"] = {"phases": phases, "index": 0, "attack": 0, "completed": 0, "casting": false, "depleted": false, "complete": false}
-	boss["boss_skill_timer"] = 1.6
+	boss["boss_skill_timer"] = 3.2 if bool(boss.get("touhou_road_spell", false)) else 1.6
 	_set_bounds(boss)
 
 
@@ -58,8 +61,8 @@ static func _set_bounds(boss: Dictionary) -> void:
 static func guard_health(boss: Dictionary) -> void:
 	if not boss.has("touhou_encounter") or bool(boss.get("yuyuko_revived", false)):
 		return
-	# Road defeat can interrupt the nonspell; finale phases keep their attack gates.
-	if bool(boss.get("touhou_final_preview", false)) or bool(boss.get("touhou_road_nonspell", false)):
+	# Basic road attacks can end on damage; declared spells keep their attack gates.
+	if (bool(boss.get("touhou_final_preview", false)) and not bool(boss.get("touhou_road_spell", false))) or bool(boss.get("touhou_road_nonspell", false)):
 		if float(boss.health) <= 0.0:
 			boss.health = 0.0
 			boss.touhou_encounter.complete = true
@@ -106,6 +109,8 @@ static func update_progress(game: Control, boss: Dictionary) -> bool:
 		boss["boss_pause_timer"] = 0.65
 	if not bool(encounter.depleted) or int(encounter.completed) < attacks.size():
 		return false
+	if String(boss.kind) == "hina_boss" and game.hina_runtime != null:
+		game.hina_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) in ["shizuha_boss", "minoriko_boss"] and game.aki_runtime != null:
 		game.aki_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) == "suika_boss" and game.suika_runtime != null:

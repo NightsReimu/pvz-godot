@@ -254,7 +254,9 @@ func _test_roof_levels_reuse_all_previously_seen_non_boss_zombies() -> bool:
 			var kind = String(event.get("kind", ""))
 			if kind == "" or not Defs.ZOMBIES.has(kind):
 				continue
-			if bool(Defs.ZOMBIES[kind].get("boss", false)):
+			# Isolated Touhou enemies and generated equipment recipes have their
+			# own routes; roof's explicit roster revisits the ordinary campaign cast.
+			if bool(Defs.ZOMBIES[kind].get("boss", false)) or bool(Defs.ZOMBIES[kind].get("non_mainline_special", false)):
 				continue
 			prior_seen[kind] = true
 	for i in range(roof_start_index, Defs.LEVELS.size()):

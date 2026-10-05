@@ -133,9 +133,6 @@ static func overlay(rt: RefCounted) -> void:
 	for z in g.zombies:
 		if float(z.health) <= 0:
 			continue
-		if String(z.kind) == "star_fairy" and float(z.get("fairy_warning", 0)) > 0:
-			var cell: Vector2i = z.fairy_target
-			g.draw_line(Vector2(float(z.x), g._row_center_y(int(z.row)) - 20), g._cell_center(cell.x, cell.y), Color(0.83, 0.83, 1, 0.5), 1.2, true)
 		if g._is_water_zombie_kind(String(z.kind)) and not g._is_water_cell(int(z.row), g._zombie_cell_col(float(z.x))):
 			var pos = Vector2(float(z.x), g._row_center_y(int(z.row)))
 			g.draw_arc(pos + Vector2(0, 15), g.CELL_SIZE.x * 0.3, 0.1, PI - 0.1, 16, Color(0.63, 0.89, 1, 0.7), 3, true)

@@ -194,6 +194,7 @@ func activate(row: int, col: int) -> bool:
 	if float(plant.get("health", 0.0)) <= 0.0 or game._plant_charm_blocks_actions(plant):
 		return false
 	if game.aki_runtime != null: game.aki_runtime.cleanse_row(row)
+	if game.hina_runtime != null: game.hina_runtime.cleanse_row(row)
 	if game.suika_runtime != null: game.suika_runtime.cleanse_row(row)
 	plant["sleep_timer"] = 0.0
 	var center = game._cell_center(row, col)

@@ -14,7 +14,7 @@ const HEAD_BASES := [
 	"medic_zombie", "shieldbearer_zombie", "saboteur_zombie", "rift_zombie", "bomber_zombie",
 	"umbrella_zombie", "shania_zombie", "shade_zombie", "camel_zombie",
 	"cinder_runner", "kiln_mason", "ash_bell", "sulfur_carrier", "vent_tunneler",
-	"ancient_mage", "ancient_strategist",
+	"ancient_mage", "ancient_strategist", "star_fairy", "kedama",
 ]
 const HELMET_BASES := [
 	"ninja", "pole_vault", "dancing", "backup_dancer", "pogo_zombie", "ski_zombie",

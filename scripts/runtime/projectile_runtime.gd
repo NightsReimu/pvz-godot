@@ -624,6 +624,7 @@ func resolve_lobbed_projectile_impact(projectile: Dictionary, impact_position: V
 func update_projectiles(delta: float) -> void:
 	for i in range(game.projectiles.size() - 1, -1, -1):
 		var projectile = game.projectiles[i]
+		if game.hina_runtime != null: game.hina_runtime.modify_projectile(projectile)
 		var projectile_pos = Vector2(projectile["position"])
 		projectile.previous_position = projectile_pos
 		var projectile_kind = String(projectile.get("kind", "pea"))

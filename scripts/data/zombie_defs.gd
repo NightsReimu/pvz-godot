@@ -2,6 +2,8 @@ extends RefCounted
 class_name ZombieDefs
 
 const ZOMBIES: Dictionary = {
+	"hina_boss": {"name": "键山雏", "health": 24000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 480, "skill_interval_base": 9.0, "skill_interval_min": 7.5, "reinforcement_interval_base": 11.0, "reinforcement_interval_min": 8.0, "almanac": ["收集厄运的厄神，4-20道中与终末Boss。道中是弱化的单张符卡，终末有4/5/6/7个符卡阶段。", "旋转积厄、破裂护符、厄运之轮与流放人偶来自《风神录》二面。原创青印会使苗圃迟发或每第三发子弹失准；本行大招可净化。击破厄运人偶清行并反击附近普通敌人。"]},
+	"hina_misfortune_doll": {"name": "流雏厄运人偶", "health": 360.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "balance_fixed": true, "non_mainline_special": true, "almanac": ["键山雏收集厄运的实体人偶，青圈预警后出现，最多同时3个。", "可被普通或融合攻击击破；清除本行厄印，反击附近普通敌人并返25阳光一次。过期或符卡结束消散不奖励。"]},
 	"shizuha_boss": {"name": "秋静叶", "health": 9600.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 120, "skill_interval_base": 8.0, "skill_interval_min": 7.0, "reinforcement_interval_base": 11.0, "reinforcement_interval_min": 9.0, "almanac": ["掌管红叶的秋神，4-19的弱化道中Boss。E/N为非符，H/L展开《风神录》叶符「狂乱的落叶」。", "飘落的红叶化成缓弧弹幕。六行都是旱地，保留生命与大招迎接秋穰子的丰收祭。"]},
 	"minoriko_boss": {"name": "秋穰子", "health": 22000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 450, "skill_interval_base": 9.2, "skill_interval_min": 8.0, "reinforcement_interval_base": 10.0, "reinforcement_interval_min": 7.0, "almanac": ["掌管丰穰的秋神，4-19终末Boss。原作秋空与丰收符卡随难度变化，终末有3/4/5/6个符卡阶段。", "原创催熟田垄加快植物行动，红圈预警后收割；本行大招清除。可打破的阳光贡仓治疗附近普通僵尸，击败返25阳光；阶段结束与过期不会返还。"]},
 	"aki_harvest_basket": {"name": "秋日阳光贡仓", "health": 320.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["秋穰子的实体丰收贡仓，每4秒有限治疗本行及相邻行附近的普通僵尸。", "可以用普通、融合子弹和灰烬击破，返25阳光一次。最多3个，随主人退场或符卡结束消散。"]},
