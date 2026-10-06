@@ -44,27 +44,57 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 			# The original E/N wheel is a rotating needle pattern, not an ofuda fan.
 			dm._ring(c, origin, 14, turn, 102.0 * scale, GREEN, "needle", {"arming_time": 1.15, "radius": 3.2 * scale, "angular_speed": 0.12, "damage": 29.0})
 			dm._fan(c, origin, 3, PI - sin(turn) * 0.18, 0.5, 145.0 * scale, GOLD, "needle", {"arming_time": 1.1, "radius": 3.0 * scale, "damage": 28.0})
+			_cross_lane(dm, c, origin, scale, GREEN, "needle", 29.0)
 			cadence = 1.6
 		"hina_bell_fire":
 			dm._ring(c, origin, 18, -turn, 111.0 * scale, GREEN if wave % 2 else RED, "hina_fire", {"arming_time": 1.2, "radius": 5.0 * scale, "angular_speed": -0.14, "damage": 35.0})
 			dm._fan(c, origin, 5, PI + sin(turn) * 0.24, 0.78, 151.0 * scale, GOLD, "hina_fire", {"arming_time": 1.2, "radius": 3.8 * scale, "damage": 31.0})
+			_cross_lane(dm, c, origin, scale, RED, "hina_fire", 35.0)
 			cadence = 1.6
 		"hina_pain_flow":
 			_pain_ring(dm, c, origin, scale, false)
+			_cross_lane(dm, c, origin, scale, GREEN, "orb", 29.0)
 			cadence = 1.65
 		"hina_exiled_doll":
 			_pain_ring(dm, c, origin, scale, true)
+			_cross_lane(dm, c, origin, scale, RED, "hina_doll", 32.0)
 			if float(c.age) >= float(c.duration) * 0.45:
 				dm._fan(c, origin, 5, PI + sin(turn) * 0.22, 1.20, 134.0 * scale, GREEN, "hina_ofuda", {"arming_time": 1.15, "radius": 2.8 * scale, "angular_speed": -0.12, "damage": 22.0})
 			cadence = 1.65
 		"hina_delayed", "hina_doll_offering", "hina_misfire":
-			# Original fields remain legible under a deliberately sparse green spiral.
-			dm._fan(c, origin, 3, PI + sin(turn) * 0.18, 0.8, 113.0 * scale, GREEN, "hina_ofuda", {"arming_time": 1.2, "radius": 4.0 * scale, "angular_speed": 0.08, "damage": 24.0})
+			if bool(c.get("autumn_full", false)):
+				_field_ofuda(dm, c, origin, scale)
+			else:
+				dm._fan(c, origin, 3, PI + sin(turn) * 0.18, 0.8, 113.0 * scale, GREEN, "hina_ofuda", {"arming_time": 1.2, "radius": 4.0 * scale, "angular_speed": 0.08, "damage": 24.0})
 			cadence = 2.2
 		"hina_festival":
 			dm._fan(c, origin, 5 + rank, PI + sin(turn) * 0.24, 1.40, 119.0 * scale, GREEN if wave % 2 else RED, "hina_doll" if wave % 2 else "hina_ofuda", {"arming_time": 1.2, "radius": 4.5 * scale, "angular_speed": 0.12 * (-1 if wave % 2 else 1), "damage": 29.0})
 			cadence = 1.9
 	c.next_wave = float(c.age) + cadence * game.TouhouDifficulty.attack_cadence(String(c.kind), game.current_level)
+
+static func _field_ofuda(dm: RefCounted, c: Dictionary, origin: Vector2, scale: float) -> void:
+	var game: Control = dm.game
+	var counts := [3, 2, 1]
+	for branch in range(3):
+		var row := int(game.active_rows[posmod(int(c.stage) + int(c.wave) + branch * 2, game.active_rows.size())])
+		var point := Vector2(origin.x, game._row_center_y(row) - 12.0)
+		dm._fan(c, point, counts[branch], PI + sin(int(c.wave) * 0.55 + branch) * 0.05, 0.34, 113.0 * scale, GREEN if branch % 2 == 0 else RED, "hina_ofuda", {"arming_time": 1.2, "radius": 4.0 * scale, "angular_speed": 0.08, "damage": 24.0})
+
+static func _cross_lane(dm: RefCounted, c: Dictionary, origin: Vector2, scale: float, tint: Color, shape: String, damage: float) -> void:
+	if not bool(c.get("autumn_full", false)) or int(c.wave) % 2 == 0: return
+	var game: Control = dm.game
+	var row := int(game.active_rows[posmod(int(c.stage) + int(c.wave) + 3, game.active_rows.size())])
+	var point := Vector2(origin.x, game._row_center_y(row) - 12.0)
+	# Preserve the full-direction wheel; a separate narrow fan carries its
+	# needles, fire or dolls into a complementary planting lane.
+	dm._fan(c, point, 3, PI, 0.35, 108.0 * scale, tint, shape, {"arming_time": 1.2, "radius": 3.5 * scale, "damage": damage})
+
+static func accompany_finale(dm: RefCounted, c: Dictionary) -> void:
+	if int(c.card.finale_move) != 0: return
+	var game: Control = dm.game
+	if game.active_rows.is_empty(): return
+	var scale := minf(1.0, minf(game.CELL_SIZE.x / 100.0, game.CELL_SIZE.y / 110.0))
+	_cross_lane(dm, c, Vector2(c.center), scale, GREEN, "hina_ofuda", 28.0)
 
 static func _pain_ring(dm: RefCounted, c: Dictionary, center: Vector2, scale: float, exiled: bool) -> void:
 	var game: Control = dm.game
@@ -79,7 +109,7 @@ static func _pain_ring(dm: RefCounted, c: Dictionary, center: Vector2, scale: fl
 		# a bounded deterministic scatter instead of adding an unseen random aim.
 		dm._ring(c, center, count, PI / 12, 108.0 * scale, tint, shape, {"arming_time": 1.15, "radius": 4.5 * scale, "damage": damage})
 		return
-	count = ceili(count * game.TouhouDifficulty.attack_density(String(c.kind), game.current_level))
+	count = ceili(count * dm._attack_density_for_cast(c))
 	for i in range(count):
 		var wobble := sin(i * 2.39996 + wave * 0.9)
 		var angle := TAU * i / count + PI / 12 + wave * 0.08 + wobble * scatter * 0.34

@@ -67,6 +67,9 @@ func test_reach() -> void:
 	g._ensure_plant_fusion().ultimate(plant, 2, 1)
 	check(float(g.zombies[0].get("corrode_timer", 0)) >= 8, "The burning volley sets the lanes ahead alight")
 	check(float(g.zombies[1].get("corrode_timer", 0)) <= 0 and float(g.zombies[2].get("corrode_timer", 0)) <= 0, "A shooter's flames stay within the three lanes ahead")
+	for player in g.sfx_players:
+		player.stop()
+		player.stream = null
 	g.save_dirty = false
 	g.free()
 
@@ -74,5 +77,7 @@ func test_reach() -> void:
 func _run() -> void:
 	test_catalogue()
 	test_reach()
+	# Let the audio mixer release stopped playback before engine shutdown.
+	await create_timer(0.05).timeout
 	print("Fusion signature ultimates: %d failure(s)" % failures)
 	quit(1 if failures else 0)

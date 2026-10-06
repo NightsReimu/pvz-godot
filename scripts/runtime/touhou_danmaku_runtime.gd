@@ -92,6 +92,12 @@ func cast(boss: Dictionary) -> Dictionary:
 	boss["touhou_cast_duration"] = duration
 	var center = Vector2(float(boss.get("x", game._boss_anchor_x(String(boss.kind)))), game._row_center_y(int(boss.get("row", 2))) - 12.0)
 	var session := {"boss_uid": int(boss.get("uid", -1)), "owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
+	# The full Wind God encounters need sustained pressure against conveyor
+	# fusions. Scope the multiplier to this encounter, including its new cards,
+	# so Hina's incomplete road appearance keeps its authored volleys and clock.
+	if String(boss.kind) in ["minoriko_boss", "hina_boss"] and not bool(boss.get("touhou_road_boss", false)) and not bool(boss.get("touhou_final_preview", false)) and not bool(boss.get("touhou_road_spell", false)):
+		session["autumn_full"] = true
+		session["autumn_density"] = 1.6
 	if String(boss.kind) == "prismriver_boss":
 		session["instrument_points"] = PrismriverTrio.bodies(game, boss).map(func(body): return Vector2(body.position))
 	casts.append(session)
@@ -161,7 +167,10 @@ func _tick(delta: float) -> void:
 			var interval := 0.62
 			if String(session.pattern) in ["qed", "izuna"]:
 				interval = lerpf(0.68, 0.24, float(session.age) / float(session.duration))
-			session.next_wave += interval * Difficulty.attack_cadence(String(session.kind), game.current_level)
+			# Aki/Hina and full-form emitters already assign the next absolute
+			# deadline. Only these full encounters omit the old duplicate delay.
+			if not bool(session.get("autumn_full", false)) or float(session.next_wave) <= float(session.age):
+				session.next_wave += interval * Difficulty.attack_cadence(String(session.kind), game.current_level)
 		if float(session.get("focus_until", 0.0)) > float(session.age):
 			focused_owners[owner] = true
 	_tick_bullets(delta, owners, focused_owners)
@@ -195,12 +204,31 @@ func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: 
 	b.merge(extra, true)
 	b.velocity *= Difficulty.attack_speed(String(c.kind), game.current_level)
 	b.damage *= Difficulty.attack_damage(String(c.kind), game.current_level, int(c.get("phase", 0)))
+	if bool(c.get("autumn_full", false)):
+		# The six-row mobile board can be very wide and shallow. Author these
+		# volleys in grid space, rather than slowing their horizontal crossing
+		# by the short cell height until they expire before reaching plants.
+		var layout := Vector2(maxf(0.01, game.CELL_SIZE.x / 100.0), maxf(0.01, game.CELL_SIZE.y / 110.0))
+		var authored_scale := minf(1.0, minf(layout.x, layout.y))
+		b["autumn_axes"] = layout / authored_scale
+		b.velocity *= Vector2(b.autumn_axes)
 	bullets.append(b)
+
+
+func _attack_density_for_cast(c: Dictionary) -> float:
+	return Difficulty.attack_density(String(c.kind), game.current_level) * float(c.get("autumn_density", 1.0))
+
+func _rotate_bullet_velocity(b: Dictionary, angle: float) -> Vector2:
+	var velocity := Vector2(b.velocity)
+	if b.has("autumn_axes") and not bool(b.get("reflected", false)):
+		var axes := Vector2(b.autumn_axes)
+		return (velocity / axes).rotated(angle) * axes
+	return velocity.rotated(angle)
 
 
 func _fan(c: Dictionary, origin: Vector2, count: int, angle: float, spread: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
 	var centered := count % 2 == 1
-	count = maxi(1, ceili(count * Difficulty.attack_density(String(c.kind), game.current_level)))
+	count = maxi(1, ceili(count * _attack_density_for_cast(c)))
 	# Density scaling must preserve the middle bullet of odd aimed fans.
 	if centered and count % 2 == 0:
 		count -= 1
@@ -210,7 +238,7 @@ func _fan(c: Dictionary, origin: Vector2, count: int, angle: float, spread: floa
 
 
 func _ring(c: Dictionary, origin: Vector2, count: int, rotation: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
-	count = ceili(count * Difficulty.attack_density(String(c.kind), game.current_level))
+	count = ceili(count * _attack_density_for_cast(c))
 	for i in range(count):
 		_bullet(c, origin, rotation + TAU * i / count, speed, color, shape, extra)
 
@@ -257,6 +285,8 @@ func _update_actors(c: Dictionary) -> void:
 func _emit_wave(c: Dictionary) -> void:
 	if c.card.has("finale_move"):
 		FinaleDanmaku.emit(self, c)
+		if bool(c.get("autumn_full", false)) and String(c.kind) == "hina_boss":
+			HinaDanmaku.accompany_finale(self, c)
 		return
 	if String(c.kind) == "hina_boss":
 		HinaDanmaku.emit(self, c)
@@ -779,12 +809,16 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 		var frozen = b.has("freeze_at") and age >= float(b.freeze_at) and age < float(b.thaw_at)
 		if not frozen:
 			if b.has("thaw_at") and age >= float(b.thaw_at) and not bool(b.get("thawed", false)):
-				b.velocity = Vector2(b.velocity).rotated(float(b.get("thaw_angle", 0.0)))
+				b.velocity = _rotate_bullet_velocity(b, float(b.get("thaw_angle", 0.0)))
 				b["thawed"] = true
 			if float(b.get("redirect_at", 0.0)) > 0.0 and age >= float(b.redirect_at) and not bool(b.get("redirected", false)):
-				b.velocity = (Vector2(b.aim_point) - before).normalized() * Vector2(b.velocity).length()
+				if b.has("autumn_axes") and not bool(b.get("reflected", false)):
+					var axes := Vector2(b.autumn_axes)
+					b.velocity = ((Vector2(b.aim_point) - before) / axes).normalized() * (Vector2(b.velocity) / axes).length() * axes
+				else:
+					b.velocity = (Vector2(b.aim_point) - before).normalized() * Vector2(b.velocity).length()
 				b["redirected"] = true
-			b.velocity = Vector2(b.velocity).rotated(float(b.get("angular_speed", 0.0)) * motion_delta)
+			b.velocity = _rotate_bullet_velocity(b, float(b.get("angular_speed", 0.0)) * motion_delta)
 			b.position = before + Vector2(b.velocity) * motion_delta
 		b["frozen"] = frozen
 		var point = Vector2(b.position)

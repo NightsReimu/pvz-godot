@@ -50,8 +50,12 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 			if wave % 3 == 1: dm._fan(c, origin, 5, PI, 1.5, 91.0 * scale, RED, "aki_leaf", {"arming_time": 1.2, "radius": 5.5 * scale, "damage": 27.0})
 			cadence = 1.35
 		"aki_ripening", "aki_offering":
-			# Sparse danmaku leaves room to read and exploit the board mechanic.
-			dm._fan(c, origin, 3, PI + sin(wave) * 0.16, 0.8, 114.0 * scale, GOLD, "aki_grain", {"arming_time": 1.0, "radius": 4.0 * scale, "damage": 24.0})
+			if bool(c.get("autumn_full", false)):
+				# Three staggered furrows alternate parity each wave. The small
+				# grain fans leave the marked harvest squares readable.
+				_field_grains(dm, c, origin, scale)
+			else:
+				dm._fan(c, origin, 3, PI + sin(wave) * 0.16, 0.8, 114.0 * scale, GOLD, "aki_grain", {"arming_time": 1.0, "radius": 4.0 * scale, "damage": 24.0})
 			cadence = 2.3
 		"aki_six_furrows":
 			dm._fan(c, origin, 5, PI + sin(wave * 0.7) * 0.15, 1.20, 115.0 * scale, RED, "aki_leaf", {"arming_time": 1.1, "radius": 4.6 * scale, "angular_speed": 0.08, "damage": 27.0})
@@ -60,6 +64,14 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 			dm._fan(c, origin, 5 + r, PI + sin(wave * 0.8) * 0.24, 1.38, 123.0 * scale, RED if wave % 2 else GOLD, "aki_leaf" if wave % 2 else "aki_grain", {"arming_time": 1.1, "radius": 4.6 * scale, "damage": 30.0})
 			cadence = 1.9
 	c.next_wave = float(c.age) + cadence * game.TouhouDifficulty.attack_cadence(String(c.kind), game.current_level)
+
+static func _field_grains(dm: RefCounted, c: Dictionary, origin: Vector2, scale: float) -> void:
+	var game: Control = dm.game
+	var counts := [3, 2, 1]
+	for branch in range(3):
+		var row := int(game.active_rows[posmod(int(c.stage) + int(c.wave) + branch * 2, game.active_rows.size())])
+		var stalk := Vector2(origin.x, game._row_center_y(row) - 12.0)
+		dm._fan(c, stalk, counts[branch], PI + sin(int(c.wave) * 0.65 + branch) * 0.05, 0.34, 114.0 * scale, GOLD if branch % 2 == 0 else ORANGE, "aki_grain", {"arming_time": 1.0, "radius": 4.0 * scale, "damage": 24.0})
 
 static func draw_leaf(game: Control, center: Vector2, radius: float, angle: float, color: Color) -> void:
 	var outline := PackedVector2Array()

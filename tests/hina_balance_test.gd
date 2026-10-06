@@ -8,6 +8,35 @@ class NativeRouteGame extends PreviewGame:
 	var final_reinforcement_calls := 0
 	var loss_reason := ""
 	var lost_plants := 0
+	var danmaku_damage_scope := 0
+	var finale_danmaku_damage := 0.0
+	var finale_danmaku_hits := 0
+	var finale_danmaku_rows: Dictionary = {}
+	var aki_emergency_enabled := false
+	var paid_seed_spend: Dictionary = {}
+	var paid_seed_counts: Dictionary = {}
+	var emergency_actions: Array = []
+	var risk_samples: Array = []
+	var last_risk_sample := -10.0
+	var breach: Dictionary = {}
+	func _check_zombie_home_entry(zombie: Dictionary) -> bool:
+		var allowed: bool = super._check_zombie_home_entry(zombie)
+		if not allowed and battle_state == BATTLE_LOST:
+			breach = {"time":level_time,"kind":zombie.kind,"fusion_kind":zombie.get("fusion_kind", ""),"row":zombie.row,"x":zombie.x,"health":zombie.health,"flying":zombie.get("balloon_flying", false),"sun":sun_points}
+		return allowed
+	func _damage_plant_cell(row: int, col: int, damage: float, extra_cooldown: float = 0.0, damage_already_scaled: bool = false) -> bool:
+		var plant = _targetable_plant_at(row, col)
+		var before := 0.0
+		if plant != null: before = maxf(0.0, float(plant.get("health", 0.0))) + maxf(0.0, float(plant.get("armor_health", 0.0)))
+		var hit: bool = super._damage_plant_cell(row, col, damage, extra_cooldown, damage_already_scaled)
+		if danmaku_damage_scope > 0 and plant != null:
+			var after := maxf(0.0, float(plant.get("health", 0.0))) + maxf(0.0, float(plant.get("armor_health", 0.0)))
+			var removed := maxf(0.0, before - after)
+			if removed > 0.0:
+				finale_danmaku_damage += removed
+				finale_danmaku_hits += 1
+				finale_danmaku_rows[row] = true
+		return hit
 	func _remove_dead_plants() -> void:
 		for table in [grid, support_grid]:
 			for row in table:
@@ -30,6 +59,27 @@ class NativeRouteGame extends PreviewGame:
 		var variant: String = super._campaign_fusion_variant(kind)
 		if variant != kind: generated_fusions += 1
 		return variant
+
+
+class ObservedDanmaku extends GameScript.TouhouDanmakuRuntime:
+	var finale_bullets_emitted := 0
+	var finale_bullets_blocked := 0
+	var peak_bullets := 0
+	func _complete_owner(owner: int) -> bool:
+		return game.zombies.any(func(z): return int(z.get("touhou_owner", -1)) == owner and String(z.kind) in ["minoriko_boss", "hina_boss"] and game._is_stage_ending_boss(z))
+	func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
+		var before: int = bullets.size()
+		super._bullet(c, origin, angle, speed, color, shape, extra)
+		peak_bullets = maxi(peak_bullets, bullets.size())
+		if _complete_owner(int(c.owner)):
+			if bullets.size() > before: finale_bullets_emitted += 1
+			else: finale_bullets_blocked += 1
+	func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float, hit_cells: Array, stop_at_first: bool = true) -> bool:
+		var complete: bool = game.zombies.any(func(z): return float(z.health) > 0.0 and String(z.kind) in ["minoriko_boss", "hina_boss"] and game._is_stage_ending_boss(z))
+		if complete: game.danmaku_damage_scope += 1
+		var hit: bool = super._hit_plant_segment(from, to, radius, damage, hit_cells, stop_at_first)
+		if complete: game.danmaku_damage_scope -= 1
+		return hit
 
 func _run() -> void:
 	var arguments: PackedStringArray = OS.get_cmdline_user_args()
@@ -143,6 +193,11 @@ func _test_conveyor_route(base: Dictionary, choice: String = "easy") -> void:
 	game.rng.seed = 906
 	var level: Dictionary = game.TouhouDifficulty.build_level(base, choice)
 	game._begin_level(-1, _manual_cards(level) if choice == "lunatic" else [], level)
+	game.aki_emergency_enabled = base.id == "4-19" and choice == "lunatic" and OS.get_cmdline_user_args().has("--aki-emergency")
+	if game.aki_emergency_enabled:
+		print("Explicit Aki emergency policy: selected=%s; native costs cherry=%d cactus=%d blover=%d; seed=906; cap=1200s; unchanged core manual policy" % [game.active_cards, game._endless_cost_for_kind("cherry_bomb"), game._endless_cost_for_kind("cactus"), game._endless_cost_for_kind("blover")])
+	var observed_danmaku := ObservedDanmaku.new(game)
+	game.touhou_danmaku = observed_danmaku
 	game.hide()
 	var plan: Dictionary = game.ZombieBalance.campaign_fusion(game.current_level)
 	if plan.is_empty() or int(plan.get("gate", 0)) < 12 or float(plan.get("chance", 0.0)) < 0.18:
@@ -158,6 +213,7 @@ func _test_conveyor_route(base: Dictionary, choice: String = "easy") -> void:
 	var boss: Dictionary = {}
 	var road: Dictionary = {}
 	var last_progress := 0.0
+	var finale_elapsed := 0.0
 	var road_kind: String = String(level.mid_boss_kind)
 	var finale_kind: String = String(level.events.back().kind)
 	# Start with the actual empty board and its initial belt. Never alter
@@ -168,7 +224,10 @@ func _test_conveyor_route(base: Dictionary, choice: String = "easy") -> void:
 			placements += _auto_manual(game) if choice == "lunatic" else _auto_belt(game)
 			for row in game.active_rows:
 				for col in range(9): game._try_activate_ultimate(row, col)
+		var before_time: float = game.level_time
+		var finale_before := not boss.is_empty() and float(boss.get("health", 0.0)) > 0.0
 		game._process(0.05)
+		if finale_before: finale_elapsed += maxf(0.0, game.level_time - before_time)
 		peak = maxi(peak, game.zombies.size())
 		peak_active = maxi(peak_active, game._active_zombie_count())
 		for z in game.zombies:
@@ -192,6 +251,9 @@ func _test_conveyor_route(base: Dictionary, choice: String = "easy") -> void:
 		failures += 1
 		push_error("The finale must be a fresh, full-strength body after the weak road encounter")
 	print("Stage %s complete %s route: finished=%s, road=%s, finale=%s, %.1fs, real placements=%d, peak enemies=%d, boss health=%.0f, state=%s, campaign replacements=%d, final supports=%d/%d calls, shooters=%s, used mowers=%d, lost plants=%d, peak active=%d, phase=%d/%d, loss=%s" % [base.id, choice.capitalize(), passed, road_seen, finale_seen, game.level_time, placements, peak, float(boss.get("health", -1.0)), game.battle_state, game.generated_fusions, game.final_reinforcements, game.final_reinforcement_calls, _row_attack_counts(game), game.mowers.filter(func(m): return game._is_row_active(int(m.row)) and not bool(m.armed)).size(), game.lost_plants, peak_active, int(boss.get("touhou_encounter", {}).get("index", -1)) + 1, boss.get("touhou_encounter", {}).get("phases", []).size(), game.loss_reason])
+	print("Density %s %s: finale_elapsed=%.1f, emitted=%d, blocked=%d, peak_bullets=%d, effective_hits=%d, effective_damage=%.1f, hit_rows=%s" % [base.id, choice, finale_elapsed, observed_danmaku.finale_bullets_emitted, observed_danmaku.finale_bullets_blocked, observed_danmaku.peak_bullets, game.finale_danmaku_hits, game.finale_danmaku_damage, game.finale_danmaku_rows.keys()])
+	if game.aki_emergency_enabled:
+		print("Emergency resources: %s" % JSON.stringify({"paid_seed_counts":game.paid_seed_counts,"paid_seed_spend":game.paid_seed_spend,"ending_sun":game.sun_points,"actions":game.emergency_actions,"risk_samples":game.risk_samples,"breach":game.breach}))
 	await _release_game(game)
 
 func _row_pressure(game: Control, row: int) -> float:
@@ -278,12 +340,16 @@ func _buy(game: Control, kind: String, cell: Vector2i) -> bool:
 	var before: int = game.sun_points
 	game.selected_tool = kind
 	game._handle_board_click(cell)
+	if game.aki_emergency_enabled and game.sun_points < before:
+		game.paid_seed_spend[kind] = int(game.paid_seed_spend.get(kind, 0)) + before - game.sun_points
+		game.paid_seed_counts[kind] = int(game.paid_seed_counts.get(kind, 0)) + 1
 	return game.sun_points < before
 
 func _auto_manual(game: Control) -> int:
 	# Optional full Lunatic probe: buy from an ordinary ten-card selection.
 	# No seed, sunshine, recharge or damage is manufactured by this policy.
 	var placements := 0
+	if game.aki_emergency_enabled: placements += _aki_emergency(game)
 	var sunflower_count := 0
 	for row in game.grid:
 		for plant in row:
@@ -314,6 +380,77 @@ func _auto_manual(game: Control) -> int:
 		var melon = game.grid[row][5]
 		if melon != null and not game._plant_has_component(melon, "jasmine_tea") and _buy(game, "jasmine_tea", Vector2i(row, 5)): placements += 1
 	return placements
+
+func _aki_emergency(game: Control) -> int:
+	# Opt-in diagnostic policy. The historical control never calls this path.
+	# Every action goes through _buy: actual selected seed, sun, cooldown and
+	# board-click placement/fusion; no direct plant, charge or damage mutation.
+	var threats: Array = []
+	var balloons: Array = []
+	for z in game.zombies:
+		if float(z.health) <= 0.0 or not game._is_enemy_zombie(z) or game._is_boss_kind(String(z.kind)) or bool(game.Defs.ZOMBIES.get(String(z.kind), {}).get("boss_summon", false)): continue
+		if bool(z.get("balloon_flying", false)): balloons.append(z)
+		if float(z.x) < game.BOARD_ORIGIN.x + game.CELL_SIZE.x * 5.0: threats.append(z)
+	if game.level_time >= game.last_risk_sample + 10.0 and (not threats.is_empty() or not balloons.is_empty()):
+		game.last_risk_sample = game.level_time
+		var snapshot := {"time":game.level_time,"sun":game.sun_points,"threats":[],"balloons":balloons.size(),"cooldowns":{}}
+		for z in threats: snapshot.threats.append({"kind":z.kind,"row":z.row,"x":z.x,"health":z.health,"flying":z.get("balloon_flying", false)})
+		for kind in ["cherry_bomb", "cactus", "blover"]: snapshot.cooldowns[kind] = game.card_cooldowns.get(kind, 0.0)
+		game.risk_samples.append(snapshot)
+	var placed := 0
+	# Balloon zombies bypass the ordinary pea/melon defense. A real cactus
+	# graft preserves the host's lane and supplies native anti-air capability.
+	for z in balloons:
+		var row := int(z.row)
+		var defended := false
+		for plant in game.grid[row]:
+			if plant != null and game._plant_has_component(plant, "cactus"): defended = true
+		if defended: continue
+		for col in [2, 3, 5, 1, 0, 4, 8]:
+			var plant = game.grid[row][col]
+			if plant != null and game._ensure_plant_fusion().candidate("cactus", row, col).is_empty(): continue
+			if _emergency_buy(game, "cactus", Vector2i(row, col), "native anti-air for %s" % String(z.kind)): placed += 1; break
+	# Normal blover removes actual flying balloons globally after its own
+	# native fuse. It is not used as a free knockback or charged ultimate.
+	if not balloons.is_empty():
+		var done := false
+		for row in game.active_rows:
+			for col in [8, 7, 6, 1, 0]:
+				if game.grid[row][col] != null: continue
+				if _emergency_buy(game, "blover", Vector2i(row, col), "%d actual flying balloons" % balloons.size()): placed += 1; done = true; break
+			if done: break
+	# Prefer a real empty cell whose native 3x3 blast covers advancing units.
+	# If every such cell is occupied, a legitimate ash fusion remains legal.
+	if not threats.is_empty():
+		var best := Vector2i(-1, -1)
+		var best_score := 0.0
+		for row in game.active_rows:
+			for col in range(9):
+				if game.grid[row][col] != null or game._placement_error("cherry_bomb", row, col) != "": continue
+				var score := 0.0
+				for z in threats:
+					if game._zombie_in_rect(z, game._plant_square_rect(row, col, 3)): score += 1.0 + maxf(0.0, 5.0 - (float(z.x) - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x)
+				if score > best_score: best_score = score; best = Vector2i(row, col)
+		if best.x < 0:
+			for z in threats:
+				var row := int(z.row)
+				for col in [2, 3, 5, 1, 0, 4, 6]:
+					if game.grid[row][col] == null or game._ensure_plant_fusion().candidate("cherry_bomb", row, col).is_empty(): continue
+					if game._placement_error("cherry_bomb", row, col) == "": best = Vector2i(row, col); break
+				if best.x >= 0: break
+		if best.x >= 0 and _emergency_buy(game, "cherry_bomb", best, "%d advancing ordinary units" % threats.size()): placed += 1
+	return placed
+
+func _emergency_buy(game: Control, kind: String, cell: Vector2i, reason: String) -> bool:
+	var before: int = game.sun_points
+	var cooldown: float = float(game.card_cooldowns.get(kind, 0.0))
+	var host = game.grid[cell.x][cell.y]
+	var host_kind := "" if host == null else String(host.get("fusion_kind", host.kind))
+	if not _buy(game, kind, cell): return false
+	var action := {"time":game.level_time,"kind":kind,"cell":[cell.x,cell.y],"host":host_kind,"reason":reason,"sun_before":before,"sun_after":game.sun_points,"cost":before-game.sun_points,"cooldown_before":cooldown,"cooldown_after":game.card_cooldowns.get(kind, 0.0)}
+	game.emergency_actions.append(action)
+	print("Paid emergency: %s" % JSON.stringify(action))
+	return true
 
 func _release_game(game: Control) -> void:
 	game._stop_bgm()
