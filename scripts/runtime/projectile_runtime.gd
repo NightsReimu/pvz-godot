@@ -450,6 +450,9 @@ func apply_torchwood_to_projectile(projectile: Dictionary) -> Dictionary:
 		var plant_variant = game.grid[row][col]
 		if plant_variant == null or not game._plant_has_component(plant_variant,"torchwood"):
 			continue
+		# Nitori's water cannon douses a soaked torchwood until it dries.
+		if game.nitori_runtime != null and game.nitori_runtime.doused(row, col):
+			continue
 		var center_x = game._cell_center(row, col).x
 		var projectile_x = float(Vector2(projectile["position"]).x)
 		var previous_x: float = Vector2(projectile.get("previous_position",projectile.position)).x

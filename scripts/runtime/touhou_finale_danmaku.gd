@@ -232,6 +232,19 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 					dm._fan(c, origin, 3, arm * TAU / 7 + wave * 0.17, 0.15, 108 * scale, GREEN, "hina_ofuda", _extra(common, {"angular_speed": 0.17}))
 			else:
 				for side in [-1, 1]: dm._ring(c, origin + Vector2(-35, side * 43) * scale, 12, wave * 0.24 * side, 101 * scale, GREEN if side < 0 else RED, "hina_doll", _extra(common, {"angular_speed": -side * 0.22, "freeze_at": 0.0, "thaw_at": 1.2 if side < 0 else 1.45}))
+		"nitori_boss":
+			if move == 0:
+				# A six-paddle water wheel; the missing paddle walks around each turn.
+				for paddle in range(6):
+					if paddle == wave % 6: continue
+					dm._fan(c, origin, 3, paddle * TAU / 6 + wave * 0.21, 0.14, 104 * scale, BLUE, "nitori_drop", _extra(common, {"angular_speed": 0.19}))
+				dm._ring(c, origin, 6, -wave * 0.3, 70 * scale, Color("dff6ff"), "nitori_bubble", _extra(common, {"radius": 5.0 * scale}))
+			else:
+				# Rain columns pour back down the riverbed while two lanes surge.
+				for k in range(4):
+					var top: Vector2 = dm._point(0.28 + fposmod(wave * 0.13 + k * 0.19, 0.68), 0.0) + Vector2(0, -6)
+					dm._fan(c, top, 3, PI / 2 + 0.25, 0.18, 92 * scale, BLUE, "nitori_drop", common)
+				for lane in [row, other]: dm._fan(c, _lane(dm, lane), 5, PI, 0.42, 118 * scale, Color("3a9ad6"), "nitori_drop", _extra(common, {"freeze_at": 0.0, "thaw_at": 1.15 if lane == row else 1.4}))
 	c.next_wave = float(c.age) + maxf(1.1, cadence * g.TouhouDifficulty.attack_cadence(kind, g.current_level))
 
 static func _extra(base: Dictionary, fields: Dictionary) -> Dictionary:

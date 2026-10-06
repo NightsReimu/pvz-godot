@@ -44,12 +44,19 @@ static func start(boss: Dictionary, level: Dictionary) -> void:
 			boss["touhou_road_spell"] = true
 		if String(boss.kind) == "eirin_boss":
 			phases = [[Spells.Eirin.road_card(level)]]
+		if String(boss.kind) == "nitori_boss":
+			# TH10 3: she first harries from optical camouflage, then declares.
+			phases = Spells.Nitori.road_phases(level)
+			boss["touhou_road_spell"] = true
+			boss["nitori_camouflaged"] = true
 	if String(boss.kind) == String(level.get("mid_boss_kind", "")) and bool(level.get("mid_boss_nonspell_only", false)):
 		# Different-character roads retain their authored nonspell identity.
 		phases = [[phases[0][0].duplicate(true)]]
 		boss["touhou_road_nonspell"] = true
 	boss["touhou_encounter"] = {"phases": phases, "index": 0, "attack": 0, "completed": 0, "casting": false, "depleted": false, "complete": false}
 	boss["boss_skill_timer"] = 3.2 if bool(boss.get("touhou_road_spell", false)) else 1.6
+	if String(boss.kind) == "nitori_boss" and bool(boss.get("touhou_final_preview", false)):
+		boss["boss_skill_timer"] = 1.4
 	_set_bounds(boss)
 
 
@@ -121,6 +128,8 @@ static func update_progress(game: Control, boss: Dictionary) -> bool:
 		game.aki_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) == "suika_boss" and game.suika_runtime != null:
 		game.suika_runtime.clear_owner(int(boss.uid))
+	if String(boss.kind) == "nitori_boss" and game.nitori_runtime != null:
+		game.nitori_runtime.clear_owner(int(boss.uid))
 	if game.touhou_danmaku != null and boss.has("touhou_owner"):
 		game.touhou_danmaku.clear_owner(int(boss.touhou_owner))
 	if int(encounter.index) + 1 >= encounter.phases.size():

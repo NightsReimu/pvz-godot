@@ -7,6 +7,7 @@ const SpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const HinaDanmaku = preload("res://scripts/runtime/hina_danmaku.gd")
+const NitoriDanmaku = preload("res://scripts/runtime/nitori_danmaku.gd")
 const AkiDanmaku = preload("res://scripts/runtime/aki_danmaku.gd")
 const SuikaDanmaku = preload("res://scripts/runtime/suika_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
@@ -66,7 +67,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	clear_owner(owner)
 	var pattern = String(card.pattern)
 	var duration := 3.4
-	if String(boss.kind) in ["hina_boss", "shizuha_boss", "minoriko_boss", "suika_boss", "reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
+	if String(boss.kind) in ["hina_boss", "nitori_boss", "shizuha_boss", "minoriko_boss", "suika_boss", "reimu_boss", "marisa_boss", "reisen_boss", "eirin_boss", "kaguya_boss"]:
 		duration = float(card.get("duration", 4.8))
 	if String(boss.kind) in ["hakutaku_boss", "mokou_boss"]:
 		duration = float(card.get("duration", 6.0))
@@ -74,6 +75,9 @@ func cast(boss: Dictionary) -> Dictionary:
 		duration = float(card.duration)
 	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
 		duration = 2.2
+	if card.has("camouflage_duration"):
+		# Nitori's road harries from camouflage for several volleys before declaring.
+		duration = float(card.camouflage_duration)
 	if pattern == "pressure_lunar_domain":
 		# A full crossing, portal warning and return must play even under burst damage.
 		duration = 9.0
@@ -95,9 +99,9 @@ func cast(boss: Dictionary) -> Dictionary:
 	# The full Wind God encounters need sustained pressure against conveyor
 	# fusions. Scope the multiplier to this encounter, including its new cards,
 	# so Hina's incomplete road appearance keeps its authored volleys and clock.
-	if String(boss.kind) in ["minoriko_boss", "hina_boss"] and not bool(boss.get("touhou_road_boss", false)) and not bool(boss.get("touhou_final_preview", false)) and not bool(boss.get("touhou_road_spell", false)):
+	if String(boss.kind) in ["minoriko_boss", "hina_boss", "nitori_boss"] and not bool(boss.get("touhou_road_boss", false)) and not bool(boss.get("touhou_final_preview", false)) and not bool(boss.get("touhou_road_spell", false)):
 		session["autumn_full"] = true
-		session["autumn_density"] = 1.6
+		session["autumn_density"] = 1.25 if String(boss.kind) == "nitori_boss" else 1.6
 	if String(boss.kind) == "prismriver_boss":
 		session["instrument_points"] = PrismriverTrio.bodies(game, boss).map(func(body): return Vector2(body.position))
 	casts.append(session)
@@ -290,6 +294,9 @@ func _emit_wave(c: Dictionary) -> void:
 		return
 	if String(c.kind) == "hina_boss":
 		HinaDanmaku.emit(self, c)
+		return
+	if String(c.kind) == "nitori_boss":
+		NitoriDanmaku.emit(self, c)
 		return
 	if String(c.kind) in ["shizuha_boss", "minoriko_boss"]:
 		AkiDanmaku.emit(self, c)
@@ -1029,6 +1036,9 @@ func draw() -> void:
 			continue
 		if String(b.shape).begins_with("hina_"):
 			HinaDanmaku.draw_bullet(game, b)
+			continue
+		if String(b.shape).begins_with("nitori_"):
+			NitoriDanmaku.draw_bullet(game, b)
 			continue
 		if String(b.shape) in ["aki_leaf", "aki_grain", "aki_potato"]:
 			AkiDanmaku.draw_bullet(game, b)

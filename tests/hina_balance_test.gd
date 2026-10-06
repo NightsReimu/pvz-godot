@@ -66,7 +66,7 @@ class ObservedDanmaku extends GameScript.TouhouDanmakuRuntime:
 	var finale_bullets_blocked := 0
 	var peak_bullets := 0
 	func _complete_owner(owner: int) -> bool:
-		return game.zombies.any(func(z): return int(z.get("touhou_owner", -1)) == owner and String(z.kind) in ["minoriko_boss", "hina_boss"] and game._is_stage_ending_boss(z))
+		return game.zombies.any(func(z): return int(z.get("touhou_owner", -1)) == owner and String(z.kind) in ["minoriko_boss", "hina_boss", "nitori_boss"] and game._is_stage_ending_boss(z))
 	func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: Color, shape: String = "orb", extra: Dictionary = {}) -> void:
 		var before: int = bullets.size()
 		super._bullet(c, origin, angle, speed, color, shape, extra)
@@ -75,7 +75,7 @@ class ObservedDanmaku extends GameScript.TouhouDanmakuRuntime:
 			if bullets.size() > before: finale_bullets_emitted += 1
 			else: finale_bullets_blocked += 1
 	func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float, hit_cells: Array, stop_at_first: bool = true) -> bool:
-		var complete: bool = game.zombies.any(func(z): return float(z.health) > 0.0 and String(z.kind) in ["minoriko_boss", "hina_boss"] and game._is_stage_ending_boss(z))
+		var complete: bool = game.zombies.any(func(z): return float(z.health) > 0.0 and String(z.kind) in ["minoriko_boss", "hina_boss", "nitori_boss"] and game._is_stage_ending_boss(z))
 		if complete: game.danmaku_damage_scope += 1
 		var hit: bool = super._hit_plant_segment(from, to, radius, damage, hit_cells, stop_at_first)
 		if complete: game.danmaku_damage_scope -= 1

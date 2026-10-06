@@ -36,6 +36,7 @@ const THEMES := {
 	"shizuha_boss": ["leaves", "叶垄「层层染红的六畦秋枝」", "红庭「错向盘旋的枫叶窗」", "秋步「逐行落定的赤叶桥」"],
 	"minoriko_boss": ["harvest", "穗阵「金穗红叶的交替丰收」", "秋庭「三垄回响的大年穗环」"],
 	"hina_boss": ["spin", "厄垄「留隙转动的七轮纸偶」", "流庭「错向释放的厄神双环」"],
+	"nitori_boss": ["waterfall", "水车「留出一格的六轮河童水车」", "雨垄「瀑布倒灌的雨后河道」"],
 }
 
 static func is_road_definition(kind: String, level: Dictionary) -> bool:

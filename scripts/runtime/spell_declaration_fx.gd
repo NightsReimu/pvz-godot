@@ -35,6 +35,7 @@ const THEMES := {
 	"mystia_boss": [Color("edb6e3"), "note"],
 	"keine_boss": [Color("a5e5e8"), "ofuda"],
 	"suika_boss": [Color("f2b072"), "diamond"],
+	"nitori_boss": [Color("6fd3f2"), "drop"],
 }
 
 
@@ -89,6 +90,16 @@ static func glyph(canvas: CanvasItem, center: Vector2, radius: float, kind: Stri
 		for i in range(3):
 			var spoke := Vector2.from_angle(angle + i * PI / 3.0) * radius
 			canvas.draw_line(center - spoke, center + spoke, color, 1.6, true)
+	elif kind == "drop":
+		var points := PackedVector2Array()
+		for i in range(16):
+			var t := TAU * i / 16.0
+			var swell := 1.0 - 0.55 * maxf(0.0, cos(t))
+			points.append(center + (axis * cos(t) * radius * 1.15 + side * sin(t) * radius * 0.62 * swell))
+		canvas.draw_colored_polygon(points, Color(color, color.a * 0.22))
+		points.append(points[0])
+		canvas.draw_polyline(points, color, 1.6, true)
+		canvas.draw_circle(center - axis * radius * 0.25 + side * radius * 0.2, radius * 0.16, Color(1, 1, 1, color.a))
 	elif kind == "note":
 		canvas.draw_circle(center, radius * 0.4, color, true, -1, true)
 		canvas.draw_line(center + side * radius * 0.3, center + side * radius * 0.3 - axis * radius * 1.7, color, 2, true)

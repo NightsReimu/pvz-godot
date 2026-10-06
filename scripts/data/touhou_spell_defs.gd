@@ -10,6 +10,7 @@ const Eirin = preload("res://scripts/data/eirin_spell_defs.gd")
 const Mokou = preload("res://scripts/data/mokou_spell_defs.gd")
 const Aki = preload("res://scripts/data/aki_spell_defs.gd")
 const Hina = preload("res://scripts/data/hina_spell_defs.gd")
+const Nitori = preload("res://scripts/data/nitori_spell_defs.gd")
 const Suika = preload("res://scripts/data/suika_spell_defs.gd")
 const Kaguya = preload("res://scripts/data/kaguya_spell_defs.gd")
 
@@ -215,6 +216,7 @@ static func phases_for(kind: String, level: Dictionary = {}) -> Array:
 
 static func _authored_phases_for(kind: String, level: Dictionary = {}) -> Array:
 	if kind == "hina_boss": return Hina.phases(kind, level)
+	if kind == "nitori_boss": return Nitori.phases(kind, level)
 	if kind in ["shizuha_boss", "minoriko_boss"]: return Aki.phases(kind, level)
 	if kind == "suika_boss": return Suika.phases(level)
 	if kind in ["hakutaku_boss", "mokou_boss"]:
@@ -251,6 +253,7 @@ static func card_from_entry(entry: Array) -> Dictionary:
 
 static func cards_for(kind: String, level: Dictionary = {}) -> Array:
 	if kind == "hina_boss": return Hina.cards(kind, level)
+	if kind == "nitori_boss": return Nitori.cards(kind, level)
 	if kind in ["shizuha_boss", "minoriko_boss"]: return Aki.cards(kind, level)
 	if kind == "suika_boss": return Suika.cards(level)
 	if kind == "prismriver_boss":

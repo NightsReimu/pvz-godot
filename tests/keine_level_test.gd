@@ -39,6 +39,7 @@ func _initialize() -> void:
 			canonical.append(entry[0])
 	assert(canonical == ["th08-037", "th08-041", "th08-045", "th08-049", "th08-052"])
 	assert(originals == 3)
-	assert(Spells.phase_count("keine_boss", stage) == 5)
+	# v1.0.175 adds two original finale formations before the Last Spell.
+	assert(Spells.phase_count("keine_boss", stage) == 7)
 	print("Keine level and canonical spell contracts passed")
 	quit()

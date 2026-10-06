@@ -3,10 +3,12 @@ extends RefCounted
 # One opaque idle silhouette calibration per character; never rescale each pose.
 # Height excludes transparent canvas padding and faint spell glows.
 const HinaSpriteDefs = preload("res://scripts/data/hina_sprite_defs.gd")
+const NitoriSpriteDefs = preload("res://scripts/data/nitori_sprite_defs.gd")
 
 const BODY_HEIGHT := 180.0
 const IDLE_HEIGHTS := {
 	"hina_boss": 233.0,
+	"nitori_boss": 233.0,
 	"shizuha_boss": 241.0,
 	"minoriko_boss": 242.0,
 	"suika_boss": 255.0,
@@ -43,6 +45,7 @@ const IDLE_HEIGHTS := {
 
 const IDLE_BOTTOM := {
 	"hina_boss": 319.0,
+	"nitori_boss": 319.0,
 	"shizuha_boss": 320.0,
 	"minoriko_boss": 320.0,
 	"suika_boss": 319.0,
@@ -81,6 +84,7 @@ const IDLE_BOTTOM := {
 # inbetweens of eight interchangeable poses. Keep reactions out of spell casts.
 const SCARLET_ANIMATIONS := {
 	"hina_boss": HinaSpriteDefs.ACTIONS,
+	"nitori_boss": NitoriSpriteDefs.ACTIONS,
 	"shizuha_boss": {
 		"idle": [0, 1, 2, 1], "walk": [3, 4, 5, 4],
 		"shot": [6, 7, 8, 7], "leaf": [6, 7, 8, 7],
