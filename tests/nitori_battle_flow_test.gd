@@ -118,6 +118,10 @@ func _test_counters(game: Control, boss: Dictionary, rank: int) -> void:
 			game.grid[row][col] = null
 	# Water cannon: damage and soak, the umbrella shelter and both cleanses.
 	game.grid[4][2] = game._create_plant("repeater", 4, 2)
+	# This fixture isolates soaking/cleansing, with enough HP to survive the
+	# strengthened cannon on all four difficulties; real damage has its own suite.
+	game.grid[4][2].health = 2000.0
+	game.grid[4][2].max_health = 2000.0
 	game.grid[4][6] = game._create_plant("wallnut", 4, 6)
 	game.grid[1][3] = game._create_plant("repeater", 1, 3)
 	game.grid[0][3] = game._create_plant("umbrella_leaf", 0, 3)

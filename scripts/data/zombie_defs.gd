@@ -2,16 +2,16 @@ extends RefCounted
 class_name ZombieDefs
 
 const ZOMBIES: Dictionary = {
-	"hina_boss": {"name": "键山雏", "health": 24000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 480, "skill_interval_base": 9.0, "skill_interval_min": 7.5, "reinforcement_interval_base": 11.0, "reinforcement_interval_min": 8.0, "almanac": ["收集厄运的厄神，4-20道中与终末Boss。道中是弱化的单张符卡，终末有6/7/8/9个符卡阶段。", "旋转积厄、破裂护符、厄运之轮与流放人偶来自《风神录》二面。原创青印会使苗圃迟发或每第三发子弹失准；本行大招可净化。击破厄运人偶清行并反击附近普通敌人。"]},
-	"nitori_boss": {"name": "河城荷取", "health": 22000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 520, "skill_interval_base": 9.0, "skill_interval_min": 7.2, "reinforcement_interval_base": 10.5, "reinforcement_interval_min": 7.5, "almanac": ["玄武之泽的河童工程师，4-21道中与终末Boss。道中先在光学迷彩中偷袭，再宣告光学「光学迷彩」/「水迷彩」；终末有6/7/8/9个符卡阶段。", "洪水、水符、河童三组符卡按《风神录》三面难度变化。光学迷彩时未被路灯花等显形植物照亮只受七成伤害；原创迷彩突击队、黄瓜诱饵与高压水炮（会浇灭火炬树桩）可被路灯花、叶子保护伞和本行大招克制。"]},
+	"hina_boss": {"name": "键山雏", "health": 24000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 480, "skill_interval_base": 9.0, "skill_interval_min": 7.5, "reinforcement_interval_base": 11.0, "reinforcement_interval_min": 8.0, "almanac": ["收集厄运的厄神，4-20道中与终末Boss。道中是弱化的单张符卡，终末有6/7/8/9个符卡阶段。", "旋转积厄、破裂护符、厄运之轮与流放人偶来自《风神录》二面。青印符卡会使苗圃迟发或每第三发子弹失准；本行大招可净化。击破厄运人偶清行并反击附近普通敌人。"]},
+	"nitori_boss": {"name": "河城荷取", "health": 22000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 520, "skill_interval_base": 9.0, "skill_interval_min": 7.2, "reinforcement_interval_base": 10.5, "reinforcement_interval_min": 7.5, "almanac": ["玄武之泽的河童工程师，4-21道中与终末Boss。道中先在光学迷彩中偷袭，再宣告光学「光学迷彩」/「水迷彩」；终末有6/7/8/9个符卡阶段。", "洪水、水符、河童三组符卡按《风神录》三面难度变化。光学迷彩时未被路灯花等显形植物照亮只受七成伤害；迷彩突击队、黄瓜诱饵与高压水炮（会浇灭火炬树桩）可被路灯花、叶子保护伞和本行大招克制。"]},
 	"nitori_cucumber": {"name": "河童的大黄瓜", "health": 320.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "balance_fixed": true, "non_mainline_special": true, "almanac": ["荷取插在田垄上的黄瓜诱饵，会吸引本行植物的火力，最多同时4根。", "被植物击碎返15阳光一次；若被僵尸先啃到，该僵尸回复五分之一生命并在6秒内减伤。过期或符卡结束消散不奖励。"]},
 	"hina_misfortune_doll": {"name": "流雏厄运人偶", "health": 360.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "balance_fixed": true, "non_mainline_special": true, "almanac": ["键山雏收集厄运的实体人偶，青圈预警后出现，最多同时3个。", "可被普通或融合攻击击破；清除本行厄印，反击附近普通敌人并返25阳光一次。过期或符卡结束消散不奖励。"]},
 	"shizuha_boss": {"name": "秋静叶", "health": 9600.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 120, "skill_interval_base": 8.0, "skill_interval_min": 7.0, "reinforcement_interval_base": 11.0, "reinforcement_interval_min": 9.0, "almanac": ["掌管红叶的秋神，4-19的弱化道中Boss。E/N为非符，H/L展开《风神录》叶符「狂乱的落叶」。", "飘落的红叶化成缓弧弹幕。六行都是旱地，保留生命与大招迎接秋穰子的丰收祭。"]},
-	"minoriko_boss": {"name": "秋穰子", "health": 22000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 450, "skill_interval_base": 9.2, "skill_interval_min": 8.0, "reinforcement_interval_base": 10.0, "reinforcement_interval_min": 7.0, "almanac": ["掌管丰穰的秋神，4-19终末Boss。原作秋空与丰收符卡随难度变化，终末有5/6/7/8个符卡阶段。", "原创催熟田垄加快植物行动，红圈预警后收割；本行大招清除。可打破的阳光贡仓治疗附近普通僵尸，击败返25阳光；阶段结束与过期不会返还。"]},
+	"minoriko_boss": {"name": "秋穰子", "health": 22000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 450, "skill_interval_base": 9.2, "skill_interval_min": 8.0, "reinforcement_interval_base": 10.0, "reinforcement_interval_min": 7.0, "almanac": ["掌管丰穰的秋神，4-19终末Boss。原作秋空与丰收符卡随难度变化，终末有5/6/7/8个符卡阶段。", "催熟田垄符卡加快植物行动，红圈预警后收割；本行大招清除。可打破的阳光贡仓治疗附近普通僵尸，击败返25阳光；阶段结束与过期不会返还。"]},
 	"aki_harvest_basket": {"name": "秋日阳光贡仓", "health": 320.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["秋穰子的实体丰收贡仓，每4秒有限治疗本行及相邻行附近的普通僵尸。", "可以用普通、融合子弹和灰烬击破，返25阳光一次。最多3个，随主人退场或符卡结束消散。"]},
-	"suika_boss": {"name": "伊吹萃香", "health": 19600.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 450, "skill_interval_base": 8.8, "skill_interval_phase_scale": 0.45, "skill_interval_min": 7.0, "reinforcement_interval_base": 9.0, "reinforcement_interval_phase_scale": 0.6, "reinforcement_interval_min": 6.4, "almanac": ["伊吹萃香：操纵密与疏、嗜酒而力大的鬼。《东方萃梦想》六张故事符卡按原名展开，终末为「百万鬼夜行」。", "原创伊吹瓢酒河预警后拖慢本行植物；茶与牛奶保护附近，大招清本行。萃豆酒仓会吸收普通豌豆，可先打碎。道中是弱化非符，终末满血登场，战斗期间仍有僵尸增援。"]},
+	"suika_boss": {"name": "伊吹萃香", "health": 19600.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 450, "skill_interval_base": 8.8, "skill_interval_phase_scale": 0.45, "skill_interval_min": 7.0, "reinforcement_interval_base": 9.0, "reinforcement_interval_phase_scale": 0.6, "reinforcement_interval_min": 6.4, "almanac": ["伊吹萃香：操纵密与疏、嗜酒而力大的鬼。《东方萃梦想》六张故事符卡按原名展开，终末为「百万鬼夜行」。", "伊吹瓢酒河符卡预警后拖慢本行植物；茶与牛奶保护附近，大招清本行。萃豆酒仓会吸收普通豌豆，可先打碎。道中是弱化非符，终末满血登场，战斗期间仍有僵尸增援。"]},
 	"suika_mini": {"name": "小小萃香", "boss_frames": "suika_boss", "health": 230.0, "speed": 29.0, "attack_dps": 20.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["萃香借疏密操纵分出的有实体小鬼，能被植物和小推车击败。", "小鬼在符卡阶段结束或主人退场时消散。"]},
-	"suika_knot": {"name": "萃豆酒仓", "health": 420.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["本作原创的可破坏密度酒仓，只在萃香的萃豆符中出现。", "聚豆上限8颗；投射物与大招可直接破坏酒仓，破坏后不会反击。"]},
+	"suika_knot": {"name": "萃豆酒仓", "health": 420.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true, "almanac": ["本作的可破坏密度酒仓，只在萃香的萃豆符中出现。", "聚豆上限8颗；投射物与大招可直接破坏酒仓，破坏后不会反击。"]},
 	"ancient_samurai": {
 		"name": "古代武士僵尸", "balance_fixed": true, "health": 1200.0, "speed": 14.0, "attack_dps": 120.0,
 		"reward": 60, "shield_health": 900.0, "ancient_expansion": true,
@@ -532,13 +532,13 @@ const ZOMBIES: Dictionary = {
 		"name": "因幡帝", "health": 4800.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 300,
 		"skill_cycle_length": 4, "skill_interval_base": 5.8, "skill_interval_phase_scale": 0.4, "skill_interval_min": 3.1,
 		"reinforcement_interval_base": 4.5, "reinforcement_interval_phase_scale": 0.32, "reinforcement_interval_min": 2.8,
-		"almanac": ["永夜抄五面道中。交替释放环弹与扇弹，击破后才开放铃仙终末。", "原创幸运兔脚：一只小怪获得 2.5 秒的 30% 普通攻击减伤；减速攻击或无视护盾攻击可穿过，帝退场后清除。"],
+		"almanac": ["永夜抄五面道中。交替释放环弹与扇弹，击破后才开放铃仙终末。", "幸运兔脚：一只小怪获得 2.5 秒的 30% 普通攻击减伤；减速攻击或无视护盾攻击可穿过，帝退场后清除。"],
 	},
 	"eirin_boss": {
 		"name": "八意永琳", "health": 42000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 850,
 		"skill_interval_base": 4.8, "skill_interval_phase_scale": 0.3, "skill_interval_min": 2.8,
 		"reinforcement_interval_base": 4.8, "reinforcement_interval_phase_scale": 0.35, "reinforcement_interval_min": 2.6,
-		"almanac": ["永夜抄六面A。道中为「壶中的天地」，生命为终末的12%，击破后才会离开回廊。终末依次展开神代记忆、生命游戏、思兼、Apollo 13、天文密葬法与蓬莱之药。", "原创世界切换：水、岩浆、屋顶格提前2秒预警，10秒后恢复。Normal追加狂暴药剂，Hard追加禁疗，Lunatic追加万象临床。药瓶可被击破以解除对应效果。"],
+		"almanac": ["永夜抄六面A。道中为「壶中的天地」，生命为终末的12%，击破后才会离开回廊。终末依次展开神代记忆、生命游戏、思兼、Apollo 13、天文密葬法与蓬莱之药。", "世界切换：水、岩浆、屋顶格提前2秒预警，10秒后恢复。Normal追加狂暴药剂，Hard追加禁疗，Lunatic追加万象临床。药瓶可被击破以解除对应效果。"],
 	},
 	"hakutaku_boss": {
 		"name": "上白泽慧音（半兽）", "health": 9600.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 240,
@@ -548,7 +548,7 @@ const ZOMBIES: Dictionary = {
 	"mokou_boss": {
 		"name": "藤原妹红", "health": 52000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 1000,
 		"skill_interval_base": 4.8, "skill_interval_min": 3.0, "reinforcement_interval_base": 7.0, "reinforcement_interval_min": 5.0,
-		"almanac": ["永夜抄EX终末。十一张原作符卡按顺序展开，凤凭依与Imperishable Shooting为限时生存；最终符在本作中必定出现。", "原创烈焰乒乓：随机侧发球，红线预告每次穿越，可用镜芦苇反弹或冰弹熄灭。余烬格预警后灼烧，冰系弹丸与寒冰菇可扑灭。EX+增加双球连打与留有安全中心的涅槃火圈。"],
+		"almanac": ["永夜抄EX终末。十一张原作符卡按顺序展开，凤凭依与Imperishable Shooting为限时生存；最终符在本作中必定出现。", "烈焰乒乓：随机侧发球，红线预告每次穿越，可用镜芦苇反弹或冰弹熄灭。余烬格预警后灼烧，冰系弹丸与寒冰菇可扑灭。EX+增加双球连打与留有安全中心的涅槃火圈。"],
 	},
 	"kaguya_boss": {
 		"name": "蓬莱山辉夜", "health": 44000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 900,
@@ -578,7 +578,7 @@ const ZOMBIES: Dictionary = {
 	},
 	"eirin_medicine": {
 		"name": "月都药瓶", "health": 300.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0, "boss_summon": true, "non_mainline_special": true,
-		"almanac": ["永琳原创符卡的可破坏药瓶。红瓶维持僵尸狂暴，蓝瓶使植物实际回血降至25%；两秒预警后生效，击破或八秒持续时间结束解除。植物发动大招时自身仍可回满血。"],
+		"almanac": ["永琳符卡的可破坏药瓶。红瓶维持僵尸狂暴，蓝瓶使植物实际回血降至25%；两秒预警后生效，击破或八秒持续时间结束解除。植物发动大招时自身仍可回满血。"],
 	},
 	"moon_rabbit": {
 		"name": "月兔斥候", "health": 260.0, "speed": 22.0, "attack_dps": 24.0, "reward": 14,
@@ -593,13 +593,13 @@ const ZOMBIES: Dictionary = {
 	"moon_portal": {
 		"name": "月面传送门", "health": 320.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0,
 		"non_mainline_special": true,
-		"almanac": ["原创召唤物。空格出现 4 秒倒计时月门，可被植物攻击或爆炸摧毁；在倒计时结束前种上植物也会封住出口。"],
+		"almanac": ["召唤物。空格出现 4 秒倒计时月门，可被植物攻击或爆炸摧毁；在倒计时结束前种上植物也会封住出口。"],
 	},
 	"reisen_boss": {
 		"name": "铃仙·优昙华院·因幡", "health": 36000.0, "speed": 0.0, "attack_dps": 0.0, "boss": true, "reward": 720,
 		"skill_cycle_length": 8, "skill_interval_base": 5.0, "skill_interval_phase_scale": 0.38, "skill_interval_min": 2.25,
 		"reinforcement_interval_base": 3.5, "reinforcement_interval_phase_scale": 0.28, "reinforcement_interval_min": 1.9,
-		"almanac": ["永夜抄五面 Boss。空心幻视弹不判伤，实弹恢复前先预警。红眼格暂时扰乱攻速与瞄准，月食限制射程和阳光生产；治愈葫芦持续恢复植物生命。", "月门倒计时 4 秒，可被攻击或种植关闭。Normal 起累加原创月门、月食、回廊折返符卡，最后进入月兔远隔催眠术耐久。"],
+		"almanac": ["永夜抄五面 Boss。空心幻视弹不判伤，实弹恢复前先预警。红眼格暂时扰乱攻速与瞄准，月食限制射程和阳光生产；治愈葫芦持续恢复植物生命。", "月门倒计时 4 秒，可被攻击或种植关闭。Normal 起累加月门、月食、回廊折返符卡，最后进入月兔远隔催眠术耐久。"],
 	},
 	"keine_boss": {
 		"name": "上白泽慧音",
@@ -615,7 +615,7 @@ const ZOMBIES: Dictionary = {
 		"reinforcement_interval_base": 4.1,
 		"reinforcement_interval_phase_scale": 0.3,
 		"reinforcement_interval_min": 2.8,
-		"almanac": ["吞噬历史的半兽。永夜抄三面 Normal 四张终末符卡与 Last Spell「高天原」依次展开；本关没有独立道中 Boss。", "原创追加：戒鞭预警后环身扫击，琴键命中会短暂停止植物行动，逆心竹阵召唤可被击破的敌对竹子。竹子不会占用或替换我方植物，慧音退场后召唤与场地攻击消散。"],
+		"almanac": ["吞噬历史的半兽。永夜抄三面 Normal 四张终末符卡与 Last Spell「高天原」依次展开；本关没有独立道中 Boss。", "追加：戒鞭预警后环身扫击，琴键命中会短暂停止植物行动，逆心竹阵召唤可被击破的敌对竹子。竹子不会占用或替换我方植物，慧音退场后召唤与场地攻击消散。"],
 	},
 	"keine_bamboo": {
 		"name": "逆心竹灵",
@@ -640,7 +640,7 @@ const ZOMBIES: Dictionary = {
 		"reinforcement_interval_base": 5.0,
 		"reinforcement_interval_phase_scale": 0.3,
 		"reinforcement_interval_min": 3.8,
-		"almanac": ["永夜抄 4A 博丽灵梦：二重结界、梦想封印散、封魔阵、梦想封印集、二重弹幕结界；高难切换二重大结界、寂、八方鬼缚／龙杀阵、侘、博丽弹幕结界。Normal 以上追加梦想封印瞬。原作道中两符并入同一终末战，无独立道中 Boss。", "塔防原创符格：赤符预警后短暂封印植物，蓝符净化并减速僵尸，金符保护植物。符格不会替换植物或永久封锁格子，跨阶段与退场时消散。"],
+		"almanac": ["永夜抄 4A 博丽灵梦：二重结界、梦想封印散、封魔阵、梦想封印集、二重弹幕结界；高难切换二重大结界、寂、八方鬼缚／龙杀阵、侘、博丽弹幕结界。Normal 以上追加梦想封印瞬。原作道中两符并入同一终末战，无独立道中 Boss。", "塔防符格：赤符预警后短暂封印植物，蓝符净化并减速僵尸，金符保护植物。符格不会替换植物或永久封锁格子，跨阶段与退场时消散。"],
 	},
 	"marisa_boss": {
 		"name": "雾雨魔理沙",
@@ -655,7 +655,7 @@ const ZOMBIES: Dictionary = {
 		"reinforcement_interval_base": 5.0,
 		"reinforcement_interval_phase_scale": 0.3,
 		"reinforcement_interval_min": 3.8,
-		"almanac": ["永夜抄 4B 雾雨魔理沙：银河／小行星带、星尘幻想／黑洞边缘、非定向激光／星光台风、极限火花／二重火花、地球光／射月。Normal 以上追加究极火花，Lunatic 为超究极火花。两张原道中符卡并入终末战。", "塔防原创魔法：灼光格持续灼伤并降低植物射速，棱镜格减少所受伤害；紫色预警格生长敌对蘑菇，种植可阻止召唤，也可用普通火力击破。激光蓄力后才有伤害，同一道光束对每格只命中一次。"],
+		"almanac": ["永夜抄 4B 雾雨魔理沙：银河／小行星带、星尘幻想／黑洞边缘、非定向激光／星光台风、极限火花／二重火花、地球光／射月。Normal 以上追加究极火花，Lunatic 为超究极火花。两张原道中符卡并入终末战。", "塔防魔法：灼光格持续灼伤并降低植物射速，棱镜格减少所受伤害；紫色预警格生长敌对蘑菇，种植可阻止召唤，也可用普通火力击破。激光蓄力后才有伤害，同一道光束对每格只命中一次。"],
 	},
 	"marisa_mushroom": {
 		"name": "魔化蘑菇", "non_mainline_special": true, "boss_summon": true, "health": 260.0, "speed": 0.0, "attack_dps": 0.0, "reward": 0,

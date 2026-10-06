@@ -798,6 +798,12 @@ func _emit_pressure(c: Dictionary) -> void:
 
 func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary = {}) -> void:
 	var board: Rect2 = Rect2(game.BOARD_ORIGIN, game.board_size)
+	var flight_bounds := board.grow(240)
+	# Classification changes in plant/world updates, before this fixed substep.
+	# Snapshot it once for the whole volley; positive candidates are still read
+	# live, so damage, mirror cooldowns and the covering/support rule stay native.
+	var mirror_rows := PackedInt32Array()
+	var mirrors_ready := false
 	for index in range(bullets.size() - 1, -1, -1):
 		var b = bullets[index]
 		if not owners.has(int(b.owner)):
@@ -825,7 +831,9 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 				else:
 					b.velocity = (Vector2(b.aim_point) - before).normalized() * Vector2(b.velocity).length()
 				b["redirected"] = true
-			b.velocity = _rotate_bullet_velocity(b, float(b.get("angular_speed", 0.0)) * motion_delta)
+			var angular_step: float = float(b.get("angular_speed", 0.0)) * motion_delta
+			if angular_step != 0.0 or b.has("autumn_axes"):
+				b.velocity = _rotate_bullet_velocity(b, angular_step)
 			b.position = before + Vector2(b.velocity) * motion_delta
 		b["frozen"] = frozen
 		var point = Vector2(b.position)
@@ -849,13 +857,51 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 				# Already bounced: it now travels back out and bites every zombie it crosses.
 				_hit_zombie_segment(before, Vector2(b.position), float(b.radius), float(b.damage), b)
 			else:
-				var mirror_cell: Vector2i = game._mirror_reed_on_segment(before, Vector2(b.position), float(b.radius))
+				if not mirrors_ready:
+					mirror_rows = _mirror_row_mask()
+					mirrors_ready = true
+				var mirror_cell := _mirror_cell_on_segment(before, Vector2(b.position), float(b.radius), mirror_rows)
 				if mirror_cell.y >= 0 and game._bounce_boss_danmaku(b, mirror_cell):
 					hit = false
 				else:
 					hit = _hit_plant_segment(before, Vector2(b.position), float(b.radius), float(b.damage), [])
-		if hit or age >= float(b.life) or not board.grow(240).has_point(Vector2(b.position)):
+		if hit or age >= float(b.life) or not flight_bounds.has_point(Vector2(b.position)):
 			bullets.remove_at(index)
+
+func _mirror_row_mask() -> PackedInt32Array:
+	var rows := PackedInt32Array()
+	rows.resize(game.ROWS)
+	for row in range(game.ROWS):
+		var mask := 0
+		for col in range(game.COLS):
+			var plant = game._targetable_plant_at(row, col)
+			if plant != null and float(plant.get("health", 0.0)) > 0.0 and game._plant_has_component(plant, "mirror_reed"):
+				mask |= 1 << col
+		rows[row] = mask
+	return rows
+
+func _mirror_cell_on_segment(from: Vector2, to: Vector2, radius: float, rows: PackedInt32Array) -> Vector2i:
+	# Keep Game's existing row/column priority and its 26px mirror reach.
+	var reach := radius + 26.0
+	var cell_size: Vector2 = game.CELL_SIZE
+	var origin: Vector2 = game.BOARD_ORIGIN
+	var min_row := maxi(0, floori((minf(from.y, to.y) - reach - origin.y) / cell_size.y - 0.5))
+	var max_row := mini(game.ROWS - 1, ceili((maxf(from.y, to.y) + reach - origin.y) / cell_size.y - 0.5))
+	var min_col := maxi(0, floori((minf(from.x, to.x) - reach - origin.x) / cell_size.x - 0.5))
+	var max_col := mini(game.COLS - 1, ceili((maxf(from.x, to.x) + reach - origin.x) / cell_size.x - 0.5))
+	if max_row < min_row or max_col < min_col: return Vector2i(-1, -1)
+	var columns := ((1 << (max_col + 1)) - 1) & ~((1 << min_col) - 1)
+	for row in range(min_row, max_row + 1):
+		var candidates := int(rows[row]) & columns
+		if candidates == 0: continue
+		for col in range(min_col, max_col + 1):
+			if candidates & (1 << col) == 0: continue
+			var plant = game._targetable_plant_at(row, col)
+			if plant == null or not game._plant_has_component(plant, "mirror_reed") or float(plant.get("health", 0.0)) <= 0.0: continue
+			var center: Vector2 = game._cell_center(row, col) + Vector2(0, -12)
+			var closest := Geometry2D.get_closest_point_to_segment(center, from, to)
+			if closest.distance_squared_to(center) <= reach * reach: return Vector2i(row, col)
+	return Vector2i(-1, -1)
 
 
 func _tick_beams(delta: float, owners: Dictionary) -> void:
@@ -900,14 +946,22 @@ func _hit_zombie_segment(from: Vector2, to: Vector2, radius: float, damage: floa
 	# Reflected danmaku damages each zombie it passes through, once per zombie.
 	var hits: Array = bullet.get("hit_uids", [])
 	var reach := radius + 24.0
+	var min_x := minf(from.x, to.x) - reach
+	var max_x := maxf(from.x, to.x) + reach
+	var min_y := minf(from.y, to.y) - reach
+	var max_y := maxf(from.y, to.y) + reach
+	var origin_y: float = game.BOARD_ORIGIN.y
+	var row_height: float = game.CELL_SIZE.y
 	for zombie_variant in game.zombies:
 		var zombie: Dictionary = zombie_variant
+		var center := Vector2(float(zombie.get("x", 0.0)), origin_y + (int(zombie.get("row", 0)) + 0.5) * row_height - 12.0)
+		if center.x < min_x or center.x > max_x or center.y < min_y or center.y > max_y:
+			continue
 		if not game._is_enemy_zombie(zombie) or float(zombie.get("health", 0.0)) <= 0.0:
 			continue
 		var uid := int(zombie.get("uid", -1))
 		if hits.has(uid):
 			continue
-		var center := Vector2(float(zombie.get("x", 0.0)), game._row_center_y(int(zombie.get("row", 0))) - 12.0)
 		var closest = Geometry2D.get_closest_point_to_segment(center, from, to)
 		if closest.distance_squared_to(center) > reach * reach:
 			continue
@@ -922,28 +976,49 @@ func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float
 	var distance := INF
 	# Most bullets travel only a few pixels per tick. Restrict collision checks to
 	# cells intersecting the swept segment instead of scanning the whole board.
-	var padding := radius + minf(game.CELL_SIZE.x, game.CELL_SIZE.y) * 0.22
+	var cell_size: Vector2 = game.CELL_SIZE
+	var origin: Vector2 = game.BOARD_ORIGIN
+	var padding := radius + minf(cell_size.x, cell_size.y) * 0.22
 	var min_x := minf(from.x, to.x) - padding
 	var max_x := maxf(from.x, to.x) + padding
 	var min_y := minf(from.y, to.y) - padding
 	var max_y := maxf(from.y, to.y) + padding
 	# Collision centers are at cell center minus 12px, not at tile edges.
 	# Derive candidate bounds from those centers, also rejecting off-board shots.
-	var min_col := maxi(0, ceili((min_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x - 0.5))
-	var max_col := mini(game.COLS - 1, floori((max_x - game.BOARD_ORIGIN.x) / game.CELL_SIZE.x - 0.5))
-	var min_row := maxi(0, ceili((min_y + 12 - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y - 0.5))
-	var max_row := mini(game.ROWS - 1, floori((max_y + 12 - game.BOARD_ORIGIN.y) / game.CELL_SIZE.y - 0.5))
+	var min_col := maxi(0, ceili((min_x - origin.x) / cell_size.x - 0.5))
+	var max_col := mini(game.COLS - 1, floori((max_x - origin.x) / cell_size.x - 0.5))
+	var min_row := maxi(0, ceili((min_y + 12 - origin.y) / cell_size.y - 0.5))
+	var max_row := mini(game.ROWS - 1, floori((max_y + 12 - origin.y) / cell_size.y - 0.5))
+	var segment := to - from
 	for row in range(min_row, max_row + 1):
 		if not game._is_row_active(row):
 			continue
-		for col in range(min_col, max_col + 1):
+		var row_center := origin + Vector2(0, (row + 0.5) * cell_size.y)
+		row_center.y -= 12.0
+		var first_col := min_col
+		var last_col := max_col
+		if segment.y != 0.0:
+			# A diagonal's large AABB is mostly empty. Clip its parameter range
+			# to this row's vertical collision band before selecting columns.
+			var a := (row_center.y - padding - from.y) / segment.y
+			var b := (row_center.y + padding - from.y) / segment.y
+			var low := maxf(0.0, minf(a, b))
+			var high := minf(1.0, maxf(a, b))
+			if high < low: continue
+			var x_a := from.x + segment.x * low
+			var x_b := from.x + segment.x * high
+			# Conservative rounding only widens the broad phase. The original
+			# Geometry2D distance below remains the final collision authority.
+			first_col = maxi(first_col, ceili((minf(x_a, x_b) - padding - 0.0001 - origin.x) / cell_size.x - 0.5))
+			last_col = mini(last_col, floori((maxf(x_a, x_b) + padding + 0.0001 - origin.x) / cell_size.x - 0.5))
+		for col in range(first_col, last_col + 1):
 			var cell := Vector2i(int(row), col)
 			if hit_cells.has(cell):
 				continue
 			var plant = game._targetable_plant_at(cell.x, cell.y)
 			if plant == null or float(plant.get("health", 0.0)) <= 0.0:
 				continue
-			var center: Vector2 = game._cell_center(cell.x, cell.y) + Vector2(0, -12)
+			var center := row_center + Vector2((col + 0.5) * cell_size.x, 0)
 			var closest = Geometry2D.get_closest_point_to_segment(center, from, to)
 			if closest.distance_squared_to(center) > padding * padding:
 				continue

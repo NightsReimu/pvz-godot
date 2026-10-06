@@ -34,11 +34,11 @@ static func phases(kind: String, level: Dictionary) -> Array:
 		attacks.append(entry)
 		result.append(attacks)
 	if kind == "hakutaku_boss":
-		if plus: result.insert(2, [["original-hakutaku-seal", "原创 · 编年「封存的花圃」", "hakutaku_archive", "special", {"duration": 7.0}]])
+		if plus: result.insert(2, [["original-hakutaku-seal", "符卡 · 编年「封存的花圃」", "hakutaku_archive", "special", {"duration": 7.0}]])
 	else:
-		result.insert(3, [["original-mokou-pingpong", "原创 · 炎游「烈焰乒乓」", "mokou_pingpong", "shot", {"duration": 10.0}]])
-		result.insert(7, [["original-mokou-embers", "原创 · 灰烬「不熄的种植格」", "mokou_embers", "phase", {"duration": 8.0}]])
+		result.insert(3, [["original-mokou-pingpong", "符卡 · 炎游「烈焰乒乓」", "mokou_pingpong", "shot", {"duration": 10.0}]])
+		result.insert(7, [["original-mokou-embers", "符卡 · 灰烬「不熄的种植格」", "mokou_embers", "phase", {"duration": 8.0}]])
 		if plus:
-			result.insert(result.size()-3, [["original-mokou-double", "原创 · 双炎「左右连打」", "mokou_double_rally", "special", {"duration": 12.0}]])
-			result.insert(result.size()-3, [["original-mokou-rebirth", "原创 · 涅槃「火圈再生」", "mokou_rebirth", "final", {"duration": 9.0}]])
+			result.insert(result.size()-3, [["original-mokou-double", "符卡 · 双炎「左右连打」", "mokou_double_rally", "special", {"duration": 12.0}]])
+			result.insert(result.size()-3, [["original-mokou-rebirth", "符卡 · 涅槃「火圈再生」", "mokou_rebirth", "final", {"duration": 9.0}]])
 	return result

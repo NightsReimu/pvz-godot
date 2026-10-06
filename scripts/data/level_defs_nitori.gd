@@ -11,7 +11,7 @@ const ENEMIES := [
 ]
 const LEVEL := {
 	"id": "4-21", "title": "东方 4-21 · 玄武之泽的河童",
-	"description": "六行旱地岸台，瀑布在雨中轰鸣。道中河城荷取先以光学迷彩隐身偷袭，再宣告光学/水迷彩符卡；终末荷取展开洪水、水符与河童三组原作符卡，并逐级加入原创迷彩突击队、黄瓜诱饵、高压水炮与工房总动员。路灯花照出迷彩，叶子保护伞挡住会浇灭火炬树桩的水炮，本行大招清除积水。融合护甲毛玉、精灵与雨伞、扶梯、小丑盒僵尸持续进攻。E/N/H传送带，L自选卡。",
+	"description": "六行旱地岸台，瀑布在雨中轰鸣。道中河城荷取先以光学迷彩隐身偷袭，再宣告光学/水迷彩符卡；终末荷取展开洪水、水符与河童三组原作符卡，并逐级加入迷彩突击队、黄瓜诱饵、高压水炮与工房总动员。路灯花照出迷彩，叶子保护伞挡住会浇灭火炬树桩的水炮，本行大招清除积水。融合护甲毛玉、精灵与雨伞、扶梯、小丑盒僵尸持续进攻。E/N/H传送带，L自选卡。",
 	"terrain": "nitori_waterfall", "mode": "conveyor", "boss_level": true,
 	"unlock_requirements": ["4-20"], "water_rows": [], "row_count": 6,
 	"mid_boss_kind": "nitori_boss", "mid_boss_final_preview": true, "mid_boss_locked_progress": 0.4,

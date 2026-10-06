@@ -11,10 +11,10 @@ const CANON := [
 	["th075-suika-6", "「百万鬼夜行」", "suika_million_oni", "final", {"duration": 12.0, "last_spell": true}],
 ]
 const ORIGINALS := [
-	["original-suika-wine", "原创 · 酿符「伊吹瓢的青石酒河」", "suika_wine", "gourd", {"duration": 8.5}],
-	["original-suika-pea", "原创 · 萃豆「弹仓酿成的鬼火」", "suika_pea_knot", "density", {"duration": 8.0}],
-	["original-suika-banquet", "原创 · 宴阵「方圆三角的分酒席」", "suika_chain_banquet", "throw", {"duration": 8.0}],
-	["original-suika-hundred", "原创 · 疎宴「一瓢分作百鬼席」", "suika_hundred_feasts", "final", {"duration": 9.0}],
+	["original-suika-wine", "符卡 · 酿符「伊吹瓢的青石酒河」", "suika_wine", "gourd", {"duration": 8.5}],
+	["original-suika-pea", "符卡 · 萃豆「弹仓酿成的鬼火」", "suika_pea_knot", "density", {"duration": 8.0}],
+	["original-suika-banquet", "符卡 · 宴阵「方圆三角的分酒席」", "suika_chain_banquet", "throw", {"duration": 8.0}],
+	["original-suika-hundred", "符卡 · 疎宴「一瓢分作百鬼席」", "suika_hundred_feasts", "final", {"duration": 9.0}],
 ]
 const OPENING := ["adapted-suika-nonspell", "非符 · 酒宴中的疏与密", "nonspell_suika_density", "shot"]
 

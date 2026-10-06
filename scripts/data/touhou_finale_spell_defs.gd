@@ -47,7 +47,7 @@ static func additions(kind: String) -> Array:
 	var theme: Array = THEMES[kind]
 	var result: Array = []
 	for move in range(theme.size() - 1):
-		result.append(["original-finale-%s-%d" % [kind, move + 1], "原创 · " + String(theme[move + 1]), "finale_%s_%d" % [kind.trim_suffix("_boss"), move + 1], String(theme[0]), {"finale_only": true, "finale_move": move, "duration": 6.5 if move == 0 else 7.5}])
+		result.append(["original-finale-%s-%d" % [kind, move + 1], "符卡 · " + String(theme[move + 1]), "finale_%s_%d" % [kind.trim_suffix("_boss"), move + 1], String(theme[0]), {"finale_only": true, "finale_move": move, "duration": 6.5 if move == 0 else 7.5}])
 	return result
 
 static func extend(kind: String, level: Dictionary, phases: Array) -> Array:

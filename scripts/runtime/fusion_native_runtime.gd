@@ -5,6 +5,8 @@ const Fusion = preload("res://scripts/data/fusion_plant_defs.gd")
 const Ammo = preload("res://scripts/data/plant_ammo.gd")
 const CLOCKS = ["shot_cooldown","attack_timer","support_timer","pulse_timer","gust_timer","rear_shot_cooldown","geothermal_timer","copy_timer","honey_timer"]
 const NATIVE_ULTIMATES = ["scaredy_shroom","spikeweed","laser_lily","plasma_shroom","corn_cannon","moonforge","lotus_lancer","kernel_pult","cabbage_pult","melon_pult","boomerang_shooter","sakura_shooter","origami_blossom","dandelion","electric_bonk_choy"]
+const NATIVE_STORMS = ["peashooter","snow_pea","cactus","starfruit","amber_shooter","prism_pea","repeater","threepeater","split_pea","puff_shroom","sea_shroom","fume_shroom"]
+const NATIVE_FORTIFY = ["wallnut","tallnut","pumpkin"]
 const SHARED = ["health","max_health","armor_health","max_armor_health","holy_invincible_timer","save_cooldown","revives_used","geothermal_charge","fusion_mirror_until"]
 var game: Control
 func _init(owner: Control): game = owner
@@ -27,7 +29,12 @@ func update(p: Dictionary, delta: float, row: int, col: int, ultimate: bool = fa
 		if Fusion.Combat.BURSTS.has(source): continue
 		var state := state_for(p,source,row,col)
 		var count: int = data.fusion_weights[source]
+		var twin: bool = bool(data.get("fusion_same_species",false))
+		var resource_only: bool = source in Fusion.SUNS and float(Defs.PLANTS[source].get("damage",0)) <= 0
 		var step: float = delta * (1.0 + minf(0.6,(sqrt(float(count))-1.0)*0.5))
+		# A mono-material root has two working weapons/support organs. Resource-only
+		# plants already multiply each sun's value; accelerating those too would be 4x.
+		if twin: step = delta * (1.0 if resource_only else minf(4.0,float(count)))
 		if source == "peashooter": step = delta # multi-head volleys instead of accelerating peas
 		var before: Dictionary = {}
 		for field in SHARED:
@@ -40,16 +47,36 @@ func update(p: Dictionary, delta: float, row: int, col: int, ultimate: bool = fa
 		if not bool(Defs.PLANTS[source].get("gacha_only",false)):
 			state.support_timer = maxf(0,float(state.support_timer)-step)
 		state.action_timer = maxf(0,float(state.get("action_timer",0))-delta)
-		state.plant_food_timer = maxf(0,float(state.plant_food_timer)-step)
+		state.plant_food_timer = maxf(0,float(state.plant_food_timer)-delta)
+		state.fusion_overdrive_timer = maxf(0,float(state.get("fusion_overdrive_timer",0))-delta)
 		if state.plant_food_timer <= 0: state.plant_food_mode = ""
 		var start: int = game.projectiles.size()
 		var roller_start: int = game.rollers.size()
 		var sun_start: int = game.suns.size()
 		var effect_start: int = game.effects.size()
-		if opening and source in NATIVE_ULTIMATES:
+		if opening and (source in NATIVE_ULTIMATES or twin and source == "healing_gourd"):
 			game._execute_ultimate(state,source,row,col,game._ultimate_profile_for_kind(source) if source == "spikeweed" else {"style":"explicit"})
+			if twin and source == "healing_gourd":
+				for layer in [game.grid,game.support_grid]:
+					for cells in layer:
+						for ally in cells:
+							if ally == null or float(ally.health) <= 0: continue
+							var extra: float = float(Defs.PLANTS[source].ultimate_shield)*(minf(4.0,float(count))*0.9-1.0)
+							ally.armor_health = float(ally.get("armor_health",0))+extra
+							ally.max_armor_health = maxf(float(ally.get("max_armor_health",0)),float(ally.armor_health))
 			# Native ultimates may write their state back; retain the real grafted body.
 			game._set_targetable_plant(row,col,p)
+		elif opening and (source in NATIVE_STORMS or twin and source in NATIVE_FORTIFY):
+			game._ensure_plant_food_runtime().activate_native(state,row,col,true)
+			game._set_targetable_plant(row,col,p)
+			if source in NATIVE_FORTIFY:
+				state.armor_health = float(state.armor_health)*minf(4.0,float(count))*0.9
+				state.max_armor_health = state.armor_health
+			else:
+				state.fusion_overdrive_timer = 2.4
+				# Prime a genuine native volley now; subsequent shots use its own interval.
+				state.plant_food_interval = minf(float(state.plant_food_interval),-0.2)
+				game._ensure_plant_runtime().update_native(state,step,row,col)
 		elif source == "wallnut_bowling":
 			state.attack_timer -= step
 			if ultimate or state.attack_timer <= 0:
@@ -76,7 +103,9 @@ func update(p: Dictionary, delta: float, row: int, col: int, ultimate: bool = fa
 			game._ensure_plant_runtime().update_native(state,step,row,col)
 		# Growth changes payload strength, while source patterns and timers remain native.
 		var power: float = (1.0+0.22*(sqrt(float(count))-1.0))/sqrt(maxf(1.0,float(data.fusion_weights.size())/3.0))
-		if ultimate and not (opening and source in NATIVE_ULTIMATES): power *= 1.8
+		if twin and opening and source in NATIVE_ULTIMATES: power *= minf(4.0,float(count))*0.9
+		var empowered: bool = ultimate or float(state.fusion_overdrive_timer) > 0 or float(state.plant_food_timer) > 0
+		if empowered and not (opening and source in NATIVE_ULTIMATES): power *= 1.8
 		for index in range(start,game.projectiles.size()):
 			var shot: Dictionary = game.projectiles[index]
 			shot.damage = float(shot.get("damage",0))*power
@@ -85,7 +114,7 @@ func update(p: Dictionary, delta: float, row: int, col: int, ultimate: bool = fa
 			shot.fusion_native = true; shot.fusion_source = p.fusion_kind; shot.fusion_channel_source = source
 			shot.fusion_traits = data.fusion_traits; shot.fusion_mechanics = Fusion.NATIVE[source]
 			Ammo.compose(shot,data.fusion_weights,source)
-			if ultimate:
+			if empowered:
 				shot.fusion_ultimate = true
 				if source == "starfruit": shot.pierce_handheld = true; shot.pierce_left = 3; shot.hit_uids = []
 		if source == "peashooter" and count > 1 and game.projectiles.size() > start:
@@ -94,19 +123,19 @@ func update(p: Dictionary, delta: float, row: int, col: int, ultimate: bool = fa
 				for shot in original:
 					var extra: Dictionary = shot.duplicate(true)
 					extra.position += Vector2((n/2)*4,(n%2)*8-4)
-					extra.damage = float(extra.damage)/power*(1.8 if ultimate else 1.0)
+					extra.damage = float(extra.damage)/power*(1.8 if empowered else 1.0)
 					game.projectiles.append(extra)
-			for shot in original: shot.damage = float(shot.damage)/power*(1.8 if ultimate else 1.0)
+			for shot in original: shot.damage = float(shot.damage)/power*(1.8 if empowered else 1.0)
 		for shot in game.projectiles.slice(start):
 			if not data.fusion_channels.any(func(channel): return channel.style == "payload"): continue
-			Ammo.compose_ash(shot,data.fusion_weights,game.projectiles.size()-start,ultimate)
+			Ammo.compose_ash(shot,data.fusion_weights,game.projectiles.size()-start,empowered)
 		for index in range(roller_start,game.rollers.size()):
 			var roller: Dictionary = game.rollers[index]
 			roller.damage = float(roller.damage)*power
 			roller.fusion_native = true; roller.fusion_source = p.fusion_kind; roller.fusion_channel_source = source; roller.fusion_traits = data.fusion_traits
 			Ammo.compose(roller,data.fusion_weights,source)
 		for index in range(sun_start,game.suns.size()):
-			if count > 1: game.suns[index].value = int(game.suns[index].get("value",25))*count
+			if count > 1 and (not twin or resource_only): game.suns[index].value = int(game.suns[index].get("value",25))*count
 		for field in SHARED:
 			if not before.has(field): continue
 			# Health/armor changes inside a native support routine apply to the shared body.

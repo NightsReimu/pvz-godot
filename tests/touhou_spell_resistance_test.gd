@@ -48,8 +48,10 @@ func card_matrix(kind: String, choice: String, level: Dictionary, role: String) 
 				var card: Dictionary=Spells.card_for(b,level)
 				bind_card(b,card)
 				var formal := String(card.get("origin","")) in ["canon","original"] and not String(card.get("pattern","")).begins_with("nonspell_")
-				var expected := 0.25 if formal else 1.0
+				var expected := 0.125 if formal else 1.0
 				check(is_equal_approx(factor(b),expected),"%s %s %s %s has the exact formal-card factor" % [kind,choice,role,card.id])
+				var status: Dictionary = g._boss_cast_status(b)
+				check(String(status.text).contains("减伤87.5%") if formal else not String(status.text).contains("减伤"), "HUD matches the active card resistance")
 				var before: float=float(b.health)
 				g._apply_zombie_damage(b,40.0,0.12,0.0,true)
 				check(absf(before-float(b.health)-40.0*expected)<0.001,"%s %s %s %s true bypass-shield damage preserves spell resistance" % [kind,choice,role,card.id])
@@ -149,7 +151,7 @@ func native_source_pairs() -> Array:
 		var plain: Dictionary=native_sample(path,false)
 		var protected: Dictionary=native_sample(path,true)
 		check(float(plain.removed)>0.0,"Actual %s produces real native Boss damage" % path)
-		check(absf(float(protected.removed)-float(plain.removed)*0.25)<0.01,"Actual %s damage cannot bypass or repeat the formal .25 factor (%.2f -> %.2f)" % [path,plain.removed,protected.removed])
+		check(absf(float(protected.removed)-float(plain.removed)*0.125)<0.01,"Actual %s damage cannot bypass or repeat the formal .125 factor (%.2f -> %.2f)" % [path,plain.removed,protected.removed])
 		records.append({"path":path,"inactive":plain.removed,"active":protected.removed})
 	for path in ["food_chomper","food_vine_lasher"]:
 		var plain: Dictionary=native_sample(path,false,true)
@@ -161,7 +163,7 @@ func native_source_pairs() -> Array:
 	var mower: Dictionary=g.mowers[2]; mower.active=true; mower.armed=false; mower.x=float(b.x)-30.0
 	g._update_mowers(0.01)
 	var after: float=float(b.health)
-	check(absf(before-after-before*0.25)<0.01,"A real mower collision routes one fixed max-health hit through formal resistance")
+	check(absf(before-after-before*0.125)<0.01,"A real mower collision routes one fixed max-health hit through formal resistance")
 	g._update_mowers(0.01)
 	check(is_equal_approx(float(b.health),after),"The same mower cannot repeatedly overlap a surviving Boss to erase the resistance")
 	g.save_dirty=false; g.free()

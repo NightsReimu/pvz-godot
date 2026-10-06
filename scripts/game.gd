@@ -19,6 +19,7 @@ const MinigameMenu = preload("res://scripts/ui/minigame_menu.gd")
 const MinigameRuntime = preload("res://scripts/runtime/minigame_runtime.gd")
 const MinigameVisuals = preload("res://scripts/ui/minigame_visuals.gd")
 const WindowModeLib = preload("res://scripts/system/window_mode.gd")
+const ResourceCacheRuntime = preload("res://scripts/runtime/resource_cache_runtime.gd")
 const UpdateManagerLib = preload("res://scripts/system/update_manager.gd")
 const WorldDataLib = preload("res://scripts/data/world_data.gd")
 const AlmanacTextLib = preload("res://scripts/data/almanac_text.gd")
@@ -28,6 +29,7 @@ const AncientVisuals = preload("res://scripts/ui/ancient_visuals.gd")
 const PlantFoodRuntime = preload("res://scripts/runtime/plant_food_runtime.gd")
 const PlantRuntime = preload("res://scripts/runtime/plant_runtime.gd")
 const ProjectileRuntime = preload("res://scripts/runtime/projectile_runtime.gd")
+const ProjectileTargetIndex = preload("res://scripts/runtime/projectile_target_index.gd")
 const ZombieRuntime = preload("res://scripts/runtime/zombie_runtime.gd")
 const FusionZombieDefs = preload("res://scripts/data/fusion_zombie_defs.gd")
 const ZombieBalance = preload("res://scripts/data/zombie_balance.gd")
@@ -1023,6 +1025,7 @@ var card_cooldowns := {}
 var plant_runtime: PlantRuntime
 var plant_food_runtime: PlantFoodRuntime
 var projectile_runtime: ProjectileRuntime
+var projectile_target_index: RefCounted
 var touhou_danmaku: TouhouDanmakuRuntime
 var keine_runtime: RefCounted
 var hina_runtime: RefCounted
@@ -1090,6 +1093,7 @@ var update_best_release_info: Dictionary = {}
 var update_check_last_error := ""
 var asset_prewarm_queue: Array = []
 var asset_prewarm_keys := {}
+var resource_cache_runtime: ResourceCacheRuntime
 var startup_loading_active := false
 var startup_loading_total_tasks := 0
 var startup_loading_completed_tasks := 0
@@ -3203,6 +3207,7 @@ func _on_update_download_completed(result: int, response_code: int, _headers: Pa
 func _load_audio_stream(path: String) -> AudioStream:
 	if path == "":
 		return null
+	_ensure_resource_cache().touch_music(path)
 	if audio_stream_cache.has(path):
 		return audio_stream_cache[path]
 	if shared_audio_stream_cache.has(path):
@@ -3219,6 +3224,9 @@ func _load_audio_stream(path: String) -> AudioStream:
 		imported.loop_offset = 0.0
 		shared_audio_stream_cache[path] = imported
 		audio_stream_cache[path] = imported
+		_ensure_resource_cache().music_loads += 1
+		_ensure_resource_cache().dirty = true
+		_ensure_resource_cache().trim()
 		return imported
 	var file = FileAccess.open(absolute_path, FileAccess.READ)
 	if file == null:
@@ -3231,6 +3239,9 @@ func _load_audio_stream(path: String) -> AudioStream:
 		stream.loop_offset = 0.0
 		shared_audio_stream_cache[path] = stream
 		audio_stream_cache[path] = stream
+		_ensure_resource_cache().music_loads += 1
+		_ensure_resource_cache().dirty = true
+		_ensure_resource_cache().trim()
 		return stream
 	return null
 
@@ -3244,6 +3255,7 @@ func _prewarm_audio_stream(path: String) -> void:
 func _try_get_cached_audio_stream(path: String) -> AudioStream:
 	if path == "":
 		return null
+	_ensure_resource_cache().touch_music(path)
 	if audio_stream_cache.has(path):
 		return audio_stream_cache[path]
 	if shared_audio_stream_cache.has(path):
@@ -3255,6 +3267,7 @@ func _try_get_cached_audio_stream(path: String) -> AudioStream:
 func _load_cached_texture(path: String, instance_cache: Dictionary, shared_cache: Dictionary) -> Texture2D:
 	if path == "":
 		return null
+	_ensure_resource_cache().touch_texture(path)
 	if instance_cache.has(path):
 		return instance_cache[path]
 	if shared_cache.has(path):
@@ -3270,6 +3283,8 @@ func _load_cached_texture(path: String, instance_cache: Dictionary, shared_cache
 	if texture != null:
 		shared_cache[path] = texture
 		instance_cache[path] = texture
+		_ensure_resource_cache().texture_loads += 1
+		_ensure_resource_cache().dirty = true
 	return texture
 
 
@@ -3897,6 +3912,7 @@ func _queue_audio_stream_prewarm(path: String) -> void:
 
 
 func _queue_boss_frame_set_prewarm(kind: String, include_spell_art: bool = true) -> void:
+	_ensure_resource_cache().touch_boss(kind)
 	if include_spell_art:
 		for spell_asset in TouhouSpellArt.assets_for_kind(kind):
 			if not TouhouSpellArt.textures.has(spell_asset):
@@ -3947,13 +3963,17 @@ func _queue_level_boss_asset_prewarm(level: Dictionary, include_spell_art: bool 
 	var configured_successor = String(level.get("boss_successor_kind", ""))
 	if _is_image_backed_hover_boss(configured_successor):
 		boss_kinds[configured_successor] = true
+	_ensure_resource_cache().set_level(boss_kinds, [_regular_level_bgm_path(level), level.get("boss_intro_bgm", ""), level.get("boss_bgm", ""), level.get("boss_revival_bgm", ""), level.get("boss_successor_bgm", "")])
 	for kind in boss_kinds.keys():
 		_queue_boss_frame_set_prewarm(String(kind), include_spell_art)
 
 
 func _queue_world_boss_asset_prewarm(world_key: String) -> void:
 	for level_index in _visible_level_indices(world_key):
-		_queue_level_boss_asset_prewarm(Defs.LEVELS[int(level_index)], false)
+		if not _map_node_visible(_map_node_position(int(level_index))): continue
+		var level: Dictionary = Defs.LEVELS[int(level_index)]
+		_queue_boss_frame_preview_prewarm(String(level.get("mid_boss_kind", "")))
+		for event in level.events: _queue_boss_frame_preview_prewarm(String(event.kind))
 
 
 func _queue_global_boss_asset_prewarm() -> void:
@@ -3966,8 +3986,44 @@ func _queue_almanac_boss_asset_prewarm(tab: String = "") -> void:
 	var target_tab = tab if tab != "" else almanac_tab
 	if target_tab != "zombies":
 		return
-	for kind in TouhouSpriteDefs.IDLE_HEIGHTS:
-		_queue_boss_frame_set_prewarm(String(kind), false)
+	_queue_boss_frame_preview_prewarm(almanac_selected_kind)
+	var entries := _visible_almanac_zombies()
+	var view := _almanac_list_view_rect()
+	for i in range(entries.size()):
+		if view.encloses(_almanac_item_rect(i)): _queue_boss_frame_preview_prewarm(String(entries[i]))
+
+
+func _queue_boss_frame_preview_prewarm(kind: String, requested_frame: int = -1) -> void:
+	if not _is_image_backed_hover_boss(kind): return
+	_ensure_resource_cache().touch_boss(kind)
+	_sync_instance_boss_frames_from_shared(kind)
+	var frames := _instance_boss_frames_for_kind(kind)
+	var wanted := [0, 1, 2]
+	if requested_frame >= 0 and not wanted.has(requested_frame): wanted.append(requested_frame)
+	for index in wanted:
+		if index < frames.size() and frames[index] != null: continue
+		_enqueue_asset_prewarm_task("boss_frame:%s:%d:%s" % [kind, index, _boss_frames_face_left(kind)], {"type": "boss_frame", "kind": kind, "frame_index": index, "face_left": _boss_frames_face_left(kind)})
+	if kind == "prismriver_boss":
+		for member in range(3):
+			for index in wanted:
+				if not PrismriverTrio.textures.has("%d:%d" % [member, index]): _enqueue_asset_prewarm_task("trio:%d:%d" % [member, index], {"type": "prismriver_frame", "member": member, "frame_index": index})
+
+
+func _ensure_resource_cache() -> ResourceCacheRuntime:
+	if resource_cache_runtime == null: resource_cache_runtime = ResourceCacheRuntime.new(self)
+	return resource_cache_runtime
+
+
+func _resource_cache_stats() -> Dictionary:
+	return _ensure_resource_cache().stats()
+
+
+func _resource_music_caches() -> Array:
+	return [audio_stream_cache, shared_audio_stream_cache]
+
+
+func _resource_texture_caches() -> Array:
+	return [polished_texture_cache, image2_texture_cache, home_ui_texture_cache, world_ui_texture_cache, base_ui_texture_cache, gacha_ui_texture_cache, shared_polished_texture_cache, shared_image2_texture_cache]
 
 
 func _load_single_boss_frame(kind: String, frame_index: int, face_left: bool) -> Texture2D:
@@ -3983,6 +4039,9 @@ func _load_single_boss_frame(kind: String, frame_index: int, face_left: bool) ->
 			source_texture = ImageTexture.create_from_image(fallback_image)
 	if source_texture == null:
 		return null
+	_ensure_resource_cache().boss_loads += 1
+	_ensure_resource_cache().touch_boss(kind)
+	_ensure_resource_cache().dirty = true
 	if _boss_assets_are_preprocessed(kind):
 		if not face_left:
 			return source_texture
@@ -3998,6 +4057,7 @@ func _load_single_boss_frame(kind: String, frame_index: int, face_left: bool) ->
 
 
 func _store_prewarmed_boss_frame(kind: String, frame_index: int, texture: Texture2D, face_left: bool) -> void:
+	_ensure_resource_cache().touch_boss(kind)
 	var expected_count = _boss_frame_count_for_kind(kind)
 	if expected_count <= 0:
 		return
@@ -4013,7 +4073,10 @@ func _store_prewarmed_boss_frame(kind: String, frame_index: int, texture: Textur
 
 
 func _run_asset_prewarm_task(task: Dictionary) -> void:
+	_ensure_resource_cache().dirty = true
 	match String(task.get("type", "")):
+		"home_texture":
+			_load_cached_texture(String(task.path), home_ui_texture_cache, shared_image2_texture_cache)
 		"prismriver_frame":
 			PrismriverTrio.texture(int(task.member), int(task.frame_index))
 		"touhou_spell_art":
@@ -4054,21 +4117,28 @@ func _service_asset_prewarm_queue(step_count: int = 1) -> void:
 			asset_prewarm_keys.erase(task_key)
 		_run_asset_prewarm_task(task)
 	_try_play_pending_bgm()
+	_ensure_resource_cache().trim()
 
 
 func _drain_asset_prewarm_queue() -> void:
 	while not asset_prewarm_queue.is_empty():
 		_service_asset_prewarm_queue(1)
+	# A prepared context may already be cached and enqueue no work.
+	_ensure_resource_cache().trim()
 
 
 func _try_get_boss_frame_texture(kind: String, frame_index: int) -> Texture2D:
 	if not _is_image_backed_hover_boss(kind):
 		return null
+	_ensure_resource_cache().touch_boss(kind)
 	_sync_instance_boss_frames_from_shared(kind)
 	var frames = _instance_boss_frames_for_kind(kind)
 	if frame_index >= 0 and frame_index < frames.size() and frames[frame_index] != null:
 		return frames[frame_index]
-	_queue_boss_frame_set_prewarm(kind)
+	if mode == MODE_BATTLE:
+		_queue_boss_frame_set_prewarm(kind)
+	else:
+		_queue_boss_frame_preview_prewarm(kind, frame_index)
 	return null
 
 
@@ -4197,7 +4267,9 @@ func _begin_startup_loading() -> void:
 	startup_loading_total_tasks = 0
 	startup_loading_completed_tasks = 0
 	startup_loading_min_timer = 0.35
-	_queue_global_boss_asset_prewarm()
+	var logo_path := String(HOME_UI_ASSETS.logo)
+	if not shared_image2_texture_cache.has(logo_path):
+		_enqueue_asset_prewarm_task("home_texture:" + logo_path, {"type": "home_texture", "path": logo_path})
 	startup_loading_total_tasks = asset_prewarm_queue.size()
 	startup_loading_active = startup_loading_total_tasks > 0
 
@@ -19463,38 +19535,9 @@ func _zombie_in_rect(zombie: Dictionary, area: Rect2) -> bool:
 
 
 func _find_projectile_target(projectile: Dictionary) -> int:
-	var best_index = -1
-	var best_distance = 999999.0
-	var projectile_pos = Vector2(projectile["position"])
-	var projectile_radius = float(projectile.get("radius", 8.0))
-	var free_aim = bool(projectile.get("free_aim", false))
-	var anti_air = bool(projectile.get("anti_air", false))
-	var ignore_lane_hide = bool(projectile.get("ignore_lane_hide", false))
-	var moving_left = float(projectile.get("speed", 0.0)) < 0.0
-	var ignored_uids: Array = projectile.get("hit_uids", [])
-	for i in range(zombies.size()):
-		var zombie = zombies[i]
-		var hidden = _is_hidden_from_lane_attacks(zombie)
-		var can_ignore_hidden = ignore_lane_hide and not _is_hidden_for_direct_fire_ignoring_fog(zombie)
-		if ((hidden and not can_ignore_hidden and not (anti_air and bool(zombie.get("balloon_flying", false)))) or not _is_enemy_zombie(zombie)):
-			continue
-		if bool(zombie.get("balloon_flying", false)) and not anti_air:
-			continue
-		if ignored_uids.has(int(zombie.get("uid", -1))):
-			continue
-		for point in _zombie_hit_positions(zombie):
-			if free_aim:
-				if absf(point.y - projectile_pos.y) > 24.0:
-					continue
-			elif absf(point.y - _row_center_y(int(projectile.row))) > 1.0:
-				continue
-			var distance: float = projectile_pos.x - point.x if moving_left else point.x - projectile_pos.x
-			if distance < -20.0 or distance > 20.0 + projectile_radius:
-				continue
-			if distance < best_distance:
-				best_distance = distance
-				best_index = i
-	return best_index
+	if projectile_target_index == null:
+		projectile_target_index = ProjectileTargetIndex.new(self)
+	return projectile_target_index.find(projectile)
 
 
 func _find_projectile_plant_target(projectile: Dictionary) -> Vector2i:
@@ -25807,7 +25850,7 @@ func _boss_cast_status(boss: Dictionary) -> Dictionary:
 		var remaining_time = float(boss.get("touhou_cast_remaining", 0.0)) if active else float(boss.get("boss_skill_timer", 0.0))
 		var suffix = "耐久 %.1fs" % remaining_time if bool(boss.get("touhou_invulnerable", false)) else ("展开" if active else ("蓄力" if bool(boss.get("boss_cast_pending", false)) else "待机"))
 		if active and not bool(boss.get("touhou_invulnerable", false)) and TouhouPhaseRuntime.spell_damage_factor(boss) < 1.0:
-			suffix = "展开 · 减伤75%"
+			suffix = "展开 · 减伤87.5%"
 		var progress = remaining_time / maxf(0.01, float(boss.get("touhou_cast_duration", 1.0))) if active else 0.0
 		if not active and bool(boss.get("boss_cast_pending", false)):
 			progress = clampf(1.0 - remaining_time / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0)
@@ -33348,7 +33391,7 @@ func _zombie_almanac_stats(kind: String) -> Array:
 		"prismriver_boss":
 			stats.append("特性：云海终幕 Boss，三姐妹合奏音波、右五列换位与大合葬压场")
 		"youmu_boss":
-			stats.append("特性：双剑与半灵弹幕；原创怨灵使役可暂时控制植物")
+			stats.append("特性：双剑与半灵弹幕；怨灵使役符卡可暂时控制植物")
 		"youmu_wraith":
 			stats.append("特性：妖梦召唤的实体怨灵，可被攻击；命中植物后造成轻伤并短暂魅惑")
 		"yuyuko_spirit":
@@ -34017,11 +34060,17 @@ func _fusion_result(a: String, b: String) -> String:
 
 func _fusion_followups(kind: String) -> Array:
 	var result: Array = ["可与任意原种或融合形态再次融合；新技能随材料组合。"]
+	if not bool(Defs.PLANTS[kind].get("fusion_only", false)):
+		var same_kind := FusionPlantDefs.result(kind, kind)
+		if Defs.PLANTS.has(same_kind) and bool(Defs.PLANTS[same_kind].get("fusion_same_species", false)):
+			var twin: Dictionary = Defs.PLANTS[same_kind]
+			result.append("同种融合：%s · %s；强化大招「%s」。" % [twin.name, String(twin.fusion_summary).get_slice("；", 0), twin.ultimate_name])
+	var limit := result.size() + 2
 	for pair in FusionPlantDefs.RECIPES:
 		var ingredients: PackedStringArray = String(pair).split("+")
 		if ingredients.has(kind):
 			var other: String = ingredients[1] if ingredients[0] == kind else ingredients[0]
 			var id: String = FusionPlantDefs.RECIPES[pair]
 			result.append("再融合：+%s → %s" % [Defs.PLANTS[other].name,Defs.PLANTS[id].name])
-			if result.size() >= 3: break
+			if result.size() >= limit: break
 	return result

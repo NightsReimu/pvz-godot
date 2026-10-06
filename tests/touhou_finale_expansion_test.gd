@@ -28,7 +28,7 @@ func _run() -> void:
 				if entry.size() > 4 and bool(entry[4].get("finale_only", false)):
 					additions.append(entry[0])
 					patterns.append(entry[2])
-					check(String(entry[0]).begins_with("original-") and String(entry[1]).begins_with("原创"), "New spells must never claim canonical provenance")
+					check(String(entry[0]).begins_with("original-") and String(entry[1]).begins_with("符卡") and not String(entry[1]).contains("原创"), "Spell labels stay neutral while internal original IDs preserve provenance")
 					check(float(entry[4].duration) >= 6.5 and float(entry[4].duration) <= 7.5 and not bool(entry[4].get("survival", false)), "New cards have bounded active durations and remain damageable")
 		check(canon == route.canon, "Keep every actual canonical ID and relative order")
 		check(additions.size() == extra and patterns.size() == extra, "Add real distinct moves rather than repeated authored phases")

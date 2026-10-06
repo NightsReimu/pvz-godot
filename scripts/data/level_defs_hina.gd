@@ -3,7 +3,7 @@ extends RefCounted
 const ENEMIES := ["kedama", "star_fairy", "cone_kedama", "bucket_kedama", "brick_kedama", "kabuto_kedama", "cone_star_fairy", "bucket_star_fairy", "brick_star_fairy", "kabuto_star_fairy", "cone_ninja", "bucket_newspaper", "cone_backup_dancer"]
 const LEVEL := {
 	"id": "4-20", "title": "东方 4-20 · 山麓厄神之路",
-	"description": "六行旱地山林，沿土石梯田走进厄神之路。道中键山雏短暂隐现后宣告一张弱化符卡；终末雏展开原作护符、厄运之轮与流刑人偶，并逐级加入原创苗圃厄印。旋转青印预警霉运，本行大招净化；打碎流雏人偶解除本行厄运并反击附近普通敌人。毛玉、精灵与融合护甲敌群持续支援。E/N/H传送带，L自选卡。",
+	"description": "六行旱地山林，沿土石梯田走进厄神之路。道中键山雏短暂隐现后宣告一张弱化符卡；终末雏展开原作护符、厄运之轮与流刑人偶，并逐级加入苗圃厄印符卡。旋转青印预警霉运，本行大招净化；打碎流雏人偶解除本行厄运并反击附近普通敌人。毛玉、精灵与融合护甲敌群持续支援。E/N/H传送带，L自选卡。",
 	"terrain": "hina_mountain_forest", "mode": "conveyor", "boss_level": true,
 	"unlock_requirements": ["4-19"], "water_rows": [], "row_count": 6,
 	"mid_boss_kind": "hina_boss", "mid_boss_final_preview": true, "mid_boss_locked_progress": 0.38,

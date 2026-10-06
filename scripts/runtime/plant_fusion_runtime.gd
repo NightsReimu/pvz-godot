@@ -157,7 +157,10 @@ func create(id: String, row: int, col: int) -> Dictionary:
 	p.fusion_kind = id; p.stats = d.duplicate(true)
 	p.health = float(d.health)*health_scale; p.max_health = p.health
 	p.fusion_channel_timers = {}
+	p.fusion_opening_chambers = {}
 	for channel in d.fusion_channels: p.fusion_channel_timers[channel.source] = float(channel.initial_delay)
+	for channel in d.fusion_channels:
+		if channel.has("opening_damage"): p.fusion_opening_chambers[channel.source] = true
 	p.fusion_attack_timer = 0.55; p.fusion_support_timer = 0.8; p.fusion_summon_timer = 18.0
 	p.fusion_hypno_timer = 0.0; p.fusion_grave_timer = 0.0
 	p.support_lifetime = 0.0 # A living graft replaces the temporary cork with a permanent root seal.
@@ -203,6 +206,9 @@ func combined(id: String, host: Dictionary, donor: Dictionary = {}) -> Dictionar
 			var carried := false
 			for input in [host,donor]:
 				if input.get("fusion_channel_timers",{}).has(source): carried = true
+				if channel.has("opening_damage") and input.get("fusion_channel_timers",{}).has(source) and not bool(input.get("fusion_opening_chambers",{}).get(source,false)):
+					# A spent chamber cannot recover its planting blast by recursive grafting.
+					p.fusion_opening_chambers.erase(source)
 			p.fusion_channel_timers[source] = inherited_cooldown if carried else maxf(inherited_cooldown,float(channel.initial_delay))
 	if p.has("fusion_kind"):
 		for input in [host,donor]:
@@ -699,6 +705,9 @@ func _burst(p: Dictionary, row: int, col: int, channel: Dictionary, ultimate: bo
 				nearest = point.x-center.x; impact = point
 	var burst: Dictionary = channel.duplicate(true)
 	burst.damage = float(channel.damage)*(1.15 if ultimate else 1.0)
+	if bool(p.get("fusion_opening_chambers",{}).get(channel.source,false)):
+		burst.damage = float(channel.opening_damage)*(1.15 if ultimate else 1.0)
+		p.fusion_opening_chambers.erase(channel.source)
 	if ultimate and channel.blast_shape == "circle": burst.radius = float(channel.radius)*1.3
 	if delivery:
 		game._ensure_plant_runtime().spawn_roof_lobbed_projectile("fusion_burst",row,center+Vector2(8,-25),impact,float(burst.damage),Color("f8b57b"),110,13,float(burst.radius),0,String(p.kind))

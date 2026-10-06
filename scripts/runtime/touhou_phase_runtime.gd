@@ -5,7 +5,7 @@ const SELF_MIDBOSS_HEALTH_RATIO := 0.09
 const ROAD_HEALTH_RATIO := 0.18
 const ROAD_FINALE_CAP := 0.10
 const FINALE_HEALTH_MULTIPLIER := 1.95
-const SPELL_DAMAGE_FACTOR := 0.25
+const SPELL_DAMAGE_FACTOR := 0.125
 
 
 static func spell_damage_factor(boss: Dictionary) -> float:

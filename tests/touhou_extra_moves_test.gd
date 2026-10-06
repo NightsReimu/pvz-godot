@@ -25,7 +25,7 @@ func _test_distinct_geometry(kind: String) -> void:
 			boss.touhou_encounter.attack = 0
 			game._trigger_boss_skill(boss)
 			var dm = game.touhou_danmaku
-			check(dm.casts[0].card.origin == "original" and String(dm.casts[0].card.name).begins_with("原创"), "New moves must be presented as original")
+			check(dm.casts[0].card.origin == "original" and String(dm.casts[0].card.name).begins_with("符卡") and not String(dm.casts[0].card.name).contains("原创"), "Additional cards use a neutral spell label while preserving their internal identity")
 			# Ignore name, damage, count and colour: different moves must change
 			# emission positions, trajectories or delayed movement, not only stats.
 			var geometry := {}
@@ -76,14 +76,14 @@ func _test_character_tuning() -> void:
 				dm._bullet(c, Vector2.ZERO, PI, 100, Color.WHITE, "orb", {"damage": 20.0})
 				dm._beam(c, Vector2.ZERO, Vector2(100, 0), Color.WHITE, 1.0, 10, {"damage": 100.0})
 				var difficulty := Difficulty.boss_damage_multiplier(game.current_level)
-				check(is_equal_approx(float(dm.bullets.back().damage), 20 * base_damage * growth * difficulty * 2.0), "Character, bounded phase growth, difficulty and doubled Boss source apply once per bullet")
-				check(is_equal_approx(float(dm.beams.back().damage), 100 * base_beam * growth * difficulty * 2.0), "Laser tuning and doubled Boss source apply once with bounded phase growth")
+				check(is_equal_approx(float(dm.bullets.back().damage), 20 * base_damage * growth * difficulty * 5.0), "Character, bounded phase growth, difficulty and fivefold Boss source apply once per bullet")
+				check(is_equal_approx(float(dm.beams.back().damage), 100 * base_beam * growth * difficulty * 5.0), "Laser tuning and fivefold Boss source apply once with bounded phase growth")
 			check(Difficulty.attack_speed(kind, game.current_level) > float(Difficulty.profile(game.current_level).speed), "4A/B projectile speed must be strengthened")
 			check(Difficulty.attack_density(kind, game.current_level) > float(Difficulty.profile(game.current_level).density), "4A/B projectile density must be strengthened")
 			check(Difficulty.attack_cadence(kind, game.current_level) < float(Difficulty.profile(game.current_level).cadence), "4A/B emission cadence must be faster")
 			release(game)
 	var other := {"touhou_difficulty": "normal"}
-	check(is_equal_approx(Difficulty.attack_damage("keine_boss", other, 3), Difficulty.boss_damage_multiplier(other) * 2.0), "The global boost doubles other Boss damage without adding character tuning")
+	check(is_equal_approx(Difficulty.attack_damage("keine_boss", other, 3), Difficulty.boss_damage_multiplier(other) * 5.0), "The global boost scales fivefold other Boss damage without adding character tuning")
 
 func _test_original_tiles() -> void:
 	for kind in ["reimu_boss", "marisa_boss"]:

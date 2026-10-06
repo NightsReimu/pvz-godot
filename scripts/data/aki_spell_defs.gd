@@ -5,10 +5,10 @@ extends RefCounted
 const SHIZUHA_OPENING := ["th10-shizuha-nonspell", "非符 · 秋静叶的红叶回旋", "nonspell_aki_leaves", "shot"]
 const MINORIKO_OPENING := ["th10-minoriko-nonspell", "非符 · 秋穰子的金穗巡礼", "nonspell_aki_grain", "shot"]
 const ORIGINALS := [
-	["original-aki-ripening", "原创 · 秋收「红枫田垄的收获祭」", "aki_ripening", "harvest", {"duration": 8.5}],
-	["original-aki-offering", "原创 · 供奉「阳光贡仓的秋日祭」", "aki_offering", "harvest", {"duration": 9.0}],
-	["original-aki-six-furrows", "原创 · 枫阵「交错六畦的红叶毯」", "aki_six_furrows", "leaves", {"duration": 8.5}],
-	["original-aki-feast", "原创 · 丰穰「六畦同庆的秋日宴」", "aki_feast", "final", {"duration": 10.0}],
+	["original-aki-ripening", "符卡 · 秋收「红枫田垄的收获祭」", "aki_ripening", "harvest", {"duration": 8.5}],
+	["original-aki-offering", "符卡 · 供奉「阳光贡仓的秋日祭」", "aki_offering", "harvest", {"duration": 9.0}],
+	["original-aki-six-furrows", "符卡 · 枫阵「交错六畦的红叶毯」", "aki_six_furrows", "leaves", {"duration": 8.5}],
+	["original-aki-feast", "符卡 · 丰穰「六畦同庆的秋日宴」", "aki_feast", "final", {"duration": 10.0}],
 ]
 
 static func rank(level: Dictionary) -> int:

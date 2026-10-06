@@ -34,6 +34,10 @@ func make_game() -> Control:
 
 func dispose(g) -> void:
 	g.save_dirty = false
+	for child in g.get_children():
+		if child is AudioStreamPlayer:
+			child.stop()
+			child.stream = null
 	g.free()
 
 
@@ -102,5 +106,7 @@ func test_one_new_plant() -> void:
 func _run() -> void:
 	test_ash_reaches_the_sky()
 	test_one_new_plant()
+	# Give the audio mixer time to release the stopped native playback handles.
+	await create_timer(0.5).timeout
 	print("Fusion anatomy: %d failure(s)" % failures)
 	quit(1 if failures else 0)

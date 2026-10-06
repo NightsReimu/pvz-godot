@@ -264,6 +264,7 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 	if style in ["sun","support","guard","control"] and "shot" in traits:
 		style = combined_attack(weights)
 	var n: int = parts.size()
+	var same_species: bool = weights.size() == 1 and n >= 2
 	var channels: Array = Combat.channels(native,weights,traits,attack_for,traits_for)
 	var primary: Dictionary = {}
 	for channel in channels:
@@ -278,7 +279,7 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 		if words.size() < 6: words.append(String(tags.get(t,t)))
 	var inherited: Dictionary = native[base].duplicate(true)
 	inherited.erase("volcano_expansion"); inherited.erase("one_shot"); inherited.erase("stacks_on_plant")
-	inherited.merge({"name":name,"cost":0,"cooldown":7.5,"health":clampf(health*0.78,180,30000),"damage":minf(hit,2400),"shoot_interval":interval,"fusion_channels":channels,"fusion_only":true,"fusion_base":base,"fusion_components":parts,"fusion_weights":weights,"fusion_recipe":[a,b],"fusion_attack":style,"fusion_traits":traits,"fusion_shots":shots,"fusion_tier":clampi(n-1,1,8),"sun_amount":mini(800,roundi(sun)),"sun_interval":maxf(12.0,24.0-float(n)),"ultimate_charge_time":clampf(52.0+n*4.0,56,84),"ultimate_duration":1.2,"ultimate_name":ultimate,"fusion_summary":"、".join(words)},true)
+	inherited.merge({"name":name,"cost":0,"cooldown":7.5,"health":clampf(health*(0.925 if same_species else 0.78),180,30000),"damage":minf(hit,2400),"shoot_interval":interval,"fusion_channels":channels,"fusion_only":true,"fusion_base":base,"fusion_components":parts,"fusion_weights":weights,"fusion_same_species":same_species,"fusion_repeat_count":n if same_species else 1,"fusion_recipe":[a,b],"fusion_attack":style,"fusion_traits":traits,"fusion_shots":shots,"fusion_tier":clampi(n-1,1,8),"sun_amount":mini(800,roundi(sun)),"sun_interval":maxf(12.0,24.0-float(n)),"ultimate_charge_time":clampf(52.0+n*4.0,56,84),"ultimate_duration":1.2,"ultimate_name":ultimate,"fusion_summary":"、".join(words)},true)
 	var healing := 0.0
 	for p in parts: healing += float(native[p].get("heal_amount",0))
 	inherited.fusion_heal = minf(600,maxf(14*(1+n*0.25),healing*0.78))
@@ -311,6 +312,36 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 	inherited.fusion_utility_damage = maxf(float(inherited.fusion_utility_damage),float(inherited.fusion_strike_damage)*0.35)
 	inherited.fusion_combat_description = []
 	for channel in channels: inherited.fusion_combat_description.append(Combat.describe(channel,native))
+	if same_species:
+		var source: String = weights.keys()[0]
+		var copies: int = int(weights[source])
+		var speed: float = minf(4.0,float(copies))
+		var growth: float = 1.0+0.22*(sqrt(float(copies))-1.0)
+		var role: String = "原生周期节奏 ×%.0f" % speed
+		if source in SUNS and float(native[source].get("damage",0)) <= 0: role = "阳光价值 ×%d" % copies
+		elif Combat.BURSTS.has(source): role = "原生引信首爆、双重蓄力"
+		elif source == "peashooter": role = "%d 个原生喷口" % mini(6,copies)
+		elif source == "corn_cannon": role = "原生手动瞄准、双膛强化"
+		inherited.fusion_summary = ("双器官协作" if copies == 2 else "%d 份同种材料的多器官共生" % copies)+"（"+role+"）；"+String(inherited.fusion_summary)
+		# Native state machines own continuous weapons. Do not present the old
+		# abstract channel interval as their actual repeated-material firing rate.
+		inherited.fusion_combat_description.clear()
+		inherited.fusion_combat_description.append("同种耐久：原种的 %.0f%%；同种材料长出独立可见器官。" % (float(inherited.health)/float(native[source].health)*100.0))
+		if source in SUNS and float(native[source].get("damage",0)) <= 0:
+			inherited.fusion_combat_description.append("光合双器官：保留原种产阳节奏，每枚阳光价值 ×%d。" % copies)
+		elif Combat.BURSTS.has(source):
+			for channel in channels:
+				inherited.fusion_combat_description.append(Combat.describe(channel,native))
+				if channel.has("opening_damage"):
+					inherited.fusion_combat_description.append("种下 %.2f 秒后首爆：%.0f 伤害；之后使用上方独立再装填周期。" % [float(channel.initial_delay),float(channel.opening_damage)])
+		elif source == "peashooter":
+			inherited.fusion_combat_description.append("%d 个原生豌豆喷口同轮齐射；每 %.2f 秒一轮，单发保留原生伤害。" % [mini(6,copies),float(native[source].shoot_interval)])
+		elif source == "corn_cannon":
+			inherited.fusion_combat_description.append("双膛玉米炮：保留原生手动瞄准和装填；大招原生炮弹威力约 ×%.2f。" % (growth*speed*0.9))
+		else:
+			inherited.fusion_combat_description.append("双器官原生动作节奏 ×%.0f：原生射击、近战及周期辅助随各自状态机运作。" % speed)
+			if channels.any(func(channel): return channel.style in ["shooter","spread","lobber","blade"]):
+				inherited.fusion_combat_description.append("普通新生弹丸伤害约 ×%.2f；弹型、目标与命中特性保留原种。" % growth)
 	var passive_notes := {
 		"mirror_reed":"镜芦苇：保留对敌方狙击与 Boss 弹幕的镜面反弹。",
 		"umbrella_leaf":"伞叶：继续保护周围植物，拦截空袭。",
@@ -324,6 +355,15 @@ static func _add(native: Dictionary, a: String, b: String, id: String, name: Str
 		if weights.has(source): inherited.fusion_combat_description.append(passive_notes[source])
 	inherited.ultimate_name = signature.name
 	inherited.fusion_ultimate_description = signature.description
+	if channels.any(func(channel): return channel.source in ["peashooter","snow_pea","cactus","starfruit","amber_shooter","prism_pea","threepeater","split_pea","puff_shroom","sea_shroom","fume_shroom"]):
+		inherited.fusion_ultimate_description = "点击立即释放原生武器齐射，随后进入短时原生强化；"+String(inherited.fusion_ultimate_description)
+	if same_species:
+		var source: String = weights.keys()[0]
+		var detail: String = "双器官共同释放招牌能力；"
+		if source in ["wallnut","tallnut","pumpkin"]: detail = "双器官原生加固：恢复本体并生成更强原生装甲；"
+		elif source == "healing_gourd": detail = "双器官回春：恢复全场生命并叠加更强原生护盾；"
+		elif source in SUNS and float(native[source].get("damage",0)) <= 0: detail = "双器官光合丰收，保留原生持续产阳；"
+		inherited.fusion_ultimate_description = detail+String(inherited.fusion_ultimate_description)
 	inherited.ultimate_duration = 2.4
 	inherited.fusion_art_dynamic = id.begins_with("mix_")
 	DEFINITIONS[id] = inherited

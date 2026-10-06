@@ -52,6 +52,14 @@ static func channels(native: Dictionary, weights: Dictionary, global_tags: Array
    burst.interval = float(burst.interval)*(1.0+0.18*(growth-1))
    # Long cooldowns use real time, so haste cannot turn explosions into rapid fire.
    burst.initial_delay = float(burst.interval)
+   if weights.size() == 1 and count >= 2:
+    # Pure twin chambers keep a native planting fuse, then recharge as living
+    # chambers. This never applies to ash-infused shooter payloads above.
+    burst.damage *= minf(4.0,float(count))*0.9
+    burst.interval /= minf(2.0,1.0+0.5*float(count-1))
+    burst.initial_delay = float(stats.get("arm_time",stats.get("fuse",0.6)))
+    if source in ["cherry_bomb","jalapeno","doom_shroom"]:
+     burst.opening_damage = float(stats.get("damage",burst.damage))*minf(4.0,float(count))*0.9
    result.append(burst); continue
   if source == "mirror_reed": continue # Reactive shield, not an imaginary pea cannon.
   var damage: float = float(stats.get("damage",stats.get("contact_damage",stats.get("zone_damage",0))))

@@ -104,8 +104,13 @@ func _run() -> void:
 			game._begin_level(-1, [], level)
 			check(runtime.eyes.is_empty() and runtime.eclipse.is_empty() and runtime.darkness == 0 and game.zombies.is_empty(), "Retry removes temporary fields, portals and enemies")
 		game.save_dirty = false
+		for child in game.get_children():
+			if child is AudioStreamPlayer:
+				child.stop()
+				child.stream = null
 		game.free()
-	await process_frame
+	# The audio mixer releases stopped playback handles asynchronously.
+	await create_timer(0.5).timeout
 	print("3-23 live road/finale, four difficulties, stage/boss BGM, grass grid, pause, retry and two screen sizes: %d failure(s)" % failures)
 	quit(1 if failures else 0)
 

@@ -8,10 +8,10 @@ const KIND := "nitori_boss"
 const ROAD_NONSPELL := ["th10-nitori-camouflage-nonspell", "非符 · 光学迷彩下的偷袭", "nonspell_nitori_camouflage", "camouflage", {"camouflage_duration": 6.0}]
 const OPENING := ["th10-nitori-nonspell", "非符 · 河童的水枪连射", "nonspell_nitori_jet", "shot"]
 const ORIGINALS := [
-	["original-nitori-camo-squad", "原创 · 迷彩「光学迷彩突击队」", "nitori_camo_squad", "camouflage", {"duration": 9.0}],
-	["original-nitori-cucumber", "原创 · 胡瓜「玄武之泽的黄瓜诱饵」", "nitori_cucumber_bait", "cucumber", {"duration": 10.0}],
-	["original-nitori-cannon", "原创 · 水压「河童重工高压水炮」", "nitori_water_cannon", "cannon", {"duration": 9.5}],
-	["original-nitori-workshop", "原创 · 河童「玄武工房总动员」", "nitori_workshop", "workshop", {"duration": 11.5}],
+	["original-nitori-camo-squad", "符卡 · 迷彩「光学迷彩突击队」", "nitori_camo_squad", "camouflage", {"duration": 9.0}],
+	["original-nitori-cucumber", "符卡 · 胡瓜「玄武之泽的黄瓜诱饵」", "nitori_cucumber_bait", "cucumber", {"duration": 10.0}],
+	["original-nitori-cannon", "符卡 · 水压「河童重工高压水炮」", "nitori_water_cannon", "cannon", {"duration": 9.5}],
+	["original-nitori-workshop", "符卡 · 河童「玄武工房总动员」", "nitori_workshop", "workshop", {"duration": 11.5}],
 ]
 
 static func rank(level: Dictionary) -> int:

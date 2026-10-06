@@ -89,7 +89,7 @@ func _run() -> void:
 				child.stream = null
 		game.free()
 	# Audio mixing releases stopped playback handles asynchronously.
-	await create_timer(0.2).timeout
+	await create_timer(0.5).timeout
 	print("Self-midboss live frames: road minions, fixed waves, damage defeat, resumed events, music and desktop/mobile HUD; %d failure(s)" % failures)
 	quit(1 if failures else 0)
 

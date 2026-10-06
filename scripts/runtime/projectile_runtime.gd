@@ -332,6 +332,8 @@ func _find_spatial_enemy_hit(projectile: Dictionary) -> int:
 		var zombie = game.zombies[i]
 		if not game._is_enemy_zombie(zombie) or bool(zombie.get("jumping", false)):
 			continue
+		if float(zombie.get("health",0.0)) <= 0.0 and not (bool(zombie.get("touhou_invulnerable",false)) and float(zombie.get("touhou_survival_timer",0.0)) > 0.0):
+			continue
 		if ignored_uids.has(int(zombie.get("uid", -1))):
 			continue
 		if bool(zombie.get("balloon_flying", false)) and not bool(projectile.get("anti_air", false)):

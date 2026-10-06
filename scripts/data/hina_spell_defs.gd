@@ -5,10 +5,10 @@ extends RefCounted
 const KIND := "hina_boss"
 const OPENING := ["th10-hina-nonspell", "非符 · 键山雏的厄运回旋", "nonspell_hina_spiral", "spin"]
 const ORIGINALS := [
-	["original-hina-delayed", "原创 · 厄印「迟开的六畦厄花」", "hina_delayed", "curse", {"duration": 8.5}],
-	["original-hina-doll", "原创 · 流偶「代偿厄运的稻草人」", "hina_doll_offering", "doll", {"duration": 10.5}],
-	["original-hina-misfire", "原创 · 失准「第三颗豌豆的坏运气」", "hina_misfire", "ofuda", {"duration": 8.5}],
-	["original-hina-festival", "原创 · 厄祭「阵地轮回的流雏祭」", "hina_festival", "final", {"duration": 11.0}],
+	["original-hina-delayed", "符卡 · 厄印「迟开的六畦厄花」", "hina_delayed", "curse", {"duration": 8.5}],
+	["original-hina-doll", "符卡 · 流偶「代偿厄运的稻草人」", "hina_doll_offering", "doll", {"duration": 10.5}],
+	["original-hina-misfire", "符卡 · 失准「第三颗豌豆的坏运气」", "hina_misfire", "ofuda", {"duration": 8.5}],
+	["original-hina-festival", "符卡 · 厄祭「阵地轮回的流雏祭」", "hina_festival", "final", {"duration": 11.0}],
 ]
 
 static func rank(level: Dictionary) -> int:

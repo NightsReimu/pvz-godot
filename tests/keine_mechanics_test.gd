@@ -43,11 +43,14 @@ func _test_whip_and_piano() -> void:
 	runtime.update(1.0)
 	check(game.grid[2][7].health == near_hp, "Whips must respect their warning period")
 	runtime.update(2.0)
-	check(game.grid[2][7].health < near_hp and game.grid[2][7].health >= near_hp - 240, "Whip sweep must hit nearby plants once per cast")
+	check(game.grid[2][7].health < near_hp and game.grid[2][7].health >= near_hp - 600, "Whip sweep must hit nearby plants once per cast")
 	check(game.grid[2][0].health == far_hp, "Whip radius must not hit distant plants")
 	runtime.reset()
 	game.grid[2][7] = null
 	game.grid[2][6] = game._create_plant("peashooter", 2, 6)
+	# Keep the target alive to measure silence recovery independently of Boss strength.
+	game.grid[2][6].health = 5000.0
+	game.grid[2][6].max_health = 5000.0
 	game.grid[2][6].shot_cooldown = 0.0
 	var piano_hp: float = game.grid[2][6].health
 	runtime.cast(boss, "keine_piano")

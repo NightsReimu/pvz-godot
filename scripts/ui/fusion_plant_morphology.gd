@@ -245,7 +245,13 @@ static func svg_for(id: String, data: Dictionary) -> String:
 		buds += '<g data-ingredient="%s"><ellipse cx="%.1f" cy="%.1f" rx="3.2" ry="4.2" fill="%s" stroke="#283e35" stroke-width="0.9"/></g>' % [source,bx,33.0-float((n-4)/6)*5,_k(source).light]
 	# Repeated host material grows twin and triple heads behind the main body.
 	var twins := ""
-	if host_weight >= 2: twins += _g(tissue,hx-24,hy-9+28*hs*0.3,hs*0.7)
+	var mono_twin: bool = weights.size() == 1 and host_weight >= 2
+	if mono_twin:
+		# Two equal, separated silhouettes on a forked root read as two working
+		# organs even at one-cell size, rather than a small ornament behind a face.
+		hs = 0.70; hx = 20.0; hy = 10.0
+		twins += '<g data-organ="twin" data-ingredient="%s"><path d="M 0 37 Q -12 23 -22 13 M 0 37 Q 12 23 20 13" fill="none" stroke="url(#lf)" stroke-width="7"/>%s</g>' % [host,_g(tissue,-22,4,0.70,-7)]
+	elif host_weight >= 2: twins += _g(tissue,hx-24,hy-9+28*hs*0.3,hs*0.7)
 	if host_weight >= 3: twins += _g(tissue,hx+24,hy-9+28*hs*0.3,hs*0.66)
 	for n in range(clampi(host_weight-3,0,5)):
 		twins += _spark(-34+n*7,30-(n%2)*4,2.4,"#f8e7a0")

@@ -2,7 +2,7 @@ extends RefCounted
 
 const LEVEL := {
 	"id": "4-19", "title": "东方 4-19 · 红枫与丰穰",
-	"description": "六行红枫旱地，没有池水或浓雾。道中秋静叶以落叶迎客，终末秋穰子展开秋空与丰收符卡。金穗催熟让植物加快行动，收割红圈出现后可用本行大招清除；打碎贡仓返还25阳光，阻止僵尸回血。E/N/H传送带，L自选卡，难度越高原创符卡越多。",
+	"description": "六行红枫旱地，没有池水或浓雾。道中秋静叶以落叶迎客，终末秋穰子展开秋空与丰收符卡。金穗催熟让植物加快行动，收割红圈出现后可用本行大招清除；打碎贡仓返还25阳光，阻止僵尸回血。E/N/H传送带，L自选卡，难度越高追加符卡越多。",
 	"terrain": "autumn_maple", "mode": "conveyor", "boss_level": true,
 	"unlock_requirements": ["4-18"], "water_rows": [], "row_count": 6,
 	"mid_boss_kind": "shizuha_boss", "mid_boss_locked_progress": 0.38,

@@ -190,7 +190,12 @@ func activate(row: int, col: int) -> bool:
 			return true
 		return false
 
-	var plant = plant_variant
+	return activate_native(plant_variant,row,col)
+
+
+# Grafted weapons use their original state machine without selecting or replacing
+# the living hybrid. The public cell entry retains its native heal/write-back.
+func activate_native(plant: Dictionary, row: int, col: int, detached: bool = false) -> bool:
 	if float(plant.get("health", 0.0)) <= 0.0 or game._plant_charm_blocks_actions(plant):
 		return false
 	if game.aki_runtime != null: game.aki_runtime.cleanse_row(row)
@@ -203,6 +208,7 @@ func activate(row: int, col: int) -> bool:
 	if game._plant_food_uses_click_ultimate(kind):
 		var profile: Dictionary = game._ultimate_profile_for_kind(kind)
 		game._execute_ultimate(plant, kind, row, col, profile)
+		if detached: return true
 		var resolved_plant = game._targetable_plant_at(row, col)
 		return _finish_activation(resolved_plant, kind, row, col, center)
 	match kind:
@@ -1470,6 +1476,9 @@ func activate(row: int, col: int) -> bool:
 		_:
 			plant = _activate_fallback_plant_food(plant, kind, row, col, center)
 
+	if detached:
+		plant.flash = maxf(float(plant.get("flash",0)),0.22)
+		return true
 	return _finish_activation(plant, kind, row, col, center)
 
 
