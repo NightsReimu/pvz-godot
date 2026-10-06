@@ -104,9 +104,11 @@ func _run() -> void:
 		check(float(rt.fields.back().age) == 0.0, "Battle pause freezes the curse warning")
 		game.battle_paused = false
 		rt.update(1.3)
-		if game.grid[5][1] == null: game.grid[5][1] = game._create_plant("repeater", 5, 1)
+		# Road sequencing can kill the original crop under the stronger barrage.
+		# Exercise counterplay with a living replacement, never activate a corpse.
+		if game.grid[5][1] == null or float(game.grid[5][1].health) <= 0.0: game.grid[5][1] = game._create_plant("repeater", 5, 1)
 		check(rt.action_factor(5, 1) == 0.72, "A native repeater on lane six receives the active curse")
-		game._ensure_plant_food_runtime().activate(5, 1)
+		check(game._ensure_plant_food_runtime().activate(5, 1), "A living replacement really activates plant food")
 		check(rt.fields.is_empty(), "Actual plant-food activation cleans its cursed row")
 		rt.queue_field(int(boss.uid), Vector2i(4, 1), "curse", 1.2)
 		game.grid[4][1] = game._create_plant("repeater", 4, 1)

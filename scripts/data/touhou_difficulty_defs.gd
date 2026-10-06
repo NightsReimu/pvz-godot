@@ -43,11 +43,15 @@ const EXTENSIONS := {
 # Each column is a different move, retained by all subsequent difficulty tiers.
 # The first uses the character's pursuit pattern, then crossfire, then a domain.
 # These bosses provide their own EX/EX+ phase lists in MokouSpellDefs.
-const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss", "shizuha_boss", "minoriko_boss", "hina_boss", "nitori_boss"]
+const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss", "shizuha_boss", "minoriko_boss", "hina_boss", "nitori_boss", "momiji_boss", "aya_boss"]
 
 # Source amplification is independent of difficulty and character tuning.
 # Ordinary reinforcements do not acquire it merely by sharing a Boss's lawn.
 const OUTGOING_DAMAGE_MULTIPLIER := 5.0
+const WIND_GOD_BOSSES := ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss"]
+const WIND_GOD_DAMAGE := 2.5
+const WIND_GOD_DENSITY := {"shizuha_boss":1.75,"minoriko_boss":2.25,"hina_boss":1.75,"nitori_boss":2.5,"momiji_boss":1.75,"aya_boss":1.75}
+const WIND_GOD_CADENCE := .78
 const OWNED_ATTACK_SOURCES := {
 	"alice_doll_zombie": "alice_boss", "youmu_wraith": "youmu_boss", "yuyuko_spirit": "yuyuko_boss",
 	"keine_bamboo": "keine_boss", "marisa_mushroom": "marisa_boss",
@@ -65,7 +69,9 @@ static func outgoing_source_kind(kind: String) -> String:
 	return source if source == "tewi_boss" or EXTENSIONS.has(source) or source in CUSTOM_EXTRA_BOSSES else ""
 
 static func outgoing_damage_multiplier(kind: String) -> float:
-	return OUTGOING_DAMAGE_MULTIPLIER if not outgoing_source_kind(kind).is_empty() else 1.0
+	var source := outgoing_source_kind(kind)
+	if source.is_empty(): return 1.0
+	return OUTGOING_DAMAGE_MULTIPLIER * (WIND_GOD_DAMAGE if source in WIND_GOD_BOSSES else 1.0)
 
 static func direct_attack_damage(kind: String, level: Dictionary) -> float:
 	# Preserve the untuned direct-hit paths' old difficulty factor. Using the
@@ -115,7 +121,7 @@ const ATTACK_TUNING := {
 
 
 static func attack_density(kind: String, level: Dictionary) -> float:
-	return float(profile(level).density) * float(ATTACK_TUNING.get(kind, {}).get("density", 1.0))
+	return float(profile(level).density) * float(ATTACK_TUNING.get(kind, {}).get("density", 1.0)) * float(WIND_GOD_DENSITY.get(kind,1.0))
 
 
 static func attack_speed(kind: String, level: Dictionary) -> float:
@@ -123,7 +129,7 @@ static func attack_speed(kind: String, level: Dictionary) -> float:
 
 
 static func attack_cadence(kind: String, level: Dictionary) -> float:
-	return float(profile(level).cadence) * float(ATTACK_TUNING.get(kind, {}).get("cadence", 1.0))
+	return float(profile(level).cadence) * float(ATTACK_TUNING.get(kind, {}).get("cadence", 1.0)) * (WIND_GOD_CADENCE if kind in WIND_GOD_BOSSES else 1.0)
 
 
 static func attack_damage(kind: String, level: Dictionary, phase: int, beam: bool = false) -> float:
@@ -170,7 +176,7 @@ static func build_level(base: Dictionary, choice: String) -> Dictionary:
 		level["mid_boss_nonspell_only"] = int(settings.rank) < 2
 	level["title"] = "%s · %s" % [String(base.title), settings.name]
 	if bool(settings.select):
-		if String(base.get("id", "")) in ["4-19", "4-20", "4-21"]:
+		if String(base.get("id", "")) in ["4-19", "4-20", "4-21", "4-22"]:
 			level["available_plants"].push_front("sunflower")
 		level["mode"] = "normal"
 		level["start_sun"] = 350

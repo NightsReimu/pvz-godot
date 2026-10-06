@@ -52,6 +52,8 @@ func is_mechanical_zombie_kind(kind: String) -> bool:
 func is_row_valid_for_spawn_kind(kind: String, row: int) -> bool:
 	if not game._is_row_active(row):
 		return false
+	if game._is_tengu_level():
+		return true # Water troops/airborne road and mixed mountain patrols are authored.
 	if game._is_eirin_level():
 		return true
 	if not game._is_pool_level():
@@ -116,6 +118,9 @@ func update_boss(zombie: Dictionary, delta: float) -> Dictionary:
 		return zombie
 	var kind := String(zombie["kind"])
 	if float(zombie.get("touhou_cast_remaining", 0.0)) > 0.0:
+		if kind in ["momiji_boss", "aya_boss"]:
+			zombie = game._update_hovering_boss(zombie, delta)
+			return game._update_boss_reinforcements(zombie, delta)
 		zombie = game._update_boss_reinforcements(zombie, delta)
 		return tick_hover_pose(zombie, delta)
 	var phase: int = game._boss_phase_from_ratio(float(zombie["health"]) / maxf(float(zombie["max_health"]), 1.0))

@@ -201,6 +201,7 @@ func activate_native(plant: Dictionary, row: int, col: int, detached: bool = fal
 	if game.aki_runtime != null: game.aki_runtime.cleanse_row(row)
 	if game.hina_runtime != null: game.hina_runtime.cleanse_row(row)
 	if game.nitori_runtime != null: game.nitori_runtime.cleanse_row(row)
+	if game.tengu_runtime != null: game.tengu_runtime.cleanse_row(row)
 	if game.suika_runtime != null: game.suika_runtime.cleanse_row(row)
 	plant["sleep_timer"] = 0.0
 	var center = game._cell_center(row, col)

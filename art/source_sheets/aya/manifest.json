@@ -1,0 +1,525 @@
+{
+  "method": "Exact supplied RGBA pixels, independent component ownership and original foot anchors; alpha-zero RGB is excluded, all alpha-positive pixels retained once. No background extraction, haze threshold, rotation, mirroring, recoloring, resampling or generation.",
+  "sprite": {
+    "kind": "aya_boss",
+    "folder": "art/aya",
+    "frame_count": 24,
+    "source_pose_count": 24,
+    "source": "user_transparent_sheet_individual_crops",
+    "source_sheet": "art/source_sheets/aya/aya.png",
+    "source_size": [
+      1536,
+      1024
+    ],
+    "original_sha256": "5c0c78ad9b4c8500e838cf5202c2d5bc4cd1d630cfd17e6ba89cbc045e5ad913",
+    "source_sha256": "5c0c78ad9b4c8500e838cf5202c2d5bc4cd1d630cfd17e6ba89cbc045e5ad913",
+    "canvas": [
+      512,
+      384
+    ],
+    "pivot": [
+      256,
+      320
+    ],
+    "idle_height": 236,
+    "idle_bottom": 319,
+    "runtime_source_slots": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "seed_alpha": 32,
+    "texture_import": {
+      "compress_mode": 0,
+      "fix_alpha_border": false,
+      "premult_alpha": false,
+      "mipmaps": false
+    },
+    "individual_crops": [
+      {
+        "source_slot": 0,
+        "bounds": [
+          60,
+          14,
+          264,
+          258
+        ],
+        "anchor": [
+          140,
+          253
+        ],
+        "components": 1,
+        "frame_sha256": "d488fce99c21103e3591c985a9924d0beb82e5234789ec1d31d143630d7365e4"
+      },
+      {
+        "source_slot": 1,
+        "bounds": [
+          291,
+          11,
+          498,
+          258
+        ],
+        "anchor": [
+          388,
+          252
+        ],
+        "components": 2,
+        "frame_sha256": "669fcbef3f793f7faced58b1a5b2056a81ad64b0338601514fe2779162f94fa9"
+      },
+      {
+        "source_slot": 2,
+        "bounds": [
+          533,
+          11,
+          764,
+          256
+        ],
+        "anchor": [
+          636,
+          254
+        ],
+        "components": 1,
+        "frame_sha256": "cc3601df226f00965350dc2598ecf4f5214578654587bad7b871e49f7c4c79c1"
+      },
+      {
+        "source_slot": 3,
+        "bounds": [
+          809,
+          27,
+          1026,
+          256
+        ],
+        "anchor": [
+          928,
+          251
+        ],
+        "components": 1,
+        "frame_sha256": "8e7c1a0117a1107debe6baa2fd4af6d8c11c59bb5833890ff5e295121d8184cb"
+      },
+      {
+        "source_slot": 4,
+        "bounds": [
+          1069,
+          28,
+          1280,
+          260
+        ],
+        "anchor": [
+          1177,
+          251
+        ],
+        "components": 1,
+        "frame_sha256": "2a1c581cba8aa0b96b921544820fcd325937b97034b52b292a8dff43c482fcf6"
+      },
+      {
+        "source_slot": 5,
+        "bounds": [
+          1297,
+          40,
+          1520,
+          256
+        ],
+        "anchor": [
+          1430,
+          251
+        ],
+        "components": 1,
+        "frame_sha256": "fbb4e081fa320afea929777c1590d804b6c4e802a932a0f8cd5ad53a456b2356"
+      },
+      {
+        "source_slot": 6,
+        "bounds": [
+          0,
+          271,
+          250,
+          516
+        ],
+        "anchor": [
+          140,
+          509
+        ],
+        "components": 1,
+        "frame_sha256": "6966a922f43d779261611139d177d6f0172618f15abbeda957a82e88ccd6a251"
+      },
+      {
+        "source_slot": 7,
+        "bounds": [
+          245,
+          259,
+          536,
+          514
+        ],
+        "anchor": [
+          421,
+          507
+        ],
+        "components": 7,
+        "frame_sha256": "7b86a33be8c6b2b9c578bfedd696ece5d73e05df2227bc6b5f7ed10e2f0a360d"
+      },
+      {
+        "source_slot": 8,
+        "bounds": [
+          511,
+          255,
+          808,
+          514
+        ],
+        "anchor": [
+          684,
+          506
+        ],
+        "components": 3,
+        "frame_sha256": "08867ecf96f23b68aa4660301fbdbeaff854eaf93cd9b215896e9ba9261f6131"
+      },
+      {
+        "source_slot": 9,
+        "bounds": [
+          814,
+          271,
+          1040,
+          519
+        ],
+        "anchor": [
+          916,
+          509
+        ],
+        "components": 1,
+        "frame_sha256": "1de7440b582723b32e8a9fd745cb1d6c2bc6e298a717abfe1fc4ad4c71370f51"
+      },
+      {
+        "source_slot": 10,
+        "bounds": [
+          1043,
+          247,
+          1302,
+          521
+        ],
+        "anchor": [
+          1165,
+          509
+        ],
+        "components": 5,
+        "frame_sha256": "07b3a887e7bb1edd5c821cd91d6b7327e812bd3105687d8b2a389cdb411c4af3"
+      },
+      {
+        "source_slot": 11,
+        "bounds": [
+          1303,
+          273,
+          1528,
+          516
+        ],
+        "anchor": [
+          1423,
+          510
+        ],
+        "components": 3,
+        "frame_sha256": "0a57e8e4237f20730025a0339ddf551647e67990392458e7a30a2a2551e29d43"
+      },
+      {
+        "source_slot": 12,
+        "bounds": [
+          27,
+          543,
+          242,
+          771
+        ],
+        "anchor": [
+          140,
+          756
+        ],
+        "components": 1,
+        "frame_sha256": "aab3654306baf477e6a15b8b5a40a6421172daa2faf8a7cee0c2e5f2aa9d0a57"
+      },
+      {
+        "source_slot": 13,
+        "bounds": [
+          318,
+          515,
+          540,
+          768
+        ],
+        "anchor": [
+          411,
+          757
+        ],
+        "components": 1,
+        "frame_sha256": "a1321605d40ea89cc7a234ce4a4b5e836f42f8b9fcf1669883bac3ae4646a1f5"
+      },
+      {
+        "source_slot": 14,
+        "bounds": [
+          541,
+          519,
+          770,
+          774
+        ],
+        "anchor": [
+          660,
+          757
+        ],
+        "components": 2,
+        "frame_sha256": "261c3cb370b004ba09c9063ea2837ff9f92b21c2fe5536243d98b96fb55e1f9f"
+      },
+      {
+        "source_slot": 15,
+        "bounds": [
+          797,
+          506,
+          1032,
+          767
+        ],
+        "anchor": [
+          894,
+          757
+        ],
+        "components": 4,
+        "frame_sha256": "e699fafafe82e1f201f3333189d49451eec59e04fc0e4b33f4d3b1b958c55371"
+      },
+      {
+        "source_slot": 16,
+        "bounds": [
+          1041,
+          508,
+          1292,
+          770
+        ],
+        "anchor": [
+          1186,
+          758
+        ],
+        "components": 4,
+        "frame_sha256": "df7f53ae4bee9c60ed5bf5f69142a86f30549ba8dd40daff82d0da2a9d6ad006"
+      },
+      {
+        "source_slot": 17,
+        "bounds": [
+          1307,
+          511,
+          1536,
+          768
+        ],
+        "anchor": [
+          1418,
+          758
+        ],
+        "components": 8,
+        "frame_sha256": "5ffbf2fde59c534bc0ebc0a6157fdca3ddce99190afe574f855933b32ea2e32c"
+      },
+      {
+        "source_slot": 18,
+        "bounds": [
+          0,
+          755,
+          290,
+          1024
+        ],
+        "anchor": [
+          144,
+          1007
+        ],
+        "components": 6,
+        "frame_sha256": "1d38a718d24618170a99dd77f1b1b5787fede300ebbf7ccce91abada1e14cf11"
+      },
+      {
+        "source_slot": 19,
+        "bounds": [
+          254,
+          757,
+          563,
+          1008
+        ],
+        "anchor": [
+          412,
+          1005
+        ],
+        "components": 8,
+        "frame_sha256": "5382942fc233c8ef98413592b3d13293911b07bb6f761f57cd551ef324914e97"
+      },
+      {
+        "source_slot": 20,
+        "bounds": [
+          522,
+          767,
+          818,
+          1024
+        ],
+        "anchor": [
+          666,
+          1007
+        ],
+        "components": 12,
+        "frame_sha256": "d8635ab0443535c7470d28e6575c706a9e7469b602e528da07d02d4f6e32f3ce"
+      },
+      {
+        "source_slot": 21,
+        "bounds": [
+          815,
+          789,
+          1030,
+          1024
+        ],
+        "anchor": [
+          922,
+          1002
+        ],
+        "components": 3,
+        "frame_sha256": "6f8ea4574c856121516df67d9f3a739e9adc1cff0d49980a55f0e96ee08d89f5"
+      },
+      {
+        "source_slot": 22,
+        "bounds": [
+          1073,
+          765,
+          1306,
+          1006
+        ],
+        "anchor": [
+          1207,
+          998
+        ],
+        "components": 1,
+        "frame_sha256": "d7f7baee90efd4a9e01f06d6557dedd6913cdc4b7852e1c27c03a2fed29aa0c9"
+      },
+      {
+        "source_slot": 23,
+        "bounds": [
+          1337,
+          765,
+          1521,
+          1010
+        ],
+        "anchor": [
+          1424,
+          1007
+        ],
+        "components": 1,
+        "frame_sha256": "df9f38a21bcd3ec8cb97260f44cac0475d4e55ab46d71c927dc2545b61103f97"
+      }
+    ],
+    "layout": {
+      "rows": [
+        134,
+        388,
+        642,
+        899
+      ],
+      "centers": [
+        [
+          142,
+          390,
+          639,
+          920,
+          1163,
+          1420
+        ],
+        [
+          151,
+          384,
+          670,
+          925,
+          1163,
+          1427
+        ],
+        [
+          144,
+          411,
+          660,
+          910,
+          1181,
+          1424
+        ],
+        [
+          134,
+          409,
+          665,
+          915,
+          1182,
+          1425
+        ]
+      ],
+      "gaps": [
+        [
+          0,
+          273,
+          520,
+          782,
+          1043,
+          1292,
+          1536
+        ],
+        [
+          0,
+          253,
+          517,
+          811,
+          1043,
+          1302,
+          1536
+        ],
+        [
+          0,
+          278,
+          540,
+          786,
+          1041,
+          1300,
+          1536
+        ],
+        [
+          0,
+          262,
+          528,
+          812,
+          1048,
+          1308,
+          1536
+        ]
+      ],
+      "row_gaps": [
+        0,
+        254,
+        514,
+        764,
+        1024
+      ],
+      "seed_alpha": 32,
+      "soft_component_gaps": true
+    }
+  },
+  "audio": [
+    {
+      "role": "stage",
+      "path": "audio/bgm/touhou/4-22-stage.mp3",
+      "source_name": "4-22道中.mp3",
+      "source_sha256": "a481deebfa6332d9dee5f35140c204d63aeabfcae60709e4f13684027d06f3f8"
+    },
+    {
+      "role": "ending",
+      "path": "audio/bgm/touhou/4-22-ending.mp3",
+      "source_name": "4-22终末.mp3",
+      "source_sha256": "aaa28605e5e9c713a7f356a6024e86509774d5d79f93845902bf999ab27eb732"
+    }
+  ]
+}

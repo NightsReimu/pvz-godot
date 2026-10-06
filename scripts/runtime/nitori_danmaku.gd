@@ -31,15 +31,18 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 		"nitori_optical_camouflage":
 			# Two curving walls close into an eye; a slow pupil marks the middle.
 			for side in [-1, 1]:
-				for i in range(6):
-					var angle: float = PI + side * (0.22 + i * 0.09)
-					dm._bullet(c, origin, angle, (96.0 + i * 6.0) * scale, WATER, "nitori_drop", {"arming_time": 1.05, "radius": 4.0 * scale, "angular_speed": -side * (0.20 + i * 0.015), "damage": 25.0})
+				var spokes: int=ceili(6*dm._attack_density_for_cast(c))
+				for i in range(spokes):
+					var spoke: float=5.0*i/maxi(1,spokes-1)
+					var angle: float = PI + side * (0.22 + spoke * 0.09)
+					dm._bullet(c, origin, angle, (96.0 + spoke * 6.0) * scale, WATER, "nitori_drop", {"arming_time": 1.05, "radius": 4.0 * scale, "angular_speed": -side * (0.20 + spoke * 0.015), "damage": 25.0})
 			dm._ring(c, origin, 6, turn, 70.0 * scale, FOAM, "nitori_bubble", {"arming_time": 1.1, "radius": 5.0 * scale, "damage": 22.0})
 			cadence = 1.6
 		"nitori_hydro_camouflage":
 			for lane in [posmod(wave, game.active_rows.size()), posmod(wave + 3, game.active_rows.size())]:
 				var start := Vector2(origin.x, game._row_center_y(int(game.active_rows[lane])) - 12.0)
-				for k in range(3): dm._bullet(c, start + Vector2(k * 22.0 * scale, 0), PI, 165.0 * scale, DEEP, "nitori_drop", {"arming_time": 1.0, "radius": 4.0 * scale, "damage": 27.0})
+				var stream: int=ceili(3*dm._attack_density_for_cast(c))
+				for k in range(stream): dm._bullet(c, start + Vector2(44.0*k/maxi(1,stream-1) * scale, 0), PI, 165.0 * scale, DEEP, "nitori_drop", {"arming_time": 1.0, "radius": 4.0 * scale, "damage": 27.0})
 			_wall(dm, c, origin.x, posmod(wave * 2 + 1, game.active_rows.size()), 70.0 * scale, FOAM, "nitori_bubble", {"arming_time": 1.15, "radius": 5.0 * scale, "damage": 24.0, "life": 9.0})
 			cadence = 1.7
 		"nonspell_nitori_jet":
@@ -75,8 +78,9 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 			for k in range(2 + wave % 2):
 				var x := 0.30 + fposmod(0.17 * wave + k * 0.23, 0.62)
 				var top: Vector2 = dm._point(x, 0.0) + Vector2(0, -6)
-				for drop in range(4):
-					dm._bullet(c, top, PI / 2 + 0.22, (78.0 + drop * 15.0) * scale, WATER if drop % 2 else FOAM, "nitori_drop", {"arming_time": 1.05, "radius": 4.2 * scale, "damage": 27.0})
+				var drops: int=ceili(4*dm._attack_density_for_cast(c))
+				for drop in range(drops):
+					dm._bullet(c, top, PI / 2 + 0.22, (78.0 + 45.0*drop/maxi(1,drops-1)) * scale, WATER if drop % 2 else FOAM, "nitori_drop", {"arming_time": 1.05, "radius": 4.2 * scale, "damage": 27.0})
 			dm._fan(c, origin, 5, aim, 0.40, 140.0 * scale, DEEP, "nitori_drop", {"arming_time": 1.05, "radius": 4.2 * scale, "damage": 28.0})
 			cadence = 1.5
 		"nitori_spook_cucumber":
@@ -131,11 +135,14 @@ static func _wall(dm: RefCounted, c: Dictionary, x: float, gap: int, speed: floa
 	for i in range(game.active_rows.size()):
 		if i == gap: continue
 		var y: float = game._row_center_y(int(game.active_rows[i])) - 12.0
-		for offset in [-0.22, 0.22]:
+		var columns: int=maxi(2,ceili(2*dm._attack_density_for_cast(c)))
+		for column in range(columns):
+			var offset: float=lerpf(-.22,.22,float(column)/float(columns-1))
 			dm._bullet(c, Vector2(x, y + game.CELL_SIZE.y * offset), PI, speed, tint, shape, extra)
 
 static func _flood(dm: RefCounted, c: Dictionary, count: int, speed: float, bend: float, tint: Color, scale: float) -> void:
 	var wave := int(c.wave)
+	count=ceili(count*dm._attack_density_for_cast(c))
 	for side in [-1, 1]:
 		for i in range(count):
 			var x := 0.50 + fposmod(i * 0.115 + wave * 0.061 + (0.05 if side > 0 else 0.0), 0.48)

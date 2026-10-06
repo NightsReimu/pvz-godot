@@ -5,6 +5,11 @@ const Game = preload("res://scripts/game.gd")
 const BASELINE := "res://tests/fixtures/touhou_attack_v177.json"
 var failures := 0
 
+func expected_source_multiplier(kind: String) -> float:
+	if kind in ["normal","day_boss","catapult_zombie"]: return 1.0
+	if kind in ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss","aki_harvest_basket","hina_misfortune_doll","nitori_cucumber"]: return 12.5
+	return 5.0
+
 func check(condition: bool, message: String) -> void:
 	if not condition: failures += 1; push_error(message)
 
@@ -94,7 +99,7 @@ func supplemental(old: Dictionary) -> void:
 		var ordinary: float=direct_probe("ordinary_generic",choice)
 		check(absf(ordinary-100.0*legacy)<0.01,"A generic/ordinary plant-cell hit in a Touhou stage keeps its v177 difficulty only")
 	for kind in Difficulty.OWNED_ATTACK_SOURCES:
-		check(is_equal_approx(Difficulty.outgoing_damage_multiplier(kind),5.0),"Intrinsic owned source %s scales fivefold exactly once" % kind)
+		check(is_equal_approx(Difficulty.outgoing_damage_multiplier(kind),expected_source_multiplier(kind)),"Intrinsic owned source %s follows its authored Boss amplification exactly once" % kind)
 	for kind in ["normal","conehead","cone_star_fairy","bucket_kedama","day_boss"]:
 		check(is_equal_approx(Difficulty.outgoing_damage_multiplier(kind),1.0),"Ordinary enemy/equipment kind %s gets no Touhou source damage boost" % kind)
 	var f:=FileAccess.open("res://output/v178/attack-supplemental.json",FileAccess.WRITE)
@@ -120,11 +125,17 @@ func _run() -> void:
 		if old!=null:
 			for i in range(records.size()):
 				var r: Dictionary = records[i]; var b: Dictionary = old.records[i]
-				var ratio := 1.0 if String(r.kind) in ["normal","catapult_zombie"] else 5.0
+				var ratio := expected_source_multiplier(String(r.kind))
 				check(absf(float(r.removed)-float(b.removed)*ratio)<0.01,"%s %s native health+armor removes exactly v177 ×%.1f (%.3f -> %.3f)" % [r.choice,r.path,ratio,b.removed,r.removed])
-			for i in range(scaling.size()):
-				var r: Dictionary = scaling[i]; var b: Dictionary = old.scaling[i]
-				var ratio := 1.0 if String(r.kind) in ["normal","day_boss"] else 5.0
+			for r in scaling:
+				# Later authored Bosses are absent from the immutable v177 roster;
+				# compare every archived sample by identity, not shifted array index.
+				var matches: Array = old.scaling.filter(func(b): return b.kind==r.kind and b.choice==r.choice and int(b.phase)==int(r.phase) and bool(b.beam)==bool(r.beam))
+				if matches.is_empty():
+					check(String(r.kind) in ["momiji_boss","aya_boss"] and Difficulty.outgoing_damage_multiplier(String(r.kind))==12.5,"New Tengu definitions use the Wind God source amplification: "+String(r.kind))
+					continue
+				var b: Dictionary = matches[0]
+				var ratio := expected_source_multiplier(String(r.kind))
 				check(absf(float(r.factor)-float(b.factor)*ratio)<0.0001,"%s %s phase%d beam%s attack source factor must scale once ×%.1f" % [r.kind,r.choice,r.phase,r.beam,ratio])
 		supplemental(old)
 		print("Touhou attack strength: %d paired native paths and %d source factors; %d failure(s)" % [records.size(),scaling.size(),failures])

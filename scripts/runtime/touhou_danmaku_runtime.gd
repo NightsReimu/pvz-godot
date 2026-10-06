@@ -8,6 +8,7 @@ const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
 const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const HinaDanmaku = preload("res://scripts/runtime/hina_danmaku.gd")
 const NitoriDanmaku = preload("res://scripts/runtime/nitori_danmaku.gd")
+const TenguDanmaku = preload("res://scripts/runtime/tengu_danmaku.gd")
 const AkiDanmaku = preload("res://scripts/runtime/aki_danmaku.gd")
 const SuikaDanmaku = preload("res://scripts/runtime/suika_danmaku.gd")
 const ReimuDanmaku = preload("res://scripts/runtime/reimu_danmaku.gd")
@@ -75,9 +76,15 @@ func cast(boss: Dictionary) -> Dictionary:
 		duration = float(card.duration)
 	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
 		duration = 2.2
+	if String(boss.kind) == "shizuha_boss" and String(card.origin) == "nonspell" and bool(boss.get("touhou_road_boss", false)):
+		# Let the slow falling leaves reach the planting columns before the
+		# mandatory incomplete-road declaration releases its damage gate.
+		duration = 4.5
 	if card.has("camouflage_duration"):
 		# Nitori's road harries from camouflage for several volleys before declaring.
 		duration = float(card.camouflage_duration)
+	if String(boss.kind) in ["momiji_boss", "aya_boss"]:
+		duration = float(card.get("duration", 4.0))
 	if pattern == "pressure_lunar_domain":
 		# A full crossing, portal warning and return must play even under burst damage.
 		duration = 9.0
@@ -95,6 +102,8 @@ func cast(boss: Dictionary) -> Dictionary:
 	boss["touhou_cast_remaining"] = duration
 	boss["touhou_cast_duration"] = duration
 	var center = Vector2(float(boss.get("x", game._boss_anchor_x(String(boss.kind)))), game._row_center_y(int(boss.get("row", 2))) - 12.0)
+	if String(boss.kind) in ["momiji_boss", "aya_boss"]:
+		center = game._ensure_tengu_runtime().body_point(boss)
 	var session := {"boss_uid": int(boss.get("uid", -1)), "owner": owner, "kind": String(boss.kind), "card": card, "pattern": pattern, "center": center, "age": 0.0, "next_wave": 0.0, "wave": 0, "duration": duration, "phase": int(boss.get("boss_phase", 0)), "stage": int(boss.get("touhou_encounter", {}).get("index", 0)), "actors": []}
 	# The full Wind God encounters need sustained pressure against conveyor
 	# fusions. Scope the multiplier to this encounter, including its new cards,
@@ -102,6 +111,10 @@ func cast(boss: Dictionary) -> Dictionary:
 	if String(boss.kind) in ["minoriko_boss", "hina_boss", "nitori_boss"] and not bool(boss.get("touhou_road_boss", false)) and not bool(boss.get("touhou_final_preview", false)) and not bool(boss.get("touhou_road_spell", false)):
 		session["autumn_full"] = true
 		session["autumn_density"] = 1.25 if String(boss.kind) == "nitori_boss" else 1.6
+	# The incomplete road keeps its smaller health/phase roster, but its shots
+	# must cross the full width of the six-row board and follow emitter clocks.
+	if String(boss.kind) in Difficulty.WIND_GOD_BOSSES:
+		session["autumn_full"] = true
 	if String(boss.kind) == "prismriver_boss":
 		session["instrument_points"] = PrismriverTrio.bodies(game, boss).map(func(body): return Vector2(body.position))
 	casts.append(session)
@@ -144,6 +157,8 @@ func _tick(delta: float) -> void:
 			clear_owner(owner)
 			continue
 		var boss: Dictionary = owners[owner]
+		if String(boss.kind) in ["momiji_boss", "aya_boss"]:
+			session.center = game._ensure_tengu_runtime().body_point(boss)
 		if game.boss_time_stop_timer > 0.0 and String(boss.kind) != "sakuya_boss":
 			continue
 		if String(boss.kind) == "prismriver_boss":
@@ -297,6 +312,9 @@ func _emit_wave(c: Dictionary) -> void:
 		return
 	if String(c.kind) == "nitori_boss":
 		NitoriDanmaku.emit(self, c)
+		return
+	if String(c.kind) in ["momiji_boss", "aya_boss"]:
+		TenguDanmaku.emit(self, c)
 		return
 	if String(c.kind) in ["shizuha_boss", "minoriko_boss"]:
 		AkiDanmaku.emit(self, c)
@@ -955,6 +973,8 @@ func _hit_zombie_segment(from: Vector2, to: Vector2, radius: float, damage: floa
 	for zombie_variant in game.zombies:
 		var zombie: Dictionary = zombie_variant
 		var center := Vector2(float(zombie.get("x", 0.0)), origin_y + (int(zombie.get("row", 0)) + 0.5) * row_height - 12.0)
+		if String(zombie.get("kind", "")) in ["momiji_boss", "aya_boss"]:
+			center = game._ensure_tengu_runtime().body_point(zombie) + Vector2(0,-12)
 		if center.x < min_x or center.x > max_x or center.y < min_y or center.y > max_y:
 			continue
 		if not game._is_enemy_zombie(zombie) or float(zombie.get("health", 0.0)) <= 0.0:
@@ -966,7 +986,10 @@ func _hit_zombie_segment(from: Vector2, to: Vector2, radius: float, damage: floa
 		if closest.distance_squared_to(center) > reach * reach:
 			continue
 		hits.append(uid)
-		game._apply_zombie_damage(zombie, damage, 0.18)
+		if String(zombie.get("kind", "")) in ["momiji_boss", "aya_boss"]:
+			game._apply_zombie_damage(zombie, damage, 0.18, 0.0, false, false, from.x)
+		else:
+			game._apply_zombie_damage(zombie, damage, 0.18)
 		zombie["revealed_timer"] = maxf(float(zombie.get("revealed_timer", 0.0)), 1.4)
 	bullet["hit_uids"] = hits
 
@@ -1114,6 +1137,9 @@ func draw() -> void:
 			continue
 		if String(b.shape).begins_with("nitori_"):
 			NitoriDanmaku.draw_bullet(game, b)
+			continue
+		if String(b.shape).begins_with("tengu_"):
+			TenguDanmaku.draw_bullet(game, b)
 			continue
 		if String(b.shape) in ["aki_leaf", "aki_grain", "aki_potato"]:
 			AkiDanmaku.draw_bullet(game, b)

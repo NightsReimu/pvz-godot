@@ -4,6 +4,7 @@ class_name FogLevelDefs
 const Autumn = preload("res://scripts/data/level_defs_autumn.gd")
 const Hina = preload("res://scripts/data/level_defs_hina.gd")
 const Nitori = preload("res://scripts/data/level_defs_nitori.gd")
+const Tengu = preload("res://scripts/data/level_defs_tengu.gd")
 
 const LEVELS = [
 {
@@ -555,6 +556,7 @@ const LEVELS = [
 		Autumn.LEVEL,
 		Hina.LEVEL,
 		Nitori.LEVEL,
+		Tengu.LEVEL,
 		{
 			"id": "4-S1",
 			"title": "不丢除草机",

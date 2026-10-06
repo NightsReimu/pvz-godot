@@ -1,0 +1,525 @@
+{
+  "method": "Exact supplied RGBA pixels, independent component ownership and original foot anchors; alpha-zero RGB is excluded, all alpha-positive pixels retained once. No background extraction, haze threshold, rotation, mirroring, recoloring, resampling or generation.",
+  "sprite": {
+    "kind": "momiji_boss",
+    "folder": "art/momiji",
+    "frame_count": 24,
+    "source_pose_count": 24,
+    "source": "user_transparent_sheet_individual_crops",
+    "source_sheet": "art/source_sheets/momiji/momiji.png",
+    "source_size": [
+      1448,
+      1086
+    ],
+    "original_sha256": "a80ccccf4fe9d52531157c64331d2e2bb38e8019a5a7e123046f96732a6fa1be",
+    "source_sha256": "a80ccccf4fe9d52531157c64331d2e2bb38e8019a5a7e123046f96732a6fa1be",
+    "canvas": [
+      512,
+      384
+    ],
+    "pivot": [
+      256,
+      320
+    ],
+    "idle_height": 245,
+    "idle_bottom": 320,
+    "runtime_source_slots": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "seed_alpha": 32,
+    "texture_import": {
+      "compress_mode": 0,
+      "fix_alpha_border": false,
+      "premult_alpha": false,
+      "mipmaps": false
+    },
+    "individual_crops": [
+      {
+        "source_slot": 0,
+        "bounds": [
+          0,
+          13,
+          253,
+          276
+        ],
+        "anchor": [
+          118,
+          262
+        ],
+        "components": 1,
+        "frame_sha256": "7294ef0c4dd003377ed9d72a9baf095e97436cd64a4d683f025815096c6c7521"
+      },
+      {
+        "source_slot": 1,
+        "bounds": [
+          252,
+          0,
+          491,
+          276
+        ],
+        "anchor": [
+          361,
+          262
+        ],
+        "components": 1,
+        "frame_sha256": "d6343ffff85e543bb86e87e97c223067525f8bf2bcdca43d92d2274688b49c5c"
+      },
+      {
+        "source_slot": 2,
+        "bounds": [
+          489,
+          0,
+          736,
+          276
+        ],
+        "anchor": [
+          604,
+          262
+        ],
+        "components": 1,
+        "frame_sha256": "2eabfb7165e88c9c6a54e8aaf4896343a98a690a4d0199f0a93c8a4115d660f4"
+      },
+      {
+        "source_slot": 3,
+        "bounds": [
+          737,
+          0,
+          979,
+          276
+        ],
+        "anchor": [
+          846,
+          262
+        ],
+        "components": 1,
+        "frame_sha256": "14c1b189433933e22a96abf6874be663b8f4ea74dd7d68a1e1c3dd00c1d4c940"
+      },
+      {
+        "source_slot": 4,
+        "bounds": [
+          980,
+          7,
+          1219,
+          274
+        ],
+        "anchor": [
+          1088,
+          262
+        ],
+        "components": 1,
+        "frame_sha256": "c4de3c1ed803bcff8cde87040b10e80e3d5eb13fb685587e779fcbd92c4f2f92"
+      },
+      {
+        "source_slot": 5,
+        "bounds": [
+          1220,
+          11,
+          1448,
+          274
+        ],
+        "anchor": [
+          1329,
+          262
+        ],
+        "components": 1,
+        "frame_sha256": "332a66ae0f6c81f52879342295d2876025c2601b2d08025188f5e1a565de9813"
+      },
+      {
+        "source_slot": 6,
+        "bounds": [
+          0,
+          274,
+          255,
+          539
+        ],
+        "anchor": [
+          124,
+          532
+        ],
+        "components": 1,
+        "frame_sha256": "5ad2be4791777609fff1db2ac2e451eeae245d9d43a01e4789036d766356e267"
+      },
+      {
+        "source_slot": 7,
+        "bounds": [
+          250,
+          272,
+          497,
+          545
+        ],
+        "anchor": [
+          350,
+          531
+        ],
+        "components": 2,
+        "frame_sha256": "e777fa6fe5fec5ce14f3124a2ff4da033efcb37b92ba550ce8a7879cb833cf3b"
+      },
+      {
+        "source_slot": 8,
+        "bounds": [
+          470,
+          270,
+          772,
+          539
+        ],
+        "anchor": [
+          619,
+          529
+        ],
+        "components": 2,
+        "frame_sha256": "1bffd09ad2f0b6adf273ffdfc0f9500d4d19c39fc72e90544f024f0bb8bfcea0"
+      },
+      {
+        "source_slot": 9,
+        "bounds": [
+          715,
+          275,
+          986,
+          539
+        ],
+        "anchor": [
+          854,
+          529
+        ],
+        "components": 1,
+        "frame_sha256": "8cbad17b2be1a054494ecb31e39f58a4371e1562587d7d1542e9e06a14f86d64"
+      },
+      {
+        "source_slot": 10,
+        "bounds": [
+          986,
+          291,
+          1236,
+          543
+        ],
+        "anchor": [
+          1088,
+          529
+        ],
+        "components": 1,
+        "frame_sha256": "33999e2860ad756ed6112f9b4a0715494cb2a66361da857524b2bc2c1805a48d"
+      },
+      {
+        "source_slot": 11,
+        "bounds": [
+          1181,
+          285,
+          1448,
+          543
+        ],
+        "anchor": [
+          1304,
+          530
+        ],
+        "components": 1,
+        "frame_sha256": "20119eb687ba71cae96c06a448aec080ab16def97bd8161d7b8663a838828446"
+      },
+      {
+        "source_slot": 12,
+        "bounds": [
+          27,
+          550,
+          260,
+          812
+        ],
+        "anchor": [
+          124,
+          799
+        ],
+        "components": 1,
+        "frame_sha256": "fe97d92031b0f584fd842756566db858060a596b86189cc63fa2a019dece79e0"
+      },
+      {
+        "source_slot": 13,
+        "bounds": [
+          266,
+          549,
+          493,
+          813
+        ],
+        "anchor": [
+          356,
+          800
+        ],
+        "components": 1,
+        "frame_sha256": "29f460830c1e50c21ebcae6774700d9d5fadf78372e4066a4113e383572d5a78"
+      },
+      {
+        "source_slot": 14,
+        "bounds": [
+          492,
+          550,
+          738,
+          813
+        ],
+        "anchor": [
+          612,
+          800
+        ],
+        "components": 1,
+        "frame_sha256": "fd39c927f94f851e2d4da30d11d5b072a2c2d253d5b257c6e801469c89c8c895"
+      },
+      {
+        "source_slot": 15,
+        "bounds": [
+          739,
+          552,
+          975,
+          813
+        ],
+        "anchor": [
+          834,
+          801
+        ],
+        "components": 2,
+        "frame_sha256": "b1df05af7260d3712dfd14341878cb0ee24e0a588330901a7efdaf3cd532faa6"
+      },
+      {
+        "source_slot": 16,
+        "bounds": [
+          976,
+          548,
+          1217,
+          811
+        ],
+        "anchor": [
+          1087,
+          800
+        ],
+        "components": 4,
+        "frame_sha256": "183e8e59c1a3a2555737cd1ce7411a2d97534207614e2762ea97e9daf5e3d546"
+      },
+      {
+        "source_slot": 17,
+        "bounds": [
+          1216,
+          550,
+          1438,
+          811
+        ],
+        "anchor": [
+          1332,
+          801
+        ],
+        "components": 3,
+        "frame_sha256": "cf950381b598e567a2b6c63dd64be60bc8b73cb2ef7833eb56aa7edbcd183fa6"
+      },
+      {
+        "source_slot": 18,
+        "bounds": [
+          0,
+          810,
+          259,
+          1086
+        ],
+        "anchor": [
+          134,
+          1062
+        ],
+        "components": 2,
+        "frame_sha256": "461415808fe426563bf9a8c4e2c0f6100314973b4eaa62e4a6e4105b8c7d8d2c"
+      },
+      {
+        "source_slot": 19,
+        "bounds": [
+          242,
+          805,
+          523,
+          1086
+        ],
+        "anchor": [
+          380,
+          1062
+        ],
+        "components": 6,
+        "frame_sha256": "d6e303e02390803b4dd43f7c730e644c005c7de4e4aea27561bb3ef70747bd70"
+      },
+      {
+        "source_slot": 20,
+        "bounds": [
+          509,
+          809,
+          756,
+          1086
+        ],
+        "anchor": [
+          614,
+          1062
+        ],
+        "components": 6,
+        "frame_sha256": "804d5d21655850fad428195f00205c034ada3a1596170cf85656913b429588f4"
+      },
+      {
+        "source_slot": 21,
+        "bounds": [
+          736,
+          809,
+          992,
+          1072
+        ],
+        "anchor": [
+          850,
+          1061
+        ],
+        "components": 6,
+        "frame_sha256": "048b5e1cb1b82c4f9c9f42bda3f19876e5a8de3fdf3d2f4eef92fc19d45778e3"
+      },
+      {
+        "source_slot": 22,
+        "bounds": [
+          988,
+          852,
+          1223,
+          1072
+        ],
+        "anchor": [
+          1104,
+          1062
+        ],
+        "components": 1,
+        "frame_sha256": "63fb6d174bb85cf900fa269849b43ac0ee5188571b2ef990b23ab913ea89b5de"
+      },
+      {
+        "source_slot": 23,
+        "bounds": [
+          1232,
+          842,
+          1448,
+          1086
+        ],
+        "anchor": [
+          1341,
+          1060
+        ],
+        "components": 2,
+        "frame_sha256": "2e3e7b6016e256e3e125dcea2a5c214320ea2354783a36afc838aeb2c80a6a99"
+      }
+    ],
+    "layout": {
+      "rows": [
+        149,
+        423,
+        690,
+        956
+      ],
+      "centers": [
+        [
+          128,
+          368,
+          608,
+          845,
+          1088,
+          1329
+        ],
+        [
+          134,
+          361,
+          610,
+          857,
+          1107,
+          1336
+        ],
+        [
+          131,
+          374,
+          614,
+          847,
+          1095,
+          1334
+        ],
+        [
+          135,
+          381,
+          630,
+          858,
+          1105,
+          1348
+        ]
+      ],
+      "gaps": [
+        [
+          0,
+          253,
+          489,
+          736,
+          980,
+          1220,
+          1448
+        ],
+        [
+          0,
+          249,
+          486,
+          750,
+          985,
+          1230,
+          1448
+        ],
+        [
+          0,
+          258,
+          492,
+          739,
+          976,
+          1217,
+          1448
+        ],
+        [
+          0,
+          251,
+          515,
+          747,
+          992,
+          1228,
+          1448
+        ]
+      ],
+      "row_gaps": [
+        0,
+        275,
+        545,
+        811,
+        1086
+      ],
+      "seed_alpha": 32,
+      "soft_component_gaps": true
+    }
+  },
+  "audio": [
+    {
+      "role": "stage",
+      "path": "audio/bgm/touhou/4-22-stage.mp3",
+      "source_name": "4-22道中.mp3",
+      "source_sha256": "a481deebfa6332d9dee5f35140c204d63aeabfcae60709e4f13684027d06f3f8"
+    },
+    {
+      "role": "ending",
+      "path": "audio/bgm/touhou/4-22-ending.mp3",
+      "source_name": "4-22终末.mp3",
+      "source_sha256": "aaa28605e5e9c713a7f356a6024e86509774d5d79f93845902bf999ab27eb732"
+    }
+  ]
+}

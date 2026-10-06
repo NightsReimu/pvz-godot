@@ -1,0 +1,57 @@
+{
+  "kind": "momiji_boss",
+  "folder": "art/momiji",
+  "frame_count": 24,
+  "source_pose_count": 24,
+  "source": "user_transparent_sheet_individual_crops",
+  "source_sheet": "art/source_sheets/momiji/momiji.png",
+  "source_size": [
+    1448,
+    1086
+  ],
+  "original_sha256": "a80ccccf4fe9d52531157c64331d2e2bb38e8019a5a7e123046f96732a6fa1be",
+  "source_sha256": "a80ccccf4fe9d52531157c64331d2e2bb38e8019a5a7e123046f96732a6fa1be",
+  "canvas": [
+    512,
+    384
+  ],
+  "pivot": [
+    256,
+    320
+  ],
+  "idle_height": 245,
+  "idle_bottom": 320,
+  "runtime_source_slots": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+  ],
+  "seed_alpha": 32,
+  "texture_import": {
+    "compress_mode": 0,
+    "fix_alpha_border": false,
+    "premult_alpha": false,
+    "mipmaps": false
+  }
+}

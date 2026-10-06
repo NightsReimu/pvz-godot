@@ -350,8 +350,12 @@ func _find_spatial_enemy_hit(projectile: Dictionary) -> int:
 
 func update_boomerang_projectile(projectile: Dictionary, delta: float) -> Dictionary:
 	var projectile_pos = Vector2(projectile["position"])
+	var before: Vector2 = projectile_pos
 	projectile_pos.x += float(projectile["speed"]) * delta
 	projectile["position"] = projectile_pos
+	# Both outbound and returning boomerangs resolve hits in this helper, before
+	# the shared loop. Intercept first so a swallowed weapon cannot still hit.
+	if delta > 0.0 and game.tengu_runtime != null and game.tengu_runtime.capture_projectile(projectile, before, projectile_pos): return projectile
 	var hit_uids: Array = projectile.get("hit_uids", [])
 	var return_hits: Array = projectile.get("return_hits", [])
 	var return_markers: Array = projectile.get("return_markers", [])
@@ -630,6 +634,7 @@ func update_projectiles(delta: float) -> void:
 	for i in range(game.projectiles.size() - 1, -1, -1):
 		var projectile = game.projectiles[i]
 		if game.hina_runtime != null: game.hina_runtime.modify_projectile(projectile)
+		if game.tengu_runtime != null: game.tengu_runtime.modify_projectile(projectile, delta)
 		var projectile_pos = Vector2(projectile["position"])
 		projectile.previous_position = projectile_pos
 		var projectile_kind = String(projectile.get("kind", "pea"))
@@ -657,6 +662,9 @@ func update_projectiles(delta: float) -> void:
 			projectile_pos.y -= sin(arc_ratio * PI) * float(projectile.get("arc_height", 64.0))
 			projectile["arc_time"] = arc_time
 			projectile["position"] = projectile_pos
+			if delta > 0.0 and game.tengu_runtime != null and game.tengu_runtime.capture_projectile(projectile, Vector2(projectile.previous_position), projectile_pos):
+				game.projectiles.remove_at(i)
+				continue
 			projectile = apply_torchwood_to_projectile(projectile)
 			if arc_ratio >= 1.0:
 				resolve_lobbed_projectile_impact(projectile, arc_target)
@@ -673,6 +681,9 @@ func update_projectiles(delta: float) -> void:
 			projectile_pos.x += float(projectile["speed"]) * delta
 			projectile_pos.y += float(projectile.get("velocity_y", 0.0)) * delta
 			projectile["position"] = projectile_pos
+		if delta > 0.0 and game.tengu_runtime != null and game.tengu_runtime.capture_projectile(projectile, Vector2(projectile.previous_position), projectile_pos):
+			game.projectiles.remove_at(i)
+			continue
 		if bool(projectile.get("expired", false)):
 			game.projectiles.remove_at(i)
 			continue

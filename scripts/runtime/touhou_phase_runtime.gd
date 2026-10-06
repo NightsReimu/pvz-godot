@@ -148,6 +148,8 @@ static func update_progress(game: Control, boss: Dictionary) -> bool:
 		game.suika_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) == "nitori_boss" and game.nitori_runtime != null:
 		game.nitori_runtime.clear_owner(int(boss.uid))
+	if String(boss.kind) in ["momiji_boss", "aya_boss"] and game.tengu_runtime != null:
+		game.tengu_runtime.clear_owner(int(boss.uid))
 	if game.touhou_danmaku != null and boss.has("touhou_owner"):
 		game.touhou_danmaku.clear_owner(int(boss.touhou_owner))
 	if int(encounter.index) + 1 >= encounter.phases.size():

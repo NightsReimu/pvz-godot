@@ -1,0 +1,57 @@
+{
+  "kind": "aya_boss",
+  "folder": "art/aya",
+  "frame_count": 24,
+  "source_pose_count": 24,
+  "source": "user_transparent_sheet_individual_crops",
+  "source_sheet": "art/source_sheets/aya/aya.png",
+  "source_size": [
+    1536,
+    1024
+  ],
+  "original_sha256": "5c0c78ad9b4c8500e838cf5202c2d5bc4cd1d630cfd17e6ba89cbc045e5ad913",
+  "source_sha256": "5c0c78ad9b4c8500e838cf5202c2d5bc4cd1d630cfd17e6ba89cbc045e5ad913",
+  "canvas": [
+    512,
+    384
+  ],
+  "pivot": [
+    256,
+    320
+  ],
+  "idle_height": 236,
+  "idle_bottom": 319,
+  "runtime_source_slots": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+  ],
+  "seed_alpha": 32,
+  "texture_import": {
+    "compress_mode": 0,
+    "fix_alpha_border": false,
+    "premult_alpha": false,
+    "mipmaps": false
+  }
+}

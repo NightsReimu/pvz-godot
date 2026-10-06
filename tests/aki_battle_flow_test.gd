@@ -84,8 +84,10 @@ func _run() -> void:
 		check(rt.action_factor(5, 1) < 1.0, "The sixth-lane ordinary repeater is affected by settled leaves")
 		# Activate the actual available plant-food action: the authored counter
 		# belongs to the activation path, rather than a direct test-only cleanse.
-		if game.grid[5][1] == null: game.grid[5][1] = game._create_plant("repeater", 5, 1)
-		game._ensure_plant_food_runtime().activate(5, 1)
+		# The stronger road may kill the seed-control crop before this isolated
+		# cleanse assertion; an actual living replacement is required to cast.
+		if game.grid[5][1] == null or float(game.grid[5][1].health) <= 0.0: game.grid[5][1] = game._create_plant("repeater", 5, 1)
+		check(game._ensure_plant_food_runtime().activate(5, 1), "A living replacement really activates plant food")
 		check(rt.fields.is_empty(), "Actual plant-food activation clears its leaf lane")
 		rt.queue_field(int(boss.uid), Vector2i(4, 1), "leaf_mat", 0.0)
 		game._trigger_boss_phase_shift(boss, 1)

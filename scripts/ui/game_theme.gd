@@ -100,7 +100,9 @@ static func draw_label(canvas: CanvasItem, font: Font, rect: Rect2, label: Strin
 
 
 static func draw_gradient_rect_v(canvas: CanvasItem, rect: Rect2, top_color: Color, bottom_color: Color) -> void:
-	if rect.size.x <= 0.0 or rect.size.y <= 0.0: return
+	# Mandatory phase floors can leave subpixel health-bar fills whose float32
+	# corners coincide. Skip the invisible quad instead of triangulating it.
+	if rect.size.x < 1.0 or rect.size.y < 1.0: return
 	canvas.draw_polygon(
 		PackedVector2Array([rect.position, rect.position + Vector2(rect.size.x, 0.0), rect.position + rect.size, rect.position + Vector2(0.0, rect.size.y)]),
 		PackedColorArray([top_color, top_color, bottom_color, bottom_color])
