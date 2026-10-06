@@ -53,7 +53,9 @@ func _run() -> void:
 		check(float(r.min_arming) >= 1.0 and float(r.warning_damage) == 0.0, "Denser volleys retain a complete harmless warning")
 		check(int(r.drops) == 0 and int(r.peak) <= 480 and int(r.beam_peak) <= 72, "Density cannot turn into silently dropped particle spam")
 		if r.role == "road":
-			for field in ["launched", "beams", "waves", "hit_rows", "plant_damage", "min_arming"]: check(_same_capture(r[field], before[field]), "Road " + field + " remains identical: " + _key(r))
+			for field in ["launched", "beams", "waves", "hit_rows", "min_arming"]: check(_same_capture(r[field], before[field]), "Road " + field + " remains identical: " + _key(r))
+			# v178 doubles all Boss damage; retain the immutable v175 firing baseline.
+			check(_same_capture(r.plant_damage, float(before.plant_damage) * Difficulty.OUTGOING_DAMAGE_MULTIPLIER), "Road damage gains exactly the global Boss multiplier")
 			continue
 		var group := str([r.stage_id, r.difficulty])
 		if not full_totals.has(group): full_totals[group] = {"before": 0, "after": 0, "duration": 0.0}

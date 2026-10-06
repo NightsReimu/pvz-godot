@@ -43,7 +43,7 @@ func _test_whip_and_piano() -> void:
 	runtime.update(1.0)
 	check(game.grid[2][7].health == near_hp, "Whips must respect their warning period")
 	runtime.update(2.0)
-	check(game.grid[2][7].health < near_hp and game.grid[2][7].health >= near_hp - 120, "Whip sweep must hit nearby plants once per cast")
+	check(game.grid[2][7].health < near_hp and game.grid[2][7].health >= near_hp - 240, "Whip sweep must hit nearby plants once per cast")
 	check(game.grid[2][0].health == far_hp, "Whip radius must not hit distant plants")
 	runtime.reset()
 	game.grid[2][7] = null

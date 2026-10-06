@@ -45,8 +45,32 @@ const EXTENSIONS := {
 # These bosses provide their own EX/EX+ phase lists in MokouSpellDefs.
 const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss", "shizuha_boss", "minoriko_boss", "hina_boss", "nitori_boss"]
 
+# Source amplification is independent of difficulty and character tuning.
+# Ordinary reinforcements do not acquire it merely by sharing a Boss's lawn.
+const OUTGOING_DAMAGE_MULTIPLIER := 2.0
+const OWNED_ATTACK_SOURCES := {
+	"alice_doll_zombie": "alice_boss", "youmu_wraith": "youmu_boss", "yuyuko_spirit": "yuyuko_boss",
+	"keine_bamboo": "keine_boss", "marisa_mushroom": "marisa_boss",
+	"suika_mini": "suika_boss", "suika_knot": "suika_boss",
+	"eirin_medicine": "eirin_boss", "kaguya_treasure": "kaguya_boss", "moon_portal": "reisen_boss",
+	"aki_harvest_basket": "minoriko_boss", "hina_misfortune_doll": "hina_boss", "nitori_cucumber": "nitori_boss",
+}
+
 static func boss_kinds() -> Array:
 	return EXTENSIONS.keys() + CUSTOM_EXTRA_BOSSES
+
+static func outgoing_source_kind(kind: String) -> String:
+	var source := String(OWNED_ATTACK_SOURCES.get(kind, kind))
+	# Tewi is an authored road Boss in SpellDefs, without a difficulty extension.
+	return source if source == "tewi_boss" or EXTENSIONS.has(source) or source in CUSTOM_EXTRA_BOSSES else ""
+
+static func outgoing_damage_multiplier(kind: String) -> float:
+	return OUTGOING_DAMAGE_MULTIPLIER if not outgoing_source_kind(kind).is_empty() else 1.0
+
+static func direct_attack_damage(kind: String, level: Dictionary) -> float:
+	# Preserve the untuned direct-hit paths' old difficulty factor. Using the
+	# danmaku helper here would also add character/phase tuning a second time.
+	return boss_damage_multiplier(level) * outgoing_damage_multiplier(kind)
 
 const MOVE_NAMES := {
 	"eternity": ["永恒「停长的月下花圃」", "须臾「一瞬千年的收割」", "蓬莱「万象倒映时庭」"],
@@ -105,7 +129,7 @@ static func attack_cadence(kind: String, level: Dictionary) -> float:
 static func attack_damage(kind: String, level: Dictionary, phase: int, beam: bool = false) -> float:
 	var tuning: Dictionary = ATTACK_TUNING.get(kind, {})
 	var growth := 1.0 + clampi(phase, 0, 3) * float(tuning.get("phase_damage", 0.0))
-	return boss_damage_multiplier(level) * float(tuning.get("beam_damage" if beam else "damage", 1.0)) * growth
+	return boss_damage_multiplier(level) * float(tuning.get("beam_damage" if beam else "damage", 1.0)) * growth * outgoing_damage_multiplier(kind)
 
 
 static func is_touhou(level: Dictionary) -> bool:

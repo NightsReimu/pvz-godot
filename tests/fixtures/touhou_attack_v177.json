@@ -1,0 +1,6856 @@
+{
+	"head": "bd95f9105",
+	"native_melee": [
+		{
+			"choice": "easy",
+			"native_spawned_dps": 36.0,
+			"path": "suika_mini_bite",
+			"provenance": "Exact _update_zombies function from bd95f9105 compiled against unchanged native spawn stats",
+			"removed": 9.0
+		},
+		{
+			"choice": "normal",
+			"native_spawned_dps": 36.0,
+			"path": "suika_mini_bite",
+			"provenance": "Exact _update_zombies function from bd95f9105 compiled against unchanged native spawn stats",
+			"removed": 9.0
+		},
+		{
+			"choice": "hard",
+			"native_spawned_dps": 36.0,
+			"path": "suika_mini_bite",
+			"provenance": "Exact _update_zombies function from bd95f9105 compiled against unchanged native spawn stats",
+			"removed": 9.0
+		},
+		{
+			"choice": "lunatic",
+			"native_spawned_dps": 36.0,
+			"path": "suika_mini_bite",
+			"provenance": "Exact _update_zombies function from bd95f9105 compiled against unchanged native spawn stats",
+			"removed": 9.0
+		},
+		{
+			"choice": "extra",
+			"native_spawned_dps": 36.0,
+			"path": "suika_mini_bite",
+			"provenance": "Exact _update_zombies function from bd95f9105 compiled against unchanged native spawn stats",
+			"removed": 9.0
+		},
+		{
+			"choice": "extra_plus",
+			"native_spawned_dps": 36.0,
+			"path": "suika_mini_bite",
+			"provenance": "Exact _update_zombies function from bd95f9105 compiled against unchanged native spawn stats",
+			"removed": 9.0
+		}
+	],
+	"records": [
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3975.96
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "cirno_boss",
+			"path": "bullet",
+			"removed": 29.04
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3921.130368
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "marisa_boss",
+			"path": "beam",
+			"removed": 83.8696319999999
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3912.6
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "suika_boss",
+			"path": "suika_stomp",
+			"removed": 92.4000000000001
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3945.6
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "minoriko_boss",
+			"path": "aki_harvest",
+			"removed": 59.4000000000001
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3985.2
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "nitori_boss",
+			"path": "nitori_jet",
+			"removed": 19.8000000000002
+		},
+		{
+			"after": {
+				"armor": 1.568,
+				"health": 4000.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "remilia_boss",
+			"path": "drain",
+			"removed": 3.43199999999979
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3950.88
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "meiling_boss",
+			"path": "meiling_phase",
+			"removed": 54.1199999999999
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3994.2
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "normal",
+			"path": "ordinary_bite",
+			"removed": 10.8000000000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3939.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "easy",
+			"kind": "catapult_zombie",
+			"path": "ordinary_catapult",
+			"removed": 66.0
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3970.68
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "cirno_boss",
+			"path": "bullet",
+			"removed": 34.3200000000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3905.881344
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "marisa_boss",
+			"path": "beam",
+			"removed": 99.1186560000001
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3895.8
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "suika_boss",
+			"path": "suika_stomp",
+			"removed": 109.2
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3934.8
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "minoriko_boss",
+			"path": "aki_harvest",
+			"removed": 70.1999999999998
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3975.36
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "nitori_boss",
+			"path": "nitori_jet",
+			"removed": 29.6399999999999
+		},
+		{
+			"after": {
+				"armor": 0.944,
+				"health": 4000.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "remilia_boss",
+			"path": "drain",
+			"removed": 4.05600000000004
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3941.04
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "meiling_boss",
+			"path": "meiling_phase",
+			"removed": 63.96
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3994.2
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "normal",
+			"path": "ordinary_bite",
+			"removed": 10.8000000000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3927.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "normal",
+			"kind": "catapult_zombie",
+			"path": "ordinary_catapult",
+			"removed": 78.0
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3968.04
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "cirno_boss",
+			"path": "bullet",
+			"removed": 36.96
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3898.256832
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "marisa_boss",
+			"path": "beam",
+			"removed": 106.743168
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3887.4
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "suika_boss",
+			"path": "suika_stomp",
+			"removed": 117.6
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3929.4
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "minoriko_boss",
+			"path": "aki_harvest",
+			"removed": 75.5999999999999
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3966.36
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "nitori_boss",
+			"path": "nitori_jet",
+			"removed": 38.6399999999999
+		},
+		{
+			"after": {
+				"armor": 0.632,
+				"health": 4000.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "remilia_boss",
+			"path": "drain",
+			"removed": 4.36799999999994
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3936.12
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "meiling_boss",
+			"path": "meiling_phase",
+			"removed": 68.8800000000001
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3994.2
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "normal",
+			"path": "ordinary_bite",
+			"removed": 10.8000000000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3921.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "hard",
+			"kind": "catapult_zombie",
+			"path": "ordinary_catapult",
+			"removed": 84.0
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3956.6
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "cirno_boss",
+			"path": "bullet",
+			"removed": 48.4000000000001
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3865.21728
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "marisa_boss",
+			"path": "beam",
+			"removed": 139.78272
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3851.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "suika_boss",
+			"path": "suika_stomp",
+			"removed": 154.0
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3906.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "minoriko_boss",
+			"path": "aki_harvest",
+			"removed": 99.0
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3945.6
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "nitori_boss",
+			"path": "nitori_jet",
+			"removed": 59.4000000000001
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3999.28
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "remilia_boss",
+			"path": "drain",
+			"removed": 5.7199999999998
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3914.8
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "meiling_boss",
+			"path": "meiling_phase",
+			"removed": 90.1999999999998
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3994.2
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "normal",
+			"path": "ordinary_bite",
+			"removed": 10.8000000000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3895.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "lunatic",
+			"kind": "catapult_zombie",
+			"path": "ordinary_catapult",
+			"removed": 110.0
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3975.08
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "cirno_boss",
+			"path": "bullet",
+			"removed": 29.9200000000001
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3918.588864
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "marisa_boss",
+			"path": "beam",
+			"removed": 86.4111360000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3909.8
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "suika_boss",
+			"path": "suika_stomp",
+			"removed": 95.1999999999998
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3943.8
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "minoriko_boss",
+			"path": "aki_harvest",
+			"removed": 61.1999999999998
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3984.6
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "nitori_boss",
+			"path": "nitori_jet",
+			"removed": 20.4000000000001
+		},
+		{
+			"after": {
+				"armor": 1.464,
+				"health": 4000.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "remilia_boss",
+			"path": "drain",
+			"removed": 3.53600000000006
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3949.24
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "meiling_boss",
+			"path": "meiling_phase",
+			"removed": 55.7600000000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3994.2
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "normal",
+			"path": "ordinary_bite",
+			"removed": 10.8000000000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3937.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra",
+			"kind": "catapult_zombie",
+			"path": "ordinary_catapult",
+			"removed": 68.0
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3958.8
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "cirno_boss",
+			"path": "bullet",
+			"removed": 46.1999999999998
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3871.57104
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "marisa_boss",
+			"path": "beam",
+			"removed": 133.42896
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3858.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "suika_boss",
+			"path": "suika_stomp",
+			"removed": 147.0
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3910.5
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "minoriko_boss",
+			"path": "aki_harvest",
+			"removed": 94.5
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3948.3
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "nitori_boss",
+			"path": "nitori_jet",
+			"removed": 56.6999999999998
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3999.54
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "remilia_boss",
+			"path": "drain",
+			"removed": 5.46000000000004
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3918.9
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "meiling_boss",
+			"path": "meiling_phase",
+			"removed": 86.0999999999999
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3994.2
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "normal",
+			"path": "ordinary_bite",
+			"removed": 10.8000000000002
+		},
+		{
+			"after": {
+				"armor": 0.0,
+				"health": 3900.0
+			},
+			"before": {
+				"armor": 5.0,
+				"health": 4000.0
+			},
+			"choice": "extra_plus",
+			"kind": "catapult_zombie",
+			"path": "ordinary_catapult",
+			"removed": 105.0
+		}
+	],
+	"scaling": [
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.891,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.858,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 1.1583,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 1.1154,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.053,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.014,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.3689,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.3182,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.134,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.092,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.4742,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.4196,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.485,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.43,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.9305,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.859,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.918,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.884,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 1.1934,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 1.1492,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.4175,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.365,
+			"kind": "kaguya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.84275,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.7745,
+			"kind": "kaguya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.891,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.891,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 1.1583,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 1.1583,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.053,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.053,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.3689,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.3689,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.134,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.134,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.4742,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.4742,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.485,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.485,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.9305,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.9305,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.918,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.918,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 1.1934,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 1.1934,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.4175,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.4175,
+			"kind": "eirin_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.84275,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.84275,
+			"kind": "eirin_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.891,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.7788,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 1.21176,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 1.059168,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.053,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.9204,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.43208,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.251744,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.134,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.9912,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.54224,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.348032,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.485,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.298,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 2.0196,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.76528,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.918,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.8024,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 1.24848,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 1.091264,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.4175,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.239,
+			"kind": "reisen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.9278,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.68504,
+			"kind": "reisen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.891,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.8052,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 1.21176,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 1.095072,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.053,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.9516,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.43208,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.294176,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.134,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.0248,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.54224,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.393728,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.485,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.342,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 2.0196,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.82512,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.918,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.8296,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 1.24848,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 1.128256,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.4175,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.281,
+			"kind": "marisa_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.9278,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.74216,
+			"kind": "marisa_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.957,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.891,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 1.30152,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 1.21176,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.131,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.053,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.53816,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.43208,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.218,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.134,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.65648,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.54224,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.595,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.485,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 2.1692,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 2.0196,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.986,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.918,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 1.34096,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 1.24848,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.5225,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.4175,
+			"kind": "reimu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 2.0706,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.9278,
+			"kind": "reimu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "rumia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "rumia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "daiyousei_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "daiyousei_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "cirno_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "cirno_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "meiling_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "meiling_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "koakuma_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "koakuma_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "patchouli_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "patchouli_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "sakuya_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "sakuya_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "remilia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "remilia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "flandre_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "flandre_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "letty_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "letty_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "chen_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "chen_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "alice_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "alice_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "lily_white_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "lily_white_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "prismriver_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "prismriver_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "youmu_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "youmu_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "yuyuko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "yuyuko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "ran_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "ran_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "yukari_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "yukari_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "wriggle_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "wriggle_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "mystia_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "mystia_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "keine_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "keine_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.825,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 1.023,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.8184,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.975,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.209,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.9672,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.05,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.302,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.0416,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.375,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.705,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.364,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.85,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 1.054,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.8432,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.3125,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "hakutaku_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.6275,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.302,
+			"kind": "hakutaku_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.924,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.858,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 1.14576,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 1.06392,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.092,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.014,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 1.35408,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 1.25736,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.176,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.092,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 1.45824,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 1.35408,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.54,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.43,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.9096,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.7732,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.952,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.884,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 1.18048,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 1.09616,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.47,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.365,
+			"kind": "mokou_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.8228,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.6926,
+			"kind": "mokou_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "suika_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "suika_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "shizuha_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "shizuha_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "minoriko_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "minoriko_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "hina_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "hina_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "nitori_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "nitori_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "tewi_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "tewi_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "normal",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "normal",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "easy",
+			"factor": 0.66,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "normal",
+			"factor": 0.78,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "hard",
+			"factor": 0.84,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "lunatic",
+			"factor": 1.1,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra",
+			"factor": 0.68,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "day_boss",
+			"phase": 0.0
+		},
+		{
+			"beam": false,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "day_boss",
+			"phase": 3.0
+		},
+		{
+			"beam": true,
+			"choice": "extra_plus",
+			"factor": 1.05,
+			"kind": "day_boss",
+			"phase": 3.0
+		}
+	],
+	"version": "1.0.177"
+}

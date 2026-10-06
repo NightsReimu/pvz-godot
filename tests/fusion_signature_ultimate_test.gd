@@ -6,6 +6,11 @@ const Defs = preload("res://scripts/game_defs.gd")
 const Fusion = preload("res://scripts/data/fusion_plant_defs.gd")
 var failures := 0
 
+class SilentGame extends Game:
+	# This fixture verifies damage and reach; audio playback has separate tests.
+	func _play_sfx(_path: String, _volume_db: float = -12.0, _pitch_scale: float = 1.0) -> void:
+		pass
+
 
 func _initialize():
 	call_deferred("_run")
@@ -38,7 +43,7 @@ func test_catalogue() -> void:
 
 
 func make_game() -> Control:
-	var g = Game.new()
+	var g = SilentGame.new()
 	g.size = Vector2(1600, 900)
 	root.add_child(g)
 	g.set_process(false)

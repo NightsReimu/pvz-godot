@@ -5,6 +5,24 @@ const SELF_MIDBOSS_HEALTH_RATIO := 0.09
 const ROAD_HEALTH_RATIO := 0.18
 const ROAD_FINALE_CAP := 0.10
 const FINALE_HEALTH_MULTIPLIER := 1.95
+const SPELL_DAMAGE_FACTOR := 0.25
+
+
+static func spell_damage_factor(boss: Dictionary) -> float:
+	var kind := String(boss.get("kind", ""))
+	if not Spells.CARDS.has(kind) and not Spells.Difficulty.boss_kinds().has(kind):
+		return 1.0
+	if float(boss.get("health", 0.0)) <= 0.0 or float(boss.get("touhou_cast_remaining", 0.0)) <= 0.0:
+		return 1.0
+	if bool(boss.get("touhou_encounter", {}).get("complete", false)) and not bool(boss.get("yuyuko_revived", false)):
+		return 1.0
+	var card: Dictionary = boss.get("touhou_card", {})
+	if String(card.get("origin", "")) not in ["canon", "original"]:
+		return 1.0
+	var pattern := String(card.get("pattern", ""))
+	if pattern.is_empty() or pattern.begins_with("nonspell_"):
+		return 1.0
+	return SPELL_DAMAGE_FACTOR
 
 
 static func configure_health(boss: Dictionary, level: Dictionary, definitions: Dictionary) -> void:

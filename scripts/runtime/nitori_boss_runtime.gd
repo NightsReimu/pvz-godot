@@ -175,7 +175,7 @@ func _advance_jet(jet: Dictionary) -> void:
 			game.effects.append({"position": game._cell_center(row, col) + Vector2(0, -_unit_size() * 0.35), "radius": _unit_size() * 0.42, "time": 0.3, "duration": 0.3, "color": Color(WATER, 0.30)})
 			continue
 		jet.hit.append(cell)
-		game._damage_plant_cell(row, col, float(jet.damage))
+		game._damage_plant_cell(row, col, float(jet.damage) * game.TouhouDifficulty.outgoing_damage_multiplier(KIND))
 		soaked[cell] = SOAK_DURATION
 
 # --- Cucumber bait ----------------------------------------------------------

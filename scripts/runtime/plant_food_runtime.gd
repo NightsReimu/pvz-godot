@@ -323,7 +323,10 @@ func activate(row: int, col: int) -> bool:
 			var targets = game._find_closest_lane_zombies(row, center.x, 3, 300.0)
 			for zombie_index in targets:
 				var zombie = game.zombies[zombie_index]
-				zombie["health"] = 0.0
+				if game._is_touhou_boss_kind(String(zombie.get("kind", ""))):
+					zombie = game._apply_zombie_damage(zombie, float(zombie.get("max_health", 1.0)), 0.25, 0.0, true)
+				else:
+					zombie["health"] = 0.0
 				zombie["flash"] = 0.25
 				game.zombies[zombie_index] = zombie
 				eaten += 1
@@ -643,7 +646,10 @@ func activate(row: int, col: int) -> bool:
 			var lash_range = 280.0
 			for zombie_index in game._find_closest_lane_zombies(row, center.x, 5, lash_range):
 				var lash_zombie = game.zombies[zombie_index]
-				lash_zombie["health"] -= 120.0
+				if game._is_touhou_boss_kind(String(lash_zombie.get("kind", ""))):
+					lash_zombie = game._apply_zombie_damage(lash_zombie, 120.0, 0.2, 0.0, true)
+				else:
+					lash_zombie["health"] -= 120.0
 				lash_zombie["slow_timer"] = maxf(float(lash_zombie["slow_timer"]), 4.0)
 				lash_zombie["flash"] = 0.2
 				game.zombies[zombie_index] = lash_zombie

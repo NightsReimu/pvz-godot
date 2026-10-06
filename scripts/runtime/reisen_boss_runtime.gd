@@ -120,7 +120,7 @@ func update(delta: float) -> void:
 			z.erase("tewi_luck_until")
 			z.erase("tewi_luck_owner")
 		if String(z.kind) in ["reisen_boss", "tewi_boss"] and float(z.health) > 0:
-			owners[int(z.uid)] = true
+			owners[int(z.uid)] = String(z.kind)
 	_clear_marks()
 	for i in range(eyes.size() - 1, -1, -1):
 		var eye: Dictionary = eyes[i]
@@ -138,7 +138,7 @@ func update(delta: float) -> void:
 			if fposmod(float(eye.age) - float(eye.delay), 1.45) < delta:
 				# The eye is a real pressure source in PvZ: every marked plant,
 				# including a healing gourd, takes periodic damage.
-				game._damage_plant_cell(cell.x, cell.y, 72.0, 0.0)
+				game._damage_plant_cell(cell.x, cell.y, 72.0 * game.TouhouDifficulty.outgoing_damage_multiplier(String(owners[int(eye.owner)])), 0.0)
 	if not eclipse.is_empty():
 		eclipse.age += delta
 		if not owners.has(int(eclipse.owner)) or float(eclipse.age) >= float(eclipse.duration):
@@ -153,7 +153,7 @@ func update(delta: float) -> void:
 			if bool(eclipse.strike) and not bool(eclipse.struck) and float(eclipse.age) >= 2.5:
 				eclipse.struck = true
 				for cell in eclipse.cells:
-					game._damage_plant_cell(cell.x, cell.y, 110.0, 0.0)
+					game._damage_plant_cell(cell.x, cell.y, 110.0 * game.TouhouDifficulty.outgoing_damage_multiplier(String(owners[int(eclipse.owner)])), 0.0)
 	var target := 0.0 if eclipse.is_empty() else 0.8
 	darkness = move_toward(darkness, target, delta * 0.4)
 	# Iterate a snapshot: a portal may append a new zombie during this loop.

@@ -62,7 +62,7 @@ func _test_fields() -> void:
 	check(is_equal_approx(gourd.sun_timer, 10.84) and is_equal_approx(exposed_sun.sun_timer, 10.84), "Eclipse slows all sun production, including healing gourd")
 	check(gourd.health == gourd.max_health and exposed_sun.health == initial_health, "Moonlight strike cannot damage plants before its 2.5 second warning")
 	runtime.update(0.2)
-	var damage: float = 110.0 * game.TouhouDifficulty.boss_damage_multiplier(game.current_level)
+	var damage: float = 110.0 * game.TouhouDifficulty.boss_damage_multiplier(game.current_level) * 2.0
 	check(is_equal_approx(initial_health - exposed_sun.health, damage) and is_equal_approx(gourd.max_health - gourd.health, damage), "Moonlight strike uses difficulty damage without gourd mitigation")
 	check(runtime.range_limit(2, game._cell_center(2, 2).x, 10000) < 10000, "Eclipse range affects attackers regardless of healing gourd placement")
 	release(game)
@@ -114,7 +114,7 @@ func _test_damage_pressure() -> void:
 	var probe := {}
 	game.touhou_danmaku._bullet({"kind": "reisen_boss", "owner": 1, "phase": 0, "wave": 0}, Vector2.ZERO, 0, 100, Color.RED, "orb", {"damage": 20.0})
 	probe = game.touhou_danmaku.bullets.back()
-	check(is_equal_approx(float(probe.damage), 20.0 * 1.35 * game.TouhouDifficulty.boss_damage_multiplier(game.current_level)), "Hard Reisen bullets must clear the upgraded damage floor")
+	check(is_equal_approx(float(probe.damage), 20.0 * 1.35 * game.TouhouDifficulty.boss_damage_multiplier(game.current_level) * 2.0), "Hard Reisen bullets must clear the upgraded damage floor")
 	release(game)
 
 

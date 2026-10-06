@@ -171,8 +171,8 @@ func _test_remilia_crimson_drain_is_pressure_not_a_wipe() -> bool:
 	})
 	game.call("_update_remilia_crimson_drain", 5.0)
 	var damage = before - float(game.grid[2][2]["health"])
-	var passed = _assert_true(damage > 35.0, "Remilia crimson drain should still matter over time") \
-		and _assert_true(damage <= 70.0, "Remilia crimson drain should pressure plants without acting like a board wipe")
+	var passed = _assert_true(damage > 70.0, "Remilia crimson drain should still matter over time") \
+		and _assert_true(damage <= 140.0, "Remilia crimson drain should pressure plants without acting like a board wipe")
 	_free_game(game)
 	return passed
 

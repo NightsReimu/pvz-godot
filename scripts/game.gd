@@ -11692,7 +11692,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			_trigger_screen_shake(6.0)
 		"void_shroom":
 			for z in zombies:
-				z["health"] = float(z["health"]) - 800.0
+				z = _apply_zombie_body_damage(z, 800.0)
 				z["flash"] = 0.5
 			effects.append({"pulse": true, "position": center, "radius": 600.0, "time": 1.2, "duration": 1.2, "color": Color(0.18, 0.06, 0.28, 0.6)})
 			_trigger_screen_shake(12.0)
@@ -11700,7 +11700,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for z in zombies:
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 				if zpos.distance_to(center) < 200.0:
-					z["health"] = float(z["health"]) - 2000.0
+					z = _apply_zombie_body_damage(z, 2000.0)
 					z["flash"] = 0.5
 			plant["health"] = float(plant["max_health"])
 			_set_targetable_plant(row, col, plant)
@@ -11709,7 +11709,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			_spawn_death_poof(center, Color(1.0, 0.6, 0.2))
 		"thunder_god":
 			for z in zombies:
-				z["health"] = float(z["health"]) - 500.0
+				z = _apply_zombie_body_damage(z, 500.0)
 				z["flash"] = 0.4
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 				_spawn_death_poof(zpos, Color(0.86, 0.82, 0.22))
@@ -12041,7 +12041,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for z in zombies:
 				if int(z["row"]) == row:
 					z["rooted_timer"] = max(float(z.get("rooted_timer", 0.0)), 4.0)
-					z["health"] = float(z["health"]) - 80.0
+					z = _apply_zombie_body_damage(z, 80.0)
 					z["flash"] = 0.3
 			effects.append({"pulse": true, "position": gpos, "radius": 400.0, "time": 1.2, "duration": 1.2, "color": Color(0.3, 1.0, 0.6, 0.4)})
 		"laser_lily":
@@ -12062,7 +12062,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for z in zombies:
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 				if rpos.distance_to(zpos) < 350.0:
-					z["health"] = float(z["health"]) - 300.0
+					z = _apply_zombie_body_damage(z, 300.0)
 					z["frozen_timer"] = max(float(z.get("frozen_timer", 0.0)), 1.5)
 					z["flash"] = 0.4
 			effects.append({"pulse": true, "position": rpos, "radius": 350.0, "time": 1.0, "duration": 1.0, "color": Color(0.7, 0.55, 0.3, 0.6)})
@@ -12085,7 +12085,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				for z in zombies:
 					var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 					if zpos.distance_to(Vector2(tx, ty)) < 140.0:
-						z["health"] = float(z["health"]) - 220.0
+						z = _apply_zombie_body_damage(z, 220.0)
 						z["flash"] = 0.4
 				effects.append({"position": Vector2(tx, ty), "radius": 140.0, "time": 0.7, "duration": 0.7, "color": Color(1.0, 0.45, 0.1, 0.7)})
 			_trigger_screen_shake(9.0)
@@ -12300,7 +12300,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				for z in zombies:
 					var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 					if zpos.distance_to(Vector2(tx, ty)) < 120.0:
-						z["health"] = float(z["health"]) - 200.0
+						z = _apply_zombie_body_damage(z, 200.0)
 						z["flash"] = 0.5
 				effects.append({"position": Vector2(tx, ty), "radius": 120.0, "time": 0.6, "duration": 0.6, "color": Color(1.0, 0.6, 0.1, 0.75)})
 			_trigger_screen_shake(14.0)
@@ -12326,7 +12326,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for z in zombies:
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 				if apos.distance_to(zpos) < 600.0 and grabbed.size() < 5:
-					z["health"] = float(z["health"]) - 450.0
+					z = _apply_zombie_body_damage(z, 450.0)
 					z["rooted_timer"] = max(float(z.get("rooted_timer", 0.0)), 3.0)
 					z["flash"] = 0.5
 					grabbed.append(z)
@@ -12342,7 +12342,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			var sa_sorted = zombies.duplicate()
 			sa_sorted.sort_custom(func(a, b): return float(a.get("health", 0)) > float(b.get("health", 0)))
 			for i in range(min(5, sa_sorted.size())):
-				sa_sorted[i]["health"] = float(sa_sorted[i]["health"]) - 600.0
+				sa_sorted[i] = _apply_zombie_body_damage(sa_sorted[i], 600.0)
 				sa_sorted[i]["flash"] = 0.5
 				var zpos = Vector2(float(sa_sorted[i]["x"]), _row_center_y(int(sa_sorted[i]["row"])))
 				effects.append({"position": zpos, "radius": 50.0, "time": 0.4, "duration": 0.4, "color": Color(0.1, 0.05, 0.15, 0.9)})
@@ -12352,7 +12352,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 			for z in zombies:
 				var zpos = Vector2(float(z["x"]), _row_center_y(int(z["row"])))
 				if cbpos.distance_to(zpos) < 450.0:
-					z["health"] = float(z["health"]) - 800.0
+					z = _apply_zombie_body_damage(z, 800.0)
 					z["flash"] = 0.6
 			effects.append({"pulse": true, "position": cbpos, "radius": 450.0, "time": 1.8, "duration": 1.8, "color": Color(1.0, 0.4, 0.0, 0.7)})
 			_trigger_screen_shake(16.0)
@@ -12370,7 +12370,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 				match randi() % 5:
 					0:
 						for z in zombies:
-							z["health"] = float(z["health"]) - 300.0
+							z = _apply_zombie_body_damage(z, 300.0)
 							z["flash"] = 0.4
 					1:
 						for z in zombies:
@@ -13504,7 +13504,7 @@ func _update_zombies(delta: float) -> void:
 		var hypnotized_target_index = _find_zombie_contact_target(i, int(zombie["row"]), float(zombie["x"]), true)
 		if hypnotized_target_index != -1:
 			var hypnotized_target = zombies[hypnotized_target_index]
-			hypnotized_target = _apply_zombie_damage(hypnotized_target, _zombie_attack_dps(zombie) * delta, 0.12)
+			hypnotized_target = _apply_zombie_damage(hypnotized_target, _zombie_attack_dps(zombie) * delta * TouhouDifficulty.outgoing_damage_multiplier(String(zombie.kind)), 0.12)
 			zombies[hypnotized_target_index] = hypnotized_target
 			zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
 			zombies[i] = zombie
@@ -13683,7 +13683,7 @@ func _update_zombies(delta: float) -> void:
 				})
 				zombies[i] = zombie
 				continue
-			var bite_damage = _zombie_attack_dps(zombie) * delta
+			var bite_damage = _zombie_attack_dps(zombie) * delta * TouhouDifficulty.outgoing_damage_multiplier(String(zombie.kind))
 			if String(zombie["kind"]) == "saboteur_zombie":
 				bite_damage *= float(Defs.ZOMBIES["saboteur_zombie"].get("sabotage_bite_mult", 1.0))
 			zombie["bite_timer"] = maxf(float(zombie.get("bite_timer", 0.0)), 0.18)
@@ -13788,8 +13788,16 @@ func _update_mowers(delta: float) -> void:
 			if int(zombie["row"]) != int(mower["row"]):
 				continue
 			if float(zombie["x"]) >= hit_min_x and float(zombie["x"]) <= hit_max_x:
-				zombie["health"] = 0.0
-				zombie["killed_by_mower"] = true
+				if _is_touhou_boss_kind(String(zombie.kind)):
+					var hit_uids: Array = mower.get("touhou_hit_uids", [])
+					var uid := int(zombie.get("uid", -1))
+					if uid in hit_uids: continue
+					hit_uids.append(uid)
+					mower["touhou_hit_uids"] = hit_uids
+					zombie = _apply_zombie_body_damage(zombie, float(zombie.get("max_health", zombie.health)), 0.2)
+				else:
+					zombie["health"] = 0.0
+				if float(zombie.health) <= 0.0: zombie["killed_by_mower"] = true
 				zombie["flash"] = 0.2
 				zombies[z] = zombie
 		if float(mower["x"]) > BOARD_ORIGIN.x + board_size.x + 120.0:
@@ -15879,11 +15887,20 @@ func _apply_ash_hits_in_row_segment(row: int, min_x: float, max_x: float, hits: 
 		zombies[i] = zombie
 
 
+func _apply_zombie_body_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12) -> Dictionary:
+	# Preserve legacy body damage for ordinary units; Bosses share spell and phase rules.
+	if _is_touhou_boss_kind(String(zombie.get("kind", ""))):
+		return _apply_zombie_damage(zombie, damage, flash_amount, 0.0, true)
+	zombie["health"] = float(zombie["health"]) - damage
+	return zombie
+
+
 func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float = 0.12, slow_duration: float = 0.0, ignore_shield: bool = false, pierce_handheld: bool = false, from_x: float = INF) -> Dictionary:
 	if damage <= 0.0 or bool(zombie.get("touhou_invulnerable", false)):
 		return zombie
 
-	var remaining_damage = damage
+	# Formal-card protection applies before armor, including armor-bypassing attacks.
+	var remaining_damage = damage * TouhouPhaseRuntime.spell_damage_factor(zombie)
 	if String(zombie.kind) == "suika_boss" and String(zombie.get("touhou_card", {}).get("pattern", "")) == "suika_mist" and float(zombie.get("touhou_cast_remaining", 0)) > 0 and not ignore_shield:
 		remaining_damage *= 0.65
 	if kaguya_runtime != null and not ignore_shield:
@@ -16911,7 +16928,7 @@ func _update_charmed_plants(delta: float) -> void:
 					if bool(plant.get("mystia_charmed", false)) and mystia_timer <= 0.0 and not bool(plant.get("mystia_being_cooked", false)):
 						var target_cell = _find_nearest_plant_cell_to_cell(row, col, true)
 						if target_cell.x >= 0:
-							_damage_plant_cell(target_cell.x, target_cell.y, 34.0, 0.08)
+							_damage_plant_cell(target_cell.x, target_cell.y, 34.0 * TouhouDifficulty.outgoing_damage_multiplier("mystia_boss"), 0.08)
 						plant["mystia_charm_attack_timer"] = 0.72
 					continue
 				if remaining <= 0.0:
@@ -16925,7 +16942,7 @@ func _update_charmed_plants(delta: float) -> void:
 					var target_cell = _find_nearest_plant_cell_to_cell(row, col, true)
 					if target_cell.x == -1:
 						break
-					_damage_plant_cell(target_cell.x, target_cell.y, float(Defs.ZOMBIES["youmu_boss"].get("wraith_damage", 46.0)), 0.16)
+					_damage_plant_cell(target_cell.x, target_cell.y, float(Defs.ZOMBIES["youmu_boss"].get("wraith_damage", 46.0)) * TouhouDifficulty.outgoing_damage_multiplier("youmu_boss"), 0.16)
 					effects.append({"shape": "youmu_wraith_charm", "position": _cell_center(row, col) + Vector2(0, -10), "target": _cell_center(target_cell.x, target_cell.y) + Vector2(0, -10), "radius": 46.0, "time": 0.34, "duration": 0.34, "anim_speed": 9.0, "color": Color(0.72, 0.9, 1.0, 0.3)})
 					attack_timer += 0.58
 				plant["youmu_charm_attack_timer"] = maxf(0.0, attack_timer) if float(plant["youmu_charm_timer"]) > 0.0 else 0.0
@@ -17114,7 +17131,7 @@ func _resolve_remilia_blood_drain(effect: Dictionary) -> void:
 	var before_health = float(plant_variant.get("health", 0.0))
 	var before_armor = float(plant_variant.get("armor_health", 0.0))
 	var invincible = float(plant_variant.get("holy_invincible_timer", 0.0)) > 0.0
-	_damage_plant_cell(row, col, float(effect.get("damage", 0.0)), 1.0)
+	_damage_plant_cell(row, col, float(effect.get("damage", 0.0)) * TouhouDifficulty.outgoing_damage_multiplier("remilia_boss"), 1.0)
 	var after_variant = _targetable_plant_at(row, col)
 	var after_health = before_health
 	var after_armor = before_armor
@@ -17159,7 +17176,7 @@ func _apply_touhou_boss_battlefield_skill(zombie: Dictionary) -> Dictionary:
 			for _i in range(1 + phase):
 				_spawn_hover_boss_reinforcement(kind, phase)
 		"patchouli_boss":
-			_spawn_blood_library_hazard()
+			_spawn_blood_library_hazard("patchouli_boss")
 		"sakuya_boss":
 			var stop_duration = 1.05 + phase * 0.2
 			boss_time_stop_timer = maxf(boss_time_stop_timer, stop_duration)
@@ -17382,7 +17399,7 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 				_show_banner("玄潮尸王掀起了尸潮！", 1.5)
 			1:
 				for lane in active_rows:
-					_damage_front_plant_in_row(int(lane), 180.0 + phase * 38.0)
+					_damage_front_plant_in_row(int(lane), 180.0 + phase * 38.0, String(zombie.kind))
 					if _is_water_row(int(lane)):
 						_set_ice_tile(int(lane), clampi(rng.randi_range(3, COLS - 1), 0, COLS - 1))
 				_show_banner("玄潮尸王掀起了激浪！", 1.35)
@@ -17432,7 +17449,7 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 				_show_banner("雾岚尸王卷来了新的混编尸群！", 1.5)
 			1:
 				for lane in active_rows:
-					_damage_front_plant_in_row(int(lane), 150.0 + phase * 28.0)
+					_damage_front_plant_in_row(int(lane), 150.0 + phase * 28.0, String(zombie.kind))
 					var bog_col = clampi(rng.randi_range(3, COLS - 2), 0, COLS - 1)
 					var bog_center = _cell_center(int(lane), bog_col)
 					_spawn_bog_pool(bog_center, 56.0 + phase * 10.0, 7.6 + phase * 1.5)
@@ -17493,7 +17510,7 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 					_spawn_zombie(strike_kind, _choose_spawn_row_for_kind(strike_kind), true)
 				for lane in active_rows:
 					if rng.randf() < 0.6:
-						_damage_front_plant_in_row(int(lane), 110.0 + phase * 22.0)
+						_damage_front_plant_in_row(int(lane), 110.0 + phase * 22.0, String(zombie.kind))
 				_show_banner("雾岚尸王掀起了迷雾突袭！", 1.4)
 		return zombie
 	if String(zombie["kind"]) == "roof_boss":
@@ -17526,7 +17543,7 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 			1:
 				for lane in active_rows:
 					var lane_row = int(lane)
-					_damage_front_plant_in_row(lane_row, 156.0 + phase * 28.0)
+					_damage_front_plant_in_row(lane_row, 156.0 + phase * 28.0, String(zombie.kind))
 					effects.append({
 						"shape": "lane_spray",
 						"position": Vector2(BOARD_ORIGIN.x + CELL_SIZE.x * 1.5, _row_center_y(lane_row) - 8.0),
@@ -17548,7 +17565,7 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 			_:
 				for lane in active_rows:
 					if rng.randf() < 0.7 or int(lane) == int(zombie["row"]):
-						_damage_front_plant_in_row(int(lane), 96.0 + phase * 18.0)
+						_damage_front_plant_in_row(int(lane), 96.0 + phase * 18.0, String(zombie.kind))
 				for _i in range(2 + phase):
 					var strike_kind = "turret_zombie" if rng.randf() < 0.4 else ("bungee_zombie" if rng.randf() < 0.55 else "ladder_zombie")
 					_spawn_zombie(strike_kind, _choose_spawn_row_for_kind(strike_kind), true)
@@ -17591,7 +17608,7 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 			1:
 				for lane in active_rows:
 					var lane_row = int(lane)
-					_damage_front_plant_in_row(lane_row, 136.0 + phase * 24.0)
+					_damage_front_plant_in_row(lane_row, 136.0 + phase * 24.0, String(zombie.kind))
 					var lock_col = clampi(rng.randi_range(2, COLS - 2), 0, COLS - 1)
 					_add_porcelain_shard(lane_row, lock_col, 12.0 + phase * 2.0)
 					if rng.randf() < 0.65:
@@ -17611,7 +17628,7 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 				for lane in active_rows:
 					var lane_row = int(lane)
 					if rng.randf() < 0.82 or lane_row == int(zombie["row"]):
-						_damage_front_plant_in_row(lane_row, 98.0 + phase * 18.0)
+						_damage_front_plant_in_row(lane_row, 98.0 + phase * 18.0, String(zombie.kind))
 					effects.append({
 						"position": Vector2(BOARD_ORIGIN.x + board_size.x * (0.34 + float(lane_row % 3) * 0.18), _row_center_y(lane_row) - 12.0),
 						"radius": 52.0 + phase * 8.0,
@@ -17652,7 +17669,7 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 				_spawn_zombie(kind, row, true)
 		1:
 			for lane in active_rows:
-				_damage_front_plant_in_row(int(lane), 220.0 + float(zombie.get("boss_phase", 0)) * 60.0)
+				_damage_front_plant_in_row(int(lane), 220.0 + float(zombie.get("boss_phase", 0)) * 60.0, String(zombie.kind))
 				if rng.randf() < 0.65:
 					_spawn_farmer_weed(int(lane), rng.randi_range(3, COLS - 2))
 		_:
@@ -17704,7 +17721,7 @@ func _trigger_daiyousei_boss_phase_shift(zombie: Dictionary, phase: int) -> Dict
 	})
 	for _i in range(phase + 1):
 		_spawn_hover_boss_reinforcement("daiyousei_boss", phase)
-	_damage_front_plant_in_row(int(zombie["row"]), 88.0 + phase * 24.0)
+	_damage_front_plant_in_row(int(zombie["row"]), 88.0 + phase * 24.0, String(zombie.kind))
 	return _set_rumia_state(zombie, "phase", 0.62)
 
 
@@ -17720,7 +17737,7 @@ func _trigger_cirno_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 		"anim_speed": 5.2,
 		"color": Color(0.74, 0.94, 1.0, 0.34),
 	})
-	_damage_plants_in_circle(center, 180.0 + phase * 14.0, 42.0 + phase * 14.0)
+	_damage_plants_in_circle(center, 180.0 + phase * 14.0, 42.0 + phase * 14.0, String(zombie.kind))
 	_stagger_plants_in_circle(center, 180.0 + phase * 14.0, 1.0 + phase * 0.12)
 	for _i in range(phase + 1):
 		_spawn_hover_boss_reinforcement("cirno_boss", phase)
@@ -17745,7 +17762,7 @@ func _trigger_letty_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 		"anim_speed": 5.6,
 		"color": Color(0.78, 0.94, 1.0, 0.36),
 	})
-	_damage_plants_in_circle(center, 182.0 + phase * 16.0, 50.0 + phase * 14.0)
+	_damage_plants_in_circle(center, 182.0 + phase * 16.0, 50.0 + phase * 14.0, String(zombie.kind))
 	_stagger_plants_in_circle(center, 190.0 + phase * 16.0, 1.0 + phase * 0.12)
 	for cell_variant in _pick_random_active_cells(2 + phase, 2, COLS - 2):
 		var cell = Vector2i(cell_variant)
@@ -17773,7 +17790,7 @@ func _trigger_chen_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionar
 		"anim_speed": 8.0,
 		"color": Color(1.0, 0.28, 0.18, 0.34),
 	})
-	_damage_plants_in_circle(center, 168.0 + phase * 14.0, 48.0 + phase * 12.0)
+	_damage_plants_in_circle(center, 168.0 + phase * 14.0, 48.0 + phase * 12.0, String(zombie.kind))
 	_stagger_plants_in_circle(center, 176.0 + phase * 14.0, 0.72 + phase * 0.1)
 	for _i in range(mini(2, phase + 1)):
 		_spawn_hover_boss_reinforcement("chen_boss", phase)
@@ -17817,7 +17834,7 @@ func _trigger_alice_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 		"anim_speed": 7.2,
 		"color": Color(0.8, 0.62, 1.0, 0.34),
 	})
-	_damage_plants_in_circle(center, 160.0 + phase * 14.0, 44.0 + phase * 10.0)
+	_damage_plants_in_circle(center, 160.0 + phase * 14.0, 44.0 + phase * 10.0, String(zombie.kind))
 	_stagger_plants_in_circle(center, 174.0 + phase * 14.0, 0.65 + phase * 0.08)
 	for _i in range(mini(2, phase + 1)):
 		_spawn_alice_doll(int(zombie["row"]), BOARD_ORIGIN.x + board_size.x + 38.0 + float(_i) * 22.0, Color(0.84, 0.64, 1.0, 0.25))
@@ -17843,7 +17860,7 @@ func _trigger_lily_white_boss_phase_shift(zombie: Dictionary, phase: int) -> Dic
 		"anim_speed": 6.8,
 		"color": Color(0.94, 1.0, 0.72, 0.34),
 	})
-	_damage_plants_in_circle(center, 150.0 + phase * 12.0, 36.0 + phase * 8.0)
+	_damage_plants_in_circle(center, 150.0 + phase * 12.0, 36.0 + phase * 8.0, String(zombie.kind))
 	if phase >= 1:
 		_spawn_hover_boss_reinforcement("lily_white_boss", phase)
 	return _set_rumia_state(zombie, "phase", 0.62)
@@ -17869,7 +17886,7 @@ func _trigger_prismriver_boss_phase_shift(zombie: Dictionary, phase: int) -> Dic
 		"anim_speed": 8.2,
 		"color": Color(0.76, 0.88, 1.0, 0.34),
 	})
-	_damage_plants_in_circle(center, 164.0 + phase * 12.0, 42.0 + phase * 10.0)
+	_damage_plants_in_circle(center, 164.0 + phase * 12.0, 42.0 + phase * 10.0, String(zombie.kind))
 	_stagger_plants_in_circle(center, 174.0 + phase * 12.0, 0.55 + phase * 0.08)
 	for _i in range(mini(2, phase + 1)):
 		_spawn_hover_boss_reinforcement("prismriver_boss", phase)
@@ -17987,7 +18004,7 @@ func _update_youmu_wraith(zombie: Dictionary, delta: float) -> Dictionary:
 	var step = minf(absf(float(zombie.get("x", desired_x)) - desired_x), _current_zombie_speed(zombie) * delta * 1.18)
 	zombie["x"] = float(zombie.get("x", desired_x)) + direction * step
 	if absf(float(zombie["x"]) - desired_x) <= 12.0:
-		_damage_plant_cell(target.x, target.y, float(Defs.ZOMBIES["youmu_wraith"].get("impact_damage", 34.0)), 0.12)
+		_damage_plant_cell(target.x, target.y, float(Defs.ZOMBIES["youmu_wraith"].get("impact_damage", 34.0)) * TouhouDifficulty.outgoing_damage_multiplier("youmu_wraith"), 0.12)
 		_charm_plant_at_cell(target.x, target.y, float(Defs.ZOMBIES["youmu_wraith"].get("charm_duration", 4.4)))
 		var hit_pos = target_center + Vector2(0.0, -12.0)
 		effects.append({
@@ -18021,7 +18038,7 @@ func _update_yuyuko_spirit(zombie: Dictionary, delta: float) -> Dictionary:
 	var step = minf(absf(float(zombie.get("x", desired_x)) - desired_x), _current_zombie_speed(zombie) * delta * 1.08)
 	zombie["x"] = float(zombie.get("x", desired_x)) + direction * step
 	if absf(float(zombie["x"]) - desired_x) <= 12.0:
-		_damage_plant_cell(target.x, target.y, float(Defs.ZOMBIES["yuyuko_spirit"].get("impact_damage", 38.0)), 0.16)
+		_damage_plant_cell(target.x, target.y, float(Defs.ZOMBIES["yuyuko_spirit"].get("impact_damage", 38.0)) * TouhouDifficulty.outgoing_damage_multiplier("yuyuko_spirit"), 0.16)
 		_charm_plant_at_cell(target.x, target.y, float(Defs.ZOMBIES["yuyuko_spirit"].get("charm_duration", 3.8)))
 		effects.append({
 			"shape": "yuyuko_spirit_charm",
@@ -18251,7 +18268,7 @@ func _trigger_youmu_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 		"anim_speed": 10.0,
 		"color": Color(0.9, 1.0, 1.0, 0.32),
 	})
-	_damage_plants_in_circle(center, 170.0 + phase * 14.0, 46.0 + phase * 10.0)
+	_damage_plants_in_circle(center, 170.0 + phase * 14.0, 46.0 + phase * 10.0, String(zombie.kind))
 	for _i in range(mini(2, phase + 1)):
 		_spawn_hover_boss_reinforcement("youmu_boss", phase)
 	return _set_rumia_state(zombie, "phase", 0.68)
@@ -18283,7 +18300,7 @@ func _trigger_yuyuko_boss_phase_shift(zombie: Dictionary, phase: int) -> Diction
 		"anim_speed": 7.4,
 		"color": Color(1.0, 0.72, 0.9, 0.3),
 	})
-	_damage_plants_in_circle(center, 180.0 + phase * 16.0, 42.0 + phase * 10.0)
+	_damage_plants_in_circle(center, 180.0 + phase * 16.0, 42.0 + phase * 10.0, String(zombie.kind))
 	_raise_random_graves(phase + 1, "yuyuko_grave_rise", Color(1.0, 0.58, 0.86, 0.32))
 	_spawn_yuyuko_grave_spirits(mini(3, phase + 1))
 	return _set_rumia_state(zombie, "phase", 0.72)
@@ -18312,7 +18329,7 @@ func _trigger_ran_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary
 		"anim_speed": 7.2,
 		"color": Color(1.0, 0.84, 0.4, 0.3),
 	})
-	_damage_plants_in_circle(center, 174.0 + phase * 14.0, 34.0 + phase * 9.0)
+	_damage_plants_in_circle(center, 174.0 + phase * 14.0, 34.0 + phase * 9.0, String(zombie.kind))
 	for _i in range(mini(3, phase + 1)):
 		_spawn_hover_boss_reinforcement("ran_boss", phase)
 	return _set_rumia_state(zombie, "phase", 0.76)
@@ -18343,7 +18360,7 @@ func _trigger_yukari_boss_phase_shift(zombie: Dictionary, phase: int) -> Diction
 		"anim_speed": 6.8,
 		"color": Color(0.54, 0.28, 0.92, 0.34),
 	})
-	_damage_plants_in_circle(center, 190.0 + phase * 14.0, 38.0 + phase * 10.0)
+	_damage_plants_in_circle(center, 190.0 + phase * 14.0, 38.0 + phase * 10.0, String(zombie.kind))
 	for _i in range(mini(3, phase + 1)):
 		_spawn_hover_boss_reinforcement("yukari_boss", phase)
 	return _set_rumia_state(zombie, "phase", 0.82)
@@ -18366,7 +18383,7 @@ func _trigger_meiling_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 		"anim_speed": 5.0,
 		"color": Color(0.32, 0.92, 0.56, 0.38),
 	})
-	_damage_plants_in_circle(center, 190.0 + phase * 16.0, 50.0 + phase * 16.0)
+	_damage_plants_in_circle(center, 190.0 + phase * 16.0, 50.0 + phase * 16.0, String(zombie.kind))
 	_stagger_plants_in_circle(center, 190.0 + phase * 16.0, 1.1 + phase * 0.14)
 	for _i in range(phase + 1):
 		_spawn_hover_boss_reinforcement("meiling_boss", phase)
@@ -18412,8 +18429,8 @@ func _trigger_patchouli_boss_phase_shift(zombie: Dictionary, phase: int) -> Dict
 		"anim_speed": 5.2,
 		"color": Color(0.78, 0.58, 1.0, 0.34),
 	})
-	_spawn_blood_library_hazard()
-	_damage_plants_in_circle(center, 180.0 + phase * 18.0, 48.0 + phase * 16.0)
+	_spawn_blood_library_hazard("patchouli_boss")
+	_damage_plants_in_circle(center, 180.0 + phase * 18.0, 48.0 + phase * 16.0, String(zombie.kind))
 	_stagger_plants_in_circle(center, 190.0 + phase * 18.0, 1.0 + phase * 0.12)
 	for _i in range(phase + 1):
 		_spawn_hover_boss_reinforcement("patchouli_boss", phase)
@@ -18435,7 +18452,7 @@ func _trigger_sakuya_boss_phase_shift(zombie: Dictionary, phase: int) -> Diction
 	})
 	boss_time_stop_timer = maxf(boss_time_stop_timer, 0.8 + phase * 0.18)
 	boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.4)
-	_damage_plants_in_circle(center, 168.0 + phase * 18.0, 46.0 + phase * 12.0)
+	_damage_plants_in_circle(center, 168.0 + phase * 18.0, 46.0 + phase * 12.0, String(zombie.kind))
 	for _i in range(mini(2, phase + 1)):
 		_spawn_hover_boss_reinforcement("sakuya_boss", phase)
 	return _set_rumia_state(zombie, "phase", 0.72)
@@ -18506,7 +18523,7 @@ func _trigger_flandre_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictio
 		"anim_speed": 6.4,
 		"color": Color(1.0, 0.74, 0.32, 0.34),
 	})
-	_damage_plants_in_circle(center, 210.0 + phase * 18.0, 58.0 + phase * 18.0)
+	_damage_plants_in_circle(center, 210.0 + phase * 18.0, 58.0 + phase * 18.0, String(zombie.kind))
 	_stagger_plants_in_circle(center, 218.0 + phase * 18.0, 1.2 + phase * 0.14)
 	for _i in range(mini(3, 1 + phase)):
 		_spawn_hover_boss_reinforcement("flandre_boss", phase)
@@ -18604,7 +18621,7 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		for summon_kind in ["dragon_boat", "dragon_dance", "qinghua"]:
 			_spawn_zombie(summon_kind, _choose_spawn_row_for_kind(summon_kind), true)
 		for lane in active_rows:
-			_damage_front_plant_in_row(int(lane), 100.0 + phase * 26.0)
+			_damage_front_plant_in_row(int(lane), 100.0 + phase * 26.0, String(zombie.kind))
 		return zombie
 	if String(zombie["kind"]) == "fog_boss":
 		_show_banner("雾岚尸王进入第 %d 阶段！" % (phase + 1), 2.0)
@@ -18619,7 +18636,7 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		for lane in active_rows:
 			var bog_col = clampi(rng.randi_range(2, COLS - 2), 0, COLS - 1)
 			_spawn_bog_pool(_cell_center(int(lane), bog_col), 58.0 + phase * 10.0, 8.0 + phase * 1.6)
-			_damage_front_plant_in_row(int(lane), 92.0 + phase * 24.0)
+			_damage_front_plant_in_row(int(lane), 92.0 + phase * 24.0, String(zombie.kind))
 			effects.append({
 				"shape": "mist_cloud",
 				"position": _cell_center(int(lane), bog_col) + Vector2(rng.randf_range(-14.0, 14.0), -20.0),
@@ -18644,7 +18661,7 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		})
 		for lane in active_rows:
 			var lane_row = int(lane)
-			_damage_front_plant_in_row(lane_row, 108.0 + phase * 26.0)
+			_damage_front_plant_in_row(lane_row, 108.0 + phase * 26.0, String(zombie.kind))
 			if lane_row % 2 == phase % 2:
 				effects.append({
 					"shape": "lane_spray",
@@ -18671,7 +18688,7 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		})
 		for lane in active_rows:
 			var lane_row = int(lane)
-			_damage_front_plant_in_row(lane_row, 110.0 + phase * 24.0)
+			_damage_front_plant_in_row(lane_row, 110.0 + phase * 24.0, String(zombie.kind))
 			effects.append({
 				"shape": "lane_spray",
 				"position": Vector2(BOARD_ORIGIN.x + CELL_SIZE.x * 1.5, _row_center_y(lane_row) - 8.0),
@@ -18696,7 +18713,7 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 		"color": Color(1.0, 0.18, 0.12, 0.5),
 	})
 	for lane in active_rows:
-		_damage_front_plant_in_row(int(lane), 120.0 + phase * 30.0)
+		_damage_front_plant_in_row(int(lane), 120.0 + phase * 30.0, String(zombie.kind))
 	for _i in range(phase + 2):
 		var kind = "buckethead" if phase >= 2 and rng.randf() < 0.5 else "conehead"
 		if phase >= 1 and rng.randf() < 0.4:
@@ -18980,7 +18997,7 @@ func _trigger_night_boss_skill(zombie: Dictionary) -> Dictionary:
 					float(data.get("sleep_radius", 150.0)),
 					float(data.get("sleep_duration", 5.2)) + phase * 0.8
 				)
-				_damage_front_plant_in_row(int(lane), 150.0 + phase * 35.0)
+				_damage_front_plant_in_row(int(lane), 150.0 + phase * 35.0, String(zombie.kind))
 	return zombie
 
 
@@ -18997,7 +19014,7 @@ func _trigger_night_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 	if raised > 0:
 		_show_banner("新的坟墓正在升起！", 1.5)
 	for lane in active_rows:
-		_damage_front_plant_in_row(int(lane), 90.0 + phase * 28.0)
+		_damage_front_plant_in_row(int(lane), 90.0 + phase * 28.0, String(zombie.kind))
 	for _i in range(phase + 2):
 		var kind = "newspaper"
 		if phase >= 1 and rng.randf() < 0.45:
@@ -19008,7 +19025,8 @@ func _trigger_night_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictiona
 	return zombie
 
 
-func _damage_front_plant_in_row(row: int, damage: float) -> void:
+func _damage_front_plant_in_row(row: int, damage: float, source_kind: String = "") -> void:
+	damage *= TouhouDifficulty.outgoing_damage_multiplier(source_kind)
 	if current_level.has("touhou_difficulty"):
 		damage *= TouhouDifficulty.boss_damage_multiplier(current_level)
 	for col in range(COLS - 1, -1, -1):
@@ -19257,7 +19275,7 @@ func _explode_cherry(row: int, col: int, mega: bool = false) -> void:
 		if not _is_enemy_zombie(zombie):
 			continue
 		if _zombie_in_rect(zombie, _plant_square_rect(row, col, blast_cells)):
-			zombie["health"] -= damage
+			zombie = _apply_zombie_body_damage(zombie, damage, 0.24)
 			zombie["flash"] = 0.24
 			zombies[i] = zombie
 	_apply_ash_hits_in_circle(center, radius, 1)
@@ -19280,7 +19298,7 @@ func _explode_mine(row: int, col: int) -> void:
 		if int(zombie["row"]) != row or not _is_enemy_zombie(zombie):
 			continue
 		if absf(float(zombie["x"]) - center.x) <= radius:
-			zombie["health"] -= damage
+			zombie = _apply_zombie_body_damage(zombie, damage, 0.24)
 			zombie["flash"] = 0.24
 			zombies[i] = zombie
 	_damage_obstacles_in_radius(row, center.x, radius, damage)
@@ -19368,7 +19386,7 @@ func _trigger_doom_shroom(row: int, col: int, boosted: bool = false) -> void:
 		if not _is_enemy_zombie(zombie):
 			continue
 		if _zombie_in_rect(zombie, _plant_square_rect(row, col, blast_cells)):
-			zombie["health"] -= damage
+			zombie = _apply_zombie_body_damage(zombie, damage, 0.24)
 			zombie["flash"] = 0.28
 			zombies[i] = zombie
 	_apply_ash_hits_in_circle(center, radius, 1)
@@ -19675,7 +19693,8 @@ func _damage_obstacles_in_circle(center: Vector2, radius: float, damage: float) 
 	return hit
 
 
-func _damage_plants_in_circle(center: Vector2, radius: float, damage: float) -> bool:
+func _damage_plants_in_circle(center: Vector2, radius: float, damage: float, source_kind: String = "") -> bool:
+	damage *= TouhouDifficulty.outgoing_damage_multiplier(source_kind)
 	if current_level.has("touhou_difficulty"):
 		damage *= TouhouDifficulty.boss_damage_multiplier(current_level)
 	var hit := false
@@ -25380,7 +25399,7 @@ func _update_remilia_crimson_drain(delta: float) -> void:
 	for lane_variant in active_rows:
 		var row = int(lane_variant)
 		for col in range(COLS):
-			if _damage_plant_cell(row, col, damage):
+			if _damage_plant_cell(row, col, damage * TouhouDifficulty.outgoing_damage_multiplier("remilia_boss")):
 				affected += 1
 	remilia_crimson_fx_timer -= delta
 	if affected <= 0 or remilia_crimson_fx_timer > 0.0:
@@ -25413,7 +25432,7 @@ func _roll_blood_library_hazard_interval() -> float:
 	return rng.randf_range(interval.x, interval.y)
 
 
-func _spawn_blood_library_hazard() -> void:
+func _spawn_blood_library_hazard(source_kind: String = "") -> void:
 	if not _is_blood_library_level():
 		return
 	var patchouli_alive = not _find_alive_enemy_boss("patchouli_boss").is_empty()
@@ -25429,7 +25448,7 @@ func _spawn_blood_library_hazard() -> void:
 			continue
 		cells.append(cell)
 	var damage = float(current_level.get("library_hazard_damage", 58.0)) + (22.0 if patchouli_alive else 0.0)
-	var hit_count = _damage_plants_in_cells(cells, damage, 1.1 if patchouli_alive else 0.7)
+	var hit_count = _damage_plants_in_cells(cells, damage * TouhouDifficulty.outgoing_damage_multiplier(source_kind), 1.1 if patchouli_alive else 0.7)
 	for cell_variant in cells:
 		var cell = Vector2i(cell_variant)
 		effects.append({
@@ -25787,6 +25806,8 @@ func _boss_cast_status(boss: Dictionary) -> Dictionary:
 		var card: Dictionary = boss.get("touhou_card", {}) if active else TouhouSpellDefs.card_for(boss, current_level)
 		var remaining_time = float(boss.get("touhou_cast_remaining", 0.0)) if active else float(boss.get("boss_skill_timer", 0.0))
 		var suffix = "耐久 %.1fs" % remaining_time if bool(boss.get("touhou_invulnerable", false)) else ("展开" if active else ("蓄力" if bool(boss.get("boss_cast_pending", false)) else "待机"))
+		if active and not bool(boss.get("touhou_invulnerable", false)) and TouhouPhaseRuntime.spell_damage_factor(boss) < 1.0:
+			suffix = "展开 · 减伤75%"
 		var progress = remaining_time / maxf(0.01, float(boss.get("touhou_cast_duration", 1.0))) if active else 0.0
 		if not active and bool(boss.get("boss_cast_pending", false)):
 			progress = clampf(1.0 - remaining_time / ZombieRuntime.BOSS_WINDUP, 0.0, 1.0)

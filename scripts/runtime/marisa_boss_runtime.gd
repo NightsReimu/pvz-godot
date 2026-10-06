@@ -122,7 +122,7 @@ func _tick(delta: float) -> void:
 			"glare":
 				if plant != null and float(plant.get("holy_invincible_timer", 0)) <= 0:
 					plant["marisa_glare"] = true
-					game._damage_plant_cell(cell.x, cell.y, 10.0 * active_delta * game.TouhouDifficulty.boss_damage_multiplier(game.current_level), 0, true)
+					game._damage_plant_cell(cell.x, cell.y, 10.0 * active_delta * game.TouhouDifficulty.direct_attack_damage(KIND, game.current_level), 0, true)
 			"prism":
 				if plant != null:
 					plant["marisa_prism"] = 0.7

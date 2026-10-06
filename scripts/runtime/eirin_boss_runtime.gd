@@ -166,7 +166,7 @@ func update(delta: float) -> void:
 	var final_boss: Dictionary = {}
 	for z in game.zombies:
 		if String(z.kind) in ["eirin_boss", "kaguya_boss"] and float(z.health) > 0:
-			owners[int(z.uid)] = true
+			owners[int(z.uid)] = String(z.kind)
 			if not bool(z.get("touhou_final_preview", false)):
 				final_boss = z
 	if sky and not final_boss.is_empty():
@@ -197,14 +197,14 @@ func update(delta: float) -> void:
 				var p = game._targetable_plant_at(t.cell.x, t.cell.y)
 				var cooled: bool = game.volcano_expansion != null and game.volcano_expansion.is_cooled(t.cell)
 				if p != null and String(p.kind) != "cork_plug" and not cooled:
-					game._damage_plant_cell(t.cell.x, t.cell.y, 55.0, 0.0)
+					game._damage_plant_cell(t.cell.x, t.cell.y, 55.0 * game.TouhouDifficulty.outgoing_damage_multiplier(String(owners[int(t.owner)])), 0.0)
 	for i in range(strikes.size() - 1, -1, -1):
 		var s: Dictionary = strikes[i]
 		s.age += delta
 		if not owners.has(int(s.owner)):
 			strikes.remove_at(i)
 		elif float(s.age) >= 1.8:
-			game._damage_plant_cell(s.cell.x, s.cell.y, float(s.damage), 0.0)
+			game._damage_plant_cell(s.cell.x, s.cell.y, float(s.damage) * game.TouhouDifficulty.outgoing_damage_multiplier(String(owners[int(s.owner)])), 0.0)
 			game.effects.append({"position": game._cell_center(s.cell.x, s.cell.y), "radius": game.CELL_SIZE.x * 0.43, "time": 0.45, "duration": 0.45, "color": Color(RED, 0.5)})
 			strikes.remove_at(i)
 	for i in range(medicine.size() - 1, -1, -1):

@@ -247,7 +247,7 @@ func update(delta: float) -> void:
 			continue
 		if float(m.age) >= float(m.delay) and not m.hit:
 			m.hit = true
-			game._damage_plant_cell(m.cell.x, m.cell.y, float(m.damage), 0.0)
+			game._damage_plant_cell(m.cell.x, m.cell.y, float(m.damage) * game.TouhouDifficulty.outgoing_damage_multiplier("kaguya_boss"), 0.0)
 
 func frame_index(boss: Dictionary) -> int:
 	var pose = String(boss.get("rumia_state", "idle"))
