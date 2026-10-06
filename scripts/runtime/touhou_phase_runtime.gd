@@ -4,7 +4,7 @@ const Spells = preload("res://scripts/data/touhou_spell_defs.gd")
 const SELF_MIDBOSS_HEALTH_RATIO := 0.09
 const ROAD_HEALTH_RATIO := 0.18
 const ROAD_FINALE_CAP := 0.10
-const FINALE_HEALTH_MULTIPLIER := 1.45
+const FINALE_HEALTH_MULTIPLIER := 1.95
 
 
 static func configure_health(boss: Dictionary, level: Dictionary, definitions: Dictionary) -> void:
@@ -29,6 +29,12 @@ static func configure_health(boss: Dictionary, level: Dictionary, definitions: D
 
 static func start(boss: Dictionary, level: Dictionary) -> void:
 	var phases := Spells.phases_for(String(boss.get("kind", "")), level)
+	if bool(boss.get("touhou_road_boss", false)):
+		var road_phases: Array = []
+		for phase in phases:
+			var attacks: Array = phase.filter(func(entry): return entry.size() <= 4 or not bool(entry[4].get("finale_only", false)))
+			if not attacks.is_empty(): road_phases.append(attacks)
+		phases = road_phases
 	if phases.is_empty():
 		return
 	if bool(boss.get("touhou_final_preview", false)):

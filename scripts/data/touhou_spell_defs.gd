@@ -2,6 +2,7 @@ extends RefCounted
 class_name TouhouSpellDefs
 
 const Difficulty = preload("res://scripts/data/touhou_difficulty_defs.gd")
+const Finales = preload("res://scripts/data/touhou_finale_spell_defs.gd")
 const Marisa = preload("res://scripts/data/marisa_spell_defs.gd")
 const Reimu = preload("res://scripts/data/reimu_spell_defs.gd")
 const Reisen = preload("res://scripts/data/reisen_spell_defs.gd")
@@ -209,6 +210,10 @@ const NONSPELLS := {
 
 
 static func phases_for(kind: String, level: Dictionary = {}) -> Array:
+	return Finales.extend(kind, level, _authored_phases_for(kind, level))
+
+
+static func _authored_phases_for(kind: String, level: Dictionary = {}) -> Array:
 	if kind == "hina_boss": return Hina.phases(kind, level)
 	if kind in ["shizuha_boss", "minoriko_boss"]: return Aki.phases(kind, level)
 	if kind == "suika_boss": return Suika.phases(level)

@@ -50,7 +50,7 @@ func _run() -> void:
 		var enemy_count := game.zombies.size()
 		boss.rumia_reinforcement_timer = 0.0
 		game._update_zombies(0.1)
-		check(game.zombies.size() > enemy_count and game.zombies.any(func(z): return z.kind in ["normal", "conehead", "buckethead", "ancient_samurai", "ancient_mage"] and z.health > 0), "Live Suika finale continues spawning ordinary enemies through the shared Touhou reinforcement timer")
+		check(game.zombies.size() >= enemy_count + 2 and game.zombies.any(func(z): return not bool(GameScript.Defs.ZOMBIES[z.kind].get("boss", false)) and not bool(GameScript.Defs.ZOMBIES[z.kind].get("boss_summon", false)) and z.health > 0), "Live Suika finale continues spawning ordinary or armored fusion enemies in real support batches")
 		for frame in range(24): check(game._try_get_boss_frame_texture("suika_boss", frame) != null, "Original pose loads " + str(frame))
 		var rt = game._ensure_suika_runtime()
 		rt.queue_pour(int(boss.uid), 4)

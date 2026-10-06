@@ -42,7 +42,7 @@ func _initialize() -> void:
 		var expected_ids: Array = [["003", "007"], ["004", "008"], ["005", "009"], ["006", "010"]][rank]
 		check(canon == expected and canon_ids == expected_ids, choice + ": preserve both actual TH10 stage-one spell variants")
 		check(originals == rank + 1, choice + ": PvZ-specific originals accumulate with difficulty")
-		check(Spells.phases_for("minoriko_boss", level).size() == rank + 3, choice + ": the finale has a complete per-card phase route")
+		check(Spells.phases_for("minoriko_boss", level).size() == rank + 5, choice + ": the finale has five through eight complete phases")
 		var road_canon: Array = []
 		for entry in Spells.cards_for("shizuha_boss", level):
 			var card: Dictionary = Spells.card_from_entry(entry)

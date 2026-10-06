@@ -82,7 +82,7 @@ func _test_final_spell_and_return() -> void:
 	check(not boss.touhou_invulnerable and boss.touhou_encounter.depleted, "Surviving the original Last Spell completes its segment without further damage")
 	game.touhou_danmaku.clear()
 	Game.TouhouPhaseRuntime.start(boss, game.current_level)
-	boss.touhou_encounter.index = boss.touhou_encounter.phases.size() - 2
+	boss.touhou_encounter.index = phase_with_pattern(boss, "pressure_lunar_domain")
 	Game.TouhouPhaseRuntime._set_bounds(boss)
 	boss.health = boss.touhou_encounter.ceiling
 	game._trigger_boss_skill(boss)

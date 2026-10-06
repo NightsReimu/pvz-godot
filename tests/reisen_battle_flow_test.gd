@@ -81,7 +81,10 @@ func _run() -> void:
 				game.zombies.back().spawn_time = 0
 			boss.spawn_time = 0
 			var phases: Array = boss.touhou_encounter.phases
-			boss.touhou_encounter.index = 3 if choice == "easy" else phases.size() - 2
+			boss.touhou_encounter.index = 0
+			var wanted := "reisen_invisible_moon" if choice == "easy" else "pressure_lunar_domain"
+			for i in range(phases.size()):
+				if phases[i].any(func(entry): return String(entry[2]) == wanted): boss.touhou_encounter.index = i
 			boss.touhou_encounter.attack = 1 if choice == "easy" else 0
 			game._trigger_boss_skill(boss)
 			for frame in range(18):

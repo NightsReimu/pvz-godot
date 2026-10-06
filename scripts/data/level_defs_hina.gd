@@ -12,7 +12,7 @@ const LEVEL := {
 	"enemy_whitelist": ENEMIES,
 	"available_plants": ["peashooter", "repeater", "threepeater", "snow_pea", "wallnut", "tallnut", "pumpkin", "kernel_pult", "melon_pult", "torchwood", "healing_gourd", "umbrella_leaf", "starfruit", "cherry_bomb", "jalapeno", "magnet_shroom", "jasmine_tea"],
 	"conveyor_plants": ["repeater", "repeater", "repeater", "threepeater", "snow_pea", "wallnut", "wallnut", "tallnut", "pumpkin", "kernel_pult", "melon_pult", "melon_pult", "torchwood", "healing_gourd", "healing_gourd", "umbrella_leaf", "starfruit", "cherry_bomb", "jalapeno", "magnet_shroom", "jasmine_tea"],
-	"conveyor_interval": Vector2(1.4, 2.0), "start_sun": 0, "unlock_plant": "",
+	"conveyor_interval": Vector2(2.8, 4.0), "start_sun": 0, "unlock_plant": "",
 	"time_scale": 0.86, "sky_sun_range": Vector2(99, 99), "node_pos": Vector2(1948, 365),
 	"events": [
 		{"time": 10.0, "kind": "kedama", "row": 2},

@@ -47,7 +47,7 @@ func _initialize() -> void:
 		check(bool(Spells.card_from_entry(Spells.cards_for("hina_boss", level).back()).get("last_spell", false)), choice + ": the final original card is marked as last spell")
 		check(canon == 3, choice + ": Hina retains the three TH10 stage-two cards")
 		check(originals == rank + 1, choice + ": original PvZ cards accumulate by difficulty")
-		check(Spells.phases_for("hina_boss", level).size() == rank + 4, choice + ": finale has four through seven full spell phases")
+		check(Spells.phases_for("hina_boss", level).size() == rank + 6, choice + ": finale has six through nine full spell phases")
 		check(level.terrain == "hina_mountain_forest" and level.row_count == 6 and level.get("water_rows", []) == [], "Difficulty selection preserves six dry forest lanes")
 		check((level.mode == "normal") == (rank == 3), "Only Lunatic uses manual seed selection")
 		check(level.events.back().kind == "hina_boss", "Extra difficulty waves precede Hina")

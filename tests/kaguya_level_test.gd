@@ -24,7 +24,7 @@ func _initialize() -> void:
 		var level := Difficulty.build_level(b, ["easy", "normal", "hard", "lunatic"][rank])
 		var cards := Spells.cards_for("kaguya_boss", level)
 		var phases := Spells.phases_for("kaguya_boss", level)
-		check(cards.size() == 10 and phases.size() == 10 + rank, "Five treasures and five nights plus originals")
+		check(cards.size() == 10 and phases.size() == 12 + rank, "Five treasures and five nights plus full-form and difficulty originals")
 		for index in range(10):
 			check(cards[index][0] == "th08-%d" % (152 + index * 4 + rank), "Correct 6B canonical spell number")
 		for index in range(5):

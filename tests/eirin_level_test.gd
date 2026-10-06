@@ -35,7 +35,7 @@ func _initialize() -> void:
 		var choice: String = ["easy", "normal", "hard", "lunatic"][rank]
 		var level := Difficulty.build_level(stage, choice)
 		var phases := Spells.phases_for("eirin_boss", level)
-		check(phases.size() == 6 + rank, "Six canonical phases plus rank-specific originals")
+		check(phases.size() == 8 + rank, "Six canonical phases plus two full-form and rank-specific originals")
 		var cards := Spells.cards_for("eirin_boss", level)
 		check(cards.size() == 6 and cards[0][0] == "th08-%d" % (124 + rank) and cards.back()[0] == "th08-%d" % (144 + rank), "6A canon IDs and finale order")
 		check((level.mode == "normal") == (rank == 3), "Lunatic uses seed selection")

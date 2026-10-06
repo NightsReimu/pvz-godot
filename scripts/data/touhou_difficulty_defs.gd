@@ -181,7 +181,15 @@ static func extend_phases(kind: String, level: Dictionary, phases: Array) -> Arr
 		elif kind == "marisa_boss":
 			pose = ["stars", "laser", "orbit"][index]
 		var card := ["original-difficulty-%s-%d" % [kind, index + 1], "原创 · " + MOVE_NAMES[theme[1]][index], "pressure_" + theme[1] + suffix, pose, {"pressure_tier": index + 1, "pressure_family": theme[1]}]
-		phases.insert(phases.size() - (5 if kind == "kaguya_boss" else 1), [card])
+		var insert_at := phases.size() - (5 if kind == "kaguya_boss" else 1)
+		if kind == "flandre_boss":
+			# Legacy difficulty originals also precede the terminal survival/QED
+			# pair. Moving those originals keeps both canonical endings adjacent.
+			for i in range(phases.size()):
+				if phases[i].any(func(entry): return String(entry[2]) == "and_then_none"):
+					insert_at = i
+					break
+		phases.insert(insert_at, [card])
 	return phases
 
 

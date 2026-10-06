@@ -46,7 +46,7 @@ func _run() -> void:
 		check(enemy_kinds.has(kind), "3-23 must include %s in the pressure roster" % kind)
 	check(Difficulty.options(stage) == ["easy", "normal", "hard", "lunatic"], "3-23 must expose four difficulties")
 	var expected_ids := {"easy": [101, 105, 109, 113], "normal": [102, 106, 110, 114, 117], "hard": [103, 107, 111, 115, 118], "lunatic": [104, 108, 112, 116, 119]}
-	var expected_phases := {"easy": 4, "normal": 6, "hard": 7, "lunatic": 8}
+	var expected_phases := {"easy": 6, "normal": 8, "hard": 9, "lunatic": 10}
 	for choice in ["easy", "normal", "hard", "lunatic"]:
 		var level := Difficulty.build_level(stage, choice)
 		check(Spells.cards_for("reisen_boss", level).map(func(c): return int(String(c[0]).trim_prefix("th08-"))) == expected_ids[choice], "Spell IDs must exactly match the original difficulty route")

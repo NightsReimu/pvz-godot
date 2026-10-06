@@ -87,7 +87,7 @@ func _run() -> void:
 		var boss: Dictionary = game.zombies.filter(func(z): return z.kind == "hina_boss" and not bool(z.get("touhou_final_preview", false))).back()
 		check(int(boss.uid) != road_uid and boss.max_health > road_hp * 8 and boss.health == boss.max_health, "Final Hina has a fresh UID and full strengthened health")
 		check(not bool(boss.touhou_road_boss) and not bool(boss.get("touhou_road_spell", false)), "The finale inherits neither road role nor its shortened route")
-		check(boss.touhou_encounter.phases.size() == rank + 4, "The actual finale uses four through seven full spell phases")
+		check(boss.touhou_encounter.phases.size() == rank + 6, "The actual finale uses six through nine full spell phases")
 		check(game.current_bgm_path == level.boss_bgm and game.music_player.playing, "Only actual final Hina starts the supplied ending track")
 		check(game.music_player.stream == game._try_get_cached_audio_stream(String(level.boss_bgm)), "The actual finale stream is the supplied ending MP3")
 		check(int(game._boss_health_bar_layout(boss).segments) == 1, "Hina uses the standard live current-phase Touhou health bar")

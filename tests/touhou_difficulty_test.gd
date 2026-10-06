@@ -98,13 +98,16 @@ func _test_higher_route(kind: String) -> void:
 		base_level.touhou_difficulty = "extra" if choices.size() == 2 else choice
 		var cards := Spells.cards_for(kind, base_level).filter(func(card): return not String(card[0]).begins_with("original-"))
 		var finale := Difficulty.spell_variant(kind, base_level, cards.back())
-		check(phases.back().back()[0] == finale[0], "%s must keep its canonical finale after added moves" % kind)
+		if String(finale[0]).ends_with("nonspell"):
+			check(phases.any(func(p): return p.any(func(e): return e[0] == finale[0])), "%s keeps its unnamed nonspell without inventing a canonical finale" % kind)
+		else:
+			check(phases.back().back()[0] == finale[0], "%s must keep its canonical finale after added moves" % kind)
 		previous = phases.size()
 		previous_patterns = patterns.size()
 		inherited_moves = original_moves
 	var game := _difficulty_game(kind, choices.back())
 	var boss: Dictionary = game.zombies[0]
-	check(is_equal_approx(float(boss.max_health), float(Game.Defs.ZOMBIES[kind].health) * float(Difficulty.profile(game.current_level).health) * 1.45), "Spawn must apply the chosen boss health once")
+	check(is_equal_approx(float(boss.max_health), float(Game.Defs.ZOMBIES[kind].health) * float(Difficulty.profile(game.current_level).health) * 1.95), "Spawn must apply the chosen boss health once")
 	var required := 0
 	for phase in boss.touhou_encounter.phases:
 		required += phase.size()

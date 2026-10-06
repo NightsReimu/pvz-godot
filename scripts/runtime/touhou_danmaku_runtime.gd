@@ -15,6 +15,7 @@ const EirinDanmaku = preload("res://scripts/runtime/eirin_danmaku.gd")
 const MokouDanmaku = preload("res://scripts/runtime/mokou_danmaku.gd")
 const KaguyaDanmaku = preload("res://scripts/runtime/kaguya_danmaku.gd")
 const ExtraDanmaku = preload("res://scripts/runtime/touhou_extra_danmaku.gd")
+const FinaleDanmaku = preload("res://scripts/runtime/touhou_finale_danmaku.gd")
 const DeclarationFX = preload("res://scripts/runtime/spell_declaration_fx.gd")
 const MAX_BULLETS := 480
 const MAX_BEAMS := 72
@@ -69,6 +70,8 @@ func cast(boss: Dictionary) -> Dictionary:
 		duration = float(card.get("duration", 4.8))
 	if String(boss.kind) in ["hakutaku_boss", "mokou_boss"]:
 		duration = float(card.get("duration", 6.0))
+	if card.has("finale_move"):
+		duration = float(card.duration)
 	if String(card.origin) == "nonspell" and boss.has("touhou_encounter"):
 		duration = 2.2
 	if pattern == "pressure_lunar_domain":
@@ -232,6 +235,10 @@ func _actor(c: Dictionary, index: int, kind: String, position: Vector2, pose: St
 
 
 func _update_actors(c: Dictionary) -> void:
+	if c.card.has("finale_move") and String(c.kind) == "alice_boss":
+		for i in range(5):
+			_actor(c, i, "alice_doll_zombie", _point(0.80 + sin(float(c.age) * 0.8 + i) * 0.025, 0.10 + i * 0.20))
+		return
 	var turn = float(c.age) * 0.25 / 0.62
 	match String(c.pattern):
 		"france", "holland", "london", "shanghai", "nonspell_doll_fan", "pressure_dolls", "pressure_dolls_crossfire", "pressure_dolls_domain":
@@ -248,6 +255,9 @@ func _update_actors(c: Dictionary) -> void:
 
 
 func _emit_wave(c: Dictionary) -> void:
+	if c.card.has("finale_move"):
+		FinaleDanmaku.emit(self, c)
+		return
 	if String(c.kind) == "hina_boss":
 		HinaDanmaku.emit(self, c)
 		return

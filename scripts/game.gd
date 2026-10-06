@@ -8228,6 +8228,8 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 		boss_unit.health *= difficulty_health
 		boss_unit.max_health *= difficulty_health
 		TouhouPhaseRuntime.configure_health(boss_unit, current_level, Defs.ZOMBIES)
+		if _uses_new_touhou_finale_support(boss_unit):
+			boss_unit["rumia_reinforcement_timer"] = 1.8
 		TouhouPhaseRuntime.start(boss_unit, current_level)
 		zombies[boss_index] = boss_unit
 		if kind == "rumia_boss":
@@ -16444,7 +16446,45 @@ func _city_boss_roster_for_phase(phase: int) -> Array:
 	return roster
 
 
-func _spawn_hover_boss_reinforcement(kind: String, phase: int) -> void:
+func _uses_new_touhou_finale_support(boss: Dictionary) -> bool:
+	return String(boss.get("kind", "")) in ["hina_boss", "minoriko_boss", "suika_boss"] and not bool(boss.get("touhou_road_boss", false)) and _is_stage_ending_boss(boss)
+
+
+func _spawn_new_touhou_finale_support(kind: String, phase: int) -> void:
+	if active_rows.is_empty(): return
+	var rank := int(TouhouDifficulty.profile(current_level).rank)
+	var amount := 3 if rank >= 2 else 2
+	var pool: Array
+	match kind:
+		"hina_boss":
+			pool = ["kedama", "star_fairy", "cone_kedama", "cone_star_fairy"] if phase < 2 else ["kedama", "star_fairy", "bucket_kedama", "bucket_star_fairy", "brick_kedama", "brick_star_fairy", "kabuto_kedama", "kabuto_star_fairy", "cone_ninja", "cone_backup_dancer"]
+		"minoriko_boss":
+			pool = ["normal", "conehead", "newspaper", "cone_backup_dancer"] if phase < 2 else ["buckethead", "newspaper", "football", "balloon_zombie", "cone_ninja", "bucket_newspaper", "cone_backup_dancer"]
+		"suika_boss":
+			pool = ["normal", "conehead", "buckethead", "cone_backup_dancer"] if phase < 2 else ["conehead", "ancient_samurai", "ancient_mage", "buckethead", "cone_ninja", "bucket_newspaper"]
+		_:
+			return
+	var start := rng.randi_range(0, active_rows.size() - 1)
+	var stride := maxi(1, active_rows.size() / amount)
+	for i in range(amount):
+		# Reserve pending wave arrivals as well; check again inside the batch.
+		if _active_zombie_count() >= 42: break
+		var choices: Array = pool
+		if kind == "hina_boss" and i < 2:
+			choices = []
+			var family := "kedama" if i == 0 else "star_fairy"
+			for candidate in pool:
+				if FusionZombieDefs.base_kind(String(candidate)) == family:
+					choices.append(candidate)
+		var spawn_kind := String(choices[rng.randi_range(0, choices.size() - 1)])
+		var row := int(active_rows[(start + i * stride) % active_rows.size()])
+		_spawn_zombie(spawn_kind, row, true)
+
+
+func _spawn_hover_boss_reinforcement(kind: String, phase: int, boss: Dictionary = {}) -> void:
+	if _uses_new_touhou_finale_support(boss):
+		_spawn_new_touhou_finale_support(kind, phase)
+		return
 	if kind == "hina_boss":
 		if _active_zombie_count() < 32:
 			var pool: Array = ["kedama", "star_fairy", "cone_kedama", "cone_star_fairy"] if phase < 2 else ["bucket_kedama", "bucket_star_fairy", "kedama", "star_fairy", "cone_ninja", "cone_backup_dancer"]
@@ -16694,12 +16734,14 @@ func _update_boss_reinforcements(zombie: Dictionary, delta: float) -> Dictionary
 	var kind = String(zombie.get("kind", ""))
 	var phase = int(zombie.get("boss_phase", 0))
 	var default_interval = _boss_reinforcement_interval(kind, phase)
+	if _uses_new_touhou_finale_support(zombie):
+		default_interval = minf(default_interval, lerpf(6.4, 4.4, float(clampi(phase, 0, 3)) / 3.0) * float(TouhouDifficulty.profile(current_level).cadence))
 	if default_interval <= 0.0:
 		return zombie
 	zombie["rumia_reinforcement_timer"] = float(zombie.get("rumia_reinforcement_timer", default_interval)) - delta
 	if float(zombie["rumia_reinforcement_timer"]) > 0.0:
 		return zombie
-	_spawn_hover_boss_reinforcement(kind, phase)
+	_spawn_hover_boss_reinforcement(kind, phase, zombie)
 	zombie["rumia_reinforcement_timer"] = default_interval + rng.randf_range(-0.35, 0.65)
 	return zombie
 
@@ -20778,6 +20820,10 @@ func _update_conveyor(delta: float) -> void:
 	var ease_weight := minf(1.0, delta * 6.5)
 	for i in range(conveyor_card_visual.size()):
 		conveyor_card_visual[i] = lerpf(float(conveyor_card_visual[i]), float(i), ease_weight)
+	# Holding a full belt preserves the next delivery wait. Retrying on a
+	# shorter clock made the first refill too quick after spending a held card.
+	if not active_cards.has(""):
+		return
 	conveyor_spawn_timer -= delta
 	if conveyor_spawn_timer > 0.0:
 		return
@@ -20789,7 +20835,6 @@ func _update_conveyor(delta: float) -> void:
 			var delivery: Vector2 = current_level.get("conveyor_interval", Vector2(4.6, 6.8))
 			conveyor_spawn_timer = rng.randf_range(maxf(1.0, delivery.x), maxf(maxf(1.0, delivery.x), delivery.y))
 			return
-	conveyor_spawn_timer = 1.4
 
 
 func _fill_conveyor_slot(index: int) -> void:

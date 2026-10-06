@@ -18,7 +18,7 @@ func _run() -> void:
 			game._spawn_zombie_at(finale_kind, 2, game._boss_anchor_x(finale_kind), true)
 			var finale: Dictionary = game.zombies.back()
 			var old_final_hp := float(Game.Defs.ZOMBIES[finale_kind].health) * float(Difficulty.profile(level).health)
-			check(is_equal_approx(float(finale.max_health), old_final_hp * 1.45), "%s/%s finale receives 45%% more health" % [level.id, choice])
+			check(is_equal_approx(float(finale.max_health), old_final_hp * 1.95), "%s/%s finale receives 34.5%% more health than v174" % [level.id, choice])
 			check(finale.health == finale.max_health, "Finale enters with fresh full HP")
 			check(finale.touhou_encounter.phases == Spells.phases_for(finale_kind, level), "Finale retains every canonical and difficulty spell")
 			var mid := String(level.get("mid_boss_kind", ""))
@@ -41,7 +41,7 @@ func _run() -> void:
 		var game := make_game("ran_boss")
 		game.current_level.touhou_difficulty = choice
 		var successor: Dictionary = game._trigger_ran_boss_successor(game.zombies[0])
-		var expected := float(Game.Defs.ZOMBIES.yukari_boss.health) * float(Difficulty.profile(game.current_level).health) * 1.45
+		var expected := float(Game.Defs.ZOMBIES.yukari_boss.health) * float(Difficulty.profile(game.current_level).health) * 1.95
 		check(is_equal_approx(float(successor.max_health),expected), "Ran successor Yukari retains finale scaling in both EX tiers")
 		check(successor.health == successor.max_health, "Successor enters with full health")
 		release(game)
