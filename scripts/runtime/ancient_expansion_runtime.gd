@@ -110,12 +110,12 @@ func _set_weather(next: String, banner: String = "") -> void:
 		game._play_sfx(game.SFX_SHOOT_ENERGY_PATH, -18.0, 0.62 if next in ["rain", "storm", "fog"] else 1.1)
 
 
-func set_override(next: String, owner_uid: int, duration: float) -> void:
+func set_override(next: String, owner_uid: int, duration: float, banner: String = "") -> void:
 	if not WEATHER.has(next): return
 	override_weather = next
 	override_owner = owner_uid
 	override_until = game.level_time + duration
-	_set_weather(next, "军师挥扇 · %s" % {"wind": "借来东风", "fog": "唤起大雾", "rain": "召来细雨", "storm": "引动雷暴"}.get(next, String(weather_info(next).name)))
+	_set_weather(next, banner if not banner.is_empty() else "军师挥扇 · %s" % {"wind": "借来东风", "fog": "唤起大雾", "rain": "召来细雨", "storm": "引动雷暴"}.get(next, String(weather_info(next).name)))
 
 
 func _owner_alive(uid: int) -> bool:

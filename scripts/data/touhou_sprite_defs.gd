@@ -2,6 +2,7 @@ extends RefCounted
 
 # One opaque idle silhouette calibration per character; never rescale each pose.
 # Height excludes transparent canvas padding and faint spell glows.
+const SanaeSpriteDefs = preload("res://scripts/data/sanae_sprite_defs.gd")
 const HinaSpriteDefs = preload("res://scripts/data/hina_sprite_defs.gd")
 const NitoriSpriteDefs = preload("res://scripts/data/nitori_sprite_defs.gd")
 const MomijiSpriteDefs = preload("res://scripts/data/momiji_sprite_defs.gd")
@@ -9,6 +10,7 @@ const AyaSpriteDefs = preload("res://scripts/data/aya_sprite_defs.gd")
 
 const BODY_HEIGHT := 180.0
 const IDLE_HEIGHTS := {
+	"sanae_boss":SanaeSpriteDefs.IDLE_HEIGHT,
 	"momiji_boss":245.0,
 	"aya_boss":236.0,
 	"hina_boss": 233.0,
@@ -48,6 +50,7 @@ const IDLE_HEIGHTS := {
 }
 
 const IDLE_BOTTOM := {
+	"sanae_boss":SanaeSpriteDefs.IDLE_BOTTOM,
 	"momiji_boss":320.0,
 	"aya_boss":319.0,
 	"hina_boss": 319.0,
@@ -89,6 +92,7 @@ const IDLE_BOTTOM := {
 # These supplied sheets contain different actions, rather than generated
 # inbetweens of eight interchangeable poses. Keep reactions out of spell casts.
 const SCARLET_ANIMATIONS := {
+	"sanae_boss":SanaeSpriteDefs.ACTIONS,
 	"momiji_boss":MomijiSpriteDefs.ACTIONS,
 	"aya_boss":AyaSpriteDefs.ACTIONS,
 	"hina_boss": HinaSpriteDefs.ACTIONS,

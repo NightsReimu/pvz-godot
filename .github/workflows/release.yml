@@ -25,9 +25,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GODOT_RELEASE_TAG: 4.6-stable
-  GODOT_TEMPLATE_DIR: 4.6.stable
-  GODOT_BASE_URL: https://github.com/godotengine/godot-builds/releases/download/4.6-stable
+  GODOT_RELEASE_TAG: 4.6.3-stable
+  GODOT_TEMPLATE_DIR: 4.6.3.stable
+  GODOT_BASE_URL: https://github.com/godotengine/godot-builds/releases/download/4.6.3-stable
 
 jobs:
   build:
@@ -41,25 +41,25 @@ jobs:
             os: windows-latest
             preset: Windows Desktop
             asset_name: pvz-godot-windows.zip
-            editor_archive: Godot_v4.6-stable_win64.exe.zip
+            editor_archive: Godot_v4.6.3-stable_win64.exe.zip
             export_path: build/releases/windows/pvz-godot.exe
           - target: macos
             os: macos-latest
             preset: macOS
             asset_name: pvz-godot-macos.zip
-            editor_archive: Godot_v4.6-stable_macos.universal.zip
+            editor_archive: Godot_v4.6.3-stable_macos.universal.zip
             export_path: build/releases/macos/pvz-godot.app
           - target: web
             os: ubuntu-latest
             preset: Web
             asset_name: pvz-godot-web.zip
-            editor_archive: Godot_v4.6-stable_linux.x86_64.zip
+            editor_archive: Godot_v4.6.3-stable_linux.x86_64.zip
             export_path: build/releases/web/index.html
           - target: android
             os: ubuntu-latest
             preset: Android
             asset_name: pvz-godot-android.apk
-            editor_archive: Godot_v4.6-stable_linux.x86_64.zip
+            editor_archive: Godot_v4.6.3-stable_linux.x86_64.zip
             export_path: build/releases/android/pvz-godot.apk
 
     steps:
@@ -266,13 +266,13 @@ jobs:
         shell: pwsh
         run: |
           $editorDir = Join-Path $env:RUNNER_TEMP 'godot/editor'
-          $templatesDir = Join-Path $env:APPDATA 'Godot/export_templates/4.6.stable'
+          $templatesDir = Join-Path $env:APPDATA 'Godot/export_templates/4.6.3.stable'
           New-Item -ItemType Directory -Path $editorDir, $templatesDir -Force | Out-Null
 
           $editorZip = Join-Path $env:RUNNER_TEMP 'godot/editor.zip'
           $templatesTpz = Join-Path $env:RUNNER_TEMP 'godot/templates.tpz'
           Invoke-WebRequest -Uri "${env:GODOT_BASE_URL}/${{ matrix.editor_archive }}" -OutFile $editorZip
-          Invoke-WebRequest -Uri "${env:GODOT_BASE_URL}/Godot_v4.6-stable_export_templates.tpz" -OutFile $templatesTpz
+          Invoke-WebRequest -Uri "${env:GODOT_BASE_URL}/Godot_v4.6.3-stable_export_templates.tpz" -OutFile $templatesTpz
 
           Expand-Archive -LiteralPath $editorZip -DestinationPath $editorDir -Force
           Expand-Archive -LiteralPath $templatesTpz -DestinationPath (Join-Path $env:RUNNER_TEMP 'godot/templates-unpacked') -Force
@@ -290,7 +290,7 @@ jobs:
 
           mkdir -p "$editor_dir" "$template_dir"
           curl -L --fail "$GODOT_BASE_URL/${{ matrix.editor_archive }}" -o "$editor_zip"
-          curl -L --fail "$GODOT_BASE_URL/Godot_v4.6-stable_export_templates.tpz" -o "$templates_tpz"
+          curl -L --fail "$GODOT_BASE_URL/Godot_v4.6.3-stable_export_templates.tpz" -o "$templates_tpz"
 
           unzip -q "$editor_zip" -d "$editor_dir"
           unzip -q "$templates_tpz" -d "$RUNNER_TEMP/godot/templates-unpacked"
@@ -308,7 +308,7 @@ jobs:
 
           mkdir -p "$editor_dir" "$template_dir"
           curl -L --fail "$GODOT_BASE_URL/${{ matrix.editor_archive }}" -o "$editor_zip"
-          curl -L --fail "$GODOT_BASE_URL/Godot_v4.6-stable_export_templates.tpz" -o "$templates_tpz"
+          curl -L --fail "$GODOT_BASE_URL/Godot_v4.6.3-stable_export_templates.tpz" -o "$templates_tpz"
 
           unzip -q "$editor_zip" -d "$editor_dir"
           unzip -q "$templates_tpz" -d "$RUNNER_TEMP/godot/templates-unpacked"
@@ -331,7 +331,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $godotExe = Join-Path $env:RUNNER_TEMP 'godot/editor/Godot_v4.6-stable_win64_console.exe'
+          $godotExe = Join-Path $env:RUNNER_TEMP 'godot/editor/Godot_v4.6.3-stable_win64_console.exe'
           & $godotExe --headless --path $env:GITHUB_WORKSPACE --export-release "${{ matrix.preset }}" "${{ matrix.export_path }}"
 
       - name: Export project
@@ -350,8 +350,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x "$RUNNER_TEMP/godot/editor/Godot_v4.6-stable_linux.x86_64"
-          "$RUNNER_TEMP/godot/editor/Godot_v4.6-stable_linux.x86_64" \
+          chmod +x "$RUNNER_TEMP/godot/editor/Godot_v4.6.3-stable_linux.x86_64"
+          "$RUNNER_TEMP/godot/editor/Godot_v4.6.3-stable_linux.x86_64" \
             --headless \
             --path "$GITHUB_WORKSPACE" \
             --export-release "${{ matrix.preset }}" \

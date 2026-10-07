@@ -9,7 +9,7 @@ class ExportResourcePolicyTest(unittest.TestCase):
         config=(ROOT/'export_presets.cfg').read_text()
         presets=re.split(r'\[preset\.\d+\]',config)[1:]
         self.assertEqual(len(presets),4)
-        required={'output/**','tmp/**','docs/**','tests/**','scripts/tools/**','art/source_sheets/**'}
+        required={'output/**','tmp/**','docs/**','tests/**','scripts/tools/**','art/source_sheets/**','run-game.command'}
         for section in presets:
             exclusions=set(re.search(r'^exclude_filter="([^"]*)"',section,re.M)[1].split(','))
             self.assertEqual(exclusions,required)

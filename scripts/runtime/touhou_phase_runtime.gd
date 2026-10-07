@@ -57,6 +57,9 @@ static func start(boss: Dictionary, level: Dictionary) -> void:
 		return
 	if bool(boss.get("touhou_final_preview", false)):
 		phases = [[phases[0][0].duplicate(true)]]
+		if String(boss.kind) == "sanae_boss":
+			phases = Spells.Sanae.road_phases(level)
+			boss["touhou_road_spell"] = true
 		if String(boss.kind) == "hina_boss":
 			phases = [[Spells.Hina.road_card(level)]]
 			boss["touhou_road_spell"] = true
@@ -148,6 +151,7 @@ static func update_progress(game: Control, boss: Dictionary) -> bool:
 		game.suika_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) == "nitori_boss" and game.nitori_runtime != null:
 		game.nitori_runtime.clear_owner(int(boss.uid))
+	if String(boss.kind) == "sanae_boss" and game.sanae_runtime != null: game.sanae_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) in ["momiji_boss", "aya_boss"] and game.tengu_runtime != null:
 		game.tengu_runtime.clear_owner(int(boss.uid))
 	if game.touhou_danmaku != null and boss.has("touhou_owner"):

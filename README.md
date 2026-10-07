@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6** · **当前版本 v1.0.180** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6.3** · **当前版本 v1.0.181** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -17,7 +17,7 @@
 
 ## 项目简介
 
-《植物大战僵尸 SVG 版》是使用 Godot 4.6 制作的横屏塔防同人项目。它以经典的格子种植、阳光管理和波次防守为核心，加入多世界主线、每日资源关、无尽三选一强化、植物养成、基建生产、抽卡与图鉴等系统，并制作了红魔乡、妖妖梦、永夜抄、萃梦想与风神录主题的东方 Boss 支线。
+《植物大战僵尸 SVG 版》是使用 Godot 4.6.3 制作的横屏塔防同人项目。它以经典的格子种植、阳光管理和波次防守为核心，加入多世界主线、每日资源关、无尽三选一强化、植物养成、基建生产、抽卡与图鉴等系统，并制作了红魔乡、妖妖梦、永夜抄、萃梦想与风神录主题的东方 Boss 支线。
 
 这不是原版游戏的移植。关卡、植物、僵尸、Boss 技能、界面和运行逻辑由本项目重新实现，部分玩法和美术仍在迭代。当前数据规模约为：
 
@@ -26,12 +26,16 @@
 | 可选原种植物 | 150 |
 | 独立融合植物 SVG | 11,219 |
 | 可融合材料两两配方（排除花盆、睡莲与保龄球专用坚果） | 11,026 |
-| 僵尸与 Boss 定义（含 297 种融合） | 441 |
-| 关卡定义 | 200 |
+| 僵尸与 Boss 定义（含 297 种融合） | 443 |
+| 关卡定义 | 201 |
 | 主世界 | 8 |
-| 自动测试入口（176 个 Godot、20 个 Python） | 196 |
+| 自动测试入口（182 个 Godot、21 个 Python） | 203 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
+
+**v1.0.181 山顶神社的现人神 · 东方 4-23**：六行全陆地守矢神社，云海、社殿、鸟居与四御柱，晴、风、雨、雷暴、虹光参与实际战斗。弱化早苗道中使用秘术星阵，完整终末以全新生命登场，四档有 7/8/9/10 个阶段；原作客星、开海、准备与神风保留不同的出弹结构，追加青蛙使魔、短暂蛙化、御柱风蛇等本作符卡。普通和融合僵尸持续增援，E/N/H 慢传送带、L 自选卡，终末登场才播放终末 BGM。保持风神录额外伤害 ×1.5、正式符卡减伤 87.5%，使用真实融合阵容验证。四平台引擎同步更新至 Godot 4.6.3，修复已复现的 GLES 密集绘制 `pb null` 与批次越界崩溃；源码启动增加版本检查和本地启动脚本。[版本说明](docs/releases/v1.0.181.md) · [原作、平衡与崩溃验证](docs/plans/2026-10-07-sanae-4-23.md) · [素材来源](docs/sanae-assets.md)。
+
+![4-23 守矢神社、四御柱与早苗蛙之奇迹原生截图](docs/readme/sanae-4-23-v181.png)
 
 **v1.0.180 风神录融合战斗平衡**：风神录六位 Boss 的额外伤害从 ×2.5 调整为 ×1.5，同一攻击伤害较上一版降低 40%；弹幕密度、出弹节奏、87.5% 符卡减伤、射命丸文高速飞行与龙卷风卷弹保留。新增真实融合阵容与完整关卡路线测试，使用原生生命、实际种子、冷却和自然充能，覆盖四关四档与不同输出、防守搭配。[版本说明](docs/releases/v1.0.180.md) · [平衡验证记录](docs/plans/2026-10-07-wind-god-fusion-balance.md)。
 
@@ -165,7 +169,7 @@
 
 ## English Summary
 
-This repository contains a fan-made lane-defense game built with Godot 4.6. It expands the classic plant-versus-zombie formula with eight adventure worlds (the newest adds a weather system), daily stages, endless run bonuses, plant enhancement, a base-management loop, a collection system, and Touhou-inspired boss branches.
+This repository contains a fan-made lane-defense game built with Godot 4.6.3. It expands the classic plant-versus-zombie formula with eight adventure worlds (the newest adds a weather system), daily stages, endless run bonuses, plant enhancement, a base-management loop, a collection system, and Touhou-inspired boss branches.
 
 The original source code is available under the MIT License. Bundled artwork, audio, fonts, character names, Touhou Project derivative content, and other media are **not** covered by MIT. Original Touhou music in this repository has no verified redistribution license; distributors must obtain permission or replace those tracks. This is an unofficial, noncommercial fan project and is not endorsed by the relevant rights holders.
 
@@ -292,6 +296,9 @@ v1.0.104 统一要求**难度越高，招式越多**：所有东方 Boss（含�
 - **4-20 山麓厄神之路**：六行山林梯田，道中与终末都是键山雏。道中一张弱化原作符卡，终末6/7/8/9阶段；迟发厄印、可击破的流雏人偶和失准弹仓影响原种与融合植阵，大招能净化。毛玉、精灵及其护甲融合单位持续增援，两段音乐随道中与终末切换。
 - **4-21 玄武之泽的河童**：六行雨中玄武岩岸台，道中与终末都是河城荷取。道中先光学迷彩偷袭再宣告光学符卡，终末三组原作符卡按难度变化，6/7/8/9阶段；迷彩突击队、黄瓜诱饵和高压水炮分别由路灯花、火力与叶子保护伞应对，融合护甲敌群持续增援。
 
+- **4-22 九天瀑布与要塞之山**：长道中六行全水，犬走椛守关；射命丸文登场后全部睡莲退场，转为山腰旱地，持续飞行与龙卷风卷弹。
+- **4-23 山顶神社的现人神**：六行全陆地、守矢神社与四御柱；早苗道中秘术星阵、终末客星开海与神风，7/8/9/10阶段。天气、青蛙使魔和短暂蛙化参与真实融合战斗，各世界普通与融合僵尸持续增援。
+
 ## 界面与符卡演出
 
 v1.0.105 重做主界面和世界选择：七个世界同时可见，点击预览场景、关卡进度和代表植物，再进入地图；已锁定的世界也能预览。新增统一的世界场景插画，主菜单、图鉴、选卡、基建和抽卡采用更清晰的面板与按钮。图鉴扩大阅读区域，基建收益和升级按钮不再重叠。
@@ -350,8 +357,8 @@ Godot 会将进度写入当前用户的 `user://pvz_progress_save.json`。`user:
 
 ### 环境要求
 
-- [Godot Engine 4.6 stable](https://godotengine.org/download/archive/4.6-stable/)，项目使用 GL Compatibility 渲染器。
-- Git 和 Python 3；Python 只用于资源管线与仓库级测试。
+- [Godot Engine 4.6.3 stable](https://godotengine.org/download/archive/4.6.3-stable/) 或更新版本，项目使用 GL Compatibility 渲染器。4.6.0 的 GLES 批次容量边界存在已确认的崩溃，源码入口会提示更新；发行包已经自带修复后的引擎。
+- Git 和 Python 3；Python 用于本地引擎选择、资源管线与仓库级测试。
 - Android 导出额外需要 JDK 17、Android SDK Platform 35 和 Build Tools 35。
 - 推荐 1600x900 或更大的横屏窗口进行界面验收，同时测试 1365x768 和移动横屏尺寸。
 
@@ -363,11 +370,13 @@ cd pvz-godot
 godot --editor --path .
 ```
 
-在编辑器中运行 `res://scenes/main.tscn`，或者直接从命令行启动：
+在编辑器中运行 `res://scenes/main.tscn`，或者使用本地启动器，自动选择已安装的 4.6.3 或更新引擎：
 
 ```bash
-godot --path .
+python3 scripts/tools/launch_game.py
 ```
+
+macOS 也可双击 `run-game.command`。引擎不在默认路径时，设置 `PVZ_GODOT_BIN` 指向其可执行文件；启动器不会替换系统 Godot。若命令行 `godot --version` 已满足要求，也可直接执行 `godot --path .`。
 
 无窗口启动检查：
 
@@ -377,7 +386,7 @@ godot --headless --path . --quit
 
 ### 本地导出
 
-安装 Godot 4.6 导出模板后，可使用仓库内 `export_presets.cfg`：
+安装与引擎匹配的 Godot 4.6.3 导出模板后，可使用仓库内 `export_presets.cfg`：
 
 ```bash
 godot --headless --path . --export-release "Windows Desktop" build/releases/windows/pvz-godot.exe

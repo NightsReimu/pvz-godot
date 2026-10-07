@@ -1,0 +1,592 @@
+{
+  "method": "Exact positive-alpha source RGBA owned once; richer32-alpha effect/component ownership and reviewed overlap seams, separately calibrated240-alpha opaque foot anchors; translation only, no rotation, mirroring, resampling, pixel deletion or recoloring.",
+  "sprite": {
+    "kind": "sanae_boss",
+    "folder": "art/sanae",
+    "frame_count": 24,
+    "source_pose_count": 24,
+    "source": "user_transparent_sheet_individual_crops",
+    "source_sheet": "art/source_sheets/sanae/sanae.png",
+    "source_size": [
+      1536,
+      1024
+    ],
+    "original_filename": "codex-clipboard-54323c73-a85d-4ab9-bff3-2c6a08098cba.png",
+    "original_sha256": "a0955b390603c05b7fa4d7198c7328d15e4c7539699d0bb73692f29fdde2167b",
+    "source_sha256": "a0955b390603c05b7fa4d7198c7328d15e4c7539699d0bb73692f29fdde2167b",
+    "canvas": [
+      512,
+      384
+    ],
+    "pivot": [
+      256,
+      320
+    ],
+    "idle_height": 231,
+    "idle_bottom": 321,
+    "runtime_source_slots": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "seed_alpha": 32,
+    "calibration_seed_alpha": 240,
+    "source_alpha_range": [
+      0,
+      254
+    ],
+    "texture_import": {
+      "compress_mode": 0,
+      "fix_alpha_border": false,
+      "premult_alpha": false,
+      "mipmaps": false
+    },
+    "individual_crops": [
+      {
+        "source_slot": 0,
+        "bounds": [
+          47,
+          15,
+          243,
+          264
+        ],
+        "anchor": [
+          140,
+          251
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 32375,
+        "frame_sha256": "5b669d768eefa95c0324039cb0ad24f103b1afde4ad906563aa0d8ef9b583462"
+      },
+      {
+        "source_slot": 1,
+        "bounds": [
+          287,
+          15,
+          481,
+          257
+        ],
+        "anchor": [
+          380,
+          251
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 32585,
+        "frame_sha256": "2afcf5cfbe41a327eae6264647d0963708e242a16695917de5032893565db133"
+      },
+      {
+        "source_slot": 2,
+        "bounds": [
+          541,
+          13,
+          738,
+          258
+        ],
+        "anchor": [
+          633,
+          251
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 32700,
+        "frame_sha256": "83e47ead294a7acc0c8a9d7ea2696c04bc03d2560029feb5aaea2c3ddfc8aed8"
+      },
+      {
+        "source_slot": 3,
+        "bounds": [
+          781,
+          35,
+          994,
+          259
+        ],
+        "anchor": [
+          900,
+          251
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 32243,
+        "frame_sha256": "74b406f6b3288ed5dee901652c2bfed6a5cc5d5c9fc2f79e75827659a4ce3f46"
+      },
+      {
+        "source_slot": 4,
+        "bounds": [
+          1023,
+          35,
+          1264,
+          258
+        ],
+        "anchor": [
+          1154,
+          251
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 33678,
+        "frame_sha256": "9d16f4f4bcd20519141cc090e440f0c6327a3aa7e39d0700745fda0c1de469f3"
+      },
+      {
+        "source_slot": 5,
+        "bounds": [
+          1263,
+          31,
+          1505,
+          259
+        ],
+        "anchor": [
+          1398,
+          252
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 33581,
+        "frame_sha256": "e84a413eb3960c440ff534b1167f1f9713cc1cfb6b3c3d33dc5b25a79139a490"
+      },
+      {
+        "source_slot": 6,
+        "bounds": [
+          45,
+          255,
+          249,
+          515
+        ],
+        "anchor": [
+          142,
+          510
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 33928,
+        "frame_sha256": "df81aa613efa4a25f1a0d0c6151ccd501d8ea88c27d8bcee216d6c80a7c167eb"
+      },
+      {
+        "source_slot": 7,
+        "bounds": [
+          228,
+          289,
+          517,
+          518
+        ],
+        "anchor": [
+          388,
+          511
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 42229,
+        "frame_sha256": "ed36b6a348b3b710080e1335e6b5a2bc701954484746206f373af814f5f53254"
+      },
+      {
+        "source_slot": 8,
+        "bounds": [
+          504,
+          302,
+          768,
+          528
+        ],
+        "anchor": [
+          652,
+          510
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 36386,
+        "frame_sha256": "09acc564e3aa718f8f49093bf2497f531a2ec22da3c2281faec34fff6ef16711"
+      },
+      {
+        "source_slot": 9,
+        "bounds": [
+          789,
+          255,
+          1024,
+          528
+        ],
+        "anchor": [
+          892,
+          511
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 36659,
+        "frame_sha256": "3a2d507f97ff701deca29d2647589add532e695577f043964b45e1317902a868"
+      },
+      {
+        "source_slot": 10,
+        "bounds": [
+          1017,
+          303,
+          1274,
+          526
+        ],
+        "anchor": [
+          1139,
+          511
+        ],
+        "seed_components": 6,
+        "visible_source_pixels": 40274,
+        "frame_sha256": "fa8ee045a85f726495849bc1dcac6c7e475d3a6d1e1412c73018825f4733949d"
+      },
+      {
+        "source_slot": 11,
+        "bounds": [
+          1271,
+          305,
+          1523,
+          524
+        ],
+        "anchor": [
+          1399,
+          511
+        ],
+        "seed_components": 7,
+        "visible_source_pixels": 41046,
+        "frame_sha256": "ec39d76bb25374f303f58b854cc7786722af67832981575bd403b7d4c02800b3"
+      },
+      {
+        "source_slot": 12,
+        "bounds": [
+          28,
+          529,
+          261,
+          774
+        ],
+        "anchor": [
+          142,
+          761
+        ],
+        "seed_components": 7,
+        "visible_source_pixels": 39070,
+        "frame_sha256": "ddf2c2d0bc34a9a4c59a52bae4eee07cd4016f2c02f683b03d3c51a747311e37"
+      },
+      {
+        "source_slot": 13,
+        "bounds": [
+          271,
+          517,
+          497,
+          772
+        ],
+        "anchor": [
+          380,
+          760
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 33367,
+        "frame_sha256": "639170bd1d2e8f92ca8c9f8be067fc687303e9d0f27a5ebba0203069ed386bec"
+      },
+      {
+        "source_slot": 14,
+        "bounds": [
+          513,
+          525,
+          772,
+          772
+        ],
+        "anchor": [
+          638,
+          761
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 37063,
+        "frame_sha256": "38545470f742673304a26e0a747ea14f891129c3427ee2fc53ea9b142b663717"
+      },
+      {
+        "source_slot": 15,
+        "bounds": [
+          769,
+          517,
+          1029,
+          770
+        ],
+        "anchor": [
+          888,
+          761
+        ],
+        "seed_components": 5,
+        "visible_source_pixels": 48578,
+        "frame_sha256": "b8f38f10097dfe97796b693c88c52b3c53665468ce9adf400abe4c61258faf7a"
+      },
+      {
+        "source_slot": 16,
+        "bounds": [
+          1024,
+          513,
+          1284,
+          770
+        ],
+        "anchor": [
+          1152,
+          761
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 50978,
+        "frame_sha256": "f43de26f551fc4859881bd90f5cc3aeaa9c58d46eb6b3625d1063a305079d32b"
+      },
+      {
+        "source_slot": 17,
+        "bounds": [
+          1272,
+          511,
+          1526,
+          769
+        ],
+        "anchor": [
+          1402,
+          761
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 47554,
+        "frame_sha256": "b258cf7fbd94435bb7fcd5a6d3c7db040fbb5197cb74290a6f8948b1c6920a54"
+      },
+      {
+        "source_slot": 18,
+        "bounds": [
+          33,
+          764,
+          261,
+          1024
+        ],
+        "anchor": [
+          134,
+          1010
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 35404,
+        "frame_sha256": "045fae75c00368583cac978933164811f3d1215226276193cc9ccdedebb3648b"
+      },
+      {
+        "source_slot": 19,
+        "bounds": [
+          235,
+          756,
+          534,
+          1024
+        ],
+        "anchor": [
+          386,
+          1010
+        ],
+        "seed_components": 4,
+        "visible_source_pixels": 53165,
+        "frame_sha256": "c120c72fe6a1201d0b93da38df1f0f314eabc2596baf01e502ee891aba26477f"
+      },
+      {
+        "source_slot": 20,
+        "bounds": [
+          448,
+          781,
+          771,
+          1024
+        ],
+        "anchor": [
+          648,
+          1010
+        ],
+        "seed_components": 4,
+        "visible_source_pixels": 51275,
+        "frame_sha256": "026605c5cd8f3718b04fcf4aa90768ec718516c3a1260bb2fd4b9af23e783e7f"
+      },
+      {
+        "source_slot": 21,
+        "bounds": [
+          769,
+          832,
+          1009,
+          1024
+        ],
+        "anchor": [
+          912,
+          1010
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 27589,
+        "frame_sha256": "d7e509c5d59c323fbb012d68f26ca106bcee26c6f237c67e3d727eba0286804b"
+      },
+      {
+        "source_slot": 22,
+        "bounds": [
+          1025,
+          797,
+          1250,
+          1024
+        ],
+        "anchor": [
+          1164,
+          1010
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 31871,
+        "frame_sha256": "312b20dc89d30de6d6c678e11a07e9533f4e19febc50451d1f7500afa23bf655"
+      },
+      {
+        "source_slot": 23,
+        "bounds": [
+          1279,
+          785,
+          1520,
+          1024
+        ],
+        "anchor": [
+          1402,
+          1012
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 35303,
+        "frame_sha256": "609fca17f248c7aa38142568004664118ad82a8780f93bb11fe51470bb0ba8ae"
+      }
+    ],
+    "layout": {
+      "rows": [
+        130,
+        386,
+        642,
+        898
+      ],
+      "centers": [
+        [
+          125,
+          375,
+          626,
+          902,
+          1164,
+          1420
+        ],
+        [
+          125,
+          385,
+          632,
+          898,
+          1151,
+          1412
+        ],
+        [
+          126,
+          377,
+          629,
+          898,
+          1150,
+          1415
+        ],
+        [
+          134,
+          387,
+          642,
+          898,
+          1147,
+          1407
+        ]
+      ],
+      "gaps": [
+        [
+          0,
+          256,
+          512,
+          768,
+          1024,
+          1280,
+          1536
+        ],
+        [
+          0,
+          256,
+          512,
+          768,
+          1024,
+          1280,
+          1536
+        ],
+        [
+          0,
+          256,
+          512,
+          768,
+          1024,
+          1280,
+          1536
+        ],
+        [
+          0,
+          256,
+          512,
+          768,
+          1024,
+          1280,
+          1536
+        ]
+      ],
+      "row_gaps": [
+        0,
+        256,
+        512,
+        768,
+        1024
+      ],
+      "seed_alpha": 32,
+      "soft_component_gaps": true,
+      "seed_dividers": [
+        [
+          463,
+          850,
+          467,
+          858
+        ],
+        [
+          471,
+          862,
+          501,
+          887
+        ],
+        [
+          512,
+          921,
+          525,
+          927
+        ]
+      ]
+    }
+  },
+  "reviewed_overlap": {
+    "bounds": [
+      460,
+      850,
+      503,
+      910
+    ],
+    "green_hair_slot": 19,
+    "upper_blue_white_bounds": [
+      460,
+      850,
+      503,
+      888
+    ],
+    "upper_blue_white_slot": 20,
+    "source_pixels_changed": false
+  },
+  "audio": [
+    {
+      "role": "stage",
+      "path": "audio/bgm/touhou/4-23-stage.mp3",
+      "source_name": "4-23道中.mp3",
+      "source_sha256": "27c69211c67603193016c4dae73f062098e10a0127af694c43709cb013295ffa"
+    },
+    {
+      "role": "ending",
+      "path": "audio/bgm/touhou/4-23-ending.mp3",
+      "source_name": "4-23终末.mp3",
+      "source_sha256": "503044ad980a47f05801eb14259f275a87da35fb5200f732364cb84636f92e97"
+    }
+  ]
+}

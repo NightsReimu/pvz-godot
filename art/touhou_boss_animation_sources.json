@@ -1458,5 +1458,68 @@
       "premult_alpha": false,
       "mipmaps": false
     }
+  },
+  {
+    "kind": "sanae_boss",
+    "folder": "art/sanae",
+    "frame_count": 24,
+    "source_pose_count": 24,
+    "source": "user_transparent_sheet_individual_crops",
+    "source_sheet": "art/source_sheets/sanae/sanae.png",
+    "source_size": [
+      1536,
+      1024
+    ],
+    "original_filename": "codex-clipboard-54323c73-a85d-4ab9-bff3-2c6a08098cba.png",
+    "original_sha256": "a0955b390603c05b7fa4d7198c7328d15e4c7539699d0bb73692f29fdde2167b",
+    "source_sha256": "a0955b390603c05b7fa4d7198c7328d15e4c7539699d0bb73692f29fdde2167b",
+    "canvas": [
+      512,
+      384
+    ],
+    "pivot": [
+      256,
+      320
+    ],
+    "idle_height": 231,
+    "idle_bottom": 321,
+    "runtime_source_slots": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "seed_alpha": 32,
+    "calibration_seed_alpha": 240,
+    "source_alpha_range": [
+      0,
+      254
+    ],
+    "texture_import": {
+      "compress_mode": 0,
+      "fix_alpha_border": false,
+      "premult_alpha": false,
+      "mipmaps": false
+    }
   }
 ]

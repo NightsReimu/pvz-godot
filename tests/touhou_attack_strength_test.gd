@@ -7,7 +7,7 @@ var failures := 0
 
 func expected_source_multiplier(kind: String) -> float:
 	if kind in ["normal","day_boss","catapult_zombie"]: return 1.0
-	if kind in ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss","aki_harvest_basket","hina_misfortune_doll","nitori_cucumber"]: return 7.5
+	if kind in ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss","sanae_boss","sanae_frog","aki_harvest_basket","hina_misfortune_doll","nitori_cucumber"]: return 7.5
 	return 5.0
 
 func check(condition: bool, message: String) -> void:
@@ -132,7 +132,7 @@ func _run() -> void:
 				# compare every archived sample by identity, not shifted array index.
 				var matches: Array = old.scaling.filter(func(b): return b.kind==r.kind and b.choice==r.choice and int(b.phase)==int(r.phase) and bool(b.beam)==bool(r.beam))
 				if matches.is_empty():
-					check(String(r.kind) in ["momiji_boss","aya_boss"] and Difficulty.outgoing_damage_multiplier(String(r.kind))==7.5,"New Tengu definitions use the Wind God source amplification: "+String(r.kind))
+					check(String(r.kind) in ["momiji_boss","aya_boss","sanae_boss"] and Difficulty.outgoing_damage_multiplier(String(r.kind))==7.5,"New Tengu definitions use the Wind God source amplification: "+String(r.kind))
 					continue
 				var b: Dictionary = matches[0]
 				var ratio := expected_source_multiplier(String(r.kind))

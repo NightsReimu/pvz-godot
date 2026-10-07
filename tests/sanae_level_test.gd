@@ -1,0 +1,24 @@
+extends SceneTree
+const Game=preload("res://scripts/game.gd")
+var failures:=0
+func check(ok:bool,message:String)->void:
+	if not ok:failures+=1;push_error(message)
+func _initialize()->void:call_deferred("run")
+func run()->void:
+	var level:Dictionary={}
+	for candidate in Game.Defs.LEVELS:
+		if String(candidate.id)=="4-23":level=candidate
+	check(not level.is_empty(),"4-23 must be an authored Sanae shrine stage")
+	if not level.is_empty():
+		check(level.row_count==6 and level.water_rows.is_empty(),"Six dry shrine rows")
+		check(level.mid_boss_kind=="sanae_boss" and level.mid_boss_final_preview,"Same-character incomplete road and fresh finale")
+		check(level.events.back().kind=="sanae_boss" and float(level.events.back().time)>=240.0,"Authored long shrine approach")
+		check(level.terrain=="sanae_moriya_shrine" and level.unlock_requirements==["4-22"],"Dedicated shrine follows mountain ascent")
+		check(level.boss_intro_bgm!=level.boss_bgm and level.weather_schedule.size()>=4,"Independent stage/finale music and real weather schedule")
+		for tier in ["easy","normal","hard","lunatic"]:
+			var built:Dictionary=Game.TouhouDifficulty.build_level(level,tier)
+			check(built.touhou_difficulty==tier,"Four genuine difficulty profiles")
+			check(built.mode==("normal" if tier=="lunatic" else "conveyor"),"Native difficulty seed modes")
+			check(built.available_plants.has("sunflower") if tier=="lunatic" else built.conveyor_interval.x>=2.799,"Manual economy or balanced conveyor")
+	print("Sanae shrine level contract: ",failures," failures")
+	quit(1 if failures else 0)

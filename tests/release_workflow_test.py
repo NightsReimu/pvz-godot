@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 
 WORKFLOW_PATH = Path(".github/workflows/release.yml")
@@ -15,6 +16,20 @@ def assert_contains(text: str, needle: str, message: str) -> None:
 
 def main() -> int:
     text = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    engine_tag = re.search(r"^  GODOT_RELEASE_TAG: (\d+\.\d+\.\d+)-stable$", text, re.M)
+    if not engine_tag or tuple(map(int, engine_tag[1].split("."))) < (4, 6, 3):
+        raise AssertionError("all published runtimes must include the GLES canvas-batch fix in Godot 4.6.3 or newer")
+    engine_version = engine_tag[1]
+    assert_contains(text, f"GODOT_TEMPLATE_DIR: {engine_version}.stable", "editor and export templates must use the same patched engine")
+    assert_contains(text, f"GODOT_BASE_URL: https://github.com/godotengine/godot-builds/releases/download/{engine_version}-stable", "official editor/template downloads must match the configured engine")
+    archives = re.findall(r"editor_archive: (\S+)", text)
+    expected_archives = [f"Godot_v{engine_version}-stable_{platform}.zip" for platform in ["win64.exe", "macos.universal", "linux.x86_64", "linux.x86_64"]]
+    if archives != expected_archives:
+        raise AssertionError("every platform build must actually download the configured patched editor")
+    assert_contains(text, f"Godot_v{engine_version}-stable_export_templates.tpz", "patched editor must ship patched export templates")
+    assert_contains(text, f"Godot_v{engine_version}-stable_win64_console.exe", "Windows must execute the patched editor")
+    assert_contains(text, f"Godot_v{engine_version}-stable_linux.x86_64", "Web/Android must execute the patched editor")
 
     pages_deploy_condition = """if: |
       startsWith(github.ref, 'refs/tags/v') ||
