@@ -15,8 +15,12 @@ func run()->void:
   var tier:String=["easy","normal","hard","lunatic"][r];var level:Dictionary=Game.TouhouDifficulty.build_level(Level.LEVEL,tier)
   var g:=Probe.new();g.size=Vector2(1600,900);root.add_child(g);g._begin_level(-1,["sunflower","repeater","wallnut","healing_gourd","melon_pult","umbrella_leaf","torchwood","cherry_bomb","plantern","cactus"] if r==3 else [],level);g.battle_intro_timer=0
   check(g._ensure_ancient_expansion().active() and g.water_rows.is_empty(),"Actual shrine is dry and weather-enabled")
-  g.level_time=104.9;g._update_frozen_branch_flow();check(not g.frozen_branch_midboss_spawned,"Road cannot arrive before authored105s")
-  g.level_time=105.1;g._update_frozen_branch_flow();var road:Dictionary=g._find_alive_enemy_boss("sanae_boss")
+  g.expected_spawn_units=1000;g.total_spawned_units=0;g.total_kills=499
+  g.level_time=300;g._update_frozen_branch_flow();check(not g.frozen_branch_midboss_spawned,"Even a long clock cannot spawn Sanae before50percent progress")
+  check(g._should_hold_final_boss_kind("sanae_boss") and not g.frozen_branch_midboss_spawned,"Queued finale holds without forcing the road before50percent")
+  # The progress threshold, not elapsed time, also permits a fast formation.
+  g.level_time=60;g.total_kills=500;g._update_frozen_branch_flow();var road:Dictionary=g._find_alive_enemy_boss("sanae_boss")
+  check(not road.is_empty() and is_equal_approx(g._battle_progress_ratio(),.5),"Half progress starts the road and pins the actual HUD at50percent")
   check(road.touhou_road_boss and road.touhou_encounter.phases.size()==2,"Incomplete road has nonspell then its actual TH10 ritual")
   check(String(road.touhou_encounter.phases[1][0][0])=="th10-%03d"%(58+r),"Original road IDs058–061 match difficulty")
   check(g.current_bgm_path.ends_with("4-23-stage.mp3") or g.pending_bgm_path.ends_with("4-23-stage.mp3"),"Road never selects ending music")
@@ -41,7 +45,8 @@ func run()->void:
    for step in range(40):dm.update(.05)
    check(dm.bullets.size()>=35 and dm.bullets.size()<=dm.MAX_BULLETS,"Every actual spell emits dense bounded bullets")
    check(g.rng.state==rng_before,"Deterministic spell emission does not steal combat RNG")
-   check(dm.bullets.all(func(shot):return shot.damage>40 and shot.kind=="sanae_boss"),"Actual emitter bullets inherit current scoped damage")
+   var source_factor:float=g.TouhouDifficulty.boss_damage_multiplier(level)*5.0
+   check(dm.bullets.all(func(shot):return shot.kind=="sanae_boss" and [12.0,13.0,14.0,15.0].any(func(damage):return is_equal_approx(float(shot.damage),damage*source_factor))),"Actual authored bullet damage uses only the common source factor: %s/%s"%[tier,card.pattern])
    if card.pattern=="sanae_sea_opening":check(dm.beams.size()>=2 and g.water_rows.is_empty(),"Split-sea beams bound a canal without changing dry terrain")
    if card.pattern=="sanae_guest_stars":check(dm.bullets.any(func(shot):return shot.shape=="sanae_star"),"Actual delayed guest-star emitters burst into stars")
    if card.pattern=="sanae_prepare":check(dm.bullets.any(func(shot):return shot.has("thaw_at")),"Preparation includes warned fixed star outlines before scatter")

@@ -7,7 +7,6 @@ var failures := 0
 
 func expected_source_multiplier(kind: String) -> float:
 	if kind in ["normal","day_boss","catapult_zombie"]: return 1.0
-	if kind in ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss","sanae_boss","sanae_frog","aki_harvest_basket","hina_misfortune_doll","nitori_cucumber"]: return 7.5
 	return 5.0
 
 func check(condition: bool, message: String) -> void:
@@ -106,6 +105,7 @@ func supplemental(old: Dictionary) -> void:
 	f.store_string(JSON.stringify({"samples":samples,"failures":failures},"\t")+"\n")
 
 func _run() -> void:
+	check(Difficulty.WIND_GOD_DAMAGE==1.0,"Wind God extra damage is removed; native Boss and owned sources use the common Touhou multiplier")
 	var capture := OS.get_cmdline_user_args().has("--capture-v177")
 	var records: Array = []
 	for choice in ["easy","normal","hard","lunatic","extra","extra_plus"]:
@@ -132,7 +132,7 @@ func _run() -> void:
 				# compare every archived sample by identity, not shifted array index.
 				var matches: Array = old.scaling.filter(func(b): return b.kind==r.kind and b.choice==r.choice and int(b.phase)==int(r.phase) and bool(b.beam)==bool(r.beam))
 				if matches.is_empty():
-					check(String(r.kind) in ["momiji_boss","aya_boss","sanae_boss"] and Difficulty.outgoing_damage_multiplier(String(r.kind))==7.5,"New Tengu definitions use the Wind God source amplification: "+String(r.kind))
+					check(String(r.kind) in ["momiji_boss","aya_boss","sanae_boss"] and Difficulty.outgoing_damage_multiplier(String(r.kind))==5.0,"Later Wind God definitions use only the common Touhou source multiplier: "+String(r.kind))
 					continue
 				var b: Dictionary = matches[0]
 				var ratio := expected_source_multiplier(String(r.kind))

@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6.3** · **当前版本 v1.0.181** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6.3** · **当前版本 v1.0.182** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -32,6 +32,8 @@
 | 自动测试入口（182 个 Godot、21 个 Python） | 203 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
+
+**v1.0.182 早苗道中节奏与风神录伤害调整**：4-23 道中早苗改为在战斗进度达到 50% 时出现，并在交战期间将进度条停在 50%。路线由六次大波标记缩为四次、事件由 24 项减到 18 项，终末最早出场时间从 300 秒缩至 180 秒；仍需击退道中 Boss 并推进前面的敌群。移除风神录七位 Boss 及所属攻击的额外 ×1.5 伤害，使用其他东方 Boss 相同的通用倍率，同一攻击较 v181 降低约 33.3%。[版本说明](docs/releases/v1.0.182.md) · [节奏与真实融合验证](docs/plans/2026-10-08-sanae-road-pacing.md)。
 
 **v1.0.181 山顶神社的现人神 · 东方 4-23**：六行全陆地守矢神社，云海、社殿、鸟居与四御柱，晴、风、雨、雷暴、虹光参与实际战斗。弱化早苗道中使用秘术星阵，完整终末以全新生命登场，四档有 7/8/9/10 个阶段；原作客星、开海、准备与神风保留不同的出弹结构，追加青蛙使魔、短暂蛙化、御柱风蛇等本作符卡。普通和融合僵尸持续增援，E/N/H 慢传送带、L 自选卡，终末登场才播放终末 BGM。保持风神录额外伤害 ×1.5、正式符卡减伤 87.5%，使用真实融合阵容验证。四平台引擎同步更新至 Godot 4.6.3，修复已复现的 GLES 密集绘制 `pb null` 与批次越界崩溃；源码启动增加版本检查和本地启动脚本。[版本说明](docs/releases/v1.0.181.md) · [原作、平衡与崩溃验证](docs/plans/2026-10-07-sanae-4-23.md) · [素材来源](docs/sanae-assets.md)。
 

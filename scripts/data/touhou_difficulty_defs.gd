@@ -49,7 +49,8 @@ const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss", "shiz
 # Ordinary reinforcements do not acquire it merely by sharing a Boss's lawn.
 const OUTGOING_DAMAGE_MULTIPLIER := 5.0
 const WIND_GOD_BOSSES := ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss","sanae_boss"]
-const WIND_GOD_DAMAGE := 1.5
+# Wind God encounters now share the common Touhou damage factor.
+const WIND_GOD_DAMAGE := 1.0
 const WIND_GOD_DENSITY := {"shizuha_boss":1.75,"minoriko_boss":2.25,"hina_boss":1.75,"nitori_boss":2.5,"momiji_boss":1.75,"aya_boss":1.75,"sanae_boss":2.0}
 const WIND_GOD_CADENCE := .78
 const OWNED_ATTACK_SOURCES := {

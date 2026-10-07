@@ -31,7 +31,7 @@ func run() -> void:
 		file.store_string(JSON.stringify(result, "\t") + "\n")
 		file.close()
 		check(result.input_failures.is_empty(), "Whole-route input audit preserves actual two materials, normal fusion stats, earned charge and paid manual costs")
-		check(result.source_manifest.loaded_sanae_source == 7.5, "Probe records the actually loaded scoped Sanae outgoing source")
+		check(result.source_manifest.loaded_sanae_source == 5.0, "Probe records Sanae with no extra Wind God damage bonus")
 		check(result.start_snapshot.combat_bodies == 0 and result.start_snapshot.fusion_bodies == 0, "Whole route begins without any preplanted combat army")
 		if result.outcome == "won":
 			var roads: Array = result.boss_actors.values().filter(func(actor): return actor.role == "road")

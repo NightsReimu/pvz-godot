@@ -12,7 +12,9 @@ func run()->void:
 	if not level.is_empty():
 		check(level.row_count==6 and level.water_rows.is_empty(),"Six dry shrine rows")
 		check(level.mid_boss_kind=="sanae_boss" and level.mid_boss_final_preview,"Same-character incomplete road and fresh finale")
-		check(level.events.back().kind=="sanae_boss" and float(level.events.back().time)>=240.0,"Authored long shrine approach")
+		check(level.events.back().kind=="sanae_boss" and float(level.events.back().time)==180.0,"Moderate shrine approach reaches its finale schedule at three minutes")
+		check(level.events.size()==18 and level.events.filter(func(event):return bool(event.get("wave",false))).size()==4,"Four main waves leave time to develop a fusion formation without repeating the long stage4 road")
+		check(is_equal_approx(float(level.mid_boss_locked_progress),.5) and not level.has("mid_boss_time"),"Sanae midboss belongs at half progress rather than a fixed timestamp")
 		check(level.terrain=="sanae_moriya_shrine" and level.unlock_requirements==["4-22"],"Dedicated shrine follows mountain ascent")
 		check(level.boss_intro_bgm!=level.boss_bgm and level.weather_schedule.size()>=4,"Independent stage/finale music and real weather schedule")
 		for tier in ["easy","normal","hard","lunatic"]:

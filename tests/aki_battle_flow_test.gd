@@ -69,9 +69,12 @@ func _run() -> void:
 		check(boss.has("touhou_encounter") and int(game._boss_health_bar_layout(boss).segments) == 1, "Minoriko uses the standard live per-phase Touhou health bar")
 		check(game._boss_cast_status(boss).text.contains("非符"), "The finale begins with its readable nonspell declaration")
 		var enemy_count := game.zombies.size()
+		var existing_enemy_uids: Array = game.zombies.map(func(z): return int(z.uid))
 		boss.rumia_reinforcement_timer = 0.0
 		game._update_zombies(0.1)
-		check(game.zombies.size() > enemy_count and game.zombies.any(func(z): return z.kind in ["normal", "conehead", "buckethead", "newspaper", "football", "balloon"] and z.health > 0), "Ordinary enemies continue spawning while Minoriko casts")
+		# Valid fusion reinforcements (including cone backup dancers) also count;
+		# the RNG may pick two equipped enemies rather than the older small roster.
+		check(game.zombies.size() > enemy_count and game.zombies.any(func(z): return not existing_enemy_uids.has(int(z.uid)) and not game._is_boss_zombie(z) and not bool(game.Defs.ZOMBIES[z.kind].get("boss_summon",false)) and z.health > 0), "Fresh ordinary/fusion enemies continue spawning while Minoriko casts")
 		for kind in ["shizuha_boss", "minoriko_boss"]:
 			for frame in range(24): check(game._try_get_boss_frame_texture(kind, frame) != null, kind + ": original supplied pose loads " + str(frame))
 		var rt = game._ensure_aki_runtime()

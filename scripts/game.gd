@@ -7961,6 +7961,8 @@ func _should_hold_final_boss_kind(pending_kind: String) -> bool:
 	if pending_kind == midboss_kind and not bool(current_level.get("mid_boss_final_preview", false)):
 		return false
 	if not frozen_branch_midboss_spawned:
+		if _is_sanae_level() and not _midboss_ready():
+			return true
 		_spawn_frozen_branch_midboss()
 	return true
 
@@ -25633,13 +25635,18 @@ func _freeze_transition_visual_ratio() -> float:
 	return t * t * (3.0 - 2.0 * t)
 
 
+func _midboss_ready() -> bool:
+	# Stage4 keeps its long timed road; stage5's clock only spaces ordinary waves.
+	if _is_tengu_level():
+		return level_time >= float(current_level.get("mid_boss_time", 120.0))
+	return _battle_progress_ratio_raw() >= float(current_level.get("mid_boss_locked_progress", 0.5))
+
+
 func _update_frozen_branch_flow() -> void:
 	var midboss_kind = String(current_level.get("mid_boss_kind", ""))
 	if midboss_kind == "":
 		return
-	var lock_progress = float(current_level.get("mid_boss_locked_progress", 0.5))
-	var ready: bool = level_time >= float(current_level.get("mid_boss_time", 120.0)) if _uses_timed_touhou_road() else _battle_progress_ratio_raw() >= lock_progress
-	if not frozen_branch_midboss_spawned and ready:
+	if not frozen_branch_midboss_spawned and _midboss_ready():
 		_spawn_frozen_branch_midboss()
 		return
 	if frozen_branch_midboss_spawned and not frozen_branch_midboss_cleared and _find_alive_enemy_boss(midboss_kind).is_empty():
