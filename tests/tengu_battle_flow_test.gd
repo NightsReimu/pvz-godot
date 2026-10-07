@@ -302,7 +302,7 @@ func _run() -> void:
 		g._trigger_boss_skill(b)
 		check(not String(g._boss_cast_status(b).text).contains("原创") and String(g._boss_cast_status(b).text).contains("符卡"),"Gameplay labels PvZ adaptations as declared spell cards")
 		check(is_equal_approx(Phase.spell_damage_factor(b),0.125),"New declared cards retain the latest formal resistance")
-		check(is_equal_approx(g.TouhouDifficulty.outgoing_damage_multiplier("aya_boss"),12.5) and is_equal_approx(g.TouhouDifficulty.outgoing_damage_multiplier("momiji_boss"),12.5) and is_equal_approx(g.TouhouDifficulty.outgoing_damage_multiplier("rumia_boss"),5.0) and is_equal_approx(g.TouhouDifficulty.outgoing_damage_multiplier("normal"),1.0),"Wind God Boss sources inherit the latest scoped 12.5 strength while other Touhou sources stay fivefold and ordinary sources stay native")
+		check(is_equal_approx(g.TouhouDifficulty.outgoing_damage_multiplier("aya_boss"),7.5) and is_equal_approx(g.TouhouDifficulty.outgoing_damage_multiplier("momiji_boss"),7.5) and is_equal_approx(g.TouhouDifficulty.outgoing_damage_multiplier("rumia_boss"),5.0) and is_equal_approx(g.TouhouDifficulty.outgoing_damage_multiplier("normal"),1.0),"Wind God Boss sources use global fivefold damage with the requested extra 1.5 while other Touhou and ordinary sources retain their factors")
 		_live_cast_motion(g,b,rank)
 		_survival(g,b,rank)
 		var finished: bool=_finish_blockade(g,b,rank)

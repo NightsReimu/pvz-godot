@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6** · **当前版本 v1.0.179** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6** · **当前版本 v1.0.180** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -29,9 +29,11 @@
 | 僵尸与 Boss 定义（含 297 种融合） | 441 |
 | 关卡定义 | 200 |
 | 主世界 | 8 |
-| 自动测试入口（174 个 Godot、20 个 Python） | 194 |
+| 自动测试入口（176 个 Godot、20 个 Python） | 196 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
+
+**v1.0.180 风神录融合战斗平衡**：风神录六位 Boss 的额外伤害从 ×2.5 调整为 ×1.5，同一攻击伤害较上一版降低 40%；弹幕密度、出弹节奏、87.5% 符卡减伤、射命丸文高速飞行与龙卷风卷弹保留。新增真实融合阵容与完整关卡路线测试，使用原生生命、实际种子、冷却和自然充能，覆盖四关四档与不同输出、防守搭配。[版本说明](docs/releases/v1.0.180.md) · [平衡验证记录](docs/plans/2026-10-07-wind-god-fusion-balance.md)。
 
 **v1.0.179 九天瀑布与要塞之山 · 东方 4-22**：约 300 秒的长道中，前半六行全水、犬走椛剑盾守关；射命丸文终末登场后转为山腰旱地，全部睡莲退场并保留上层植物与融合状态。E/N/H 慢传送带，L 自选卡；终末 6/8/9/10 阶段，原作岐符、风神、耐久及塞符按难度变化。文在符卡及收招期间在六行、前后列持续飞行并留下残影，龙卷风能实际卷走普通、融合、投射与追踪子弹；追加逆风苗圃、融合花圃取材、旋风与山腰风栅等符卡，融合援军持续登场。接入用户 48 帧角色素材与两首独立 BGM，支持手机横屏。风神录六位 Boss 在通用提升之外再加强实际伤害（×2.5）、弹幕密度及出弹节奏，保留弱化道中与原有键山雏机制。[版本说明](docs/releases/v1.0.179.md) · [原作与设计对照](docs/plans/2026-10-06-tengu-4-22.md) · [素材说明](docs/tengu-assets.md)。
 
