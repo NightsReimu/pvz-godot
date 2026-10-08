@@ -36,6 +36,7 @@ const THEMES := {
 	"keine_boss": [Color("a5e5e8"), "ofuda"],
 	"suika_boss": [Color("f2b072"), "diamond"],
 	"nitori_boss": [Color("6fd3f2"), "drop"],
+	"kanako_boss": [Color("ef5a63"), "pillar"],
 }
 
 
@@ -100,6 +101,13 @@ static func glyph(canvas: CanvasItem, center: Vector2, radius: float, kind: Stri
 		points.append(points[0])
 		canvas.draw_polyline(points, color, 1.6, true)
 		canvas.draw_circle(center - axis * radius * 0.25 + side * radius * 0.2, radius * 0.16, Color(1, 1, 1, color.a))
+	elif kind == "pillar":
+		# A small onbashira with its rope band, for Kanako's declarations.
+		var base := center + axis * radius * 0.9
+		var top := center - axis * radius
+		canvas.draw_line(base, top, Color(color, color.a * 0.85), maxf(2.0, radius * 0.55), true)
+		canvas.draw_line(top - side * radius * 0.42 + axis * radius * 0.35, top + side * radius * 0.42 + axis * radius * 0.35, Color(1, 0.88, 0.6, color.a), maxf(1.2, radius * 0.2), true)
+		canvas.draw_circle(top, radius * 0.28, Color(1, 0.92, 0.82, color.a))
 	elif kind == "note":
 		canvas.draw_circle(center, radius * 0.4, color, true, -1, true)
 		canvas.draw_line(center + side * radius * 0.3, center + side * radius * 0.3 - axis * radius * 1.7, color, 2, true)

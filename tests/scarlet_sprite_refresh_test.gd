@@ -19,7 +19,9 @@ func _run() -> void:
 				continue
 			var seen := {}
 			for tick in range(48):
+				# Supplied-sheet runtimes animate on ui_time outside battle mode.
 				game.level_time = tick / 12.0
+				game.ui_time = tick / 12.0
 				var boss := {"kind": kind, "rumia_state": state, "boss_state": state, "anim_phase": 0.0}
 				var frame: int = game._boss_frame_index_for_kind(boss)
 				passed = _check(animations[state].has(frame), kind + " must use its supplied " + state + " poses") and passed

@@ -43,18 +43,18 @@ const EXTENSIONS := {
 # Each column is a different move, retained by all subsequent difficulty tiers.
 # The first uses the character's pursuit pattern, then crossfire, then a domain.
 # These bosses provide their own EX/EX+ phase lists in MokouSpellDefs.
-const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss", "shizuha_boss", "minoriko_boss", "hina_boss", "nitori_boss", "momiji_boss", "aya_boss", "sanae_boss"]
+const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss", "shizuha_boss", "minoriko_boss", "hina_boss", "nitori_boss", "momiji_boss", "aya_boss", "sanae_boss", "kanako_boss"]
 
 # Source amplification is independent of difficulty and character tuning.
 # Ordinary reinforcements do not acquire it merely by sharing a Boss's lawn.
 const OUTGOING_DAMAGE_MULTIPLIER := 5.0
-const WIND_GOD_BOSSES := ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss","sanae_boss"]
+const WIND_GOD_BOSSES := ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss","sanae_boss","kanako_boss"]
 # Wind God encounters now share the common Touhou damage factor.
 const WIND_GOD_DAMAGE := 1.0
-const WIND_GOD_DENSITY := {"shizuha_boss":1.75,"minoriko_boss":2.25,"hina_boss":1.75,"nitori_boss":2.5,"momiji_boss":1.75,"aya_boss":1.75,"sanae_boss":2.0}
+const WIND_GOD_DENSITY := {"shizuha_boss":1.75,"minoriko_boss":2.25,"hina_boss":1.75,"nitori_boss":2.5,"momiji_boss":1.75,"aya_boss":1.75,"sanae_boss":2.0,"kanako_boss":2.0}
 const WIND_GOD_CADENCE := .78
 const OWNED_ATTACK_SOURCES := {
-	"sanae_frog": "sanae_boss",
+	"sanae_frog": "sanae_boss", "kanako_onbashira": "kanako_boss",
 	"alice_doll_zombie": "alice_boss", "youmu_wraith": "youmu_boss", "yuyuko_spirit": "yuyuko_boss",
 	"keine_bamboo": "keine_boss", "marisa_mushroom": "marisa_boss",
 	"suika_mini": "suika_boss", "suika_knot": "suika_boss",
@@ -178,7 +178,7 @@ static func build_level(base: Dictionary, choice: String) -> Dictionary:
 		level["mid_boss_nonspell_only"] = int(settings.rank) < 2
 	level["title"] = "%s · %s" % [String(base.title), settings.name]
 	if bool(settings.select):
-		if String(base.get("id", "")) in ["4-19", "4-20", "4-21", "4-22", "4-23"]:
+		if String(base.get("id", "")) in ["4-19", "4-20", "4-21", "4-22", "4-23", "4-24"]:
 			level["available_plants"].push_front("sunflower")
 		level["mode"] = "normal"
 		level["start_sun"] = 350

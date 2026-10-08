@@ -152,6 +152,7 @@ static func update_progress(game: Control, boss: Dictionary) -> bool:
 	if String(boss.kind) == "nitori_boss" and game.nitori_runtime != null:
 		game.nitori_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) == "sanae_boss" and game.sanae_runtime != null: game.sanae_runtime.clear_owner(int(boss.uid))
+	if String(boss.kind) == "kanako_boss" and game.kanako_runtime != null: game.kanako_runtime.clear_owner(int(boss.uid))
 	if String(boss.kind) in ["momiji_boss", "aya_boss"] and game.tengu_runtime != null:
 		game.tengu_runtime.clear_owner(int(boss.uid))
 	if game.touhou_danmaku != null and boss.has("touhou_owner"):

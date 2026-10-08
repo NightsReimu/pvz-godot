@@ -132,7 +132,7 @@ func _run() -> void:
 				# compare every archived sample by identity, not shifted array index.
 				var matches: Array = old.scaling.filter(func(b): return b.kind==r.kind and b.choice==r.choice and int(b.phase)==int(r.phase) and bool(b.beam)==bool(r.beam))
 				if matches.is_empty():
-					check(String(r.kind) in ["momiji_boss","aya_boss","sanae_boss"] and Difficulty.outgoing_damage_multiplier(String(r.kind))==5.0,"Later Wind God definitions use only the common Touhou source multiplier: "+String(r.kind))
+					check(String(r.kind) in ["momiji_boss","aya_boss","sanae_boss","kanako_boss"] and Difficulty.outgoing_damage_multiplier(String(r.kind))==5.0,"Later Wind God definitions use only the common Touhou source multiplier: "+String(r.kind))
 					continue
 				var b: Dictionary = matches[0]
 				var ratio := expected_source_multiplier(String(r.kind))

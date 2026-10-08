@@ -49,6 +49,9 @@ const NitoriBossRuntime = preload("res://scripts/runtime/nitori_boss_runtime.gd"
 const SanaeBossRuntime = preload("res://scripts/runtime/sanae_boss_runtime.gd")
 const SanaeLevelDefs = preload("res://scripts/data/level_defs_sanae.gd")
 const SanaeShrineScene = preload("res://scripts/ui/sanae_shrine_scene.gd")
+const KanakoBossRuntime = preload("res://scripts/runtime/kanako_boss_runtime.gd")
+const KanakoLevelDefs = preload("res://scripts/data/level_defs_kanako.gd")
+const KanakoShrineScene = preload("res://scripts/ui/kanako_shrine_scene.gd")
 const TenguBossRuntime = preload("res://scripts/runtime/tengu_boss_runtime.gd")
 const TenguLevelDefs = preload("res://scripts/data/level_defs_tengu.gd")
 const NitoriWaterfallScene = preload("res://scripts/ui/nitori_waterfall_scene.gd")
@@ -576,7 +579,7 @@ static var shared_flandre_frames_loaded := false
 static var shared_flandre_frames_face_left = null
 
 const ZOMBIE_ALMANAC_ORDER := [
-	"sanae_boss", "sanae_frog", "momiji_boss", "aya_boss",
+	"kanako_boss", "kanako_onbashira", "sanae_boss", "sanae_frog", "momiji_boss", "aya_boss",
 	"normal",
 	"flag",
 	"conehead",
@@ -1039,6 +1042,7 @@ var keine_runtime: RefCounted
 var hina_runtime: RefCounted
 var nitori_runtime: RefCounted
 var sanae_runtime: RefCounted
+var kanako_runtime: RefCounted
 var tengu_runtime: RefCounted
 var aki_runtime: RefCounted
 var suika_runtime: RefCounted
@@ -1413,7 +1417,7 @@ func _refresh_battle_layout() -> void:
 	var right_margin = (viewport.x - safe_rect.end.x) + clampf(safe_rect.size.x * (0.018 if is_mobile else 0.08), 12.0 if is_mobile else 96.0, 38.0 if is_mobile else 176.0)
 	if short_hud and (_is_keine_moonlit_forest_level() or _is_reimu_midnight_bamboo_level() or _is_infinite_moon_corridor_level() or _is_eirin_level()):
 		right_margin = maxf(right_margin, safe_rect.size.x * 0.15)
-	if short_hud and (_is_tengu_level() or _is_sanae_level()):
+	if short_hud and (_is_tengu_level() or _is_sanae_level() or _is_kanako_level()):
 		# Keep the waterfall/mountain ascent and the fast Tengu's full sprite
 		# visible beside all nine planting columns on shallow phone screens.
 		right_margin = maxf(right_margin, safe_rect.size.x * 0.12)
@@ -1425,7 +1429,7 @@ func _refresh_battle_layout() -> void:
 	var top_margin = maxf(hud_bottom, clampf(safe_rect.size.y * (0.16 if is_mobile else 0.18), 108.0 if is_mobile else 120.0, 176.0 if is_mobile else 182.0) + safe_rect.position.y)
 	if compact_hud:
 		top_margin = hud_top + (124.0 if short_hud else 148.0)
-	if short_hud and _is_sanae_level():
+	if short_hud and (_is_sanae_level() or _is_kanako_level()):
 		# The live forecast needs its own strip above six rows and the boss footer.
 		top_margin += 28.0
 	if not Dictionary(current_level.get("objective", {})).is_empty():
@@ -2196,6 +2200,8 @@ func _process(delta: float) -> void:
 		nitori_runtime.update(delta)
 	if sanae_runtime != null:
 		sanae_runtime.update(delta)
+	if kanako_runtime != null:
+		kanako_runtime.update(delta)
 	if tengu_runtime != null:
 		tengu_runtime.update(delta)
 	if aki_runtime != null:
@@ -3373,7 +3379,7 @@ func _should_use_image2_zombie_texture(kind: String) -> bool:
 
 func _boss_frame_count_for_kind(kind: String) -> int:
 	match kind:
-		"sanae_boss", "momiji_boss", "aya_boss":
+		"sanae_boss", "kanako_boss", "momiji_boss", "aya_boss":
 			return 24
 		"hina_boss", "nitori_boss", "shizuha_boss", "minoriko_boss", "suika_boss", "keine_boss", "reimu_boss", "marisa_boss", "tewi_boss", "reisen_boss", "eirin_boss", "kaguya_boss", "hakutaku_boss", "mokou_boss":
 			return 24
@@ -3425,6 +3431,8 @@ func _boss_frame_folder_for_kind(kind: String) -> String:
 	match kind:
 		"sanae_boss":
 			return "res://art/sanae"
+		"kanako_boss":
+			return "res://art/kanako"
 		"momiji_boss":
 			return "res://art/momiji"
 		"aya_boss":
@@ -7531,6 +7539,8 @@ func _begin_level(level_index: int, chosen_cards: Array, level_override: Diction
 		nitori_runtime.reset()
 	if sanae_runtime != null:
 		sanae_runtime.reset()
+	if kanako_runtime != null:
+		kanako_runtime.reset()
 	if tengu_runtime != null:
 		tengu_runtime.reset()
 	if aki_runtime != null:
@@ -8515,6 +8525,10 @@ func _spawn_zombie(kind: String, row_override: int = -1, reserve_progress: bool 
 			_ensure_sanae_runtime()
 			if _is_stage_ending_boss(boss_unit): _play_bgm(String(current_level.get("boss_bgm", "")))
 			_show_banner("东风谷早苗 · 山上的风祝" if _is_stage_ending_boss(boss_unit) else "东风谷早苗 · 秘术的准备祭仪", 2.8)
+		elif kind == "kanako_boss":
+			_ensure_kanako_runtime().on_arrival(boss_unit)
+			if _is_stage_ending_boss(boss_unit): _play_bgm(String(current_level.get("boss_bgm", "")))
+			_show_banner("八坂神奈子 · 山坂与湖的权化", 2.8)
 		elif kind in ["momiji_boss", "aya_boss"]:
 			var rt := _ensure_tengu_runtime()
 			if kind == "aya_boss" and _is_stage_ending_boss(boss_unit):
@@ -10268,6 +10282,15 @@ func _is_sanae_level() -> bool:
 	return String(current_level.get("id", "")) == "4-23"
 
 
+func _ensure_kanako_runtime() -> RefCounted:
+	if kanako_runtime == null: kanako_runtime = KanakoBossRuntime.new(self)
+	return kanako_runtime
+
+
+func _is_kanako_level() -> bool:
+	return String(current_level.get("id", "")) == "4-24"
+
+
 func _uses_timed_touhou_road() -> bool:
 	return _is_tengu_level() or bool(current_level.get("timed_touhou_road", false))
 
@@ -11188,6 +11211,7 @@ func _execute_ultimate(plant: Dictionary, kind: String, row: int, col: int, prof
 	if hina_runtime != null: hina_runtime.cleanse_row(row)
 	if nitori_runtime != null: nitori_runtime.cleanse_row(row)
 	if sanae_runtime != null: sanae_runtime.cleanse_row(row)
+	if kanako_runtime != null: kanako_runtime.cleanse_row(row)
 	if tengu_runtime != null: tengu_runtime.cleanse_row(row)
 	if suika_runtime != null: suika_runtime.cleanse_row(row)
 	if float(plant.get("health", 0.0)) > 0.0:
@@ -14383,6 +14407,9 @@ func _cleanup_dead_zombies() -> void:
 			if String(zombie.kind) == "nitori_cucumber": nitori_runtime.on_cucumber_death(zombie)
 			if String(zombie.kind) == "nitori_boss": nitori_runtime.clear_owner(int(zombie.uid))
 		if sanae_runtime != null and String(zombie.kind) == "sanae_boss": sanae_runtime.clear_owner(int(zombie.uid))
+		if kanako_runtime != null:
+			if String(zombie.kind) == "kanako_onbashira": kanako_runtime.on_pillar_death(zombie)
+			if String(zombie.kind) == "kanako_boss": kanako_runtime.clear_owner(int(zombie.uid))
 		if tengu_runtime != null and String(zombie.kind) in ["momiji_boss", "aya_boss"]:
 			tengu_runtime.clear_owner(int(zombie.uid))
 		if aki_runtime != null:
@@ -16120,6 +16147,8 @@ func _apply_zombie_damage(zombie: Dictionary, damage: float, flash_amount: float
 		nitori_runtime.on_damaged(zombie)
 	if tengu_runtime != null and not ignore_shield:
 		remaining_damage *= tengu_runtime.damage_factor(zombie, from_x)
+	if kanako_runtime != null and not ignore_shield:
+		remaining_damage *= kanako_runtime.damage_factor(zombie)
 	if float(zombie.get("tewi_luck_until", 0)) > level_time and slow_duration <= 0 and not ignore_shield:
 		remaining_damage *= 0.7
 	if float(zombie.get("sulfur_brittle_until", 0.0)) > level_time:
@@ -16709,7 +16738,7 @@ func _city_boss_roster_for_phase(phase: int) -> Array:
 
 
 func _uses_new_touhou_finale_support(boss: Dictionary) -> bool:
-	return String(boss.get("kind", "")) in ["hina_boss", "nitori_boss", "minoriko_boss", "suika_boss", "aya_boss", "sanae_boss"] and not bool(boss.get("touhou_road_boss", false)) and _is_stage_ending_boss(boss)
+	return String(boss.get("kind", "")) in ["hina_boss", "nitori_boss", "minoriko_boss", "suika_boss", "aya_boss", "sanae_boss", "kanako_boss"] and not bool(boss.get("touhou_road_boss", false)) and _is_stage_ending_boss(boss)
 
 
 func _spawn_new_touhou_finale_support(kind: String, phase: int) -> void:
@@ -16722,6 +16751,8 @@ func _spawn_new_touhou_finale_support(kind: String, phase: int) -> void:
 			pool = ["kedama", "star_fairy", "cone_kedama", "cone_star_fairy"] if phase < 2 else ["kedama", "star_fairy", "bucket_kedama", "bucket_star_fairy", "brick_kedama", "brick_star_fairy", "kabuto_kedama", "kabuto_star_fairy", "cone_ninja", "cone_backup_dancer"]
 		"sanae_boss":
 			pool = SanaeLevelDefs.ENEMIES
+		"kanako_boss":
+			pool = KanakoLevelDefs.FINAL_ENEMIES
 		"aya_boss":
 			pool = TenguLevelDefs.FINAL_ENEMIES
 		"nitori_boss":
@@ -17522,6 +17553,11 @@ func _trigger_boss_skill(zombie: Dictionary) -> Dictionary:
 		var pattern := String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", ""))
 		zombie = _ensure_touhou_danmaku().cast(zombie)
 		_ensure_sanae_runtime().cast(zombie, pattern)
+		return zombie
+	if String(zombie.kind) == "kanako_boss":
+		var kanako_pattern := String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", ""))
+		zombie = _ensure_touhou_danmaku().cast(zombie)
+		_ensure_kanako_runtime().cast(zombie, kanako_pattern)
 		return zombie
 	if String(zombie.kind) == "hina_boss":
 		zombie = _ensure_touhou_danmaku().cast(zombie)
@@ -18785,6 +18821,7 @@ func _trigger_boss_phase_shift(zombie: Dictionary, phase: int) -> Dictionary:
 	if String(zombie.kind) == "nitori_boss" and nitori_runtime != null:
 		nitori_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) == "sanae_boss" and sanae_runtime != null: sanae_runtime.clear_owner(int(zombie.uid))
+	if String(zombie.kind) == "kanako_boss" and kanako_runtime != null: kanako_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) in ["momiji_boss", "aya_boss"] and tengu_runtime != null:
 		tengu_runtime.clear_owner(int(zombie.uid))
 	if String(zombie.kind) in ["shizuha_boss", "minoriko_boss"] and aki_runtime != null:
@@ -19299,6 +19336,8 @@ func _current_zombie_speed(zombie: Dictionary) -> float:
 		speed *= 1.8
 	if ancient_expansion != null:
 		speed *= ancient_expansion.speed_factor(zombie)
+	if kanako_runtime != null:
+		speed *= kanako_runtime.speed_factor(zombie)
 	if float(zombie.get("basalt_brace_until", 0.0)) > level_time and not _ensure_volcano_expansion().controlled(zombie):
 		return 0.0
 	var terrain = _cell_terrain_kind(int(zombie["row"]), _zombie_cell_col(float(zombie["x"])))
@@ -19556,6 +19595,7 @@ func _trigger_jalapeno(row: int, col: int, boosted: bool = false) -> void:
 				lanes.append(lane)
 	for lane in lanes:
 		var lane_center_x = BOARD_ORIGIN.x + board_size.x * 0.5
+		if kanako_runtime != null: kanako_runtime.burn_row(int(lane))
 		_damage_zombies_in_radius(int(lane), lane_center_x, board_size.x, damage)
 		_apply_ash_hits_in_row_segment(int(lane), BOARD_ORIGIN.x - 8.0, BOARD_ORIGIN.x + board_size.x + 24.0, 1)
 		_damage_obstacles_in_radius(int(lane), lane_center_x, board_size.x, damage)
@@ -21310,6 +21350,8 @@ func _extra_spawn_count_for_event(event_index: int, event: Dictionary) -> int:
 func _support_spawn_kind(main_kind: String, event_index: int, extra_index: int) -> String:
 	if _is_sanae_level():
 		return String(SanaeLevelDefs.ENEMIES[posmod(event_index + extra_index*3, SanaeLevelDefs.ENEMIES.size())])
+	if _is_kanako_level():
+		return String(KanakoLevelDefs.ENEMIES[posmod(event_index * 5 + extra_index * 7, KanakoLevelDefs.ENEMIES.size())])
 	if _is_tengu_level():
 		var pool: Array = TenguLevelDefs.ROAD_ENEMIES if not water_rows.is_empty() else TenguLevelDefs.FINAL_ENEMIES
 		return String(pool[posmod(event_index + extra_index, pool.size())])
@@ -22623,6 +22665,14 @@ func _selection_level_preview_style(level: Dictionary) -> Dictionary:
 	var water := Color(0.2, 0.56, 0.72)
 	var hazard := Color(0.96, 0.36, 0.12)
 	match terrain_key:
+		"kanako_onbashira_shrine":
+			label = "六行御柱神域石庭"
+			sky_top = Color("3d3a6e")
+			sky_bottom = Color("f2b07a")
+			ground = Color("7f7470")
+			lane = Color("8f8a86")
+			lane_alt = Color("9b9590")
+			accent = Color("ec4b5e")
 		"sanae_moriya_shrine":
 			label = "六行山顶神社旱地"
 			sky_top = Color("98bcae")
@@ -22899,6 +22949,9 @@ func _draw_selection_preview_board(rect: Rect2, style: Dictionary, alpha_scale: 
 		return
 	if String(style.get("terrain_key", "")) == "sanae_moriya_shrine":
 		SanaeShrineScene.draw_preview(self, rect, alpha_scale, show_label)
+		return
+	if String(style.get("terrain_key", "")) == "kanako_onbashira_shrine":
+		KanakoShrineScene.draw_preview(self, rect, alpha_scale, show_label)
 		return
 	if String(style.get("terrain_key", "")) in ["tengu_waterfall", "tengu_mountainside"]:
 		TenguMountainScene.draw_preview(self, rect, alpha_scale, show_label)
@@ -23708,6 +23761,8 @@ func _draw_battle_scene() -> void:
 		hina_runtime.draw_ground()
 	if sanae_runtime != null:
 		sanae_runtime.draw_ground()
+	if kanako_runtime != null:
+		kanako_runtime.draw_ground()
 	if nitori_runtime != null:
 		nitori_runtime.draw_ground()
 	if aki_runtime != null:
@@ -23754,10 +23809,13 @@ func _draw_battle_scene() -> void:
 	if String(current_level.get("terrain", "")) == "nitori_waterfall":
 		NitoriWaterfallScene.draw_ambient(self)
 	if _is_sanae_level(): SanaeShrineScene.draw_ambient(self)
+	if _is_kanako_level(): KanakoShrineScene.draw_ambient(self)
 	if _is_tengu_level():
 		TenguMountainScene.draw_ambient(self)
 	if hina_runtime != null:
 		hina_runtime.draw_overlay()
+	if kanako_runtime != null:
+		kanako_runtime.draw_overlay()
 	if nitori_runtime != null:
 		nitori_runtime.draw_overlay()
 	if aki_runtime != null:
@@ -23856,6 +23914,9 @@ func _draw_endless_bonus_overlay() -> void:
 func _draw_battle_background() -> void:
 	if _is_sanae_level():
 		SanaeShrineScene.draw_background(self)
+		return
+	if _is_kanako_level():
+		KanakoShrineScene.draw_background(self)
 		return
 	if String(current_level.get("terrain", "")) == "hina_mountain_forest":
 		HinaMountainScene.draw_background(self)
@@ -24900,6 +24961,9 @@ func _draw_battle_background() -> void:
 func _draw_battle_board() -> void:
 	if _is_sanae_level():
 		SanaeShrineScene.draw_board(self)
+		return
+	if _is_kanako_level():
+		KanakoShrineScene.draw_board(self)
 		return
 	if String(current_level.get("terrain", "")) == "hina_mountain_forest":
 		HinaMountainScene.draw_board(self)
@@ -27019,6 +27083,9 @@ func _draw_effects() -> void:
 			_ensure_volcano_expansion().draw_effect(effect)
 			continue
 		if shape.begins_with("ancient_") and AncientVisuals.draw_effect(self, effect):
+			continue
+		if shape.begins_with("kanako_"):
+			KanakoShrineScene.draw_effect(self, effect)
 			continue
 		var anim_speed = float(effect.get("anim_speed", 4.0))
 		# Elemental impact shapes take priority over the generic legacy hit texture.
@@ -31049,6 +31116,8 @@ func _boss_frame_index_for_kind(zombie: Dictionary) -> int:
 	match String(zombie.get("kind", "")):
 		"sanae_boss":
 			return _ensure_sanae_runtime().frame_index(zombie)
+		"kanako_boss":
+			return _ensure_kanako_runtime().frame_index(zombie)
 		"momiji_boss", "aya_boss":
 			return _ensure_tengu_runtime().frame_index(zombie)
 		"rumia_boss":
@@ -32773,6 +32842,12 @@ func _draw_zombie_body(center: Vector2, zombie: Dictionary) -> void:
 		return
 	if kind == "sanae_frog":
 		_ensure_sanae_runtime().draw_frog(center, 1.0, 1.0, true)
+		return
+	if kind == "kanako_boss":
+		KanakoShrineScene.draw_boss(self, center, zombie)
+		return
+	if kind == "kanako_onbashira":
+		_ensure_kanako_runtime().draw_pillar_unit(center, zombie)
 		return
 	if kind in ["momiji_boss", "aya_boss"]:
 		TenguMountainScene.draw_boss(self, center, zombie)

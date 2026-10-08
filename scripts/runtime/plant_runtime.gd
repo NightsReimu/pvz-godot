@@ -111,6 +111,7 @@ func update_plants(delta: float) -> void:
 			if game.hina_runtime != null: action_delta *= float(game.hina_runtime.action_factor(row, col))
 			if game.nitori_runtime != null: action_delta *= float(game.nitori_runtime.action_factor(row, col))
 			if game.tengu_runtime != null: action_delta *= float(game.tengu_runtime.action_factor(row, col))
+			if game.kanako_runtime != null: action_delta *= float(game.kanako_runtime.action_factor(row, col))
 			var hina_first: int = game.projectiles.size()
 			var hina_ultimate := game.hina_runtime != null and (bool(plant.get("ultimate_active", false)) or float(plant.get("plant_food_timer", 0)) > 0 or int(plant.get("plant_food_charges", 0)) > 0)
 			if plant.has("fusion_kind"):
@@ -146,6 +147,7 @@ func update_plants(delta: float) -> void:
 			if game.hina_runtime != null: support_delta *= float(game.hina_runtime.action_factor(row, col))
 			if game.nitori_runtime != null: support_delta *= float(game.nitori_runtime.action_factor(row, col))
 			if game.tengu_runtime != null: support_delta *= float(game.tengu_runtime.action_factor(row, col))
+			if game.kanako_runtime != null: support_delta *= float(game.kanako_runtime.action_factor(row, col))
 			var hina_first: int = game.projectiles.size()
 			var hina_ultimate := game.hina_runtime != null and (bool(support.get("ultimate_active", false)) or float(support.get("plant_food_timer", 0)) > 0 or int(support.get("plant_food_charges", 0)) > 0)
 			if support.has("fusion_kind"):

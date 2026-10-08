@@ -520,13 +520,13 @@ static func draw_weather_chip(game: Control, rt) -> void:
 		# Phone HUDs fill the top row; the forecast hangs under the lawn instead.
 		rect = Rect2(game.BOARD_ORIGIN.x + game.board_size.x - 300.0, game.BOARD_ORIGIN.y + game.board_size.y + 4.0, 300.0, 28.0)
 		if game._is_minigame(): rect.position = Vector2(game.SEED_BANK_RECT.end.x-310,game.SEED_BANK_RECT.position.y+14)
-		if bool(game.current_level.get("suika_banquet", false)) or String(game.current_level.get("id", "")) == "4-23":
+		if bool(game.current_level.get("suika_banquet", false)) or String(game.current_level.get("id", "")) in ["4-23", "4-24"]:
 			# Touhou phase names occupy the space below the board on phones.
 			rect = Rect2(game.BOARD_ORIGIN.x + game.board_size.x - 260.0, game.BOARD_ORIGIN.y - 27.0, 260.0, 24.0)
-			if String(game.current_level.get("id", "")) == "4-23": rect.position.x = game.BOARD_ORIGIN.x
+			if String(game.current_level.get("id", "")) in ["4-23", "4-24"]: rect.position.x = game.BOARD_ORIGIN.x
 	elif game.SEED_BANK_RECT.end.y + 46.0 > game.BOARD_ORIGIN.y:
 		rect.position.y = game.BOARD_ORIGIN.y - 40.0
-	if String(game.current_level.get("id", "")) == "4-23": rect.position.x = game.BOARD_ORIGIN.x
+	if String(game.current_level.get("id", "")) in ["4-23", "4-24"]: rect.position.x = game.BOARD_ORIGIN.x
 	var info: Dictionary = rt.weather_info().duplicate()
 	var clear_night: bool = bool(game.current_level.get("suika_banquet", false)) and String(rt.weather) == "clear"
 	if clear_night:
@@ -542,10 +542,13 @@ static func draw_weather_chip(game: Control, rt) -> void:
 	else:
 		draw_weather_icon(game, icon, rt.weather, 1.0, game.ui_time)
 	var overridden: bool = not rt.override_weather.is_empty()
-	var owner_name := "早苗" if String(game.current_level.get("id", "")) == "4-23" and game.zombies.any(func(z): return int(z.get("uid", -2)) == int(rt.override_owner) and String(z.kind) == "sanae_boss") else "军师"
+	var owner_name := "军师"
+	for z in game.zombies:
+		if int(z.get("uid", -2)) == int(rt.override_owner) and String(z.kind) in ["sanae_boss", "kanako_boss"]:
+			owner_name = "早苗" if String(z.kind) == "sanae_boss" else "神奈子"
 	var title = "%s%s" % [String(info.name), "  · " + owner_name if overridden else ""]
 	var summary_offset: float = 132.0 if not compact else 112.0
-	if String(game.current_level.get("id", "")) == "4-23" and overridden:
+	if String(game.current_level.get("id", "")) in ["4-23", "4-24"] and overridden:
 		summary_offset = maxf(summary_offset, 40.0 + game.ui_font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x + 12.0)
 	ThemeLib.draw_label(game, game.ui_font, Rect2(rect.position + Vector2(40, 2), Vector2(maxf(96.0, summary_offset - 48.0), 30)), title, 16, accent.lightened(0.3) if not overridden else Color("#ff9d8a"))
 	ThemeLib.draw_label(game, game.ui_font, Rect2(rect.position + Vector2(summary_offset, 2), Vector2(rect.size.x - summary_offset - 8.0, rect.size.y - 4)), String(info.summary), 12 if not compact else 10, Color(0.9, 0.93, 0.9, 0.86))

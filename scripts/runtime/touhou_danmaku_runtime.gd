@@ -9,6 +9,7 @@ const MarisaDanmaku = preload("res://scripts/runtime/marisa_danmaku.gd")
 const HinaDanmaku = preload("res://scripts/runtime/hina_danmaku.gd")
 const NitoriDanmaku = preload("res://scripts/runtime/nitori_danmaku.gd")
 const SanaeDanmaku = preload("res://scripts/runtime/sanae_danmaku.gd")
+const KanakoDanmaku = preload("res://scripts/runtime/kanako_danmaku.gd")
 const TenguDanmaku = preload("res://scripts/runtime/tengu_danmaku.gd")
 const AkiDanmaku = preload("res://scripts/runtime/aki_danmaku.gd")
 const SuikaDanmaku = preload("res://scripts/runtime/suika_danmaku.gd")
@@ -84,7 +85,7 @@ func cast(boss: Dictionary) -> Dictionary:
 	if card.has("camouflage_duration"):
 		# Nitori's road harries from camouflage for several volleys before declaring.
 		duration = float(card.camouflage_duration)
-	if String(boss.kind) in ["momiji_boss", "aya_boss", "sanae_boss"]:
+	if String(boss.kind) in ["momiji_boss", "aya_boss", "sanae_boss", "kanako_boss"]:
 		duration = float(card.get("duration", 4.0))
 	if pattern == "pressure_lunar_domain":
 		# A full crossing, portal warning and return must play even under burst damage.
@@ -166,6 +167,7 @@ func _tick(delta: float) -> void:
 			session.instrument_points = PrismriverTrio.bodies(game, boss).map(func(body): return Vector2(body.position))
 		session.age += delta
 		if String(session.kind) == "sanae_boss": SanaeDanmaku.tick_cast(self, session)
+		if String(session.kind) == "kanako_boss": KanakoDanmaku.tick_cast(self, session)
 		_update_actors(session)
 		boss["touhou_cast_remaining"] = maxf(0.0, float(session.duration) - float(session.age))
 		if bool(boss.get("touhou_invulnerable", false)):
@@ -317,6 +319,9 @@ func _emit_wave(c: Dictionary) -> void:
 		return
 	if String(c.kind) == "sanae_boss":
 		SanaeDanmaku.emit(self, c)
+		return
+	if String(c.kind) == "kanako_boss":
+		KanakoDanmaku.emit(self, c)
 		return
 	if String(c.kind) in ["momiji_boss", "aya_boss"]:
 		TenguDanmaku.emit(self, c)
@@ -872,6 +877,8 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			before = MarisaDanmaku.advance_bullet(b, before, motion_delta)
 		elif String(b.kind) == "reisen_boss":
 			before = ReisenDanmaku.advance_bullet(b, before)
+		elif String(b.kind) == "kanako_boss":
+			before = KanakoDanmaku.advance_bullet(self, b, before, motion_delta)
 		if String(b.kind) == "mokou_boss":
 			MokouDanmaku.advance_bullet(b, motion_delta)
 		var hit := false
@@ -1105,6 +1112,9 @@ func draw() -> void:
 			else:
 				game.draw_circle(actor.position, 10, COLORS[4])
 	for beam in beams:
+		if bool(beam.get("kanako_pillar", false)):
+			KanakoDanmaku.draw_beam(game, beam)
+			continue
 		var clipped = Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([beam.from, beam.to]), outline)
 		if clipped.is_empty() or clipped[0].size() < 2:
 			continue
@@ -1133,6 +1143,7 @@ func draw() -> void:
 			game.draw_circle(to, float(beam.width) * 0.5 + 4, color, false, 1.5, true)
 	for c in casts:
 		if String(c.kind) == "sanae_boss": SanaeDanmaku.draw_cast(game, c)
+		if String(c.kind) == "kanako_boss": KanakoDanmaku.draw_cast(game, c)
 	for b in bullets:
 		var point = Vector2(b.position)
 		var color = Color(b.color)
@@ -1147,6 +1158,9 @@ func draw() -> void:
 			continue
 		if String(b.shape).begins_with("sanae_"):
 			SanaeDanmaku.draw_bullet(game, b)
+			continue
+		if String(b.shape).begins_with("kanako_"):
+			KanakoDanmaku.draw_bullet(game, b)
 			continue
 		if String(b.shape).begins_with("tengu_"):
 			TenguDanmaku.draw_bullet(game, b)

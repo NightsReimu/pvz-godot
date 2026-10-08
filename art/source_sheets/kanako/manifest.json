@@ -1,0 +1,555 @@
+{
+  "method": "Exact positive-alpha source RGBA owned once; 32-alpha body/effect ownership with reviewed per-row gaps for detached arcs and crystals, separately calibrated 240-alpha opaque foot anchors; translation only, no rotation, mirroring, resampling, pixel deletion or recoloring.",
+  "sprite": {
+    "kind": "kanako_boss",
+    "folder": "art/kanako",
+    "frame_count": 24,
+    "source_pose_count": 24,
+    "source": "user_transparent_sheet_individual_crops",
+    "source_sheet": "art/source_sheets/kanako/kanako.png",
+    "source_size": [
+      1536,
+      1024
+    ],
+    "original_filename": "Purple-Haired Shrine Maiden Sprite Sheet.png",
+    "original_sha256": "c44ba7f90de7c8ffd80bf03aa2bf39660c58e61544d56644f77da2df0e2b667b",
+    "source_sha256": "c44ba7f90de7c8ffd80bf03aa2bf39660c58e61544d56644f77da2df0e2b667b",
+    "canvas": [
+      512,
+      384
+    ],
+    "pivot": [
+      256,
+      320
+    ],
+    "idle_height": 239,
+    "idle_bottom": 320,
+    "runtime_source_slots": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "seed_alpha": 32,
+    "calibration_seed_alpha": 240,
+    "source_alpha_range": [
+      0,
+      254
+    ],
+    "texture_import": {
+      "compress_mode": 0,
+      "fix_alpha_border": false,
+      "premult_alpha": false,
+      "mipmaps": false
+    },
+    "individual_crops": [
+      {
+        "source_slot": 0,
+        "bounds": [
+          57,
+          0,
+          242,
+          261
+        ],
+        "anchor": [
+          107,
+          249
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 34882,
+        "frame_sha256": "be5c0099c500a1ec723cacee49c7f3c436c1f477fee4d37e8a4730228c995f11"
+      },
+      {
+        "source_slot": 1,
+        "bounds": [
+          301,
+          0,
+          514,
+          260
+        ],
+        "anchor": [
+          361,
+          249
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 35869,
+        "frame_sha256": "bd1a5148802d3013228c34fda960e0fefccfedad66106a466018edd95d3d9e46"
+      },
+      {
+        "source_slot": 2,
+        "bounds": [
+          545,
+          0,
+          772,
+          260
+        ],
+        "anchor": [
+          632,
+          252
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 36591,
+        "frame_sha256": "5eccbdb280bcec0176dcbeaa740efa12b3a225ca72dd5b4a5bf4c53823939285"
+      },
+      {
+        "source_slot": 3,
+        "bounds": [
+          815,
+          0,
+          1022,
+          260
+        ],
+        "anchor": [
+          886,
+          252
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 36202,
+        "frame_sha256": "0707d51c57ce2d6a7f412a54301475f35e77e43f2ce1e761bd7efd8bfe2496ef"
+      },
+      {
+        "source_slot": 4,
+        "bounds": [
+          1043,
+          0,
+          1278,
+          262
+        ],
+        "anchor": [
+          1138,
+          252
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 36929,
+        "frame_sha256": "b6262d2860fb566ed951e0e1173d6096128b1ded673df14f2f2f01c985d878b9"
+      },
+      {
+        "source_slot": 5,
+        "bounds": [
+          1303,
+          0,
+          1524,
+          264
+        ],
+        "anchor": [
+          1396,
+          252
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 36851,
+        "frame_sha256": "973a06cb54910f181d64a19138c6c44b9389c87b756c378a684ac101c0d9dcdc"
+      },
+      {
+        "source_slot": 6,
+        "bounds": [
+          17,
+          252,
+          258,
+          516
+        ],
+        "anchor": [
+          112,
+          506
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 40851,
+        "frame_sha256": "851c9685b7f173aa5460ad029bd3ccd6422f79da840c3b06e2330e8430cf71b5"
+      },
+      {
+        "source_slot": 7,
+        "bounds": [
+          242,
+          256,
+          524,
+          516
+        ],
+        "anchor": [
+          382,
+          506
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 43409,
+        "frame_sha256": "b35cfafcbc1c5f64e82f98a86a00412e73f2f549da11158fa57f212fdc24fb38"
+      },
+      {
+        "source_slot": 8,
+        "bounds": [
+          512,
+          269,
+          810,
+          518
+        ],
+        "anchor": [
+          670,
+          505
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 44010,
+        "frame_sha256": "4a155527d33b285b031c8304524ceb08bf0a08eaf3205769d836ca6f7e2dd60a"
+      },
+      {
+        "source_slot": 9,
+        "bounds": [
+          795,
+          265,
+          1072,
+          522
+        ],
+        "anchor": [
+          934,
+          509
+        ],
+        "seed_components": 3,
+        "visible_source_pixels": 45059,
+        "frame_sha256": "b9e7107864174602fabaee6dfc629ab73ae9e8a72b5796d0f1c64e0fb6a127ee"
+      },
+      {
+        "source_slot": 10,
+        "bounds": [
+          1069,
+          259,
+          1318,
+          523
+        ],
+        "anchor": [
+          1176,
+          510
+        ],
+        "seed_components": 3,
+        "visible_source_pixels": 41021,
+        "frame_sha256": "885b55dd076d0eafbe00e3ed86f879ed3173a28272bc8e79206b2856248a12a0"
+      },
+      {
+        "source_slot": 11,
+        "bounds": [
+          1325,
+          255,
+          1536,
+          517
+        ],
+        "anchor": [
+          1410,
+          507
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 39058,
+        "frame_sha256": "bbd43567d92808e711386997c4f37efd95c83b3f7ed85e59cf7a60c97067e4f4"
+      },
+      {
+        "source_slot": 12,
+        "bounds": [
+          43,
+          505,
+          272,
+          772
+        ],
+        "anchor": [
+          118,
+          761
+        ],
+        "seed_components": 7,
+        "visible_source_pixels": 38389,
+        "frame_sha256": "51abff673f8218989b3e0b9804fff3ecb3c0b5494cba89026971d1f1b74dcbfc"
+      },
+      {
+        "source_slot": 13,
+        "bounds": [
+          301,
+          501,
+          514,
+          774
+        ],
+        "anchor": [
+          382,
+          761
+        ],
+        "seed_components": 7,
+        "visible_source_pixels": 42169,
+        "frame_sha256": "8d90e12e4db7bcafecd419f410823ad167c96736aface42d92c9d2e319993325"
+      },
+      {
+        "source_slot": 14,
+        "bounds": [
+          537,
+          509,
+          786,
+          770
+        ],
+        "anchor": [
+          634,
+          762
+        ],
+        "seed_components": 5,
+        "visible_source_pixels": 45434,
+        "frame_sha256": "55576a99c5dbc40387669a2ec67602ab02052b9e8a0652d3aa6d2bc64f74a5d7"
+      },
+      {
+        "source_slot": 15,
+        "bounds": [
+          797,
+          509,
+          1053,
+          776
+        ],
+        "anchor": [
+          900,
+          761
+        ],
+        "seed_components": 5,
+        "visible_source_pixels": 48162,
+        "frame_sha256": "cdbba08d9c992a07f2359e3a953e90530fe91020155e4a48224769a1d8bdf516"
+      },
+      {
+        "source_slot": 16,
+        "bounds": [
+          1043,
+          506,
+          1307,
+          772
+        ],
+        "anchor": [
+          1151,
+          761
+        ],
+        "seed_components": 8,
+        "visible_source_pixels": 47430,
+        "frame_sha256": "38510baa4ee2fb7547bf0cc8c0de7235d2e00ef31046c583a0d5c243ff8de6e6"
+      },
+      {
+        "source_slot": 17,
+        "bounds": [
+          1289,
+          504,
+          1535,
+          770
+        ],
+        "anchor": [
+          1391,
+          761
+        ],
+        "seed_components": 2,
+        "visible_source_pixels": 47170,
+        "frame_sha256": "4d30e8bda9e35acedff65d7c7eee9d16adef30c60422adc5dea1d0005bf5f62e"
+      },
+      {
+        "source_slot": 18,
+        "bounds": [
+          0,
+          771,
+          266,
+          1024
+        ],
+        "anchor": [
+          124,
+          1006
+        ],
+        "seed_components": 1,
+        "visible_source_pixels": 34335,
+        "frame_sha256": "cec61e53120b8ad53dc3af4dadba5261d9bb36d1ed212b024ba695065d19df13"
+      },
+      {
+        "source_slot": 19,
+        "bounds": [
+          267,
+          766,
+          512,
+          1024
+        ],
+        "anchor": [
+          380,
+          1011
+        ],
+        "seed_components": 4,
+        "visible_source_pixels": 40364,
+        "frame_sha256": "a4ae21b43c2045c43c786cec42d5ec5d5816c549c38c09124a56a6d7cb3ebc00"
+      },
+      {
+        "source_slot": 20,
+        "bounds": [
+          537,
+          759,
+          808,
+          1024
+        ],
+        "anchor": [
+          658,
+          1013
+        ],
+        "seed_components": 5,
+        "visible_source_pixels": 45449,
+        "frame_sha256": "3c65e89676e913444a5a1a1f422f532d1f47a957cd666ffb12c699056ec953f6"
+      },
+      {
+        "source_slot": 21,
+        "bounds": [
+          795,
+          756,
+          1026,
+          1024
+        ],
+        "anchor": [
+          900,
+          1013
+        ],
+        "seed_components": 10,
+        "visible_source_pixels": 42218,
+        "frame_sha256": "4261af2d161d206b140be79c9603c85b8428abd3c6b8c31d7e0473e5d8d1511c"
+      },
+      {
+        "source_slot": 22,
+        "bounds": [
+          1041,
+          757,
+          1298,
+          1024
+        ],
+        "anchor": [
+          1162,
+          1013
+        ],
+        "seed_components": 7,
+        "visible_source_pixels": 46028,
+        "frame_sha256": "363fa855e75cbb3ad22bbe86e089c5caea45a97ce4093c52c6d73fe4cbb9d30f"
+      },
+      {
+        "source_slot": 23,
+        "bounds": [
+          1290,
+          765,
+          1535,
+          1024
+        ],
+        "anchor": [
+          1400,
+          1013
+        ],
+        "seed_components": 3,
+        "visible_source_pixels": 43949,
+        "frame_sha256": "58ded4e49bf8fcc3c62b58ea56f0cd6a414872b5a591705f0c203959a42b5c04"
+      }
+    ],
+    "layout": {
+      "rows": [
+        129,
+        388,
+        639,
+        892
+      ],
+      "centers": [
+        [
+          131,
+          387,
+          644,
+          900,
+          1156,
+          1412
+        ],
+        [
+          132,
+          395,
+          685,
+          942,
+          1191,
+          1429
+        ],
+        [
+          139,
+          399,
+          654,
+          918,
+          1175,
+          1413
+        ],
+        [
+          125,
+          391,
+          668,
+          919,
+          1171,
+          1411
+        ]
+      ],
+      "gaps": [
+        [
+          0,
+          274,
+          526,
+          785,
+          1039,
+          1299,
+          1536
+        ],
+        [
+          0,
+          250,
+          525,
+          811,
+          1075,
+          1320,
+          1536
+        ],
+        [
+          0,
+          279,
+          530,
+          790,
+          1059,
+          1298,
+          1536
+        ],
+        [
+          0,
+          267,
+          528,
+          808,
+          1038,
+          1293,
+          1536
+        ]
+      ],
+      "row_gaps": [
+        0,
+        259,
+        512,
+        765,
+        1024
+      ],
+      "seed_alpha": 32,
+      "soft_component_gaps": true
+    }
+  },
+  "audio": [
+    {
+      "role": "stage",
+      "path": "audio/bgm/touhou/4-24-stage.mp3",
+      "source_name": "4-24道中.mp3",
+      "source_sha256": "cbb36dc946549decf88b244b22be882f06bae532f8983249de5fa9d2297db303"
+    },
+    {
+      "role": "ending",
+      "path": "audio/bgm/touhou/4-24-ending.mp3",
+      "source_name": "4-24终末.mp3",
+      "source_sha256": "47f4098e29b6bf5eb9860d1a2464580883a11f59853b8948d87f255870887595"
+    }
+  ]
+}

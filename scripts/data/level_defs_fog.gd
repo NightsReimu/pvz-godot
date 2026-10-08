@@ -6,6 +6,7 @@ const Hina = preload("res://scripts/data/level_defs_hina.gd")
 const Nitori = preload("res://scripts/data/level_defs_nitori.gd")
 const Tengu = preload("res://scripts/data/level_defs_tengu.gd")
 const Sanae = preload("res://scripts/data/level_defs_sanae.gd")
+const Kanako = preload("res://scripts/data/level_defs_kanako.gd")
 
 const LEVELS = [
 {
@@ -559,6 +560,7 @@ const LEVELS = [
 		Nitori.LEVEL,
 		Tengu.LEVEL,
 		Sanae.LEVEL,
+		Kanako.LEVEL,
 		{
 			"id": "4-S1",
 			"title": "不丢除草机",

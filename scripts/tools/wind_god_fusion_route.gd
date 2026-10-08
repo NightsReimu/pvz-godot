@@ -1,6 +1,6 @@
 extends RefCounted
 const Game=preload("res://scripts/game.gd")
-const STAGES:=["4-19","4-20","4-21","4-22","4-23"]
+const STAGES:=["4-19","4-20","4-21","4-22","4-23","4-24"]
 const TIERS:=["easy","normal","hard","lunatic"]
 const SOURCE_PATHS := ["scripts/game.gd","scripts/game_defs.gd","scripts/data/touhou_difficulty_defs.gd","scripts/data/touhou_spell_defs.gd","scripts/runtime/touhou_phase_runtime.gd","scripts/runtime/plant_fusion_runtime.gd","scripts/runtime/fusion_native_runtime.gd","scripts/data/fusion_plant_defs.gd","scripts/tools/wind_god_fusion_route.gd","tests/wind_god_fusion_route_test.gd","tests/sanae_fusion_route_test.gd","tests/sanae_durable_fusion_route_test.gd","scripts/data/level_defs_sanae.gd","scripts/data/sanae_spell_defs.gd","scripts/runtime/sanae_boss_runtime.gd","scripts/runtime/sanae_danmaku.gd","scripts/ui/sanae_shrine_scene.gd"]
 var tree:SceneTree
@@ -148,6 +148,7 @@ func start(id:String,choice:String,seed:int)->RouteGame:
 		var priority:Array=["sunflower","repeater","wallnut","healing_gourd","melon_pult","torchwood","umbrella_leaf","cherry_bomb","plantern","lily_pad" if id=="4-22" else "jalapeno"]
 		if id=="4-19":priority=["sunflower","repeater","wallnut","healing_gourd","melon_pult","torchwood","umbrella_leaf","cherry_bomb","cactus","blover"]
 		if id=="4-23":priority=["sunflower","repeater","wallnut","torchwood","cherry_bomb","cactus","mirror_reed","plantern","pumpkin","tallnut"]
+		if id=="4-24":priority=["sunflower","repeater","wallnut","torchwood","umbrella_leaf","cherry_bomb","melon_pult","healing_gourd","tallnut","jalapeno"]
 		for kind in priority:
 			if pool.has(kind) and cards.size()<Game.MAX_SEED_SLOTS:cards.append(kind)
 		for kind in pool:
@@ -408,7 +409,7 @@ func run_case(stage_id:String,choice:String,seed:int,cap:float=1200.0)->Dictiona
 			boss_states[key].health=z.health;boss_states[key].phase=int(z.touhou_encounter.get("index",0))+1;boss_states[key].phase_count=z.touhou_encounter.phases.size();boss_states[key].complete=z.touhou_encounter.get("complete",false)
 		if g.level_time>=next_sample:
 			timeline.append({"time":g.level_time,"alive_fusions":alive,"placed":audit.size(),"held":count_cards(g),"sun":g.sun_points,"zombies":g.zombies.size(),"bosses":boss_states.duplicate(true)})
-			if stage_id=="4-23" and int(next_sample)%120==0:print("SANAE_ROUTE_PROGRESS ",JSON.stringify({"tier":tier,"seed":seed,"time":g.level_time,"alive_fusions":alive,"sun":g.sun_points,"bosses":boss_actors.duplicate(true),"losses":g.fusion_deaths.size(),"support_spawns":g.spawn_log.filter(func(s):return s.support_call).size()}))
+			if stage_id in ["4-23","4-24"] and int(next_sample)%120==0:print("SANAE_ROUTE_PROGRESS " if stage_id=="4-23" else "KANAKO_ROUTE_PROGRESS ",JSON.stringify({"tier":tier,"seed":seed,"time":g.level_time,"alive_fusions":alive,"sun":g.sun_points,"bosses":boss_actors.duplicate(true),"losses":g.fusion_deaths.size(),"support_spawns":g.spawn_log.filter(func(s):return s.support_call).size()}))
 			next_sample+=10.0
 		if g.battle_state!=g.BATTLE_PLAYING:break
 	input_failures.append_array(audit_combat_grid(g))
