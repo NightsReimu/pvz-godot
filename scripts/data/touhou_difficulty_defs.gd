@@ -47,6 +47,7 @@ const CUSTOM_EXTRA_BOSSES := ["hakutaku_boss", "mokou_boss", "suika_boss", "shiz
 
 # Source amplification is independent of difficulty and character tuning.
 # Ordinary reinforcements do not acquire it merely by sharing a Boss's lawn.
+const Routes = preload("res://scripts/data/canon_route_defs.gd")
 const OUTGOING_DAMAGE_MULTIPLIER := 5.0
 const WIND_GOD_BOSSES := ["shizuha_boss","minoriko_boss","hina_boss","nitori_boss","momiji_boss","aya_boss","sanae_boss","kanako_boss"]
 # Wind God encounters now share the common Touhou damage factor.
@@ -234,42 +235,19 @@ static func spell_variant(kind: String, level: Dictionary, entry: Array) -> Arra
 			var variant := entry.duplicate(true)
 			variant[0] = "th07-%03d" % (45 + group * 4 + rank)
 			if rank >= 2:
-				var harder := [["骚符「Live Poltergeist」", "live_poltergeist", "live_poltergeist"], ["伪弦「Pseudo Stradivarius」", "pseudo_stradivarius", "lunasa"], ["管灵「Ghost Clifford」", "ghost_clifford", "merlin"], ["键灵「Bösendorfer神奏」", "bosendorfer", "lyrica"], ["合葬「Prism Concerto」", "prism_concerto", "concerto"], ["大合葬「灵车大协奏曲%s」" % ("改" if rank == 2 else "怪"), "concerto_grosso", "live_poltergeist"]]
+				var harder := [
+					["骚符「Live Poltergeist」", "live_poltergeist", "live_poltergeist"],
+					[["神弦「Stradivarius」", "伪弦「Pseudo Stradivarius」"][rank - 2], "pseudo_stradivarius", "lunasa"],
+					[["冥管「Ghost Clifford」", "管灵「Ghost Clifford」"][rank - 2], "ghost_clifford", "merlin"],
+					["键灵「贝森朵夫神奏」", "bosendorfer", "lyrica"],
+					["骚葬「Stygian Riverside」", "stygian_riverside", "concerto"],
+					["大合葬「灵车大协奏曲%s」" % ("改" if rank == 2 else "怪"), "concerto_grosso", "live_poltergeist"],
+				]
 				for field in range(3):
 					variant[field + 1] = harder[group][field]
 			return variant
-	if rank < 2 or is_extra(level):
+	# Fixtures and non-battle views without a chosen difficulty read the
+	# canonical Normal catalogue.
+	if is_extra(level) or not level.has("touhou_difficulty"):
 		return entry
-	var result := entry.duplicate(true)
-	var index := 1 if rank == 3 else 0
-	var variants := {}
-	if kind == "remilia_boss":
-		variants = {
-			"th06-42": ["th06-47", "神罚「年幼的恶魔领主」", "young_demon_lord"],
-			"th06-43": ["th06-48", "狱符「千根针的针山」", "thousand_needles"],
-			"th06-44": ["th06-49", "神术「吸血鬼幻想」", "vampire_illusion"],
-			"th06-45": ["th06-50", "红符「Scarlet Meister」", "scarlet_meister"],
-			"th06-46": ["th06-51", "「红色的幻想乡」", "scarlet_gensokyo"],
-		}
-	elif kind == "keine_boss":
-		variants = {
-			"th08-037": [["th08-038", "th08-039"][index], entry[1], entry[2]],
-			"th08-041": [["th08-042", "th08-043"][index], ["野符「义满危机」", "野符「GHQ危机」"][index], "keine_crisis"],
-			"th08-045": [["th08-046", "th08-047"][index], ["国符「三种神器·镜」", "国体「三种神器·乡」"][index], "keine_mirror"],
-			"th08-049": [["th08-050", "th08-051"][index], "虚史「幻想乡传说」", "keine_legend"],
-			"th08-052": [["th08-053", "th08-054"][index], entry[1], entry[2]],
-		}
-	elif kind == "yuyuko_boss":
-		variants = {
-			"th07-094": [["th07-095", "th07-096"][index], "亡乡「亡我乡 -%s-」" % ["无道之路", "自尽"][index], entry[2]],
-			"th07-098": [["th07-099", "th07-100"][index], "亡舞「生者必灭之理 -%s-」" % ["毒蛾", "魔境"][index], entry[2]],
-			"th07-102": [["th07-103", "th07-104"][index], ["华灵「Deep-Rooted Butterfly」", "华灵「Butterfly Delusion」"][index], entry[2]],
-			"th07-106": [["th07-107", "th07-108"][index], "幽曲「埋骨于弘川 -%s-」" % ["幻灵", "神灵"][index], entry[2]],
-			"th07-110": [["th07-111", "th07-112"][index], "樱符「完全墨染的樱花 -%s-」" % ["春眠", "开花"][index], entry[2]],
-			"th07-114": [["th07-115", "th07-116"][index], "「反魂蝶 -%s-」" % ["五分咲", "八分咲"][index], entry[2]],
-		}
-	if variants.has(String(entry[0])):
-		var replacement: Array = variants[String(entry[0])]
-		for field in range(3):
-			result[field] = replacement[field]
-	return result
+	return Routes.variant(kind, rank, entry)

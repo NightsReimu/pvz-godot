@@ -88,8 +88,13 @@ func _test_sakuya_knife_skills_use_distinct_effect_shapes() -> bool:
 	game.call("_trigger_sakuya_boss_skill", boss)
 	boss["boss_skill_cycle"] = 1
 	game.call("_trigger_sakuya_boss_skill", boss)
-	var passed = _assert_true(game.touhou_danmaku.bullets.size() >= 20, "Clock Corpse should place a knife ring") \
-		and _assert_true(String(game.touhou_danmaku.bullets[0].shape) == "knife", "Sakuya bullets should render as knives") \
+	# As in TH06, Clock Corpse scatters first and stops time to lay its knives;
+	# the cast lives as long as its owner is on the field.
+	boss["health"] = 1000.0
+	game.zombies.append(boss)
+	game.touhou_danmaku.update(1.4)
+	var knives: Array = game.touhou_danmaku.bullets.filter(func(b): return String(b.shape) == "knife")
+	var passed = _assert_true(knives.size() >= 20, "Clock Corpse should place a knife ring") \
 		and _assert_true(game.boss_time_stop_timer > 0.0, "Clock Corpse should freeze its knives during placement")
 	_free_game(game)
 	return passed

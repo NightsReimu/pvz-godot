@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6.3** · **当前版本 v1.0.184** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6.3** · **当前版本 v1.0.185** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -29,9 +29,13 @@
 | 僵尸与 Boss 定义（含 297 种融合） | 445 |
 | 关卡定义 | 202 |
 | 主世界 | 8 |
-| 自动测试入口（187 个 Godot、22 个 Python） | 209 |
+| 自动测试入口（188 个 Godot、22 个 Python） | 210 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
+
+**v1.0.185 红魔乡、妖妖梦、永夜抄符卡还原与演出美化**：风神录以外的东方 Boss（1-17～1-23、2-25～2-31、3-19～3-21）按原作重做弹幕结构：冰柱先上后落的 Icicle Fall、冻结时变白的 Perfect Freeze、彩虹风铃与彩雨、五行元素球与水银之毒、先乱射后时停的 Clock Corpse 与布满飞刀的 Luna Clock、草坪上的六芒星激光与会反弹拖尾的 Red Magic、横扫全场的莱瓦汀、笼目格子、钟面激光指针、燕尾蝶轮廓、西行妖花瓣、萤火蛰居与夜盲等。各难度换上原作各自的符卡编号与名称（如 Hailstorm、The World、Stygian Riverside、三魂七魄），并更正了莉格露、米斯蒂娅的符卡表；咲夜只在时间类符卡停止时间。子弹全部重绘，激光带预告线，30 位 Boss 有了各自的宣言符号、魔法阵与施法光环；每张卡的伤害压力按上一版校准。[版本说明](docs/releases/v1.0.185.md) · [原作对照与验证](docs/plans/2026-10-09-touhou-canon-rework.md)。
+
+![红魔乡、妖妖梦符卡还原：六芒星激光、莱瓦汀、笼目、钟面激光、水银之毒与燕尾蝶的原生截图](docs/readme/touhou-canon-cards-v185.jpg)
 
 **v1.0.184 风神录符卡还原与演出美化**：4-19 至 4-23 的秋静叶、秋穰子、键山雏、河城荷取、犬走椛、射命丸文、东风谷早苗按风神录原作重做弹幕结构并适配六行草坪：静叶的追踪炮台与狂乱落叶、穰子的交叉秋空与预告线收获激光（L 逼近红激光）、雏的生理节律变速螺旋、两角交叉的破损护符与真正的 winder 厄运之轮、荷取交汇于目标植物的双激光与倾斜潮涌、文的三种非符（含双层甜甜圈环）、铺开后分时坠落的八衢道路网与 20/28 方向木叶隐身、早苗交叉并在 H/L 边缘反射的客星激光、红散蓝墙的星之仪式与 34+16 方向神风。统一美化子弹、预告线与激光、宣言封印、Boss 脚下魔法阵与施法光环；坚果墙、高坚果、南瓜头会挡下风神录激光，所有弹幕保持至少 1 秒无害预警，各卡伤害压力按上一版校准。[版本说明](docs/releases/v1.0.184.md) · [原作对照与验证](docs/plans/2026-10-09-wind-god-canon-rework.md)。
 

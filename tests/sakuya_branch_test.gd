@@ -221,6 +221,14 @@ func _test_sakuya_time_stop_starts_and_freezes_other_units() -> bool:
 		return false
 	var boss = game.zombies[boss_index]
 	boss["boss_skill_cycle"] = 2
+	# Time stops on her time cards; point the encounter at Luna Clock.
+	if boss.has("touhou_encounter"):
+		var encounter: Dictionary = boss.touhou_encounter
+		for phase_index in range(encounter.phases.size()):
+			for attack_index in range(encounter.phases[phase_index].size()):
+				if String(encounter.phases[phase_index][attack_index][2]) == "luna_clock":
+					encounter.index = phase_index
+					encounter.attack = attack_index
 	game.zombies[boss_index] = boss
 	boss = game.call("_trigger_sakuya_boss_skill", boss)
 	game.zombies[boss_index] = boss
@@ -267,6 +275,14 @@ func _test_sakuya_time_stop_keeps_plants_in_place() -> bool:
 	var before_cells = _occupied_grid_cells(game)
 	var boss = game.zombies[boss_index]
 	boss["boss_skill_cycle"] = 2
+	# Time stops on her time cards; point the encounter at Luna Clock.
+	if boss.has("touhou_encounter"):
+		var encounter: Dictionary = boss.touhou_encounter
+		for phase_index in range(encounter.phases.size()):
+			for attack_index in range(encounter.phases[phase_index].size()):
+				if String(encounter.phases[phase_index][attack_index][2]) == "luna_clock":
+					encounter.index = phase_index
+					encounter.attack = attack_index
 	game.zombies[boss_index] = boss
 	boss = game.call("_trigger_sakuya_boss_skill", boss)
 	game.zombies[boss_index] = boss

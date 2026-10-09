@@ -46,6 +46,12 @@ static func emit(runtime: RefCounted, cast: Dictionary) -> void:
 			runtime._fan(cast, origin, 11, PI + sin(turn * 1.4 + member * 2.1) * 0.5, 1.7, 135 + member * 24, color, "note", {"angular_speed": 0.18 * (member - 1)})
 			if wave % 3 == member:
 				runtime._ring(cast, origin, 12, turn, 100, color, "note")
+		elif pattern == "stygian_riverside":
+			# Stygian Riverside: each sister pours a winding river of notes
+			# downstream while the other two answer with ripples.
+			runtime._fan(cast, origin, 7, PI + sin(turn * 1.2 + member * 2.1) * 0.35, 0.8, 120 + member * 20, color, "note", {"cm": true, "sway_amp": 16.0, "sway_freq": 3.2, "sway_phase": member * 2.1})
+			if wave % 3 == member:
+				runtime._ring(cast, origin, 14, turn + member, 95, color, "rice")
 		elif pattern == "concerto_grosso":
 			runtime._fan(cast, origin, 13, PI + sin(turn * 1.7 + member * 2.1) * 0.5, 1.8, 150 + member * 28, color, "note", {"angular_speed": 0.16 * (member - 1)})
 			if wave % 2 == member % 2:

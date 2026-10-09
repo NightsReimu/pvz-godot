@@ -25,9 +25,14 @@ const BEAM_STYLES := {
 	"miracle": [Color("74d6f2"), Color("f4fff9")],
 }
 const INK := Color("1d1a24")
+const CanonThemes = preload("res://scripts/data/touhou_fx_themes.gd")
+const Glyphs = preload("res://scripts/ui/touhou_glyphs.gd")
 
 static func theme(kind: String) -> Dictionary:
-	return THEMES.get(kind, THEMES.sanae_boss)
+	return THEMES.get(kind, CanonThemes.CANON.get(kind, THEMES.sanae_boss))
+
+static func has_theme(kind: String) -> bool:
+	return THEMES.has(kind) or CanonThemes.CANON.has(kind)
 
 static func noise(a: int, b: int = 0) -> float:
 	var h: int = a * 374761393 + b * 668265263 + 1442695041
@@ -195,7 +200,8 @@ static func draw_beam(game: Control, beam: Dictionary) -> void:
 	var board := Rect2(game.BOARD_ORIGIN, game.board_size)
 	var outline := PackedVector2Array([board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)])
 	var clipped: Array = Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([beam.from, beam.to]), outline)
-	var style: Array = BEAM_STYLES.get(String(beam.wg_style), BEAM_STYLES.miracle)
+	# Beams of the other Touhou bosses carry only their colour: derive a core.
+	var style: Array = BEAM_STYLES.get(String(beam.get("wg_style", "")), [Color(beam.get("color", BEAM_STYLES.miracle[0])), Color(beam.get("color", BEAM_STYLES.miracle[0])).lerp(Color.WHITE, 0.78)])
 	var tint: Color = style[0]
 	var core: Color = style[1]
 	var age := float(beam.age)
@@ -288,6 +294,7 @@ static func glyph(game: CanvasItem, center: Vector2, radius: float, kind: String
 			game.draw_line(center - axis * radius, center + axis * radius, tint, maxf(1.5, radius * 0.5), true)
 			game.draw_line(center - axis * radius * 0.5 - side * radius * 0.4, center - axis * radius * 0.5 + side * radius * 0.4, Color(1, 0.9, 0.65, tint.a), maxf(1.0, radius * 0.18), true)
 		_:
+			if Glyphs.draw(game, center, radius, kind, angle, tint): return
 			var points := PackedVector2Array()
 			for i in range(10):
 				points.append(center + Vector2.from_angle(angle - PI * 0.5 + TAU * i / 10.0) * radius * (1.0 if i % 2 == 0 else 0.45))
@@ -323,7 +330,7 @@ static func draw_effect(game: Control, effect: Dictionary) -> bool:
 	var shape := String(effect.get("shape", ""))
 	if not shape.ends_with("_spell_seal"): return false
 	var kind := shape.trim_suffix("_spell_seal") + "_boss"
-	if not THEMES.has(kind) or kind == "kanako_boss": return false
+	if not has_theme(kind) or kind == "kanako_boss": return false
 	var ratio := clampf(float(effect.time) / maxf(0.01, float(effect.duration)), 0.0, 1.0)
 	var grow := 1.0 - ratio
 	var p := Vector2(effect.position)

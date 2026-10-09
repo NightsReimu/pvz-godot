@@ -2,40 +2,41 @@ extends RefCounted
 
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
 const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
+const Glyphs = preload("res://scripts/ui/touhou_glyphs.gd")
 const DURATION := 1.65
 const THEMES := {
 	"shizuha_boss": [Color("f07846"), "maple"],
 	"minoriko_boss": [Color("f3cc71"), "grain"],
-	"hakutaku_boss": [Color("aee69b"), "ofuda"],
-	"mokou_boss": [Color("ff9869"), "petal"],
-	"kaguya_boss": [Color("efb7d6"), "clock"],
-	"eirin_boss": [Color("ff9aaa"), "cross"],
+	"hakutaku_boss": [Color("aee69b"), "scroll"],
+	"mokou_boss": [Color("ff9869"), "flame"],
+	"kaguya_boss": [Color("efb7d6"), "jewel"],
+	"eirin_boss": [Color("ff9aaa"), "arrow"],
 	"reisen_boss": [Color("fa668d"), "eye"],
-	"tewi_boss": [Color("f2c0cd"), "petal"],
-	"reimu_boss": [Color("f7667e"), "ofuda"],
+	"tewi_boss": [Color("f2c0cd"), "clover"],
+	"reimu_boss": [Color("f7667e"), "yinyang"],
 	"marisa_boss": [Color("ffd97b"), "star"],
-	"rumia_boss": [Color("db769a"), "diamond"],
-	"daiyousei_boss": [Color("91df9f"), "petal"],
-	"cirno_boss": [Color("91e6ff"), "ice"],
-	"meiling_boss": [Color("ffbc85"), "petal"],
-	"koakuma_boss": [Color("e4a1ed"), "diamond"],
-	"patchouli_boss": [Color("d2adff"), "star"],
+	"rumia_boss": [Color("db769a"), "moon"],
+	"daiyousei_boss": [Color("91df9f"), "flower"],
+	"cirno_boss": [Color("91e6ff"), "snow"],
+	"meiling_boss": [Color("ffbc85"), "rainbow"],
+	"koakuma_boss": [Color("e4a1ed"), "book"],
+	"patchouli_boss": [Color("d2adff"), "element"],
 	"sakuya_boss": [Color("a6e4f3"), "clock"],
-	"remilia_boss": [Color("f97598"), "diamond"],
-	"flandre_boss": [Color("ffb191"), "diamond"],
-	"letty_boss": [Color("b5dfff"), "ice"],
-	"chen_boss": [Color("ffbf80"), "ofuda"],
-	"alice_boss": [Color("a9ceff"), "star"],
-	"lily_white_boss": [Color("f5eabc"), "petal"],
+	"remilia_boss": [Color("f97598"), "bat"],
+	"flandre_boss": [Color("ffb191"), "crystal"],
+	"letty_boss": [Color("b5dfff"), "snow"],
+	"chen_boss": [Color("ffbf80"), "pentagram"],
+	"alice_boss": [Color("a9ceff"), "doll"],
+	"lily_white_boss": [Color("f5eabc"), "flower"],
 	"prismriver_boss": [Color("dab5ff"), "note"],
-	"youmu_boss": [Color("b4efd9"), "diamond"],
-	"yuyuko_boss": [Color("fbb1d6"), "petal"],
-	"ran_boss": [Color("ffe4a0"), "ofuda"],
-	"yukari_boss": [Color("d1a1ff"), "ofuda"],
-	"wriggle_boss": [Color("b8ea81"), "petal"],
-	"mystia_boss": [Color("edb6e3"), "note"],
-	"keine_boss": [Color("a5e5e8"), "ofuda"],
-	"suika_boss": [Color("f2b072"), "diamond"],
+	"youmu_boss": [Color("b4efd9"), "sword"],
+	"yuyuko_boss": [Color("fbb1d6"), "butterfly"],
+	"ran_boss": [Color("ffe4a0"), "fox"],
+	"yukari_boss": [Color("d1a1ff"), "gap"],
+	"wriggle_boss": [Color("b8ea81"), "firefly"],
+	"mystia_boss": [Color("edb6e3"), "feather"],
+	"keine_boss": [Color("a5e5e8"), "scroll"],
+	"suika_boss": [Color("f2b072"), "gourd"],
 	"nitori_boss": [Color("6fd3f2"), "drop"],
 	"kanako_boss": [Color("ef5a63"), "pillar"],
 	"hina_boss": [Color("6fe0b0"), "ribbon"],
@@ -119,6 +120,8 @@ static func glyph(canvas: CanvasItem, center: Vector2, radius: float, kind: Stri
 		canvas.draw_circle(center, radius * 0.4, color, true, -1, true)
 		canvas.draw_line(center + side * radius * 0.3, center + side * radius * 0.3 - axis * radius * 1.7, color, 2, true)
 		canvas.draw_line(center + side * radius * 0.3 - axis * radius * 1.7, center + side * radius * 1.05 - axis * radius * 1.3, color, 2, true)
+	elif Glyphs.draw(canvas, center, radius, kind, angle, color):
+		return
 	else:
 		var vertices := 5 if kind == "star" else (6 if kind == "petal" else 4)
 		var points := PackedVector2Array()

@@ -22,6 +22,11 @@ const KaguyaDanmaku = preload("res://scripts/runtime/kaguya_danmaku.gd")
 const ExtraDanmaku = preload("res://scripts/runtime/touhou_extra_danmaku.gd")
 const FinaleDanmaku = preload("res://scripts/runtime/touhou_finale_danmaku.gd")
 const DeclarationFX = preload("res://scripts/runtime/spell_declaration_fx.gd")
+const CanonMotion = preload("res://scripts/runtime/touhou_canon_motion.gd")
+const BulletArt = preload("res://scripts/runtime/touhou_bullet_art.gd")
+const EosdDanmaku = preload("res://scripts/runtime/eosd_danmaku.gd")
+const PcbDanmaku = preload("res://scripts/runtime/pcb_danmaku.gd")
+const NightDanmaku = preload("res://scripts/runtime/imperishable_road_danmaku.gd")
 const MAX_BULLETS := 480
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
@@ -88,6 +93,9 @@ func cast(boss: Dictionary) -> Dictionary:
 		duration = float(card.camouflage_duration)
 	if String(boss.kind) in ["momiji_boss", "aya_boss", "sanae_boss", "kanako_boss"]:
 		duration = float(card.get("duration", 4.0))
+	var canon_module = _canon_module(String(boss.kind), pattern)
+	if canon_module != null:
+		duration = canon_module.duration(card, pattern, duration)
 	if pattern == "pressure_lunar_domain":
 		# A full crossing, portal warning and return must play even under burst damage.
 		duration = 9.0
@@ -120,6 +128,9 @@ func cast(boss: Dictionary) -> Dictionary:
 		session["autumn_full"] = true
 	if String(boss.kind) == "prismriver_boss":
 		session["instrument_points"] = PrismriverTrio.bodies(game, boss).map(func(body): return Vector2(body.position))
+	if canon_module != null:
+		# Reworked TH06-08 cards schedule their own volleys on the cast clock.
+		session["own_clock"] = true
 	casts.append(session)
 	if String(card.origin) == "nonspell":
 		game._show_banner(String(card.name), 1.8)
@@ -128,14 +139,25 @@ func cast(boss: Dictionary) -> Dictionary:
 	if pattern == "wraith_charm":
 		game._spawn_youmu_wraiths_from(center, 2 + mini(int(session.phase), 1), int(session.phase))
 		session.next_wave = duration + 1.0
-	if pattern in ["luna_clock", "clock_corpse"]:
+	if pattern == "luna_clock" or (pattern == "clock_corpse" and canon_module == null):
 		game.boss_time_stop_timer = 2.2
 		game.boss_time_stop_flash_timer = 0.5
 	_update_actors(session)
 	_emit_wave(session)
 	session.wave = 1
-	session.next_wave = maxf(float(session.next_wave), 0.62 * Difficulty.attack_cadence(String(boss.kind), game.current_level))
+	if not bool(session.get("own_clock", false)):
+		session.next_wave = maxf(float(session.next_wave), 0.62 * Difficulty.attack_cadence(String(boss.kind), game.current_level))
 	return game._set_rumia_state(boss, String(card.pose), duration)
+
+
+func _canon_module(kind: String, pattern: String):
+	# The reworked TH06-08 cards; difficulty originals and finales keep their emitters.
+	if pattern.begins_with("pressure_") or pattern.begins_with("finale_"):
+		return null
+	if kind in EosdDanmaku.KINDS and EosdDanmaku.owns(pattern): return EosdDanmaku
+	if kind in PcbDanmaku.KINDS and PcbDanmaku.owns(pattern): return PcbDanmaku
+	if kind in NightDanmaku.KINDS and NightDanmaku.owns(pattern): return NightDanmaku
+	return null
 
 
 func update(delta: float) -> void:
@@ -193,7 +215,7 @@ func _tick(delta: float) -> void:
 				interval = lerpf(0.68, 0.24, float(session.age) / float(session.duration))
 			# Aki/Hina and full-form emitters already assign the next absolute
 			# deadline. Only these full encounters omit the old duplicate delay.
-			if not bool(session.get("autumn_full", false)) or float(session.next_wave) <= float(session.age):
+			if not (bool(session.get("autumn_full", false)) or bool(session.get("own_clock", false))) or float(session.next_wave) <= float(session.age):
 				session.next_wave += interval * Difficulty.attack_cadence(String(session.kind), game.current_level)
 		if float(session.get("focus_until", 0.0)) > float(session.age):
 			focused_owners[owner] = true
@@ -224,9 +246,13 @@ func _bullet(c: Dictionary, origin: Vector2, angle: float, speed: float, color: 
 	if bullets.size() >= MAX_BULLETS:
 		return
 	var intensity = 1.0 + minf(0.3, float(c.get("wave", 0)) * 0.018) + float(c.get("phase", 0)) * 0.05
+	if bool(c.get("own_clock", false)):
+		# Authored clocks fire many short volleys; keep their speeds per card.
+		intensity = 1.0 + float(c.get("phase", 0)) * 0.05
 	var b := {"owner": int(c.owner), "kind": String(c.kind), "position": origin, "velocity": Vector2.from_angle(angle) * speed * intensity, "age": 0.0, "life": 7.0, "radius": DANMAKU_BASE_RADIUS, "damage": DANMAKU_BASE_DAMAGE + float(c.get("phase", 0)) * DANMAKU_PHASE_DAMAGE, "color": color, "shape": shape}
 	b.merge(extra, true)
 	b.velocity *= Difficulty.attack_speed(String(c.kind), game.current_level)
+	b["speed_factor"] = intensity * Difficulty.attack_speed(String(c.kind), game.current_level)
 	b.damage *= Difficulty.attack_damage(String(c.kind), game.current_level, int(c.get("phase", 0)))
 	if bool(c.get("autumn_full", false)):
 		# The six-row mobile board can be very wide and shallow. Author these
@@ -287,6 +313,8 @@ func _actor(c: Dictionary, index: int, kind: String, position: Vector2, pose: St
 
 
 func _update_actors(c: Dictionary) -> void:
+	if bool(c.get("own_clock", false)) and _canon_module(String(c.kind), String(c.pattern)).update_actors(self, c):
+		return
 	if c.card.has("finale_move") and String(c.kind) == "alice_boss":
 		for i in range(5):
 			_actor(c, i, "alice_doll_zombie", _point(0.80 + sin(float(c.age) * 0.8 + i) * 0.025, 0.10 + i * 0.20))
@@ -311,6 +339,9 @@ func _emit_wave(c: Dictionary) -> void:
 		FinaleDanmaku.emit(self, c)
 		if bool(c.get("autumn_full", false)) and String(c.kind) == "hina_boss":
 			HinaDanmaku.accompany_finale(self, c)
+		return
+	if bool(c.get("own_clock", false)):
+		_canon_module(String(c.kind), String(c.pattern)).emit(self, c)
 		return
 	if String(c.kind) == "hina_boss":
 		HinaDanmaku.emit(self, c)
@@ -882,6 +913,8 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			before = WindGodFX.advance_bullet(self, b, before, motion_delta)
 		if String(b.kind) == "mokou_boss":
 			MokouDanmaku.advance_bullet(b, motion_delta)
+		if b.has("cm"):
+			before = CanonMotion.advance(self, b, before, motion_delta)
 		var hit := false
 		if age >= float(b.get("arming_time", 0.0)) and not bool(b.get("reisen_phantom", false)):
 			if bool(b.get("reflected", false)):
@@ -950,6 +983,8 @@ func _tick_beams(delta: float, owners: Dictionary) -> void:
 					break
 		if String(beam.kind) == "marisa_boss":
 			MarisaDanmaku.advance_beam(beam, delta)
+		elif beam.has("cm"):
+			CanonMotion.advance_beam(beam, delta)
 		beam.age += delta
 		if float(beam.age) >= float(beam.delay):
 			if bool(beam.get("sword_cut", false)) and not bool(beam.get("cut_done", false)):
@@ -1090,8 +1125,9 @@ func draw() -> void:
 		var pulse_radius = (42.0 + pulse_window * 34.0) * cue_scale
 		var pulse_alpha = 0.08 + pulse_window * 0.18
 		var pulse_color := Color(1.0, 0.78, 0.35, pulse_alpha) if String(c.kind) == "marisa_boss" else Color(1.0, 0.16, 0.18, pulse_alpha)
-		game.draw_circle(pulse_center, pulse_radius, pulse_color, false, 2.0, true)
-		if pulse_window > 0.65:
+		if not bool(c.get("own_clock", false)):
+			game.draw_circle(pulse_center, pulse_radius, pulse_color, false, 2.0, true)
+		if pulse_window > 0.65 and not bool(c.get("own_clock", false)):
 			var warning_angle = (cast_age * 2.7) - PI * 0.5
 			game.draw_arc(pulse_center, pulse_radius + 10.0 * cue_scale, warning_angle, warning_angle + PI * 0.54, 22, Color(1.0, 0.72, 0.28, 0.78), maxf(1.0, 3.0 * cue_scale), true)
 		if float(c.get("focus_until", 0.0)) > float(c.age):
@@ -1119,7 +1155,8 @@ func draw() -> void:
 		if bool(beam.get("kanako_pillar", false)):
 			KanakoDanmaku.draw_beam(game, beam)
 			continue
-		if beam.has("wg_style"):
+		if beam.has("wg_style") or not (bool(beam.get("spark", false)) or bool(beam.get("sword_cut", false))):
+			# Every ordinary Touhou laser shares the styled warning line and glow.
 			WindGodFX.draw_beam(game, beam)
 			continue
 		var clipped = Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([beam.from, beam.to]), outline)
@@ -1155,6 +1192,7 @@ func draw() -> void:
 		if String(c.kind) == "nitori_boss": NitoriDanmaku.draw_cast(game, c)
 		if String(c.kind) in ["shizuha_boss", "minoriko_boss"]: AkiDanmaku.draw_cast(game, c)
 		if String(c.kind) in ["momiji_boss", "aya_boss"]: TenguDanmaku.draw_cast(game, c)
+		if bool(c.get("own_clock", false)): _canon_module(String(c.kind), String(c.pattern)).draw_cast(game, c)
 	for b in bullets:
 		var point = Vector2(b.position)
 		var color = Color(b.color)
@@ -1188,6 +1226,11 @@ func draw() -> void:
 			if String(b.get("reisen_illusion", "")) != "invisible":
 				var ghost: Vector2 = point + Vector2(0, sin(float(b.age) * 6) * radius * 4)
 				game.draw_arc(ghost, radius * 1.2, 0, TAU, 12, Color(color, 0.38), 1.2, true)
+			continue
+		if BulletArt.handles(String(b.shape)):
+			BulletArt.draw(game, b, crowded, game.boss_time_stop_timer > 0.0)
+			if bool(b.get("reflected", false)):
+				_draw_reflected(b, point, radius)
 			continue
 		if float(b.age) < float(b.get("arming_time", 0.0)):
 			color.a = 0.36
@@ -1265,18 +1308,22 @@ func draw() -> void:
 		if bool(b.get("frozen", false)) or game.boss_time_stop_timer > 0.0:
 			game.draw_arc(point, radius + 3, 0, TAU, 12, Color(0.85, 0.98, 1, 0.65), 1, true)
 		if bool(b.get("reflected", false)):
-			var reflected_dir := Vector2(b.get("reflect_direction", Vector2(b.velocity).normalized()))
-			if reflected_dir.is_zero_approx():
-				reflected_dir = Vector2(b.velocity).normalized()
-			var reflected_age := float(b.get("reflect_age", 0.0))
-			var reflected_fade := clampf(1.0 - reflected_age / 2.8, 0.18, 1.0)
-			var reflected_color := Color(0.62, 0.92, 1.0, reflected_fade)
-			var tail_length := 22.0 + minf(78.0, reflected_age * 90.0)
-			var tail_start: Vector2 = point - reflected_dir * tail_length
-			game.draw_line(tail_start, point, Color(0.48, 0.86, 1.0, reflected_fade * 0.18), radius * 2.8, true)
-			game.draw_line(tail_start, point, Color(0.88, 1.0, 1.0, reflected_fade * 0.72), maxf(1.5, radius * 0.42), true)
-			game.draw_arc(point, radius + 5.0 + sin(float(game.level_time) * 8.0) * 1.5, 0.0, TAU, 18, reflected_color, 1.8, true)
-			game.draw_circle(point, radius * 0.42, Color(1.0, 1.0, 1.0, reflected_fade * 0.9))
+			_draw_reflected(b, point, radius)
+
+
+func _draw_reflected(b: Dictionary, point: Vector2, radius: float) -> void:
+	var reflected_dir := Vector2(b.get("reflect_direction", Vector2(b.velocity).normalized()))
+	if reflected_dir.is_zero_approx():
+		reflected_dir = Vector2(b.velocity).normalized()
+	var reflected_age := float(b.get("reflect_age", 0.0))
+	var reflected_fade := clampf(1.0 - reflected_age / 2.8, 0.18, 1.0)
+	var reflected_color := Color(0.62, 0.92, 1.0, reflected_fade)
+	var tail_length := 22.0 + minf(78.0, reflected_age * 90.0)
+	var tail_start: Vector2 = point - reflected_dir * tail_length
+	game.draw_line(tail_start, point, Color(0.48, 0.86, 1.0, reflected_fade * 0.18), radius * 2.8, true)
+	game.draw_line(tail_start, point, Color(0.88, 1.0, 1.0, reflected_fade * 0.72), maxf(1.5, radius * 0.42), true)
+	game.draw_arc(point, radius + 5.0 + sin(float(game.level_time) * 8.0) * 1.5, 0.0, TAU, 18, reflected_color, 1.8, true)
+	game.draw_circle(point, radius * 0.42, Color(1.0, 1.0, 1.0, reflected_fade * 0.9))
 
 
 func _draw_bullet_polygon(polygon: PackedVector2Array, color: Color) -> void:

@@ -16,6 +16,7 @@ const Kanako = preload("res://scripts/data/kanako_spell_defs.gd")
 const Tengu = preload("res://scripts/data/tengu_spell_defs.gd")
 const Suika = preload("res://scripts/data/suika_spell_defs.gd")
 const Kaguya = preload("res://scripts/data/kaguya_spell_defs.gd")
+const Routes = preload("res://scripts/data/canon_route_defs.gd")
 
 # TH06/TH07 Normal routes, followed by Extra/Phantasm where specified.
 # Columns: reference ID, display name, pattern, animation pose.
@@ -62,7 +63,7 @@ const CARDS := {
 	"remilia_boss": [
 		["th06-42", "天罚「Star of David」", "david", "magic"],
 		["th06-43", "冥符「红色的冥界」", "scarlet_nether", "scarlet"],
-		["th06-44", "诅咒「弗拉德·特佩斯的诅咒」", "vlad", "magic"],
+		["th06-44", "咒诅「弗拉德·采佩什的诅咒」", "vlad", "magic"],
 		["th06-45", "红符「Scarlet Shoot」", "scarlet_shoot", "scarlet"],
 		["th06-46", "「Red Magic」", "red_magic", "scarlet"],
 	],
@@ -143,26 +144,12 @@ const CARDS := {
 		["th07-140", "结界「生与死的界线」", "life_death", "barrier"],
 		["th07-141", "紫奥义「弹幕结界」", "danmaku_barrier", "infinite"],
 	],
-	"wriggle_boss": [
-		["th08-01", "灯符「Firefly Phenomenon」", "wriggle_firefly", "firefly"],
-		["th08-02", "蛍符「地上の彗星」", "wriggle_comet", "firefly"],
-		["th08-03", "灯符「ファイヤフライフェノメノン」", "wriggle_swarm", "swarm"],
-		["th08-04", "蠢符「ナイトバグストーム」", "wriggle_storm", "swarm"],
-		["th08-05", "蠢符「リトルバグ」", "wriggle_little_bug", "swarm"],
-		["th08-06", "終符「永夜蟄居」", "wriggle_final", "final"],
-	],
-	"mystia_boss": [
-		["th08-07", "声符「木菟咆哮」", "mystia_song", "song"],
-		["th08-08", "声符「木菟咆哮」", "mystia_song", "song"],
-		["th08-09", "夜盲「夜雀之歌」", "mystia_nightblind", "song"],
-		["th08-10", "鸟符「飞翔颈木菟」", "mystia_flight", "wing"],
-		["th08-11", "声符「木菟咆哮」", "mystia_crescendo", "crescendo"],
-		["th08-12", "终符「夜雀食堂」", "mystia_finale", "final"],
-	],
+	"wriggle_boss": Routes.WRIGGLE.normal,
+	"mystia_boss": Routes.MYSTIA.normal,
 	"keine_boss": [
-		["th08-037", "始符「短命的137」", "keine_ephemerality", "history"],
-		["th08-041", "野符「将门危机」", "keine_masakado", "edict"],
-		["th08-045", "国符「三种神器·玉」", "keine_treasures", "treasures"],
+		["th08-037", "始符「Ephemerality 137」", "keine_ephemerality", "history"],
+		["th08-041", "野符「将门的危机」", "keine_masakado", "edict"],
+		["th08-045", "国符「三种神器 玉」", "keine_treasures", "treasures"],
 		["th08-049", "终符「幻想天皇」", "keine_emperor", "emperor"],
 		["th08-052", "未来「高天原」", "keine_takamagahara", "final"],
 		["original-keine-whip", "教令「环身戒鞭」", "keine_whip", "whip"],
@@ -279,6 +266,10 @@ static func cards_for(kind: String, level: Dictionary = {}) -> Array:
 		return Reimu.cards(level)
 	if kind == "marisa_boss":
 		return Marisa.cards(level)
+	if kind == "wriggle_boss":
+		return Routes.WRIGGLE.get(String(level.get("touhou_difficulty", "normal")), Routes.WRIGGLE.normal).duplicate(true)
+	if kind == "mystia_boss":
+		return Routes.MYSTIA.get(String(level.get("touhou_difficulty", "normal")), Routes.MYSTIA.normal).duplicate(true)
 	if String(level.get("mid_boss_kind", "")) == kind and not bool(level.get("mid_boss_final_preview", false)):
 		if kind == "patchouli_boss":
 			return PATCHOULI_EXTRA
@@ -290,7 +281,9 @@ static func cards_for(kind: String, level: Dictionary = {}) -> Array:
 			return CHEN_EXTRA
 		if kind == "youmu_boss":
 			return YOUMU_MIDBOSS
-	return CARDS.get(kind, [])
+	if Difficulty.is_extra(level) or not level.has("touhou_difficulty"):
+		return CARDS.get(kind, [])
+	return Routes.with_inserts(kind, int(Difficulty.profile(level).rank), CARDS.get(kind, []))
 
 
 static func card_for(boss: Dictionary, level: Dictionary = {}) -> Dictionary:

@@ -38,6 +38,8 @@ const ZombieEquipment = preload("res://scripts/runtime/zombie_equipment.gd")
 const FusionZombieVisuals = preload("res://scripts/ui/fusion_zombie_visuals.gd")
 const TouhouSpellDefs = preload("res://scripts/data/touhou_spell_defs.gd")
 const TouhouDanmakuRuntime = preload("res://scripts/runtime/touhou_danmaku_runtime.gd")
+const TouhouFxThemes = preload("res://scripts/data/touhou_fx_themes.gd")
+const TouhouBulletArt = preload("res://scripts/runtime/touhou_bullet_art.gd")
 const TouhouPhaseRuntime = preload("res://scripts/runtime/touhou_phase_runtime.gd")
 const KeineBossRuntime = preload("res://scripts/runtime/keine_boss_runtime.gd")
 const TouhouSpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
@@ -17438,9 +17440,13 @@ func _apply_touhou_boss_battlefield_skill(zombie: Dictionary) -> Dictionary:
 		"patchouli_boss":
 			_spawn_blood_library_hazard("patchouli_boss")
 		"sakuya_boss":
+			# Her reworked cards stop time on their own beats (Clock Corpse,
+			# Luna Clock, Marionette); the others no longer open on a stop.
+			var sakuya_pattern := String(TouhouSpellDefs.card_for(zombie, current_level).get("pattern", ""))
 			var stop_duration = 1.05 + phase * 0.2
-			boss_time_stop_timer = maxf(boss_time_stop_timer, stop_duration)
-			boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.48)
+			if sakuya_pattern not in ["nonspell_knife_fan", "misdirection", "clock_corpse", "marionette", "eternal_meek"]:
+				boss_time_stop_timer = maxf(boss_time_stop_timer, stop_duration)
+				boss_time_stop_flash_timer = maxf(boss_time_stop_flash_timer, 0.48)
 			# Luna Clock freezes the lawn and rains knives into marked lanes. It
 			# never teleports already-planted units; their grid identity stays stable.
 			zombie["sakuya_relocations_remaining"] = 0
@@ -17461,7 +17467,8 @@ func _apply_touhou_boss_battlefield_skill(zombie: Dictionary) -> Dictionary:
 					"anim_speed": 8.2,
 					"color": Color(0.82, 0.9, 1.0, 0.4),
 				})
-			effects.append({"shape": "sakuya_time_grid", "position": center, "radius": 220.0 + phase * 24.0, "width": board_size.y * 0.44, "time": stop_duration, "duration": stop_duration, "anim_speed": 8.6, "color": Color(0.82, 0.9, 1.0, 0.3)})
+			if sakuya_pattern not in ["nonspell_knife_fan", "misdirection", "clock_corpse", "marionette", "eternal_meek"]:
+				effects.append({"shape": "sakuya_time_grid", "position": center, "radius": 220.0 + phase * 24.0, "width": board_size.y * 0.44, "time": stop_duration, "duration": stop_duration, "anim_speed": 8.6, "color": Color(0.82, 0.9, 1.0, 0.3)})
 		"remilia_boss":
 			var cells = _remilia_target_cells(row, 3 + phase, 2)
 			for cell_variant in cells:
@@ -27090,6 +27097,9 @@ func _draw_effects() -> void:
 			continue
 		if shape.ends_with("_spell_seal") and WindGodFX.draw_effect(self, effect):
 			continue
+		if shape.begins_with("canon_"):
+			TouhouBulletArt.draw_effect(self, effect)
+			continue
 		var anim_speed = float(effect.get("anim_speed", 4.0))
 		# Elemental impact shapes take priority over the generic legacy hit texture.
 		if shape == "projectile_impact":
@@ -32581,7 +32591,13 @@ func _draw_zombie(center: Vector2, zombie: Dictionary) -> void:
 		state = zombie.duplicate(true)
 		state.kind = FusionZombieDefs.base_kind(String(zombie.kind))
 		ZombieEquipment.apply_recipe(state, String(zombie.kind))
+	# Formal spell cards of the TH06-08 bosses raise a themed sigil and aura.
+	var canon_aura := TouhouFxThemes.has(String(zombie.kind))
+	if canon_aura:
+		WindGodFX.draw_boss_aura(self, center + Vector2(0.0, -10.0), zombie, true)
 	_draw_zombie_body(center, state)
+	if canon_aura:
+		WindGodFX.draw_boss_aura(self, center + Vector2(0.0, -10.0), zombie, false)
 	FusionZombieVisuals.draw(self, center, state)
 
 
