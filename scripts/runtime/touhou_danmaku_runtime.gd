@@ -10,6 +10,7 @@ const HinaDanmaku = preload("res://scripts/runtime/hina_danmaku.gd")
 const NitoriDanmaku = preload("res://scripts/runtime/nitori_danmaku.gd")
 const SanaeDanmaku = preload("res://scripts/runtime/sanae_danmaku.gd")
 const KanakoDanmaku = preload("res://scripts/runtime/kanako_danmaku.gd")
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 const TenguDanmaku = preload("res://scripts/runtime/tengu_danmaku.gd")
 const AkiDanmaku = preload("res://scripts/runtime/aki_danmaku.gd")
 const SuikaDanmaku = preload("res://scripts/runtime/suika_danmaku.gd")
@@ -877,8 +878,8 @@ func _tick_bullets(delta: float, owners: Dictionary, focused_owners: Dictionary 
 			before = MarisaDanmaku.advance_bullet(b, before, motion_delta)
 		elif String(b.kind) == "reisen_boss":
 			before = ReisenDanmaku.advance_bullet(b, before)
-		elif String(b.kind) == "kanako_boss":
-			before = KanakoDanmaku.advance_bullet(self, b, before, motion_delta)
+		elif String(b.kind) in WindGodFX.KINDS:
+			before = WindGodFX.advance_bullet(self, b, before, motion_delta)
 		if String(b.kind) == "mokou_boss":
 			MokouDanmaku.advance_bullet(b, motion_delta)
 		var hit := false
@@ -954,7 +955,10 @@ func _tick_beams(delta: float, owners: Dictionary) -> void:
 			if bool(beam.get("sword_cut", false)) and not bool(beam.get("cut_done", false)):
 				_cut_spirit_bullets(beam)
 				beam["cut_done"] = true
-			_hit_plant_segment(beam.from, beam.to, float(beam.width) * 0.5, float(beam.damage), beam.hits, false)
+			if beam.has("wg_style"):
+				WindGodFX.hit_beam(self, beam)
+			else:
+				_hit_plant_segment(beam.from, beam.to, float(beam.width) * 0.5, float(beam.damage), beam.hits, false)
 		if float(beam.age) >= float(beam.delay) + float(beam.duration):
 			beams.remove_at(index)
 
@@ -1115,6 +1119,9 @@ func draw() -> void:
 		if bool(beam.get("kanako_pillar", false)):
 			KanakoDanmaku.draw_beam(game, beam)
 			continue
+		if beam.has("wg_style"):
+			WindGodFX.draw_beam(game, beam)
+			continue
 		var clipped = Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([beam.from, beam.to]), outline)
 		if clipped.is_empty() or clipped[0].size() < 2:
 			continue
@@ -1144,6 +1151,10 @@ func draw() -> void:
 	for c in casts:
 		if String(c.kind) == "sanae_boss": SanaeDanmaku.draw_cast(game, c)
 		if String(c.kind) == "kanako_boss": KanakoDanmaku.draw_cast(game, c)
+		if String(c.kind) == "hina_boss": HinaDanmaku.draw_cast(game, c)
+		if String(c.kind) == "nitori_boss": NitoriDanmaku.draw_cast(game, c)
+		if String(c.kind) in ["shizuha_boss", "minoriko_boss"]: AkiDanmaku.draw_cast(game, c)
+		if String(c.kind) in ["momiji_boss", "aya_boss"]: TenguDanmaku.draw_cast(game, c)
 	for b in bullets:
 		var point = Vector2(b.position)
 		var color = Color(b.color)

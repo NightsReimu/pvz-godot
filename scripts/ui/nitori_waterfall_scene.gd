@@ -1,4 +1,5 @@
 extends RefCounted
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 
 const SpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
@@ -100,6 +101,8 @@ static func draw_boss(game: Control, center: Vector2, boss: Dictionary) -> void:
 		# Optical camouflage: a faint bent-light silhouette until a lantern finds her.
 		alpha = 0.78 if revealed else 0.20 + 0.08 * sin(t * 5.0)
 	var anchor := center + Vector2(0, -unit * 0.34)
+	var shown := not camouflaged or revealed
+	if shown: WindGodFX.draw_boss_aura(game, center, boss, true)
 	if float(boss.get("touhou_cast_remaining", 0)) > 0 and not camouflaged:
 		for i in range(2):
 			var r := unit * (0.42 + i * 0.12) + sin(t * 4.0 + i) * unit * 0.03
@@ -111,7 +114,9 @@ static func draw_boss(game: Control, center: Vector2, boss: Dictionary) -> void:
 			for offset in [-1, 1]:
 				var shift := Vector2(offset * unit * 0.035 * (1.0 + sin(t * 7.0 + offset)), 0)
 				game.draw_texture_rect(texture, Rect2(rect.position + shift, rect.size), false, Color(0.55, 0.95, 1.0, 0.10))
+		if shown and float(boss.get("touhou_cast_remaining", 0)) > 0: WindGodFX.draw_sprite_glow(game, texture, rect, WATER, 1.0)
 		game.draw_texture_rect(texture, rect, false, Color(1, 1, 1, alpha * (1 - float(boss.get("flash", 0)) * 0.25)))
+	if shown: WindGodFX.draw_boss_aura(game, center, boss, false)
 	if camouflaged:
 		var tint := LANTERN if revealed else WATER
 		for i in range(3):

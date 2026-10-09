@@ -1,4 +1,5 @@
 extends RefCounted
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 
 const WHITE := Color("eae9d9")
 const RED := Color("d85950")
@@ -51,37 +52,48 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 				dm._beam(c,Vector2(origin.x,y),Vector2(game.BOARD_ORIGIN.x,y),WHITE,1.3,maxf(2,game.CELL_SIZE.y*.055),{"damage":12.0,"duration":.22})
 			cadence=1.75
 		"nonspell_aya_wind":
-			dm._fan(c,origin,9,aim,.9,172*scale,WIND,"tengu_feather",_extra(scale,12.0))
-			_lanes(dm,c,origin,scale,3,3,WHITE,"tengu_feather",12.0,144)
-			cadence=1.35
-		"aya_crossroads":
-			# Four braided, branching roads. Red and white forks cross at the body.
-			for side in [-1,1]:
-				for branch in [0,1]:
-					var angle: float=PI+side*(.15+branch*.30)+sin(turn)*.1
-					dm._fan(c,origin,5,angle,.32, (145+branch*22)*scale,WHITE if branch==0 else RED,"tengu_feather",_extra(scale,14.0,-side*.06))
+			# Three different openings, as in TH10: a feather ring, then a fast
+			# clockwise and a slow counter-clockwise "pon de ring", then larger
+			# rings at a shorter interval.
+			var opening: int=mini(2,int(c.stage))
+			if opening==0:
+				dm._ring(c,origin,12,turn,128*scale,WIND,"tengu_feather",_extra(scale,12.0))
+				dm._fan(c,origin,5,aim,.5,172*scale,WHITE,"tengu_feather",_extra(scale,12.0))
+				_lanes(dm,c,origin,scale,3,3,WHITE,"tengu_feather",12.0,144)
+				cadence=1.35
+			else:
+				var clusters: int=5 if opening==1 else 7
+				_ponde(dm,c,origin,scale,clusters,turn,150*scale,.26,RED,3.2 if opening==1 else 4.2)
+				_ponde(dm,c,origin,scale,clusters,-turn+.3,96*scale,-.2,Color("6fa8e8"),3.2 if opening==1 else 4.6)
+				cadence=1.45 if opening==1 else 1.25
+		"aya_crossroads","aya_saruta_cross":
+			# 天之八衢 / 猿田彦: a lattice of crossing roads is laid out and held,
+			# then its bullets drop away one by one at hashed moments.
+			var saruta := String(c.pattern)=="aya_saruta_cross"
+			_crossroads(dm,c,scale,saruta)
+			dm._fan(c,origin,5,aim,.5,168*scale,RED,"tengu_feather",_extra(scale,15.0 if saruta else 14.0))
 			_lanes(dm,c,origin,scale,2,3,WIND,"tengu_leaf",13.0,125)
-			cadence=1.35
-		"aya_saruta_cross":
-			for branch in range(6):
-				var angle: float=PI+(branch-2.5)*.23+sin(turn)*.12
-				dm._fan(c,origin,5,angle,.28,(144+branch%3*20)*scale,WHITE if branch%2 else RED,"tengu_feather",_extra(scale,15.0,(branch%2*2-1)*.075))
-			cadence=1.3
+			cadence=1.2 if not saruta else 1.45
 		"aya_leaf_veiling":
-			for layer in range(2): dm._fan(c,origin,9,PI+sin(turn+layer)*.20,1.5,(116+layer*28)*scale,RED if layer else WIND,"tengu_leaf",_extra(scale,13.0,.20*(1 if layer else -1)))
-			_lanes(dm,c,origin,scale,3,3,WHITE,"tengu_feather",13.0,150)
-			cadence=1.4
+			# Two half-fixed leaf rings turning against each other: about 20-way
+			# on Easy and 28-way above, after the Wind God density.
+			_veil(dm,c,origin,scale,12 if rank==0 else 14,wave,0.0,13.0)
+			_lanes(dm,c,origin,scale,5,3,WHITE,"tengu_feather",13.0,150)
+			cadence=1.15
 		"aya_tengu_fall":
-			# Downhill wind enters from the mountain crest and bends toward the house.
-			for i in range(6):
-				var edge: Vector2=dm._point(.40+fposmod(wave*.047+i*.09,.56),0)
-				dm._fan(c,edge,4,PI*.76,.35,136*scale,WIND if i%2 else WHITE,"tengu_feather",_extra(scale,15.0,-.07))
+			# Hard scatters the same rings badly, and a downhill gust enters
+			# from the mountain crest.
+			_veil(dm,c,origin,scale,14,wave,.35,15.0,1.0,.62)
 			_lanes(dm,c,origin,scale,3,3,RED,"tengu_leaf",14.0,150)
-			cadence=1.35
+			for i in range(3):
+				var edge: Vector2=dm._point(.40+fposmod(wave*.047+i*.17,.56),0)
+				dm._fan(c,edge,3,PI*.76,.3,136*scale,WIND if i%2 else WHITE,"tengu_feather",_extra(scale,15.0,-.07))
+			cadence=1.2
 		"aya_storm_day":
-			for layer in range(2): dm._fan(c,origin,13,PI+sin(turn+layer)*.25,1.8,(142+layer*24)*scale,WHITE if layer else WIND,"tengu_feather",_extra(scale,16.0,.17*(1 if layer else -1)))
-			dm._ring(c,origin,10,-turn,105*scale,RED,"tengu_leaf",_extra(scale,14.0,.2))
-			cadence=1.25
+			# The 210th day: faster crossing rings, scattered, every 1.3s.
+			_veil(dm,c,origin,scale,16,wave,.25,16.0,1.25,.62)
+			_lanes(dm,c,origin,scale,4,3,RED,"tengu_leaf",15.0,160)
+			cadence=1.05
 		"aya_fantasy_storm", "aya_peerless_wind":
 			# Native timed survival owns invulnerability; these are real moving-body
 			# wind trails, not teleported hitboxes or a last-card shortcut.
@@ -91,11 +103,16 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 			if wave%2==0: dm._ring(c,origin,8,turn,108*scale,RED,"tengu_leaf",_extra(scale,13.0,.16))
 			cadence=1.16 if peerless else 1.25
 		"aya_procession", "aya_divine_advent", "aya_terukuni":
-			var hard := String(c.pattern)!="aya_procession"
-			_wall(dm,c,origin,scale,posmod(wave+int(c.stage),game.active_rows.size()),4 if hard else 3,138 if hard else 126)
-			if hard: dm._fan(c,origin,9,aim,1.05,168*scale,RED,"tengu_feather",_extra(scale,16.0))
-			if String(c.pattern)=="aya_terukuni": dm._ring(c,origin,12,turn,117*scale,GOLD,"tengu_leaf",_extra(scale,16.0,-.13))
-			cadence=1.4
+			# Fixed rows of scales plus a ring of rice at a hashed angle.
+			var tier: int=["aya_procession","aya_divine_advent","aya_terukuni"].find(String(c.pattern))
+			var rows: int=4+tier
+			for i in range(rows):
+				var angle: float=PI+(i-(rows-1)*.5)*.3
+				for k in range(maxi(3,ceili((3 if tier==0 else 4)*dm._attack_density_for_cast(c)))):
+					dm._bullet(c,origin,angle,(112+k*16)*scale,WHITE if i%2 else WIND,"tengu_scale",_extra(scale,15.0+tier))
+			dm._ring(c,origin,9+tier*2,WindGodFX.noise(wave,11)*TAU,(98+tier*10)*scale,RED,"tengu_rice",_extra(scale,15.0))
+			if String(c.pattern)=="aya_terukuni": dm._ring(c,origin,10,turn,117*scale,GOLD,"tengu_leaf",_extra(scale,16.0,-.13))
+			cadence=1.5 if tier==0 else 1.3
 		"aya_headwind":
 			_lanes(dm,c,origin,scale,4,5,WIND,"tengu_leaf",13.0,126)
 			dm._fan(c,origin,7,aim,.8,165*scale,WHITE,"tengu_feather",_extra(scale,14.0))
@@ -119,6 +136,52 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 			dm._fan(c,origin,9,aim,1.1,180*scale,RED,"tengu_leaf",_extra(scale,15.0,-.12))
 			cadence=1.3
 	c.next_wave=float(c.age)+maxf(.82,cadence*game.TouhouDifficulty.attack_cadence(String(c.kind),game.current_level))
+
+static func _ponde(dm: RefCounted,c: Dictionary,origin: Vector2,scale: float,clusters: int,base: float,speed: float,turn: float,tint: Color,cluster_radius: float) -> void:
+	# A "pon de ring": a ring of small rings that keep their shape in flight.
+	clusters=maxi(3,ceili(clusters*dm._attack_density_for_cast(c)*.6))
+	for i in range(clusters):
+		var a: float=base+TAU*i/clusters
+		for k in range(4):
+			var offset := Vector2.from_angle(TAU*k/4.0)*cluster_radius*scale
+			dm._bullet(c,origin+offset,a,speed,tint,"tengu_orb",_extra(scale,12.0,turn))
+
+static func _veil(dm: RefCounted,c: Dictionary,origin: Vector2,scale: float,base_count: int,wave: int,scatter: float,damage: float,pace: float=1.0,arc: float=1.0) -> void:
+	# arc<1 keeps the Hard/Lunatic gusts inside a leftward sector, so their
+	# denser rings spend the shared bullet budget over the lawn.
+	var count: int=ceili(base_count*dm._attack_density_for_cast(c))
+	var start: float=WindGodFX.noise(wave,1)*TAU if arc>=1.0 else PI-arc*PI+WindGodFX.noise(wave,1)*.3
+	for layer in range(2):
+		for i in range(count):
+			var jitter: float=(WindGodFX.noise(wave*31+i,layer)-.5)*scatter
+			var extra := _extra(scale,damage,(.22 if layer==0 else -.22)*pace)
+			dm._bullet(c,origin,start+TAU*arc*i/count+layer*PI*arc/count+jitter,(104+layer*22)*scale*pace*(1.0+jitter*.6),Color("df5a48") if layer else WIND,"tengu_leaf",extra)
+
+static func _crossroads(dm: RefCounted,c: Dictionary,scale: float,saruta: bool) -> void:
+	var game: Control=dm.game
+	var board := Rect2(game.BOARD_ORIGIN,game.board_size)
+	var wave: int=int(c.wave)
+	var centers: Array=[Vector2(board.position.x+board.size.x*(.55+.12*WindGodFX.noise(wave,2)),board.position.y+board.size.y*(.3+.4*WindGodFX.noise(wave,3)))]
+	if saruta: centers.append(Vector2(board.position.x+board.size.x*(.35+.1*WindGodFX.noise(wave,4)),board.position.y+board.size.y*(.25+.5*WindGodFX.noise(wave,5))))
+	var roads: Array=c.get("aya_roads",[])
+	roads=roads.filter(func(road): return float(road.until)>float(c.age))
+	var step: float=maxf(10.0,game.CELL_SIZE.x*.36)
+	var density: float=dm._attack_density_for_cast(c)
+	for ci in range(centers.size()):
+		var hub: Vector2=centers[ci]
+		var angles: Array=[0.0,.62,-.62] if ci==0 else [PI*.5,.95,-.95]
+		for angle in angles:
+			var axis := Vector2.from_angle(float(angle))
+			var half: int=ceili((2.0+density)*(1.4 if saruta else 1.0))
+			roads.append({"from":hub-axis*step*half,"to":hub+axis*step*half,"until":float(c.age)+2.2})
+			for k in range(-half,half+1):
+				var p: Vector2=hub+axis*step*k
+				if not board.grow(-4).has_point(p): continue
+				var drop: float=1.0+WindGodFX.noise(wave*13+k,ci*7+int(float(angle)*10))*2.0
+				var extra := _extra(scale,15.0 if saruta else 14.0)
+				extra.merge({"freeze_at":0.0,"thaw_at":drop,"thaw_angle":0.0,"arming_time":drop,"gravity":game.CELL_SIZE.y*.6,"life":drop+6.0},true)
+				dm._bullet(c,p,PI*.62+(WindGodFX.noise(k,wave)-.5)*.4,(56+40*WindGodFX.noise(wave,k+40))*scale,WHITE if k%2 else RED,"tengu_feather",extra)
+	c["aya_roads"]=roads
 
 static func _lanes(dm: RefCounted,c: Dictionary,origin: Vector2,scale: float,count: int,shots: int,tint: Color,shape: String,damage: float,speed: float) -> void:
 	var game: Control=dm.game
@@ -144,12 +207,37 @@ static func draw_leaf(game: CanvasItem,center: Vector2,radius: float,angle: floa
 	game.draw_line(center-axis*radius,center+axis*radius,Color(WHITE,tint.a*.65),maxf(.8,radius*.16),true)
 
 static func draw_bullet(game: Control,b: Dictionary) -> void:
-	var center := Vector2(b.position); var radius := float(b.radius)
+	# Drawn larger than the collision radius so shapes read on the lawn.
+	var center := Vector2(b.position); var radius := float(b.radius)*1.4
 	var tint := Color(b.color)
 	if float(b.age)<float(b.get("arming_time",0)): tint.a*=.40
 	var heading := Vector2(b.velocity).angle(); var axis := Vector2.from_angle(heading); var side := axis.orthogonal()
+	if WindGodFX.crowded(game):
+		game.draw_circle(center,radius*1.1,Color(WindGodFX.INK,tint.a*.6))
+		game.draw_circle(center,radius*.85,tint)
+		return
+	if bool(b.get("frozen",false)): game.draw_arc(center,radius*1.9,0,TAU,12,Color(WHITE,tint.a*.5),1.0,true)
 	match String(b.shape):
-		"tengu_leaf": draw_leaf(game,center,radius,heading+sin(float(b.age)*4)*.22,tint)
+		"tengu_leaf":
+			draw_leaf(game,center+Vector2(1,1.5),radius*1.15,heading+sin(float(b.age)*4)*.22,Color(INK,tint.a*.35))
+			draw_leaf(game,center,radius*1.1,heading+sin(float(b.age)*4)*.22,tint)
+		"tengu_scale":
+			var shell := PackedVector2Array([center+axis*radius*2.0,center+side*radius*.95-axis*radius*.2,center-axis*radius*1.25,center-side*radius*.95-axis*radius*.2])
+			game.draw_colored_polygon(shell,tint)
+			shell.append(shell[0])
+			game.draw_polyline(shell,Color(INK,tint.a*.8),1.1,true)
+			game.draw_line(center-axis*radius*.6,center+axis*radius*1.2,Color(1,1,1,tint.a*.8),1.0,true)
+		"tengu_rice":
+			var grain := PackedVector2Array()
+			for i in range(10):
+				var t := TAU*i/10.0
+				grain.append(center+axis*cos(t)*radius*1.7+side*sin(t)*radius*.6)
+			game.draw_colored_polygon(grain,tint)
+			game.draw_line(center-axis*radius*.8,center+axis*radius*.8,Color(1,1,1,tint.a*.85),1.0,true)
+		"tengu_orb":
+			game.draw_circle(center,radius*1.2,Color(INK,tint.a*.7))
+			game.draw_circle(center,radius*.95,tint)
+			game.draw_circle(center,radius*.45,Color(1,1,1,tint.a*.85))
 		"tengu_blade":
 			game.draw_colored_polygon(PackedVector2Array([center+axis*radius*1.8,center+side*radius*.48,center-axis*radius*1.5,center-side*radius*.48]),tint)
 			game.draw_line(center-axis*radius,center+axis*radius*1.4,Color(WHITE,tint.a*.8),maxf(.7,radius*.18),true)
@@ -160,5 +248,31 @@ static func draw_bullet(game: Control,b: Dictionary) -> void:
 			game.draw_line(center-long*.7-wide*.65,center-long*.7+wide*.65,Color(RED,tint.a),maxf(1,radius*.22),true)
 			for i in range(3): game.draw_line(center+long*(-.2+i*.4)-wide*.65,center+long*(-.2+i*.4)+wide*.65,Color(INK,tint.a*.8),maxf(.7,radius*.13),true)
 		"tengu_feather":
-			game.draw_colored_polygon(PackedVector2Array([center+axis*radius*1.7,center+axis*radius*.15+side*radius*.8,center-axis*radius*1.5,center-axis*radius*.25-side*radius*.65]),tint)
-			game.draw_line(center-axis*radius*1.6,center+axis*radius*1.5,Color(WHITE,tint.a*.75),maxf(.7,radius*.18),true)
+			var vane := PackedVector2Array([center+axis*radius*1.9,center+axis*radius*.15+side*radius*.9,center-axis*radius*1.6,center-axis*radius*.25-side*radius*.72])
+			game.draw_colored_polygon(vane,tint)
+			vane.append(vane[0])
+			game.draw_polyline(vane,Color(INK,tint.a*.55),1.0,true)
+			game.draw_line(center-axis*radius*1.8,center+axis*radius*1.7,Color(WHITE,tint.a*.85),maxf(.7,radius*.2),true)
+			for k in range(3): game.draw_line(center+axis*radius*(-.8+k*.6),center+axis*radius*(-1.1+k*.6)+side*radius*.55,Color(WHITE,tint.a*.45),.8,true)
+
+static func draw_cast(game: Control,c: Dictionary) -> void:
+	var unit: float=minf(game.CELL_SIZE.x,game.CELL_SIZE.y)
+	var age: float=float(c.age)
+	var origin := Vector2(c.center)
+	for road in c.get("aya_roads",[]):
+		# The laid-out roads glow faintly until their bullets have fallen.
+		var left: float=clampf((float(road.until)-age)/2.2,0.0,1.0)
+		game.draw_line(road.from,road.to,Color(WIND,.18*left),maxf(2.0,unit*.12),true)
+		game.draw_line(road.from,road.to,Color(WHITE,.35*left),1.0,true)
+	match String(c.pattern):
+		"aya_leaf_veiling","aya_tengu_fall","aya_storm_day","nonspell_aya_wind":
+			# Her hauchiwa fan swirls the wind into a visible vortex.
+			for k in range(3):
+				var a: float=age*(3.0+k)+TAU*k/3.0
+				game.draw_arc(origin,unit*(.35+k*.13),a,a+PI*.9,18,Color(WIND,.5-k*.12),maxf(1.0,unit*.03),true)
+		"momiji_sentinel","momiji_maple_guard","nonspell_momiji_patrol","nonspell_momiji_cross":
+			# Momiji's thousand-league sight: a slow scan line over the lawn.
+			var board := Rect2(game.BOARD_ORIGIN,game.board_size)
+			var x: float=board.end.x-fposmod(age*.35,1.0)*board.size.x
+			game.draw_line(Vector2(x,board.position.y),Vector2(x,board.end.y),Color(RED,.18),maxf(2.0,unit*.08),true)
+			game.draw_line(Vector2(x,board.position.y),Vector2(x,board.end.y),Color(WHITE,.35),1.0,true)

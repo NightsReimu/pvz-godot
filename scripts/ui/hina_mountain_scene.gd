@@ -1,4 +1,5 @@
 extends RefCounted
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 
 const SpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
@@ -77,6 +78,7 @@ static func draw_boss(game: Control, center: Vector2, boss: Dictionary) -> void:
 	var unit: float = minf(game.CELL_SIZE.x, game.CELL_SIZE.y)
 	var radius := unit * 0.44
 	game.draw_circle(anchor, radius, Color(JADE, 0.075))
+	if not prelude: WindGodFX.draw_boss_aura(game, center, boss, true)
 	for arm in range(3):
 		var trail := PackedVector2Array()
 		for i in range(18):
@@ -90,9 +92,11 @@ static func draw_boss(game: Control, center: Vector2, boss: Dictionary) -> void:
 		var rect := Rect2(center + Vector2(-size.x * width * 0.5, SpriteDefs.top_offset("hina_boss") + sin(t * 3) * 2), Vector2(size.x * width, size.y))
 		if float(boss.get("touhou_cast_remaining", 0)) > 0:
 			game.draw_texture_rect(texture, Rect2(rect.position + Vector2(-unit * 0.05, 0), rect.size), false, Color(0.3, 1.0, 0.86, 0.10))
+			if not prelude: WindGodFX.draw_sprite_glow(game, texture, rect, JADE, 1.0)
 		game.draw_texture_rect(texture, rect, false, Color(1, 1, 1, alpha * (1 - float(boss.get("flash", 0)) * 0.25)))
 	# The spiral position marker remains readable during both cosmetic fades.
 	for i in range(4):
 		var angle := -t * 2.2 + i * TAU / 4
 		var point := anchor + Vector2(cos(angle) * radius * 1.05, sin(angle) * radius * 0.46)
 		game.draw_circle(point, maxf(1.6, unit * 0.026), Color(JADE, 0.7))
+	if not prelude: WindGodFX.draw_boss_aura(game, center, boss, false)

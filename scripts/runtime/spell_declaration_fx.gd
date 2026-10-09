@@ -1,6 +1,7 @@
 extends RefCounted
 
 const ThemeLib = preload("res://scripts/ui/game_theme.gd")
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 const DURATION := 1.65
 const THEMES := {
 	"shizuha_boss": [Color("f07846"), "maple"],
@@ -37,6 +38,10 @@ const THEMES := {
 	"suika_boss": [Color("f2b072"), "diamond"],
 	"nitori_boss": [Color("6fd3f2"), "drop"],
 	"kanako_boss": [Color("ef5a63"), "pillar"],
+	"hina_boss": [Color("6fe0b0"), "ribbon"],
+	"momiji_boss": [Color("efe6cf"), "shield"],
+	"aya_boss": [Color("bfe6d6"), "feather"],
+	"sanae_boss": [Color("8fe3c0"), "star"],
 }
 
 
@@ -101,6 +106,8 @@ static func glyph(canvas: CanvasItem, center: Vector2, radius: float, kind: Stri
 		points.append(points[0])
 		canvas.draw_polyline(points, color, 1.6, true)
 		canvas.draw_circle(center - axis * radius * 0.25 + side * radius * 0.2, radius * 0.16, Color(1, 1, 1, color.a))
+	elif kind in ["ribbon", "feather", "shield", "gear"]:
+		WindGodFX.glyph(canvas, center, radius, kind, angle, color)
 	elif kind == "pillar":
 		# A small onbashira with its rope band, for Kanako's declarations.
 		var base := center + axis * radius * 0.9

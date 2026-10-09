@@ -1,4 +1,5 @@
 extends RefCounted
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 
 const SpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
 const TenguDanmaku = preload("res://scripts/runtime/tengu_danmaku.gd")
@@ -222,9 +223,11 @@ static func draw_boss(game: Control,center: Vector2,boss: Dictionary) -> void:
 			_sprite(game,anchor,image,kind,fade,_body_fit(game,rt._world(Vector2(trail.uv)),kind))
 	var concealed: bool=not portrait and rt.is_hidden(boss)
 	var alpha := .40 if concealed else 1.0
+	if not concealed: WindGodFX.draw_boss_aura(game,point,boss,true)
 	var texture: Texture2D=game._try_get_boss_frame_texture(kind,rt.frame_index(boss))
 	_sprite(game,point,texture,kind,alpha*(1.0-float(boss.get("flash",0.0))*.25),body_fit)
 	var anchor := point+Vector2(0,-30*body_fit)
+	if not concealed: WindGodFX.draw_boss_aura(game,point,boss,false)
 	if kind=="momiji_boss" and float(boss.get("tengu_shield_age",-1.0))>=0.0:
 		var age := float(boss.tengu_shield_age)
 		if age<4.2:

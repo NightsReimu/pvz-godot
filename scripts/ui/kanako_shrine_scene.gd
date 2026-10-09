@@ -314,7 +314,8 @@ static func draw_boss(game:Control,center:Vector2,boss:Dictionary)->void:
 			var a:=t*.9+TAU*k/4.0
 			var p:=body+Vector2(cos(a)*72*fit,sin(a)*26*fit)
 			if sin(a)<0:Danmaku.draw_pillar(game,p+Vector2(0,20*fit),9*fit,40*fit,.85,.6)
-	game.draw_texture_rect(texture,Rect2(center+Vector2(-size.x*.5,Sprites.top_offset("kanako_boss")*fit),size),false,Color.WHITE)
+	var bob:float=0.0 if portrait else sin(t*1.8+float(boss.get("anim_phase",0.0)))*2.0*fit
+	game.draw_texture_rect(texture,Rect2(center+Vector2(-size.x*.5,Sprites.top_offset("kanako_boss")*fit+bob),size),false,Color.WHITE)
 	if casting:
 		for k in range(4):
 			var a:=t*.9+TAU*k/4.0

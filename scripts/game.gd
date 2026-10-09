@@ -52,6 +52,7 @@ const SanaeShrineScene = preload("res://scripts/ui/sanae_shrine_scene.gd")
 const KanakoBossRuntime = preload("res://scripts/runtime/kanako_boss_runtime.gd")
 const KanakoLevelDefs = preload("res://scripts/data/level_defs_kanako.gd")
 const KanakoShrineScene = preload("res://scripts/ui/kanako_shrine_scene.gd")
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 const TenguBossRuntime = preload("res://scripts/runtime/tengu_boss_runtime.gd")
 const TenguLevelDefs = preload("res://scripts/data/level_defs_tengu.gd")
 const NitoriWaterfallScene = preload("res://scripts/ui/nitori_waterfall_scene.gd")
@@ -27086,6 +27087,8 @@ func _draw_effects() -> void:
 			continue
 		if shape.begins_with("kanako_"):
 			KanakoShrineScene.draw_effect(self, effect)
+			continue
+		if shape.ends_with("_spell_seal") and WindGodFX.draw_effect(self, effect):
 			continue
 		var anim_speed = float(effect.get("anim_speed", 4.0))
 		# Elemental impact shapes take priority over the generic legacy hit texture.

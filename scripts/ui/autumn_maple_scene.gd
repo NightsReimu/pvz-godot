@@ -1,4 +1,5 @@
 extends RefCounted
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 
 const SpriteDefs = preload("res://scripts/data/touhou_sprite_defs.gd")
 const Leaves = preload("res://scripts/runtime/aki_danmaku.gd")
@@ -50,10 +51,14 @@ static func draw_boss(game: Control, center: Vector2, boss: Dictionary) -> void:
 	var bob := sin(animation) * 3.0
 	var tint := Color("ee6642") if kind == "shizuha_boss" else Color("f1c36b")
 	game.draw_circle(center + Vector2(0, -24), 48.0, Color(tint, 0.10))
+	WindGodFX.draw_boss_aura(game, center, boss, true)
 	if texture != null:
 		var frame_size: Vector2 = texture.get_size() * scale
-		game.draw_texture_rect(texture, Rect2(center + Vector2(-frame_size.x * 0.5, SpriteDefs.top_offset(kind) + 10.0 + bob), frame_size), false, Color(1, 1, 1, 1.0 - float(boss.get("flash", 0)) * 0.25))
+		var frame := Rect2(center + Vector2(-frame_size.x * 0.5, SpriteDefs.top_offset(kind) + 10.0 + bob), frame_size)
+		if float(boss.get("touhou_cast_remaining", 0)) > 0: WindGodFX.draw_sprite_glow(game, texture, frame, tint, 1.0)
+		game.draw_texture_rect(texture, frame, false, Color(1, 1, 1, 1.0 - float(boss.get("flash", 0)) * 0.25))
 	for i in range(5):
 		var angle := animation * 0.65 + TAU * i / 5.0
 		var point: Vector2 = center + Vector2(cos(angle) * 40.0, -22 + sin(angle) * 22.0)
 		Leaves.draw_leaf(game, point, 5.0, angle, Color(tint, 0.55))
+	WindGodFX.draw_boss_aura(game, center, boss, false)

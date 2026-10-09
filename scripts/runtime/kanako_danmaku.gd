@@ -1,4 +1,5 @@
 extends RefCounted
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 # Kanako's TH10 stage6 emitters, adapted to six horizontal lanes. Angles that
 # the original randomises use a deterministic hash, so a spell never draws
 # from the combat RNG and a replayed wave keeps its topology.
@@ -342,39 +343,8 @@ static func emit(dm: RefCounted, c: Dictionary) -> void:
 
 # ------------------------------------------------------------------ motion
 
-static func advance_bullet(dm: RefCounted, b: Dictionary, before: Vector2, _delta: float) -> Vector2:
-	var age := float(b.age)
-	if b.has("snake_x0"):
-		var s: float = maxf(0.0, float(b.snake_speed) * age - float(b.snake_lag))
-		var k := float(b.snake_k)
-		var amp := float(b.snake_amp)
-		b.position = Vector2(float(b.snake_x0) - s, float(b.snake_y0) + amp * sin(k * s + float(b.snake_phase)))
-		b.velocity = Vector2(-float(b.snake_speed), amp * k * float(b.snake_speed) * cos(k * s + float(b.snake_phase)))
-		b["dormant"] = s <= 0.0 and int(b.get("segment", 0)) > 0
-		return Vector2(b.position) if bool(b.dormant) else before
-	if b.has("lob_from"):
-		var t := clampf(age / maxf(0.05, float(b.lob_time)), 0.0, 1.0)
-		var from := Vector2(b.lob_from)
-		var to := Vector2(b.lob_to)
-		var height := float(b.lob_height)
-		b.position = from.lerp(to, t) - Vector2(0, height * 4.0 * t * (1.0 - t))
-		var slope := (to - from) / maxf(0.05, float(b.lob_time)) - Vector2(0, height * 4.0 * (1.0 - 2.0 * t) / maxf(0.05, float(b.lob_time)))
-		b.velocity = slope
-		if t >= 1.0:
-			# The arrow buries itself in the aimed cell instead of sliding on.
-			b.erase("lob_from")
-			b["life"] = age + 0.06
-		return before
-	if b.has("gravity"):
-		b.velocity = Vector2(b.velocity) + Vector2(0, float(b.gravity) * _delta)
-	if b.has("morph_at") and age >= float(b.morph_at) and not bool(b.get("morphed", false)):
-		b["morphed"] = true
-		b["morph_flash"] = age
-		b.shape = String(b.morph_shape)
-		b.velocity = dm._rotate_bullet_velocity(b, float(b.get("morph_turn", 0.0))) * float(b.get("morph_speed", 1.0))
-		b["angular_speed"] = float(b.get("morph_angular", b.get("angular_speed", 0.0)))
-		b.radius = float(b.radius) * 0.8
-	return before
+static func advance_bullet(dm: RefCounted, b: Dictionary, before: Vector2, delta: float) -> Vector2:
+	return WindGodFX.advance_bullet(dm, b, before, delta)
 
 # ------------------------------------------------------------------ drawing
 

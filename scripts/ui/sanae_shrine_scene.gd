@@ -1,4 +1,5 @@
 extends RefCounted
+const WindGodFX = preload("res://scripts/runtime/wind_god_fx.gd")
 const ThemeLib=preload("res://scripts/ui/game_theme.gd")
 const Sprites=preload("res://scripts/data/touhou_sprite_defs.gd")
 const Danmaku=preload("res://scripts/runtime/sanae_danmaku.gd")
@@ -95,7 +96,13 @@ static func draw_boss(game:Control,center:Vector2,boss:Dictionary)->void:
 	if texture==null:return
 	var scale:float=game._touhou_boss_draw_scale("sanae_boss")*fit
 	var size:Vector2=texture.get_size()*scale
-	game.draw_texture_rect(texture,Rect2(center+Vector2(-size.x*.5,Sprites.top_offset("sanae_boss")*fit),size),false,Color.WHITE)
+	WindGodFX.draw_boss_aura(game,center,boss,true)
+	# A gentle hover keeps the shrine maiden alive between poses.
+	var bob:float=0.0 if portrait else sin(game.ui_time*2.2+float(boss.get("anim_phase",0.0)))*2.0*fit
+	var frame:=Rect2(center+Vector2(-size.x*.5,Sprites.top_offset("sanae_boss")*fit+bob),size)
+	if float(boss.get("touhou_cast_remaining",0))>0:WindGodFX.draw_sprite_glow(game,texture,frame,Color("8fe3c0"),1.0)
+	game.draw_texture_rect(texture,frame,false,Color.WHITE)
+	WindGodFX.draw_boss_aura(game,center,boss,false)
 	if float(boss.get("touhou_cast_remaining",0))>0:
 		var turn:float=game.ui_time*.6
 		for i in range(5):Danmaku.draw_star(game,center+Vector2(cos(turn+TAU*i/5)*36,sin(turn+TAU*i/5)*15-30)*fit,3.0*fit,Color("bedf9a",.45),turn)
