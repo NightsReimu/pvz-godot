@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6.3** · **当前版本 v1.0.186** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6.3** · **当前版本 v1.0.187** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -29,9 +29,11 @@
 | 僵尸与 Boss 定义（含 297 种融合） | 445 |
 | 关卡定义 | 202 |
 | 主世界 | 8 |
-| 自动测试入口（188 个 Godot、22 个 Python） | 210 |
+| 自动测试入口（189 个 Godot、22 个 Python） | 211 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
+
+**v1.0.187 东方关卡传送带都有治愈葫芦**：所有东方关卡的传送带都会送来治愈葫芦，补上了此前缺少的 1-17～1-21、3-19、3-20（含 1-18 冰冻后的传送带）；东方传送带会自动补上治愈葫芦与镜面芦苇。[版本说明](docs/releases/v1.0.187.md)。
 
 **v1.0.186 永琳与辉夜符卡还原、按难度校准与演出优化**：3-24 的八意永琳、蓬莱山辉夜按永夜抄原作重做：收拢的壶中使魔、按生命游戏繁衍的设置弹、Omoikane 的摆动 winder、随机交错的 Apollo 13，辉夜五个难题（抛物线五色宝玉、随机激光封路、火鼠皮衣、燕的子安贝、反弹的七色弹枝）与五张各不相同的永夜归返。新增原作 Hard/Lunatic 的 Frost Columns 与少女文乐；灵梦、魔理沙、铃仙、妹红、萃香获得施法效果，莱瓦汀炎剑更醒目；子弹按数量降低绘制细节，密集时帧时间与 v1.0.184 持平；伤害系数按难度校准，467 个卡 / 难度组合中 449 个在上一基准 ±25% 以内。[版本说明](docs/releases/v1.0.186.md) · [原作对照与验证](docs/plans/2026-10-09-touhou-canon-rework.md)。
 

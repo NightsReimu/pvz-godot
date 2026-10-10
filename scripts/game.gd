@@ -20806,12 +20806,13 @@ func _coin_target() -> Vector2:
 
 
 func _ensure_touhou_conveyor_mirror() -> void:
-	# Touhou stages always hand out a mirror reed so boss danmaku can be bounced back.
-	if conveyor_source_cards.is_empty() or conveyor_source_cards.has("mirror_reed"):
+	# Touhou stages always hand out a mirror reed so boss danmaku can be bounced
+	# back, and a healing gourd so the lines can recover from it.
+	if conveyor_source_cards.is_empty() or not TouhouDifficulty.is_touhou(current_level):
 		return
-	if not TouhouDifficulty.is_touhou(current_level):
-		return
-	conveyor_source_cards.append("mirror_reed")
+	for kind in ["mirror_reed", "healing_gourd"]:
+		if not conveyor_source_cards.has(kind):
+			conveyor_source_cards.append(kind)
 
 
 func _is_rain_minigame() -> bool:
