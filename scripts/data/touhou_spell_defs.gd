@@ -274,6 +274,8 @@ static func cards_for(kind: String, level: Dictionary = {}) -> Array:
 		if kind == "patchouli_boss":
 			return PATCHOULI_EXTRA
 		if kind == "cirno_boss":
+			if level.has("touhou_difficulty") and not Difficulty.is_extra(level) and int(Difficulty.profile(level).rank) >= 2:
+				return CIRNO_MIDBOSS + [Routes.CIRNO_ROAD_HARD]
 			return CIRNO_MIDBOSS
 		if kind == "sakuya_boss":
 			return SAKUYA_MIDBOSS

@@ -1,5 +1,6 @@
 extends "res://tests/touhou_autumn_density_probe.gd"
 
+const RebuiltCards = preload("res://scripts/runtime/touhou_canon_registry.gd")
 const QUIET := ["aki_ripening", "aki_offering", "hina_delayed", "hina_doll_offering", "hina_misfire"]
 
 class LegacyDanmaku extends AuditDanmaku:
@@ -79,6 +80,11 @@ func _run() -> void:
 
 func _test_other_character_controls(controls: Array) -> void:
 	for before in controls:
+		# v1.0.185/186 deliberately rebuilt these characters' cards from the
+		# originals; touhou_canon_patterns_test covers them instead.
+		var entry_pattern := String(Spells.phases_for(before.kind, {"touhou_difficulty": "lunatic"})[0].back()[2])
+		if RebuiltCards.owns(String(before.kind), entry_pattern):
+			continue
 		var game := make_game(before.kind)
 		game.current_level.touhou_difficulty = "lunatic"
 		game.active_rows = [0, 1, 2, 3, 4, 5]

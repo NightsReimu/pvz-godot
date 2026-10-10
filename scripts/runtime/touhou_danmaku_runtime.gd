@@ -24,9 +24,8 @@ const FinaleDanmaku = preload("res://scripts/runtime/touhou_finale_danmaku.gd")
 const DeclarationFX = preload("res://scripts/runtime/spell_declaration_fx.gd")
 const CanonMotion = preload("res://scripts/runtime/touhou_canon_motion.gd")
 const BulletArt = preload("res://scripts/runtime/touhou_bullet_art.gd")
-const EosdDanmaku = preload("res://scripts/runtime/eosd_danmaku.gd")
-const PcbDanmaku = preload("res://scripts/runtime/pcb_danmaku.gd")
-const NightDanmaku = preload("res://scripts/runtime/imperishable_road_danmaku.gd")
+const CastOverlays = preload("res://scripts/runtime/touhou_cast_overlays.gd")
+const CanonRegistry = preload("res://scripts/runtime/touhou_canon_registry.gd")
 const MAX_BULLETS := 480
 const MAX_BEAMS := 72
 const STEP := 1.0 / 60.0
@@ -152,12 +151,7 @@ func cast(boss: Dictionary) -> Dictionary:
 
 func _canon_module(kind: String, pattern: String):
 	# The reworked TH06-08 cards; difficulty originals and finales keep their emitters.
-	if pattern.begins_with("pressure_") or pattern.begins_with("finale_"):
-		return null
-	if kind in EosdDanmaku.KINDS and EosdDanmaku.owns(pattern): return EosdDanmaku
-	if kind in PcbDanmaku.KINDS and PcbDanmaku.owns(pattern): return PcbDanmaku
-	if kind in NightDanmaku.KINDS and NightDanmaku.owns(pattern): return NightDanmaku
-	return null
+	return CanonRegistry.module_for(kind, pattern)
 
 
 func update(delta: float) -> void:
@@ -1115,6 +1109,7 @@ func _hit_plant_segment(from: Vector2, to: Vector2, radius: float, damage: float
 func draw() -> void:
 	var board: Rect2 = Rect2(game.BOARD_ORIGIN, game.board_size)
 	var crowded := bullets.size() >= 300
+	var art_detail := 2 if bullets.size() < 110 else (1 if bullets.size() < 200 else 0)
 	var outline = PackedVector2Array([board.position, Vector2(board.end.x, board.position.y), board.end, Vector2(board.position.x, board.end.y)])
 	for c in casts:
 		DeclarationFX.draw(game, c)
@@ -1193,6 +1188,7 @@ func draw() -> void:
 		if String(c.kind) in ["shizuha_boss", "minoriko_boss"]: AkiDanmaku.draw_cast(game, c)
 		if String(c.kind) in ["momiji_boss", "aya_boss"]: TenguDanmaku.draw_cast(game, c)
 		if bool(c.get("own_clock", false)): _canon_module(String(c.kind), String(c.pattern)).draw_cast(game, c)
+		elif String(c.kind) in CastOverlays.KINDS: CastOverlays.draw(game, c)
 	for b in bullets:
 		var point = Vector2(b.position)
 		var color = Color(b.color)
@@ -1228,7 +1224,7 @@ func draw() -> void:
 				game.draw_arc(ghost, radius * 1.2, 0, TAU, 12, Color(color, 0.38), 1.2, true)
 			continue
 		if BulletArt.handles(String(b.shape)):
-			BulletArt.draw(game, b, crowded, game.boss_time_stop_timer > 0.0)
+			BulletArt.draw(game, b, art_detail, game.boss_time_stop_timer > 0.0)
 			if bool(b.get("reflected", false)):
 				_draw_reflected(b, point, radius)
 			continue

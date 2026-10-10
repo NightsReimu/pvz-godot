@@ -8,6 +8,8 @@ const Phase = preload("res://scripts/runtime/touhou_phase_runtime.gd")
 const Eosd = preload("res://scripts/runtime/eosd_danmaku.gd")
 const Pcb = preload("res://scripts/runtime/pcb_danmaku.gd")
 const Night = preload("res://scripts/runtime/imperishable_road_danmaku.gd")
+const Moon = preload("res://scripts/runtime/imperishable_finale_danmaku.gd")
+const Kit = preload("res://scripts/runtime/touhou_canon_kit.gd")
 var failures := 0
 
 class Probe extends Game:
@@ -78,6 +80,7 @@ func _run() -> void:
 	_test_every_card_emits()
 	_test_scarlet_mechanics()
 	_test_cherry_and_night_mechanics()
+	_test_eternal_night_mechanics()
 	print("Touhou canon patterns: %d failure(s)" % failures)
 	quit(1 if failures else 0)
 
@@ -92,7 +95,7 @@ func _test_routes() -> void:
 	check(ids("letty_boss", level("2-25", "easy")) == ["th07-003", "th07-007"] and ids("letty_boss", level("2-25", "lunatic")) == ["th07-006", "th07-010"], "Letty's per-difficulty numbers")
 	check(entry_for("letty_boss", level("2-25", "hard"), "undulation_ray").size() > 0 and entry_for("letty_boss", level("2-25", "lunatic"), "table_turning").size() > 0, "Undulation Ray on Hard, Table Turning on Lunatic")
 	check(ids("chen_boss", level("2-26", "lunatic")) == ["th07-014", "th07-018", "th07-022", "th07-026"], "Lunatic Chen")
-	check(ids("alice_boss", level("2-27", "lunatic")) == ["th07-032", "th07-036", "th07-040", "th07-044"], "Lunatic Alice")
+	check(ids("alice_boss", level("2-27", "lunatic")) == ["th07-028", "th07-032", "th07-036", "th07-040", "th07-044"], "Lunatic Alice")
 	check(ids("youmu_boss", level("2-29", "hard")) == ["th07-071", "th07-075", "th07-079", "th07-083", "th07-087"], "Hard Youmu")
 	check(ids("youmu_boss", level("2-30", "lunatic")) == ["th07-092"], "Stage 6 Youmu's Immeasurable Aeons uses its Lunatic number")
 	check(ids("yuyuko_boss", level("2-30", "easy"))[0] == "th07-093", "Easy Yuyuko uses her Easy cards")
@@ -100,6 +103,9 @@ func _test_routes() -> void:
 	check(stygian.size() > 0 and String(stygian[0]) == "th07-063" and String(stygian[1]).contains("Stygian Riverside"), "Hard Prismriver ends on Stygian Riverside")
 	check(ids("wriggle_boss", level("3-19", "easy")) == ["th08-003", "th08-007"] and ids("wriggle_boss", level("3-19", "lunatic")) == ["th08-002", "th08-006", "th08-010", "th08-013"], "Wriggle's per-difficulty route")
 	check(ids("mystia_boss", level("3-20", "normal")) == ["th08-015", "th08-019", "th08-023", "th08-027", "th08-030"], "Normal Mystia's route")
+	check(ids("cirno_boss", level("2-25", "hard")).has("th07-001") and ids("cirno_boss", level("2-25", "lunatic")).has("th07-002") and not ids("cirno_boss", level("2-25", "normal")).has("th07-001"), "TH07 road Cirno declares Frost Columns on Hard/Lunatic only")
+	check(ids("alice_boss", level("2-27", "hard"))[0] == "th07-027" and ids("alice_boss", level("2-27", "lunatic"))[0] == "th07-028", "Hard/Lunatic Alice opens with Maiden's Bunraku")
+	check(ids("kaguya_boss", level("3-24-b", "lunatic")).size() == 10 and ids("eirin_boss", level("3-24-a", "hard"))[0] == "th08-126", "Stage 6 routes keep their per-difficulty numbers")
 	check(ids("keine_boss", level("3-21", "easy"))[0] == "th08-033" and ids("keine_boss", level("3-21", "hard")).has("th08-042"), "Keine's Easy First Pyramid and Hard Yoshimitsu Crisis")
 	var kana := RegEx.new()
 	kana.compile("[\\x{3041}-\\x{30ff}]")
@@ -118,6 +124,9 @@ func _test_every_card_emits() -> void:
 	for config in CONFIGS:
 		for tier in ["easy", "lunatic"]:
 			configs.append([config[0], config[1], tier])
+	for stage6 in [["3-24-a", "eirin_boss"], ["3-24-b", "kaguya_boss"]]:
+		for tier in ["easy", "lunatic"]:
+			configs.append([stage6[0], stage6[1], tier])
 	for extra in [["1-23", "flandre_boss"], ["1-23", "patchouli_boss"], ["2-31", "ran_boss"], ["2-31", "yukari_boss"], ["2-31", "chen_boss"]]:
 		configs.append([extra[0], extra[1], "extra_plus"])
 	for config in configs:
@@ -125,7 +134,7 @@ func _test_every_card_emits() -> void:
 		for phase in Spells.phases_for(config[1], lv):
 			for entry in phase:
 				var pattern := String(entry[2])
-				if not (Eosd.owns(pattern) or Pcb.owns(pattern) or Night.owns(pattern)) or seen.has(pattern + config[2]): continue
+				if not (Eosd.owns(pattern) or Pcb.owns(pattern) or Night.owns(pattern) or Moon.owns(pattern)) or seen.has(pattern + config[2]): continue
 				seen[pattern + config[2]] = true
 				var g := cast(config[1], lv, entry)
 				var dm = g.touhou_danmaku
@@ -239,4 +248,41 @@ func _test_cherry_and_night_mechanics() -> void:
 	var first := Vector2(g.touhou_danmaku.casts[0].dive)
 	g.touhou_danmaku.update(0.5)
 	check(Vector2(g.touhou_danmaku.casts[0].dive).distance_to(first) > 40.0, "Ill-Starred Dive swoops across the lawn")
+	done(g)
+
+func _test_eternal_night_mechanics() -> void:
+	# Life Game: a colony of placed bullets that changes every generation.
+	var lv := level("3-24-a", "normal")
+	var g := cast("eirin_boss", lv, entry_for("eirin_boss", lv, "eirin_life"))
+	var first: Array = g.touhou_danmaku.casts[0].life.duplicate()
+	var placed: Array = _bullets(g).filter(func(b): return Vector2(b.velocity).length() < 1.0)
+	check(placed.size() >= 3, "Life Game places its colony as standing bullets")
+	g.touhou_danmaku.update(0.7)
+	check(g.touhou_danmaku.casts[0].life != first, "the colony moves on to its next generation")
+	done(g)
+	# Heaven and Earth in a Jar: the familiar ring closes in.
+	var road: Array = Spells.Eirin.road_card(lv)
+	g = cast("eirin_boss", lv, road)
+	var c: Dictionary = g.touhou_danmaku.casts[0]
+	var board := Rect2(g.BOARD_ORIGIN, g.board_size)
+	var wide: float = Moon.vessel_points(c, board)[0].distance_to(Moon.vessel_points(c, board)[4])
+	g.touhou_danmaku.update(3.0)
+	check(Moon.vessel_points(c, board)[0].distance_to(Moon.vessel_points(c, board)[4]) < wide - 20.0, "the jar's familiars creep inward")
+	done(g)
+	# Kaguya: the Dragon's Neck jewels arc back down; the first Imperishable
+	# Night flings medium bullets out that later turn on the plants.
+	lv = level("3-24-b", "normal")
+	g = cast("kaguya_boss", lv, entry_for("kaguya_boss", lv, "kaguya_dragon"))
+	check(g.touhou_danmaku.beams.size() >= 1 and _bullets(g).any(func(b): return b.has("gravity_vec")), "Dragon's Neck: an aimed laser and lobbed five-colour jewels")
+	done(g)
+	g = cast("kaguya_boss", lv, entry_for("kaguya_boss", lv, "kaguya_night_0"))
+	var flung: Array = _bullets(g).filter(func(b): return String(b.shape) == "big")
+	check(flung.size() == 2 and flung.all(func(b): return absf(Vector2(b.velocity).y) > absf(Vector2(b.velocity).x)), "two medium bullets fly out to the sides")
+	g.touhou_danmaku.update(1.0)
+	check(flung.all(func(b): return Vector2(b.velocity).x < 0.0), "and then turn on the plants")
+	done(g)
+	# Cards whose pressure varies by difficulty carry one factor per rank.
+	var probe := {"pattern": "probe_card", "kind": "kaguya_boss", "phase": 0}
+	g = cast("kaguya_boss", level("3-24-b", "hard"), entry_for("kaguya_boss", level("3-24-b", "hard"), "kaguya_bowl"))
+	check(is_equal_approx(Kit.factor(g.touhou_danmaku, probe, {"probe_card": [0.5, 1.0, 1.5, 2.0]}), 1.5), "per-rank card factors follow the chosen difficulty")
 	done(g)

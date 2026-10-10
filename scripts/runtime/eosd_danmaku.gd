@@ -20,7 +20,7 @@ const PATTERNS := [
 ]
 # Per-card damage factors keep each reworked card at the pressure of the
 # version it replaced (fixed-formation probe against v1.0.184).
-const TUNE := {"agni": 1.303, "and_then_none": 1.5, "blizzard": 1.745, "catadioptric": 0.658, "clock_corpse": 0.437, "cranberry": 1.172, "cromlech": 1.931, "david": 1.767, "demarcation": 1.5, "eternal_meek": 1.603, "fairy_aim": 0.73, "flower": 1.664, "forest_blaze": 2.543, "four_of_a_kind": 1.298, "hailstorm": 0.376, "icicle": 1.176, "kagome": 2.6, "kasou_mukatsu": 0.609, "laevatein": 0.15, "library_orbs": 0.399, "luna_clock": 0.445, "marionette": 2.022, "maze": 2.6, "mercury": 2.109, "moonlight_ray": 0.835, "night_bird": 1.345, "nonspell_crystal_fan": 1.655, "nonspell_dark_fan": 1.301, "nonspell_element_orbits": 1.817, "nonspell_knife_fan": 1.284, "nonspell_rainbow_spiral": 0.537, "nonspell_scarlet_crossfire": 0.811, "past_clock": 0.293, "perfect_freeze": 1.516, "philosophers_stone": 1.72, "rainbow_rain": 0.541, "red_magic": 0.631, "royal_flare": 1.744, "saikou_ranbu": 0.446, "scarlet_gensokyo": 0.947, "scarlet_meister": 1.78, "scarlet_nether": 0.739, "scarlet_shoot": 1.188, "silent_selene": 0.785, "starbow": 1.5, "thousand_needles": 1.303, "trilithon": 1.302, "trilithon_shake": 1.296, "typhoon": 1.298, "vampire_illusion": 2.197, "young_demon_lord": 0.676}
+const TUNE := {"agni": [2.063, 1.713, 1.577, 1.206], "and_then_none": [1.5, 1.5, 1.5, 1.752], "blizzard": [1.739, 1.473, 1.369, 1.745], "catadioptric": 0.658, "clock_corpse": [0.437, 0.455, 0.423, 0.437], "cranberry": 1.172, "cromlech": [2.28, 1.931, 1.931, 1.931], "david": 1.767, "demarcation": [1.5, 1.5, 1.5, 1.154], "eternal_meek": 1.603, "fairy_aim": [0.7, 0.593, 0.73, 0.73], "flower": [1.913, 1.664, 1.664, 1.664], "forest_blaze": [2.543, 2.543, 2.6, 2.543], "four_of_a_kind": [1.298, 1.298, 1.298, 1.708], "hailstorm": [0.376, 0.376, 0.417, 0.319], "icicle": [1.415, 1.198, 1.176, 1.176], "kagome": 2.6, "kasou_mukatsu": 0.609, "laevatein": [0.15, 0.141, 0.131, 0.1], "library_orbs": [0.413, 0.35, 0.399, 0.399], "luna_clock": 0.445, "marionette": 2.022, "maze": 2.6, "mercury": [2.6, 2.513, 2.336, 2.109], "misdirection": [1.0, 1.0, 1.0, 0.847], "moonlight_ray": 0.835, "night_bird": [1.622, 1.414, 1.31, 1.002], "nonspell_crystal_fan": [1.655, 1.655, 1.655, 1.927], "nonspell_dark_fan": [1.441, 1.221, 1.301, 1.301], "nonspell_element_orbits": [1.569, 1.817, 2.241, 1.817], "nonspell_ice_fan": [1.007, 0.853, 0.792, 0.803], "nonspell_knife_fan": [1.284, 1.091, 1.667, 1.284], "nonspell_rainbow_spiral": [0.747, 0.632, 0.587, 0.537], "nonspell_scarlet_crossfire": [0.811, 0.811, 0.918, 0.702], "past_clock": 0.293, "perfect_freeze": [0.949, 1.592, 1.48, 2.167], "philosophers_stone": [2.031, 1.72, 1.72, 1.486], "qed": [1.0, 1.0, 1.0, 0.861], "rainbow": [0.982, 1.013, 0.941, 1.0], "rainbow_rain": 0.541, "red_magic": 0.631, "royal_flare": [2.059, 1.744, 1.744, 1.451], "saikou_ranbu": 0.446, "scarlet_gensokyo": 0.947, "scarlet_meister": [1.78, 1.565, 1.455, 1.78], "scarlet_nether": 0.739, "scarlet_shoot": 1.188, "selaginella": [1.0, 1.0, 1.0, 1.2], "silent_selene": [0.925, 0.785, 0.785, 0.682], "starbow": 1.5, "thousand_needles": [1.303, 1.303, 1.303, 1.53], "trilithon": [1.537, 1.302, 1.302, 1.302], "trilithon_shake": [1.296, 1.296, 1.533, 1.296], "typhoon": [1.298, 1.123, 1.298, 1.298], "vampire_illusion": 2.197, "vlad": [1.0, 1.076, 1.0, 1.0], "young_demon_lord": 0.676}
 const RATE := {"agni": 1.73, "cromlech": 2.0, "demarcation": 2.0, "forest_blaze": 2.0, "four_of_a_kind": 1.61, "kagome": 2.0, "maze": 1.3, "mercury": 1.2, "nonspell_dark_fan": 1.75, "nonspell_element_orbits": 2.0, "starbow": 2.0, "thousand_needles": 1.48, "trilithon": 1.51, "trilithon_shake": 1.64, "typhoon": 1.75, "vampire_illusion": 1.2}
 const DURATIONS := {}
 
@@ -658,7 +658,7 @@ static func _flandre(dm: RefCounted, c: Dictionary) -> void:
 			var swing := w % 6
 			if swing == 0:
 				var dir := 1.0 if (w / 6) % 2 == 0 else -1.0
-				Kit.ray(dm, c, TUNE, o, PI - dir * 1.1, Color("ff6a3a"), 0.85, 15.0, 1.55, {"turn_rate": dir * 1.42, "laevatein": true})
+				Kit.ray(dm, c, TUNE, o, PI - dir * 1.1, Color("ff6a3a"), 0.85, 12.0, 1.55, {"turn_rate": dir * 1.42, "laevatein": true})
 				c["swing_dir"] = dir
 				c["swing_start"] = t
 			elif swing < 5:
@@ -851,6 +851,12 @@ static func draw_cast(game: Control, c: Dictionary) -> void:
 				if live > 0.0 and live < 1.55:
 					var dir := float(c.get("swing_dir", 1.0))
 					var blade := PI - dir * 1.1 + dir * 1.42 * live
-					for k in range(14):
-						var spot := o + Vector2.from_angle(blade) * (60.0 + k * 55.0) * u + Vector2.from_angle(blade).orthogonal() * sin(t * 20.0 + k) * 6.0 * u
-						Glyphs.draw(game, spot, (12.0 - k * 0.4) * u, "flame", blade + PI * 0.5, Color(1, 0.55 + 0.03 * k, 0.25, 0.55))
+					var axis := Vector2.from_angle(blade)
+					var reach := board.size.length()
+					# The flame sword: a burning band with a white-hot edge and
+					# tongues of fire licking off the trailing side.
+					game.draw_line(o, o + axis * reach, Color(1, 0.35, 0.15, 0.22), 34.0 * u, true)
+					game.draw_line(o, o + axis * reach, Color(1, 0.6, 0.25, 0.35), 18.0 * u, true)
+					for k in range(16):
+						var spot := o + axis * (50.0 + k * 62.0) * u - axis.orthogonal() * dir * (8.0 + 6.0 * sin(t * 18.0 + k)) * u
+						Glyphs.draw(game, spot, (15.0 - k * 0.5) * u, "flame", blade - dir * PI * 0.5, Color(1, 0.5 + 0.025 * k, 0.2, 0.75))

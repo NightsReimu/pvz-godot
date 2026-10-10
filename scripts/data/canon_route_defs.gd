@@ -9,6 +9,7 @@ extends RefCounted
 const VARIANTS := {
 	"rumia_boss": {},
 	"cirno_boss": {
+		"th07-001": {3: ["th07-002", "", ""]},
 		"th06-04": {2: ["th06-05", "雹符「Hailstorm」", "hailstorm"], 3: ["th06-05", "雹符「Hailstorm」", "hailstorm"]},
 	},
 	"meiling_boss": {
@@ -43,6 +44,7 @@ const VARIANTS := {
 		"th07-024": {0: ["th07-023", "", ""], 2: ["th07-025", "鬼符「鬼门金神」", ""], 3: ["th07-026", "方符「奇门遁甲」", ""]},
 	},
 	"alice_boss": {
+		"th07-027": {3: ["th07-028", "", ""]},
 		"th07-030": {0: ["th07-029", "", ""], 2: ["th07-031", "", ""], 3: ["th07-032", "苍符「博爱的奥尔良人偶」", ""]},
 		"th07-034": {0: ["th07-033", "", ""], 2: ["th07-035", "白符「白垩的俄罗斯人偶」", ""], 3: ["th07-036", "白符「白垩的俄罗斯人偶」", ""]},
 		"th07-038": {0: ["th07-037", "", ""], 2: ["th07-039", "回符「轮回的西藏人偶」", ""], 3: ["th07-040", "雅符「春之京都人偶」", ""]},
@@ -78,7 +80,11 @@ const HARD_INSERTS := [
 	["rumia_boss", 0, ["th06-01", "月符「Moonlight Ray」", "moonlight_ray", "dark"]],
 	["meiling_boss", 2, ["th06-11", "幻符「华想梦葛」", "kasou_mukatsu", "rainbow"]],
 	["patchouli_boss", 4, ["th06-29", "木&火符「Forest Blaze」", "forest_blaze", "fire"]],
+	["alice_boss", 0, ["th07-027", "操符「少女文乐」", "otome_bunraku", "marionette"]],
 ]
+
+# TH07 Stage 1's road Cirno declares Frost Columns on Hard and Lunatic.
+const CIRNO_ROAD_HARD := ["th07-001", "霜符「Frost Columns」", "frost_columns", "icicle"]
 
 # TH08 Stage 1 and 2 follow their per-difficulty lists exactly.
 const WRIGGLE := {

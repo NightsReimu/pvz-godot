@@ -52,13 +52,21 @@ static func at(c: Dictionary, time: float) -> void:
 	# Absolute deadline for cards whose beats are fixed in the original.
 	c.next_wave = time
 
-static func damage(c: Dictionary, tune: Dictionary) -> float:
+static func factor(dm: RefCounted, c: Dictionary, tune: Dictionary) -> float:
+	# A card's factor is one number, or one per difficulty rank where a card's
+	# structure changes its pressure from rank to rank.
+	var value = tune.get(String(c.pattern), 1.0)
+	if value is Array:
+		return float(value[clampi(rank(dm), 0, value.size() - 1)])
+	return float(value)
+
+static func damage(dm: RefCounted, c: Dictionary, tune: Dictionary) -> float:
 	var base: float = 32.0 + float(c.get("phase", 0)) * 6.0
-	return base * float(tune.get(String(c.pattern), 1.0))
+	return base * factor(dm, c, tune)
 
 static func shoot(dm: RefCounted, c: Dictionary, tune: Dictionary, from: Vector2, angle: float, speed: float, color: Color, shape: String = "orb", radius: float = 6.0, extra: Dictionary = {}) -> void:
 	var u := unit(dm)
-	var data := {"radius": radius * u, "damage": damage(c, tune) * float(extra.get("dmg", 1.0)), "cm": true, "facing": angle, "spin_phase": noise(int(c.wave) * 31 + dm.bullets.size(), 5) * TAU}
+	var data := {"radius": radius * u, "damage": damage(dm, c, tune) * float(extra.get("dmg", 1.0)), "cm": true, "facing": angle, "spin_phase": noise(int(c.wave) * 31 + dm.bullets.size(), 5) * TAU}
 	for key in extra:
 		if key != "dmg":
 			data[key] = extra[key]
@@ -97,7 +105,7 @@ static func ring(dm: RefCounted, c: Dictionary, tune: Dictionary, from: Vector2,
 
 static func beam(dm: RefCounted, c: Dictionary, tune: Dictionary, from: Vector2, to: Vector2, color: Color, delay: float, width: float, duration: float = 0.4, extra: Dictionary = {}) -> void:
 	var u := unit(dm)
-	var data := {"damage": (68.0 + float(c.get("phase", 0)) * 8.0) * float(tune.get(String(c.pattern), 1.0)) * float(extra.get("dmg", 1.0)), "duration": duration, "cm": true}
+	var data := {"damage": (68.0 + float(c.get("phase", 0)) * 8.0) * factor(dm, c, tune) * float(extra.get("dmg", 1.0)), "duration": duration, "cm": true}
 	for key in extra:
 		if key != "dmg":
 			data[key] = extra[key]

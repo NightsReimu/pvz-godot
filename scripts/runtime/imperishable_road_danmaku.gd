@@ -11,7 +11,7 @@ const PATTERNS := [
 	"nonspell_mystia_song", "mystia_owl", "mystia_moth", "mystia_dive", "mystia_nightblind", "mystia_chorus",
 	"nonspell_keine_scrolls", "keine_pyramid", "keine_ephemerality", "keine_masakado", "keine_crisis", "keine_treasures", "keine_mirror", "keine_emperor", "keine_legend", "keine_takamagahara",
 ]
-const TUNE := {"keine_crisis": 0.57, "keine_emperor": 1.655, "keine_ephemerality": 1.438, "keine_legend": 1.298, "keine_masakado": 0.615, "keine_mirror": 1.757, "keine_pyramid": 1.5, "keine_takamagahara": 1.242, "keine_treasures": 1.824, "mystia_chorus": 1.868, "mystia_dive": 1.286, "mystia_moth": 0.796, "mystia_nightblind": 1.954, "mystia_owl": 2.504, "nonspell_keine_scrolls": 0.749, "nonspell_mystia_song": 0.818, "wriggle_bugs": 0.903, "wriggle_final": 1.966, "wriggle_firefly": 0.653, "wriggle_meteor": 0.565}
+const TUNE := {"keine_crisis": 0.57, "keine_emperor": 1.655, "keine_ephemerality": [1.438, 1.438, 1.603, 1.225], "keine_legend": [1.298, 1.298, 1.298, 1.653], "keine_masakado": 0.615, "keine_mirror": 1.757, "keine_pyramid": 1.5, "keine_takamagahara": 1.242, "keine_treasures": 1.824, "mystia_chorus": 1.868, "mystia_dive": [1.505, 1.286, 1.286, 1.286], "mystia_moth": [0.796, 0.796, 0.796, 1.017], "mystia_nightblind": [1.909, 1.746, 1.623, 2.302], "mystia_owl": [2.6, 2.438, 2.266, 2.504], "nonspell_keine_scrolls": [0.749, 0.64, 0.749, 0.749], "nonspell_mystia_song": [0.904, 0.765, 0.818, 0.818], "nonspell_wriggle_night_swarm": [1.014, 0.859, 1.075, 1.0], "wriggle_bugs": [1.167, 1.335, 1.241, 1.013], "wriggle_final": [1.966, 2.115, 1.966, 1.966], "wriggle_firefly": [0.698, 0.591, 0.653, 0.549], "wriggle_meteor": [0.565, 0.487, 0.84, 0.642]}
 const RATE := {"keine_legend": 1.61, "keine_pyramid": 2.0, "keine_treasures": 2.0, "mystia_moth": 1.0, "mystia_nightblind": 2.0, "mystia_owl": 1.6, "wriggle_bugs": 1.9, "wriggle_final": 1.73}
 const DURATIONS := {}
 const GLOW := Color("c8f070")
@@ -258,7 +258,7 @@ static func draw_cast(game: Control, c: Dictionary) -> void:
 		"mystia_boss":
 			if p == "mystia_nightblind":
 				# Night blindness: the far lawn sinks into darkness.
-				var dark := 0.35 * fade
+				var dark := 0.55 * fade
 				for k in range(6):
 					var x := board.position.x + board.size.x * (0.35 + k * 0.11)
 					game.draw_rect(Rect2(Vector2(x, board.position.y), Vector2(board.end.x - x, board.size.y)), Color(0.03, 0.02, 0.08, dark / 6.0), true)

@@ -6,7 +6,7 @@
 
 ![v1.0.153 幻想庭院主页面原生截图](docs/readme/ui-v153.png)
 
-**Godot 4.6.3** · **当前版本 v1.0.185** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
+**Godot 4.6.3** · **当前版本 v1.0.186** · **Windows / macOS / Web / Android** · **横屏 1600x900 基准布局**
 
 [在线试玩](https://nightsreimu.github.io/pvz-godot/) · [下载最新版](https://github.com/NightsReimu/pvz-godot/releases/latest) · [版本历史](https://github.com/NightsReimu/pvz-godot/releases) · [提交问题](https://github.com/NightsReimu/pvz-godot/issues)
 
@@ -32,6 +32,10 @@
 | 自动测试入口（188 个 Godot、22 个 Python） | 210 |
 
 数据会随开发变化，实际内容以当前 `main` 分支和最新 Release 为准。
+
+**v1.0.186 永琳与辉夜符卡还原、按难度校准与演出优化**：3-24 的八意永琳、蓬莱山辉夜按永夜抄原作重做：收拢的壶中使魔、按生命游戏繁衍的设置弹、Omoikane 的摆动 winder、随机交错的 Apollo 13，辉夜五个难题（抛物线五色宝玉、随机激光封路、火鼠皮衣、燕的子安贝、反弹的七色弹枝）与五张各不相同的永夜归返。新增原作 Hard/Lunatic 的 Frost Columns 与少女文乐；灵梦、魔理沙、铃仙、妹红、萃香获得施法效果，莱瓦汀炎剑更醒目；子弹按数量降低绘制细节，密集时帧时间与 v1.0.184 持平；伤害系数按难度校准，467 个卡 / 难度组合中 449 个在上一基准 ±25% 以内。[版本说明](docs/releases/v1.0.186.md) · [原作对照与验证](docs/plans/2026-10-09-touhou-canon-rework.md)。
+
+![永琳与辉夜符卡还原：龙颈之玉、佛御石之钵、生命游戏、永夜归返、天人的族谱与莱瓦汀的原生截图](docs/readme/touhou-stage6-cards-v186.jpg)
 
 **v1.0.185 红魔乡、妖妖梦、永夜抄符卡还原与演出美化**：风神录以外的东方 Boss（1-17～1-23、2-25～2-31、3-19～3-21）按原作重做弹幕结构：冰柱先上后落的 Icicle Fall、冻结时变白的 Perfect Freeze、彩虹风铃与彩雨、五行元素球与水银之毒、先乱射后时停的 Clock Corpse 与布满飞刀的 Luna Clock、草坪上的六芒星激光与会反弹拖尾的 Red Magic、横扫全场的莱瓦汀、笼目格子、钟面激光指针、燕尾蝶轮廓、西行妖花瓣、萤火蛰居与夜盲等。各难度换上原作各自的符卡编号与名称（如 Hailstorm、The World、Stygian Riverside、三魂七魄），并更正了莉格露、米斯蒂娅的符卡表；咲夜只在时间类符卡停止时间。子弹全部重绘，激光带预告线，30 位 Boss 有了各自的宣言符号、魔法阵与施法光环；每张卡的伤害压力按上一版校准。[版本说明](docs/releases/v1.0.185.md) · [原作对照与验证](docs/plans/2026-10-09-touhou-canon-rework.md)。
 

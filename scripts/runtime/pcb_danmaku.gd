@@ -10,14 +10,14 @@ const PATTERNS := [
 	"cold_nonspell", "frost_columns",
 	"nonspell_snow_curtain", "lingering_cold", "wither", "undulation_ray", "table_turning",
 	"nonspell_shikigami_crossfire", "phoenix_egg", "seiman", "tianxian", "shijie", "blue_red_oni", "bishamonten",
-	"nonspell_doll_fan", "france", "holland", "london", "shanghai",
+	"nonspell_doll_fan", "otome_bunraku", "france", "holland", "london", "shanghai",
 	"spring_nonspell",
 	"nonspell_sword_fan", "gaki", "two_hundred_yojana", "animal_realm", "human_realm", "five_signs", "immeasurable_kalpas",
 	"nonspell_butterfly_fan", "lost_soul", "mortal_butterfly", "swallowtail", "hirokawa", "sumizome", "resurrection_butterfly",
 	"nonspell_fox_spiral", "senko", "twelve_generals", "fox_laser", "charming_siege", "princess_tenko", "buddhist", "contact", "shikigami_chen", "kokkuri", "izuna",
 	"nonspell_gap_crossfire", "dream_reality", "motion_stillness", "light_dark_mesh", "straight_curve", "spiriting_away", "zen_butterfly", "double_butterfly", "shikigami_ran", "human_youkai", "life_death", "danmaku_barrier",
 ]
-const TUNE := {"bishamonten": 0.838, "blue_red_oni": 0.803, "buddhist": 1.791, "cold_nonspell": 0.685, "contact": 1.332, "dream_reality": 1.325, "five_signs": 0.678, "fox_laser": 0.318, "france": 1.445, "gaki": 0.594, "hirokawa": 0.404, "holland": 1.27, "human_youkai": 1.304, "immeasurable_kalpas": 1.201, "izuna": 1.302, "kokkuri": 1.461, "life_death": 0.822, "light_dark_mesh": 1.519, "london": 0.757, "lost_soul": 0.606, "mortal_butterfly": 0.444, "nonspell_doll_fan": 0.711, "nonspell_fox_spiral": 1.212, "nonspell_gap_crossfire": 1.527, "nonspell_shikigami_crossfire": 0.764, "nonspell_snow_curtain": 1.388, "nonspell_sword_fan": 0.79, "princess_tenko": 1.296, "seiman": 1.773, "senko": 2.035, "shanghai": 1.88, "shikigami_ran": 0.847, "straight_curve": 1.239, "sumizome": 0.363, "swallowtail": 0.571, "table_turning": 2.357, "tianxian": 1.402, "twelve_generals": 0.688, "two_hundred_yojana": 2.351, "undulation_ray": 0.454, "wither": 0.693}
+const TUNE := {"animal_realm": [1.175, 0.995, 0.925, 0.707], "bishamonten": 0.838, "blue_red_oni": 0.803, "buddhist": 1.791, "charming_siege": 1.0, "cold_nonspell": [0.809, 0.685, 0.685, 0.685], "contact": 1.332, "danmaku_barrier": 1.0, "double_butterfly": [1.181, 1.0, 1.0, 1.0], "dream_reality": 1.325, "five_signs": 0.678, "fox_laser": 0.318, "france": [1.118, 1.445, 1.686, 1.948], "frost_columns": [0.758, 0.642, 0.597, 0.69], "gaki": [0.771, 0.652, 0.606, 0.467], "hirokawa": [0.477, 0.404, 0.404, 0.314], "holland": [1.487, 1.27, 1.27, 1.27], "human_realm": 1.0, "human_youkai": 1.304, "immeasurable_kalpas": 1.201, "izuna": [1.302, 1.302, 1.302, 1.051], "kokkuri": 1.461, "life_death": 0.822, "light_dark_mesh": 1.519, "lingering_cold": [1.334, 1.128, 1.048, 0.86], "london": [0.924, 0.782, 0.782, 0.757], "lost_soul": [0.606, 0.652, 0.606, 0.606], "mortal_butterfly": [0.444, 0.478, 0.444, 0.444], "motion_stillness": 1.0, "nonspell_butterfly_fan": [1.181, 1.0, 1.0, 1.0], "nonspell_doll_fan": [0.711, 0.711, 0.711, 1.125], "nonspell_fox_spiral": [0.947, 1.212, 1.212, 1.682], "nonspell_gap_crossfire": 1.527, "nonspell_shikigami_crossfire": [0.764, 0.764, 0.972, 0.764], "nonspell_snow_curtain": 1.388, "nonspell_sword_fan": [0.79, 0.79, 0.96, 0.79], "otome_bunraku": [1.0, 1.0, 1.621, 1.516], "phoenix_egg": [1.0, 1.076, 1.0, 0.769], "princess_tenko": [1.516, 1.296, 1.296, 1.296], "seiman": [1.328, 1.773, 1.773, 1.773], "senko": [2.035, 2.035, 2.035, 2.6], "shanghai": 1.88, "shijie": [0.842, 1.0, 1.0, 1.0], "shikigami_chen": 1.0, "shikigami_ran": 0.847, "spiriting_away": 1.0, "spring_nonspell": [0.882, 0.747, 1.0, 0.861], "straight_curve": 1.239, "sumizome": [0.445, 0.377, 0.35, 0.298], "swallowtail": [0.476, 0.571, 0.571, 0.571], "table_turning": 2.357, "tianxian": [1.402, 1.402, 1.336, 1.021], "twelve_generals": 0.688, "two_hundred_yojana": 2.351, "undulation_ray": 0.454, "wither": 0.693, "zen_butterfly": [1.181, 1.0, 1.0, 1.0]}
 const RATE := {"buddhist": 2.0, "human_youkai": 1.59, "izuna": 1.52, "kokkuri": 2.0, "princess_tenko": 1.69, "senko": 2.0, "swallowtail": 2.0, "table_turning": 2.0, "twelve_generals": 1.5}
 const DURATIONS := {}
 const SAKURA := Color("f7a8c8")
@@ -32,6 +32,13 @@ static func duration(_card: Dictionary, pattern: String, fallback: float) -> flo
 
 static func update_actors(dm: RefCounted, c: Dictionary) -> bool:
 	match String(c.pattern):
+		"otome_bunraku":
+			# Maiden's Bunraku: five dolls dance in a line on their strings.
+			var board := Kit.board(dm)
+			for i in range(5):
+				var sway := sin(float(c.age) * 1.6 + i * 0.9)
+				dm._actor(c, i, "alice_doll_zombie", Vector2(board.position.x + board.size.x * (0.62 + 0.12 * sway), board.position.y + board.size.y * (0.12 + i * 0.19) + 18.0 * cos(float(c.age) * 2.2 + i)))
+			return true
 		"spiriting_away":
 			# Yukari herself steps out of a gap that moves about the lawn.
 			var board := Kit.board(dm)
@@ -205,6 +212,18 @@ static func _alice(dm: RefCounted, c: Dictionary) -> void:
 			for doll in dolls:
 				_fan(dm, c, doll, 3, PI + sin(t + doll.y) * 0.25, 0.5, 150.0, Kit.BLUE, "orb", 5.5)
 			Kit.next(dm, c, 0.42)
+		"otome_bunraku":
+			# Maiden's Bunraku: the dancing dolls take turns - a short aimed
+			# burst each, then all five open into rings together.
+			if w % 4 == 3:
+				for doll in dolls:
+					_ring(dm, c, doll, Kit.count(dm, c, 8), w * 0.4, 105.0, Color("f0d080"), "orb", 5.5)
+			else:
+				for i in range(dolls.size()):
+					if (i + w) % 2 == 0:
+						var doll: Vector2 = dolls[i]
+						_fan(dm, c, doll, 3, Kit.aim(dm, doll), 0.3, 160.0, Kit.BLUE, "rice", 5.0)
+			Kit.next(dm, c, 0.3)
 		"france":
 			# Charitable French Doll (Orleans): each doll fires a fixed blue
 			# cross that rotates with her, plus aimed shots.

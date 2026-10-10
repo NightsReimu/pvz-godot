@@ -32,12 +32,21 @@ static func _ellipse(center: Vector2, axis: Vector2, a: float, c: float, steps: 
 		points.append(center + axis * cos(t) * a + side * sin(t) * c)
 	return points
 
-static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: bool) -> void:
+static func draw(game: CanvasItem, b: Dictionary, detail: int, time_stopped: bool) -> void:
+	# detail 2: full art; 1: no glow halos; 0: one or two draw calls per bullet.
+	var halo := detail >= 2
 	var shape := String(b.shape)
 	var p := Vector2(b.position)
 	var tint := Color(b.color)
 	var r := float(b.radius) * VISUAL * float(b.get("visual_scale", 1.0))
 	var age := float(b.age)
+	if detail <= 0:
+		# Peak density: silhouette only, dimmed while still harmless.
+		if age < float(b.get("arming_time", 0.0)):
+			tint.a *= 0.45
+		var fast_axis := _axis(b)
+		_draw_fast(game, shape, p, fast_axis, fast_axis.orthogonal(), r, tint)
+		return
 	var armed := age >= float(b.get("arming_time", 0.0))
 	var frozen := bool(b.get("frozen", false)) or time_stopped
 	if bool(b.get("whiten", false)) and frozen:
@@ -49,13 +58,13 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 		tint.a *= 0.35 + 0.3 * grow
 	var axis := _axis(b)
 	var side := axis.orthogonal()
-	if crowded:
+	if detail <= 0:
 		_draw_fast(game, shape, p, axis, side, r, tint)
 	else:
 		match shape:
 			"orb", "big", "dream_orb":
 				var big := shape == "big" or r >= 11.0
-				game.draw_circle(p, r * (2.0 if big else 1.75), Color(tint, tint.a * (0.16 if big else 0.12)))
+				if halo: game.draw_circle(p, r * (2.0 if big else 1.75), Color(tint, tint.a * (0.16 if big else 0.12)))
 				game.draw_circle(p, r + 1.6, Color(INK, tint.a * 0.85))
 				game.draw_circle(p, r, tint)
 				if big:
@@ -63,12 +72,12 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 				game.draw_circle(p, r * (0.5 if big else 0.56), Color(WHITE, tint.a * 0.95))
 				game.draw_circle(p - Vector2(r, r) * 0.28, r * 0.16, Color(WHITE, tint.a))
 			"ring":
-				game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
+				if halo: game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
 				game.draw_arc(p, r, 0, TAU, 16, Color(INK, tint.a * 0.85), r * 0.62, true)
 				game.draw_arc(p, r, 0, TAU, 16, tint, r * 0.42, true)
 				game.draw_arc(p, r, 0, TAU, 16, Color(WHITE, tint.a * 0.8), maxf(1.0, r * 0.14), true)
 			"rice":
-				game.draw_circle(p, r * 1.5, Color(tint, tint.a * 0.1))
+				if halo: game.draw_circle(p, r * 1.5, Color(tint, tint.a * 0.1))
 				_outline(game, _ellipse(p, axis, r * 1.55, r * 0.68), tint, Color(INK, tint.a * 0.85), 1.3)
 				game.draw_line(p - axis * r * 0.8, p + axis * r * 0.8, Color(WHITE, tint.a * 0.95), maxf(1.0, r * 0.32), true)
 			"kunai":
@@ -87,7 +96,7 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 				game.draw_line(p - axis * r * 1.2, p + axis * r * 2.0, Color(WHITE, tint.a * 0.9), 1.0, true)
 			"ice":
 				var shard := PackedVector2Array([p + axis * r * 1.9, p + axis * r * 0.3 + side * r * 0.85, p - axis * r * 1.3 + side * r * 0.45, p - axis * r * 1.6, p - axis * r * 1.3 - side * r * 0.45, p + axis * r * 0.3 - side * r * 0.85])
-				game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
+				if halo: game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
 				_outline(game, shard, tint.lerp(WHITE, 0.25), Color(INK, tint.a * 0.75), 1.2)
 				game.draw_line(p - axis * r * 1.2, p + axis * r * 1.6, Color(WHITE, tint.a * 0.95), 1.1, true)
 				game.draw_line(p + side * r * 0.6, p - side * r * 0.6 + axis * r * 0.2, Color(WHITE, tint.a * 0.6), 1.0, true)
@@ -101,7 +110,7 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 				var star := PackedVector2Array()
 				for i in range(10):
 					star.append(p + Vector2.from_angle(spin - PI * 0.5 + TAU * i / 10.0) * r * (1.6 if i % 2 == 0 else 0.72))
-				game.draw_circle(p, r * 1.9, Color(tint, tint.a * 0.13))
+				if halo: game.draw_circle(p, r * 1.9, Color(tint, tint.a * 0.13))
 				_outline(game, star, tint, Color(INK, tint.a * 0.8), 1.2)
 				game.draw_circle(p, r * 0.42, Color(WHITE, tint.a * 0.95))
 			"note":
@@ -117,7 +126,7 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 			"butterfly", "moth":
 				var flap := 0.55 + 0.45 * absf(sin(age * (11.0 if shape == "butterfly" else 7.0) + float(b.get("spin_phase", 0.0))))
 				var wing_tint := tint.lerp(WHITE, 0.18)
-				game.draw_circle(p, r * 2.0, Color(tint, tint.a * 0.12))
+				if halo: game.draw_circle(p, r * 2.0, Color(tint, tint.a * 0.12))
 				for sign in [-1.0, 1.0]:
 					var upper := PackedVector2Array([p + axis * r * 0.2, p + axis * r * 1.25 + side * sign * r * 1.5 * flap, p - axis * r * 0.15 + side * sign * r * 1.7 * flap])
 					var lower := PackedVector2Array([p - axis * r * 0.1, p - axis * r * 0.4 + side * sign * r * 1.45 * flap, p - axis * r * 1.25 + side * sign * r * 0.7 * flap])
@@ -130,13 +139,13 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 				var petal_axis := Vector2.from_angle(spin)
 				var petal_side := petal_axis.orthogonal()
 				var leaf := PackedVector2Array([p + petal_axis * r * 1.5 + petal_side * r * 0.25, p + petal_axis * r * 1.15, p + petal_axis * r * 1.5 - petal_side * r * 0.25, p + petal_axis * r * 0.4 - petal_side * r * 0.8, p - petal_axis * r * 1.0 - petal_side * r * 0.3, p - petal_axis * r * 1.2, p - petal_axis * r * 1.0 + petal_side * r * 0.3, p + petal_axis * r * 0.4 + petal_side * r * 0.8])
-				game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
+				if halo: game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
 				_outline(game, leaf, tint.lerp(WHITE, 0.2), Color(tint.darkened(0.45), tint.a * 0.85), 1.1)
 				game.draw_line(p - petal_axis * r * 0.8, p + petal_axis * r * 0.7, Color(WHITE, tint.a * 0.6), 1.0, true)
 			"fire":
 				var flicker := 0.85 + 0.15 * sin(age * 31.0 + float(b.get("spin_phase", 0.0)))
 				var flame := PackedVector2Array([p + axis * r * 1.1, p + axis * r * 0.4 + side * r * 0.95, p - axis * r * 0.9 + side * r * 0.6, p - axis * r * 2.4 * flicker, p - axis * r * 0.9 - side * r * 0.6, p + axis * r * 0.4 - side * r * 0.95])
-				game.draw_circle(p, r * 2.0, Color(tint, tint.a * 0.16))
+				if halo: game.draw_circle(p, r * 2.0, Color(tint, tint.a * 0.16))
 				_outline(game, flame, tint, Color(tint.darkened(0.5), tint.a * 0.8), 1.2)
 				game.draw_circle(p + axis * r * 0.2, r * 0.6, Color(1, 0.95, 0.7, tint.a * 0.95))
 			"scale":
@@ -155,7 +164,7 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 					var t := TAU * i / 14.0
 					var swell := 1.0 - 0.6 * maxf(0.0, -cos(t))
 					drop.append(p + axis * cos(t) * r * (1.0 if cos(t) > 0 else 1.7) + side * sin(t) * r * swell)
-				game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
+				if halo: game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
 				_outline(game, drop, tint, Color(INK, tint.a * 0.8), 1.2)
 				game.draw_circle(p + axis * r * 0.2 - side * r * 0.3, r * 0.3, Color(WHITE, tint.a * 0.9))
 			"leaf":
@@ -177,19 +186,19 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 					var hx := 16.0 * pow(sin(t), 3)
 					var hy := 13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t)
 					heart.append(p + Vector2(hx, -hy) * r / 14.0)
-				game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
+				if halo: game.draw_circle(p, r * 1.7, Color(tint, tint.a * 0.12))
 				_outline(game, heart, tint, Color(INK, tint.a * 0.85), 1.2)
 				game.draw_circle(p + Vector2(-r * 0.35, -r * 0.3), r * 0.25, Color(WHITE, tint.a * 0.9))
 			"firefly":
 				var pulse := 0.6 + 0.4 * sin(age * 9.0 + float(b.get("spin_phase", 0.0)))
-				game.draw_circle(p, r * (2.2 + pulse * 0.6), Color(tint, tint.a * 0.14 * pulse + 0.05))
+				if halo: game.draw_circle(p, r * (2.2 + pulse * 0.6), Color(tint, tint.a * 0.14 * pulse + 0.05))
 				game.draw_circle(p, r * 1.05, Color(tint, tint.a))
 				game.draw_circle(p, r * 0.55, Color(1, 1, 0.85, tint.a))
 				for sign in [-1.0, 1.0]:
 					game.draw_line(p - axis * r * 0.2, p - axis * r * 0.9 + side * sign * r * 1.1, Color(WHITE, tint.a * 0.45), 1.0, true)
 			"ghost":
 				var wave := sin(age * 8.0 + float(b.get("spin_phase", 0.0)))
-				game.draw_circle(p, r * 2.0, Color(tint, tint.a * 0.15))
+				if halo: game.draw_circle(p, r * 2.0, Color(tint, tint.a * 0.15))
 				var tail := PackedVector2Array([p + side * r * 0.9, p - axis * r * 1.6 + side * r * 0.4 * wave, p - axis * r * 2.6 - side * r * 0.2 * wave, p - axis * r * 1.4 - side * r * 0.5, p - side * r * 0.9])
 				game.draw_colored_polygon(tail, Color(tint, tint.a * 0.55))
 				game.draw_circle(p, r + 1.2, Color(INK, tint.a * 0.5))
@@ -198,7 +207,7 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 			"bat":
 				var flap := sin(age * 14.0 + float(b.get("spin_phase", 0.0)))
 				var wing := PackedVector2Array([p + axis * r * 0.6, p + side * r * (1.9 + 0.3 * flap) + axis * r * 0.3, p + side * r * 1.4 - axis * r * 0.4, p + side * r * 0.6, p - axis * r * 0.7, p - side * r * 0.6, p - side * r * 1.4 - axis * r * 0.4, p - side * r * (1.9 + 0.3 * flap) + axis * r * 0.3])
-				game.draw_circle(p, r * 1.8, Color(tint, tint.a * 0.14))
+				if halo: game.draw_circle(p, r * 1.8, Color(tint, tint.a * 0.14))
 				_outline(game, wing, tint, Color(INK, tint.a * 0.9), 1.1)
 				game.draw_circle(p + axis * r * 0.25, r * 0.22, Color(1, 0.9, 0.5, tint.a))
 			"jewel":
@@ -206,7 +215,7 @@ static func draw(game: CanvasItem, b: Dictionary, crowded: bool, time_stopped: b
 				var gem := PackedVector2Array()
 				for i in range(6):
 					gem.append(p + Vector2.from_angle(spin + TAU * i / 6.0) * r * 1.25)
-				game.draw_circle(p, r * 2.0, Color(tint, tint.a * 0.16))
+				if halo: game.draw_circle(p, r * 2.0, Color(tint, tint.a * 0.16))
 				_outline(game, gem, tint, Color(INK, tint.a * 0.85), 1.2)
 				game.draw_colored_polygon(PackedVector2Array([gem[0], gem[1], p]), Color(WHITE, tint.a * 0.45))
 				game.draw_circle(p, r * 0.35, Color(WHITE, tint.a * 0.9))
